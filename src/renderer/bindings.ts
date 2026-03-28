@@ -20,6 +20,7 @@ import {
     addEvent,
     removeEvent,
 } from "./dom";
+import { Debug } from "../debug/events";
 
 /**
  * Bind a reactive expression to a Text node.
@@ -28,8 +29,21 @@ import {
  * @param compute - A function returning the latest text value.
  */
 export function bindText(node: Text, compute: () => any): void {
+    Debug.emit("binding:create", {
+        type: "text",
+        node,
+    });
+
     effect(() => {
-        setText(node, unwrap(compute()));
+        const value = unwrap(compute());
+
+        Debug.emit("binding:update", {
+            type: "text",
+            node,
+            value,
+        });
+
+        setText(node, value);
     });
 }
 
@@ -37,7 +51,7 @@ export function bindText(node: Text, compute: () => any): void {
  * Bind a reactive expression to an element attribute/property.
  *
  * @param el - The element to update.
- * @param name - The attribute name.
+ * @param name - The attribute or property name.
  * @param compute - A function returning the latest value.
  */
 export function bindProp(
@@ -45,8 +59,23 @@ export function bindProp(
     name: string,
     compute: () => any
 ): void {
+    Debug.emit("binding:create", {
+        type: "prop",
+        el,
+        name,
+    });
+
     effect(() => {
-        setProp(el, name, unwrap(compute()));
+        const value = unwrap(compute());
+
+        Debug.emit("binding:update", {
+            type: "prop",
+            el,
+            name,
+            value,
+        });
+
+        setProp(el, name, value);
     });
 }
 
@@ -54,14 +83,27 @@ export function bindProp(
  * Bind a reactive expression to an element's class attribute.
  *
  * @param el - The element to update.
- * @param compute - A function returning the class string.
+ * @param compute - A function returning the class string or class object.
  */
 export function bindClass(
     el: HTMLElement,
     compute: () => any
 ): void {
+    Debug.emit("binding:create", {
+        type: "class",
+        el,
+    });
+
     effect(() => {
-        setClass(el, unwrap(compute()));
+        const value = unwrap(compute());
+
+        Debug.emit("binding:update", {
+            type: "class",
+            el,
+            value,
+        });
+
+        setClass(el, value);
     });
 }
 
@@ -75,6 +117,11 @@ export function bindStyle(
     el: HTMLElement,
     compute: () => Record<string, any>
 ): void {
+    Debug.emit("binding:create", {
+        type: "style",
+        el,
+    });
+
     effect(() => {
         const styleObj = unwrap(compute());
         const resolved: Record<string, string> = {};
@@ -82,6 +129,12 @@ export function bindStyle(
         for (const key in styleObj) {
             resolved[key] = unwrap(styleObj[key]);
         }
+
+        Debug.emit("binding:update", {
+            type: "style",
+            el,
+            value: resolved,
+        });
 
         setStyle(el, resolved);
     });
@@ -101,6 +154,13 @@ export function bindEvent(
     name: string,
     handler: EventListener
 ): void {
+    Debug.emit("binding:create", {
+        type: "event",
+        el,
+        name,
+        handler,
+    });
+
     addEvent(el, name, handler);
 }
 
@@ -116,5 +176,12 @@ export function unbindEvent(
     name: string,
     handler: EventListener
 ): void {
+    Debug.emit("binding:dispose", {
+        type: "event",
+        el,
+        name,
+        handler,
+    });
+
     removeEvent(el, name, handler);
 }

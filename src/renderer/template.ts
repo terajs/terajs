@@ -1,5 +1,16 @@
+/**
+ * @file template.ts
+ * @description
+ * Nebula’s reactive template wrapper.
+ *
+ * A TemplateFn is a function that returns a DOM Node.
+ * It is wrapped in a reactive effect so that whenever any signal it reads
+ * changes, the template re-runs and updates the DOM by replacing its root node.
+ */
+
 import { effect } from "../reactivity/effect";
 import { onCleanup } from "./context";
+import { Debug } from "../debug/events";
 
 /**
  * A reactive template function.
@@ -17,10 +28,20 @@ export type TemplateFn = () => Node;
  * @returns The initial DOM node produced by the template.
  */
 export function template(fn: TemplateFn): Node {
+    Debug.emit("template:create", {
+        templateFn: fn
+    });
+
     let current: Node | null = null;
 
     const stop = effect(() => {
         const next = fn();
+
+        Debug.emit("template:update", {
+            templateFn: fn,
+            next,
+            current
+        });
 
         if (current == null) {
             // First render
@@ -28,13 +49,26 @@ export function template(fn: TemplateFn): Node {
         } else if (next !== current) {
             // Replace DOM node
             const parent = current.parentNode;
+
+            Debug.emit("template:replace", {
+                templateFn: fn,
+                oldNode: current,
+                newNode: next,
+                parent
+            });
+
             if (parent) parent.replaceChild(next, current);
             current = next;
         }
     });
 
-    onCleanup(stop);
+    onCleanup(() => {
+        Debug.emit("template:dispose", {
+            templateFn: fn,
+            node: current
+        });
+        stop();
+    });
 
     return current!;
 }
-

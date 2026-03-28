@@ -8,32 +8,62 @@
  */
 
 import { unwrap } from "./unwrap";
+import { Debug } from "../debug/events";
 
 /**
  * Create a DOM element node.
  */
 export function createElement(type: string): HTMLElement {
-    return document.createElement(type);
+    const el = document.createElement(type);
+
+    Debug.emit("dom:create", {
+        kind: "element",
+        type,
+        node: el
+    });
+
+    return el;
 }
 
 /**
  * Create a DOM text node.
  */
 export function createText(value: string): Text {
-    return document.createTextNode(value);
+    const node = document.createTextNode(value);
+
+    Debug.emit("dom:create", {
+        kind: "text",
+        value,
+        node
+    });
+
+    return node;
 }
 
 /**
  * Create a DocumentFragment.
  */
 export function createFragment(): DocumentFragment {
-    return document.createDocumentFragment();
+    const frag = document.createDocumentFragment();
+
+    Debug.emit("dom:create", {
+        kind: "fragment",
+        node: frag
+    });
+
+    return frag;
 }
 
 /**
  * Insert a child node into a parent before an optional anchor.
  */
 export function insert(parent: Node, child: Node, anchor: Node | null = null): void {
+    Debug.emit("dom:insert", {
+        parent,
+        child,
+        anchor
+    });
+
     parent.insertBefore(child, anchor);
 }
 
@@ -41,6 +71,11 @@ export function insert(parent: Node, child: Node, anchor: Node | null = null): v
  * Remove a DOM node from its parent.
  */
 export function remove(node: Node): void {
+    Debug.emit("dom:remove", {
+        node,
+        parent: node.parentNode
+    });
+
     const parent = node.parentNode;
     if (parent) parent.removeChild(node);
 }
@@ -49,7 +84,15 @@ export function remove(node: Node): void {
  * Update the text content of a Text node.
  */
 export function setText(node: Text, value: any): void {
-    node.data = String(unwrap(value));
+    const v = String(unwrap(value));
+
+    Debug.emit("dom:update", {
+        kind: "text",
+        node,
+        value: v
+    });
+
+    node.data = v;
 }
 
 /**
@@ -57,6 +100,13 @@ export function setText(node: Text, value: any): void {
  */
 export function setProp(el: HTMLElement, name: string, value: any): void {
     const v = unwrap(value);
+
+    Debug.emit("dom:update", {
+        kind: "prop",
+        el,
+        name,
+        value: v
+    });
 
     if (v == null) {
         el.removeAttribute(name);
@@ -76,6 +126,12 @@ export function setProp(el: HTMLElement, name: string, value: any): void {
  * Apply a style object to an HTMLElement.
  */
 export function setStyle(el: HTMLElement, style: Record<string, string>): void {
+    Debug.emit("dom:update", {
+        kind: "style",
+        el,
+        style
+    });
+
     for (const key in style) {
         el.style[key as any] = style[key];
     }
@@ -85,6 +141,12 @@ export function setStyle(el: HTMLElement, style: Record<string, string>): void {
  * Set the class attribute on an element.
  */
 export function setClass(el: HTMLElement, className: string): void {
+    Debug.emit("dom:update", {
+        kind: "class",
+        el,
+        className
+    });
+
     el.className = className;
 }
 
@@ -92,6 +154,13 @@ export function setClass(el: HTMLElement, className: string): void {
  * Add an event listener to an element.
  */
 export function addEvent(el: HTMLElement, name: string, handler: EventListener): void {
+    Debug.emit("dom:update", {
+        kind: "event:add",
+        el,
+        name,
+        handler
+    });
+
     el.addEventListener(name, handler);
 }
 
@@ -99,5 +168,12 @@ export function addEvent(el: HTMLElement, name: string, handler: EventListener):
  * Remove an event listener from an element.
  */
 export function removeEvent(el: HTMLElement, name: string, handler: EventListener): void {
+    Debug.emit("dom:update", {
+        kind: "event:remove",
+        el,
+        name,
+        handler
+    });
+
     el.removeEventListener(name, handler);
 }

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { box } from "../src/reactivity/proxySignal";
+import { ref } from "../src/reactivity/ref";
 import { effect } from "../src/reactivity/effect";
 
-describe("box()", () => {
+describe("ref()", () => {
     it("reads and writes through .value", () => {
-        const count = box(1);
+        const count = ref(1);
         expect(count.value).toBe(1);
 
         count.value = 2;
@@ -12,7 +12,7 @@ describe("box()", () => {
     });
 
     it("triggers effects when .value changes", () => {
-        const count = box(0);
+        const count = ref(0);
         let calls = 0;
 
         effect(() => {
@@ -27,7 +27,7 @@ describe("box()", () => {
     });
 
     it("does not trigger effects when value is unchanged", () => {
-        const count = box(5);
+        const count = ref(5);
         let calls = 0;
 
         effect(() => {

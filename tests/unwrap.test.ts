@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { unwrap } from "../src/renderer/unwrap";
 import { signal } from "../src/reactivity/signal";
-import { box } from "../src/reactivity/proxySignal";
+import { ref } from "../src/reactivity/ref";
 import { reactive } from "../src/reactivity/reactive";
 
 describe("unwrap()", () => {
@@ -11,7 +11,7 @@ describe("unwrap()", () => {
     });
 
     it("unwraps boxed signals", () => {
-        const count = box(2);
+        const count = ref(2);
         expect(unwrap(() => count.value)).toBe(2);
     });
 

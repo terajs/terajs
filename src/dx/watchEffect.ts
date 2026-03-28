@@ -1,67 +1,82 @@
+/**
+ * @file watchEffect.ts
+ * @description
+ * High-level reactive side-effect primitive for Nebula’s DX layer.
+ *
+ * `watchEffect()` runs a function immediately and re-runs it whenever any
+ * reactive dependency accessed inside the function changes.
+ *
+ * It is built on top of the low-level `effect()` primitive, but adds:
+ * - automatic cleanup handling via `onCleanup()`
+ * - a stable `stop()` function for teardown
+ * - devtools instrumentation
+ *
+ * ## Execution Model
+ * - The effect runs immediately (unless SSR prevents execution)
+ * - Before each re-run, the previous cleanup (if any) executes
+ * - When `stop()` is called:
+ *   - all cleanups run
+ *   - the effect is removed from all dependency sets
+ *   - no further re-runs occur
+ *
+ * ## Debug Events Emitted
+ * - `watchEffect:create`
+ * - `watchEffect:run`
+ * - `watchEffect:cleanup`
+ * - `watchEffect:stop`
+ */
+
 import { ReactiveEffect } from "../reactivity/deps";
 import { effect } from "../reactivity/effect";
 import { onCleanup } from "./cleanup";
+import { Debug } from "../debug/events";
 
 /**
  * Creates a reactive side-effect that automatically re-runs whenever any of its
  * accessed reactive dependencies change.
  *
- * `watchEffect` is a higher-level convenience wrapper around the low-level
- * `effect()` primitive. It tracks all reactive reads performed during the
- * execution of `fn`, and schedules a re-run whenever those dependencies update.
- *
- * Cleanup functions registered via `onCleanup()` inside the effect callback
- * will run before each subsequent execution, allowing teardown of resources
- * such as event listeners, intervals, subscriptions, or async operations.
- *
- * The returned function can be used to manually stop the watcher. Stopping a
- * watcher:
- * - executes any remaining cleanup callbacks
- * - removes the effect from all dependency sets
- * - prevents any future re-execution
- *
- * @param fn - The reactive side-effect to execute. This function will run
- *             immediately (unless SSR prevents execution) and then re-run
- *             whenever its tracked dependencies change.
- *
- * @returns A `stop()` function that disposes the watcher and prevents further
- *          re-execution.
- *
- * @example
- * ```ts
- * const count = state(0);
- *
- * const stop = watchEffect(() => {
- *   console.log("count is", count.value);
- *
- *   onCleanup(() => {
- *     console.log("cleanup before next run");
- *   });
- * });
- *
- * count.value++; // triggers re-run
- *
- * stop(); // stops the watcher and runs final cleanup
- * ```
+ * @param fn - The reactive function to execute.
+ * @returns A `stop()` function that disposes the watcher.
  */
 export function watchEffect(fn: () => void): () => void {
-    const runner: ReactiveEffect = effect(() => {
+    Debug.emit("watchEffect:create", { fn });
+
+    // Must be declared before effect() executes
+    let runner!: ReactiveEffect;
+
+    runner = effect(() => {
+        Debug.emit("watchEffect:run", { effect: runner });
+
+        // Default cleanup hook — user may override via onCleanup()
         onCleanup(() => {
-            // no-op by default, but can be used to perform cleanup tasks before the next execution of the effect
-        })
+            Debug.emit("watchEffect:cleanup", {
+                effect: runner,
+                type: "before-next-run"
+            });
+        });
 
         fn();
-    })
+    });
 
     return () => {
-        if (runner.cleanups.length) {
-            runner.cleanups.forEach(cleanup => cleanup());
-            runner.cleanups.length = 0; // Clear the cleanups after executing them
-        }
+        Debug.emit("watchEffect:stop", {
+            effect: runner,
+            cleanupCount: runner.cleanups.length,
+            depCount: runner.deps.length
+        });
 
-        if (runner.deps.length) {
-            runner.deps.forEach(dep => dep.delete(runner));
-            runner.deps.length = 0; // Clear the dependencies after removing the effect from them
+        // Run all cleanups
+        for (const cleanup of runner.cleanups) {
+            try {
+                cleanup();
+            } catch {}
         }
-    }
+        runner.cleanups.length = 0;
+
+        // Remove from dependency sets
+        for (const dep of runner.deps) {
+            dep.delete(runner);
+        }
+        runner.deps.length = 0;
+    };
 }

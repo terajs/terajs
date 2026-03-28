@@ -1,3 +1,5 @@
+import { Debug } from "../debug/events";
+
 /**
  * Represents a reactive side-effect function.
  *
@@ -46,6 +48,7 @@ export let currentEffect: ReactiveEffect | null = null;
  * @param effect - The ReactiveEffect to begin tracking.
  */
 export function pushEffect(effect: ReactiveEffect): void {
+    Debug.emit("effect:create", { effect });
     if (currentEffect) {
         effect.parent = currentEffect;
         currentEffect.children ??= [];
@@ -78,5 +81,6 @@ export function popEffect(): void {
  * @returns The currently active ReactiveEffect, or null if no effect is active.
  */
 export function getCurrentEffect(): ReactiveEffect | null {
+    Debug.emit("effect:getCurrent", { effect: currentEffect });
     return currentEffect;
 }

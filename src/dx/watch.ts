@@ -1,63 +1,43 @@
-import { watchEffect } from "./watchEffect";
-import { onCleanup } from "./cleanup";
-
 /**
- * Registers a reactive watcher that tracks the value returned by a source getter
- * and invokes a callback whenever that value changes.
+ * @file watch.ts
+ * @description
+ * High-level reactive watcher for Nebula’s DX layer.
  *
- * ## How it works
- * - The `source` function is executed inside a `watchEffect`, so any reactive
- *   reads inside it are automatically tracked.
- * - The callback is **not** invoked on initial registration. The first run is
- *   used only to capture the initial value.
- * - On subsequent changes:
- *   - The previous cleanup (if any) runs first.
- *   - The `source` getter re-evaluates.
- *   - The callback receives `(newValue, oldValue, onCleanup)`.
- *   - Any cleanup registered via `onCleanup()` runs before the next callback
- *     and again when the watcher is stopped.
+ * `watch()` observes the *value* returned by a source getter and invokes a
+ * callback whenever that value changes.
  *
- * ## Cleanup behavior
- * Cleanup functions registered via `onCleanup(fn)` behave exactly like those in
- * `watchEffect` and `effect`:
+ * Unlike `watchEffect()`:
+ * - the callback does **not** run initially
+ * - only changes to the *returned value* trigger the callback
+ * - the callback receives `(newValue, oldValue, onCleanup)`
  *
- * - They run **before** the next callback execution.
- * - They run **when `stop()` is called**.
- * - Only one cleanup is active at a time; registering a new one replaces the previous.
+ * ## Cleanup Semantics
+ * Cleanup functions registered via `onCleanup()`:
+ * - run before the next callback
+ * - run when the watcher is stopped
+ * - only one cleanup is active at a time
  *
- * ## Example
- * ```ts
- * const count = state(0);
- *
- * const stop = watch(
- *   () => count.get(),
- *   (newVal, oldVal, onCleanup) => {
- *     console.log("changed:", oldVal, "→", newVal);
- *
- *     onCleanup(() => {
- *       console.log("cleanup before next change");
- *     });
- *   }
- * );
- *
- * count.set(1); // logs: cleanup → callback
- * count.set(2); // logs: cleanup → callback
- *
- * stop();       // final cleanup runs
- * ```
- *
- * @typeParam T - The type returned by the `source` getter.
- *
- * @param source - A getter function whose reactive dependencies should be watched.
- * @param callback - A function invoked whenever the source value changes.
- *                   Receives:
- *                   - `newValue`: the updated value
- *                   - `oldValue`: the previous value
- *                   - `onCleanup(fn)`: registers a cleanup function
- *
- * @returns A `stop()` function that disposes the watcher and runs the final cleanup.
+ * ## Debug Events Emitted
+ * - `watch:create` — when the watcher is created
+ * - `watch:source` — when the source getter runs
+ * - `watch:callback` — when the callback executes
+ * - `watch:cleanup` — when the callback registers a cleanup
+ * - `watch:stop` — when the watcher is disposed
  */
 
+import { watchEffect } from "./watchEffect";
+import { onCleanup } from "./cleanup";
+import { Debug } from "../debug/events";
+
+/**
+ * Watches a reactive source and invokes a callback whenever its value changes.
+ *
+ * @typeParam T - The type returned by the source getter.
+ *
+ * @param source - A getter whose reactive dependencies should be tracked.
+ * @param callback - Invoked whenever the source value changes.
+ * @returns A `stop()` function that disposes the watcher.
+ */
 export function watch<T>(
     source: () => T,
     callback: (
@@ -66,11 +46,21 @@ export function watch<T>(
         onCleanup: (fn: () => void) => void
     ) => void
 ): () => void {
+    Debug.emit("watch:create", {
+        source,
+        callback
+    });
+
     let oldValue: T;
     let initialized = false;
 
     const stop = watchEffect(() => {
         const newValue = source();
+
+        Debug.emit("watch:source", {
+            newValue,
+            initialized
+        });
 
         if (!initialized) {
             initialized = true;
@@ -78,9 +68,27 @@ export function watch<T>(
             return;
         }
 
-        callback(newValue, oldValue, onCleanup);
+        Debug.emit("watch:callback", {
+            newValue,
+            oldValue
+        });
+
+        callback(newValue, oldValue, (fn) => {
+            Debug.emit("watch:cleanup", {
+                cleanup: fn
+            });
+            onCleanup(fn);
+        });
+
         oldValue = newValue;
     });
 
-    return stop;
+    return () => {
+        Debug.emit("watch:stop", {
+            source,
+            callback
+        });
+
+        stop();
+    };
 }

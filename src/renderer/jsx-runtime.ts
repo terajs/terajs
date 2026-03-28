@@ -1,14 +1,15 @@
 /**
  * @file jsx-runtime.ts
  * @description
- * Nebula’s JSX runtime — the bridge between JSX and the fine‑grained DOM renderer.
+ * Nebula’s JSX runtime — the bridge between JSX syntax and Nebula’s
+ * fine‑grained DOM renderer.
  *
- * JSX elements are turned directly into:
- * - DOM nodes
- * - reactive bindings
- * - nested component executions
+ * JSX compiles directly into:
+ * - Native DOM nodes
+ * - Reactive bindings
+ * - Component executions
  *
- * No virtual DOM. No diffing. No component re-renders.
+ * No VDOM. No diffing. No re-renders.
  */
 
 import { unwrap } from "./unwrap";
@@ -28,19 +29,22 @@ import {
     bindEvent,
 } from "./bindings";
 
+import { Debug } from "../debug/events";
+
 /**
- * Fragment symbol used by JSX.
+ * Special symbol used by JSX to represent a fragment.
  */
 export const Fragment = Symbol("Nebula.Fragment");
 
 /**
- * Normalize a JSX child into a DOM node.
- *
- * @param child - Any JSX child value.
- * @returns A DOM node.
+ * Normalize any JSX child into a concrete DOM Node.
  */
 function normalizeChild(child: any): Node {
     child = unwrap(child);
+
+    Debug.emit("jsx:normalize", {
+        value: child
+    });
 
     if (child == null || child === false || child === true) {
         return createText("");
@@ -62,18 +66,20 @@ function normalizeChild(child: any): Node {
 }
 
 /**
- * Apply props to an element.
- *
- * @param el - The element to update.
- * @param props - The props object from JSX.
+ * Apply JSX props to a DOM element.
  */
 function applyProps(el: HTMLElement, props: Record<string, any>) {
+    Debug.emit("jsx:props", {
+        el,
+        props
+    });
+
     for (const key in props) {
         const value = props[key];
 
         if (key === "children") continue;
 
-        // Event handlers: onClick → click
+        // Event handlers
         if (key.startsWith("on") && typeof value === "function") {
             const event = key.slice(2).toLowerCase();
             bindEvent(el, event, value);
@@ -94,9 +100,9 @@ function applyProps(el: HTMLElement, props: Record<string, any>) {
             continue;
         }
 
-        // Dynamic prop
-        if (typeof value === "function") {
-            bindProp(el, key, value);
+        // Dynamic prop (accessor or ref)
+        if (typeof value === "function" || (value && value._sig)) {
+            bindProp(el, key, () => unwrap(value));
         } else {
             el.setAttribute(key, unwrap(value));
         }
@@ -104,14 +110,14 @@ function applyProps(el: HTMLElement, props: Record<string, any>) {
 }
 
 /**
- * Create a DOM node from JSX.
+ * JSX factory for single-child elements.
  */
 export function jsx(type: any, props: any): Node {
     return createVNode(type, props);
 }
 
 /**
- * Same as `jsx` but used when JSX has multiple children.
+ * JSX factory for multi-child elements.
  */
 export function jsxs(type: any, props: any): Node {
     return createVNode(type, props);
@@ -123,13 +129,26 @@ export function jsxs(type: any, props: any): Node {
 function createVNode(type: any, props: any): Node {
     props = props || {};
 
+    Debug.emit("jsx:create", {
+        type,
+        props
+    });
+
     // Fragment
     if (type === Fragment) {
         const frag = createFragment();
+
+        Debug.emit("jsx:fragment", {
+            fragment: frag,
+            children: props.children
+        });
+
         const children = props.children;
 
         if (Array.isArray(children)) {
-            for (const child of children) insert(frag, normalizeChild(child));
+            for (const child of children) {
+                insert(frag, normalizeChild(child));
+            }
         } else if (children != null) {
             insert(frag, normalizeChild(children));
         }
@@ -139,18 +158,35 @@ function createVNode(type: any, props: any): Node {
 
     // Component
     if (typeof type === "function") {
+        Debug.emit("jsx:component", {
+            component: type,
+            props
+        });
+
         return type(props);
     }
 
     // Native DOM element
     const el = createElement(type);
 
+    Debug.emit("jsx:element", {
+        tag: type,
+        el
+    });
+
     applyProps(el, props);
 
     const children = props.children;
 
+    Debug.emit("jsx:children", {
+        parent: el,
+        children
+    });
+
     if (Array.isArray(children)) {
-        for (const child of children) insert(el, normalizeChild(child));
+        for (const child of children) {
+            insert(el, normalizeChild(child));
+        }
     } else if (children != null) {
         insert(el, normalizeChild(children));
     }

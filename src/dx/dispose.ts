@@ -1,25 +1,70 @@
+/**
+ * @file dispose.ts
+ * @description
+ * Disposes of a reactive effect, unsubscribing it from all dependencies
+ * and preventing future executions.
+ *
+ * This is essential for:
+ * - component unmounting
+ * - stopping watchers
+ * - preventing ghost updates
+ * - avoiding memory leaks
+ */
+
 import { ReactiveEffect } from "../reactivity/deps";
+import { Debug } from "../debug/events";
 
 /**
- * Disposes of a reactive effect, unsubscribing it from all dependencies and preventing future executions.
- * * This is useful for cleaning up effects that are no longer needed, such as when a component unmounts.
- * * @param effectFn - The ReactiveEffect to dispose.
- * * The disposal process involves:
- * 1. Running any registered cleanup functions to handle dynamic dependencies.
- * 2. Removing the effect from all dependency sets it is subscribed to, ensuring it won't be triggered by future state changes.
- * 3. Marking the effect as inactive to prevent any future executions.
+ * Disposes of a reactive effect.
+ *
+ * Steps:
+ * 1. Run cleanup functions
+ * 2. Remove effect from all dependency sets
+ * 3. Mark effect as inactive
+ *
+ * @param effectFn - The ReactiveEffect to dispose.
  */
 export function dispose(effectFn: ReactiveEffect): void {
+    Debug.emit("effect:dispose:start", {
+        effect: effectFn
+    });
 
+    // 1. Run cleanup functions
     if (effectFn.cleanups.length) {
-        effectFn.cleanups.forEach(cleanup => cleanup());
+        Debug.emit("effect:dispose:cleanup", {
+            effect: effectFn,
+            count: effectFn.cleanups.length
+        });
+
+        for (const cleanup of effectFn.cleanups) {
+            try {
+                cleanup();
+            } catch {
+                // swallow user cleanup errors
+            }
+        }
+
         effectFn.cleanups.length = 0;
     }
 
+    // 2. Remove from dependency sets
     if (effectFn.deps.length) {
-        effectFn.deps.forEach(dep => dep.delete(effectFn));
+        Debug.emit("effect:dispose:deps", {
+            effect: effectFn,
+            count: effectFn.deps.length
+        });
+
+        for (const dep of effectFn.deps) {
+            dep.delete(effectFn);
+        }
+
         effectFn.deps.length = 0;
     }
 
+    // 3. Mark inactive
     effectFn.active = false;
+
+    Debug.emit("effect:dispose:end", {
+        effect: effectFn
+    });
 }

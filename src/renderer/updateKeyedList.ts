@@ -17,6 +17,8 @@
  * It is the ONLY diffing Nebula performs.
  */
 
+import { Debug } from "../debug/events";
+
 export interface KeyedItem {
     /** Unique identity for the item. Determines DOM preservation. */
     key: any;
@@ -25,36 +27,14 @@ export interface KeyedItem {
     node: Node;
 }
 
-/**
- * Mount a new keyed item into the DOM.
- *
- * @param item - The keyed item to mount.
- * @param parent - The parent DOM node.
- * @param anchor - The DOM node to insert before, or null to append.
- */
+/** Mount a new keyed item into the DOM. */
 export type MountFn = (item: KeyedItem, parent: Node, anchor: Node | null) => void;
 
-/**
- * Remove an existing keyed item from the DOM.
- *
- * @param item - The keyed item to remove.
- * @param parent - The parent DOM node.
- */
+/** Remove an existing keyed item from the DOM. */
 export type UnmountFn = (item: KeyedItem, parent: Node) => void;
 
 /**
  * Reconcile two keyed lists with minimal DOM movement.
- *
- * This function assumes:
- * - `oldItems` and `newItems` are arrays of `{ key, node }`
- * - Keys uniquely identify DOM nodes
- * - Caller ensures this runs inside a reactive effect
- *
- * @param parent - The parent DOM node containing the list.
- * @param oldItems - The previous list of keyed items.
- * @param newItems - The next list of keyed items.
- * @param mount - Function to mount a new item.
- * @param unmount - Function to remove an old item.
  */
 export function updateKeyedList(
     parent: Node,
@@ -63,6 +43,12 @@ export function updateKeyedList(
     mount: MountFn,
     unmount: UnmountFn
 ) {
+    Debug.emit("list:diff:start", {
+        parent,
+        oldCount: oldItems.length,
+        newCount: newItems.length
+    });
+
     let i = 0;
     let oldEnd = oldItems.length - 1;
     let newEnd = newItems.length - 1;
@@ -71,6 +57,10 @@ export function updateKeyedList(
     // 1. Sync from start
     // -------------------------------------------------------------
     while (i <= oldEnd && i <= newEnd && oldItems[i].key === newItems[i].key) {
+        Debug.emit("list:diff:sync-start", {
+            index: i,
+            key: oldItems[i].key
+        });
         i++;
     }
 
@@ -78,6 +68,11 @@ export function updateKeyedList(
     // 2. Sync from end
     // -------------------------------------------------------------
     while (i <= oldEnd && i <= newEnd && oldItems[oldEnd].key === newItems[newEnd].key) {
+        Debug.emit("list:diff:sync-end", {
+            oldIndex: oldEnd,
+            newIndex: newEnd,
+            key: oldItems[oldEnd].key
+        });
         oldEnd--;
         newEnd--;
     }
@@ -90,6 +85,11 @@ export function updateKeyedList(
             newEnd + 1 < newItems.length ? newItems[newEnd + 1].node : null;
 
         while (i <= newEnd) {
+            Debug.emit("list:diff:mount", {
+                index: i,
+                key: newItems[i].key,
+                anchor
+            });
             mount(newItems[i], parent, anchor);
             i++;
         }
@@ -101,6 +101,10 @@ export function updateKeyedList(
     // -------------------------------------------------------------
     if (i > newEnd) {
         while (i <= oldEnd) {
+            Debug.emit("list:diff:unmount", {
+                index: i,
+                key: oldItems[i].key
+            });
             unmount(oldItems[i], parent);
             i++;
         }
@@ -127,6 +131,10 @@ export function updateKeyedList(
         const newIndex = keyToNewIndex.get(oldItem.key);
 
         if (newIndex == null) {
+            Debug.emit("list:diff:unmount", {
+                index: j,
+                key: oldItem.key
+            });
             unmount(oldItem, parent);
         } else {
             toMove[newIndex - newStart] = j;
@@ -145,6 +153,13 @@ export function updateKeyedList(
             if (toMove[j - newStart] === -1) {
                 const anchor =
                     j + 1 < newItems.length ? newItems[j + 1].node : null;
+
+                Debug.emit("list:diff:mount", {
+                    index: j,
+                    key: newItems[j].key,
+                    anchor
+                });
+
                 mount(newItems[j], parent, anchor);
             }
         }
@@ -155,6 +170,12 @@ export function updateKeyedList(
     // 6. Move items using LIS to minimize DOM operations
     // -------------------------------------------------------------
     const seq = longestIncreasingSubsequence(toMove);
+
+    Debug.emit("list:diff:lis", {
+        toMove,
+        lis: seq
+    });
+
     let seqIdx = seq.length - 1;
 
     for (let j = newEnd; j >= newStart; j--) {
@@ -163,8 +184,18 @@ export function updateKeyedList(
             j + 1 < newItems.length ? newItems[j + 1].node : null;
 
         if (toMove[j - newStart] === -1) {
+            Debug.emit("list:diff:mount", {
+                index: j,
+                key: newItem.key,
+                anchor
+            });
             mount(newItem, parent, anchor);
         } else if (seqIdx < 0 || j - newStart !== seq[seqIdx]) {
+            Debug.emit("list:diff:move", {
+                index: j,
+                key: newItem.key,
+                anchor
+            });
             parent.insertBefore(newItem.node, anchor);
         } else {
             seqIdx--;
@@ -174,11 +205,6 @@ export function updateKeyedList(
 
 /**
  * Compute the Longest Increasing Subsequence (LIS) of an array.
- *
- * Used to determine which DOM nodes can stay in place during list reconciliation.
- *
- * @param arr - Array of old indices aligned to new positions.
- * @returns An array of indices representing the LIS.
  */
 function longestIncreasingSubsequence(arr: number[]): number[] {
     const p = arr.slice();

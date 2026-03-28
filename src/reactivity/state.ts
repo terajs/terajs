@@ -1,6 +1,8 @@
 import { currentEffect } from "./deps";
 import type { ReactiveEffect } from "./deps";
 import { scheduleEffect } from "./effect";
+import { Debug } from "../debug/events";
+
 /**
  * Creates a reactive state container (Signal).
  * * @template T - The type of the value being tracked.
@@ -15,6 +17,11 @@ export function state<T>(value: T) {
      */
     const deps = new Set<ReactiveEffect>();
 
+    Debug.emit("state:create", {
+        initialValue: value,
+        deps
+    });
+
     return {
         /**
          * Retrieves the current value and performs dependency tracking.
@@ -27,8 +34,20 @@ export function state<T>(value: T) {
                 // 1. Add the effect to this state's subscriber list.
                 deps.add(currentEffect);
                 // 2. Add this state's subscriber set to the effect's cleanup list.
-                currentEffect.deps.push(deps);
+                if (!currentEffect.deps.includes(deps)) {
+                    currentEffect.deps.push(deps);
+                }
+
+                Debug.emit("state:link", {
+                    state: value,
+                    effect: currentEffect
+                });
             }
+
+            Debug.emit("state:read", {
+                value
+            });
+
             return value;
         },
 
@@ -42,7 +61,13 @@ export function state<T>(value: T) {
             // Identity check to avoid unnecessary updates
             if (Object.is(value, newValue)) return;
             
+            const oldValue = value;
             value = newValue;
+
+            Debug.emit("state:update", {
+                oldValue,
+                newValue
+            });
 
             /**
              * Create a snapshot of dependencies before iteration.

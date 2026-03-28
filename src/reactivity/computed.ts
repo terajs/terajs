@@ -1,6 +1,7 @@
 import { effect } from './effect';
 import { currentEffect, type ReactiveEffect } from './deps';
 import { scheduleEffect } from './effect';
+import { Debug } from '../debug/events';
 /**
  * Creates a derived reactive value that is lazily evaluated and cached.
  * * @template T - The type of the value returned by the computed function.
@@ -9,7 +10,7 @@ import { scheduleEffect } from './effect';
  */
 export function computed<T>(fn: () => T) {
     let value: T;
-    
+    Debug.emit("computed:create", { computed: fn });
     /**
      * Cache invalidation flag. 
      * When true, the value must be re-calculated on the next access.
@@ -27,6 +28,10 @@ export function computed<T>(fn: () => T) {
      * we simply mark this computed as "dirty" and notify its own subscribers.
      */
     const scheduler = () => {
+            Debug.emit("computed:update", {
+                reason: "invalidate",
+                computed: fn
+            });
 
             dirty = true;
 
@@ -50,8 +55,16 @@ export function computed<T>(fn: () => T) {
      */
     const runner = effect(
         () => {
+            const oldValue = value;
             value = fn();
             dirty = false;
+
+            Debug.emit("computed:update", {
+                reason: "recompute",
+                oldValue,
+                newValue: value,
+                computed: fn
+            });
         },
         scheduler
     );

@@ -18,6 +18,7 @@ import {
 import { isServer } from "../dx/runtime";
 import { shouldBatch, queueEffect } from "../dx/batch";
 import { getCurrentContext } from "../renderer/context";
+import { Debug } from "../debug/events";
 
 /**
  * Creates a reactive effect that:
@@ -39,6 +40,7 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
      * and execution of the user function.
      */
     const effectFn: ReactiveEffect = () => {
+        Debug.emit("effect:run", { effect: effectFn });
         if (!effectFn.active || isServer()) return;
 
         // Run user-registered cleanup callbacks
@@ -101,7 +103,7 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
  */
 function cleanup(effectFn: ReactiveEffect): void {
     const { deps } = effectFn;
-
+    Debug.emit("effect:cleanup", { effect: effectFn });
     for (let i = 0; i < deps.length; i++) {
         deps[i].delete(effectFn);
     }
@@ -118,6 +120,7 @@ function cleanup(effectFn: ReactiveEffect): void {
  * @param effectFn - The effect to dispose.
  */
 function disposeEffect(effectFn: ReactiveEffect): void {
+    Debug.emit("effect:dispose", { effect: effectFn });
     cleanup(effectFn);
 
     if (effectFn.cleanups.length) {
@@ -142,7 +145,8 @@ function disposeEffect(effectFn: ReactiveEffect): void {
  */
 export function scheduleEffect(effectFn: ReactiveEffect): void {
     if (effectFn === currentEffect || !effectFn.active) return;
-
+    
+    Debug.emit("effect:schedule", { effect: effectFn });
     if (shouldBatch()) {
         queueEffect(effectFn);
     } else {

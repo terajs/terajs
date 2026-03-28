@@ -1,4 +1,5 @@
 import type { TemplateFn } from "./template";
+import { Debug } from "../debug/events";
 
 /**
  * A value or a function that returns a value.
@@ -12,39 +13,22 @@ export type MaybeAccessor<T> = T | (() => T);
  * @typeParam T - The type of the condition value.
  */
 export interface ShowProps<T = any> {
-    /**
-     * Condition that controls whether the `children` or `fallback` is rendered.
-     * Can be a raw value or a function (e.g. a signal getter).
-     */
+    /** Condition controlling whether children or fallback is rendered. */
     when: MaybeAccessor<T>;
-    /**
-     * Content to render when `when` is truthy.
-     * Can be a Node or a function returning a Node.
-     */
+
+    /** Content rendered when `when` is truthy. */
     children: Node | (() => Node);
-    /**
-     * Optional content to render when `when` is falsy.
-     * Can be a Node or a function returning a Node.
-     */
+
+    /** Optional fallback when `when` is falsy. */
     fallback?: Node | (() => Node);
 }
 
-/**
- * Resolves a value that may be a function (accessor) or a raw value.
- *
- * @param value - The value or accessor.
- * @returns The resolved value.
- */
+/** Resolve a raw value or accessor. */
 function resolve<T>(value: MaybeAccessor<T>): T {
     return typeof value === "function" ? (value as () => T)() : value;
 }
 
-/**
- * Normalizes a Node or a function returning a Node into a Node.
- *
- * @param value - The Node or factory function.
- * @returns The resulting Node.
- */
+/** Resolve a Node or Node factory. */
 function resolveNode(value: Node | (() => Node)): Node {
     return typeof value === "function" ? (value as () => Node)() : value;
 }
@@ -52,26 +36,38 @@ function resolveNode(value: Node | (() => Node)): Node {
 /**
  * Conditionally renders `children` or `fallback` based on `when`.
  *
- * This component returns a `TemplateFn`, so it participates in the
- * reactive template system and will re‑evaluate whenever any signals
- * used inside `when`, `children`, or `fallback` change.
- *
  * @param props - The `Show` component props.
  * @returns A reactive template function.
  */
 export function Show<T = any>(props: ShowProps<T>): TemplateFn {
+    Debug.emit("template:create", {
+        type: "Show",
+        props
+    });
+
     return () => {
         const condition = resolve(props.when);
 
+        Debug.emit("template:update", {
+            type: "Show",
+            condition
+        });
+
         if (condition) {
+            Debug.emit("template:branch", {
+                type: "Show",
+                branch: "children"
+            });
             return resolveNode(props.children);
         }
 
         if (props.fallback) {
+            Debug.emit("template:fallback", {
+                type: "Show"
+            });
             return resolveNode(props.fallback);
         }
 
-        // Render an empty text node when nothing else is provided.
         return document.createTextNode("");
     };
 }
@@ -82,6 +78,7 @@ export function Show<T = any>(props: ShowProps<T>): TemplateFn {
 export interface MatchProps<T = any> {
     /** Condition for this branch. */
     when: MaybeAccessor<T>;
+
     /** Content rendered when this branch matches. */
     children: Node | (() => Node);
 }
@@ -89,9 +86,6 @@ export interface MatchProps<T = any> {
 /**
  * A `Match` component is not rendered directly.
  * It is consumed by a parent `<Switch>`.
- *
- * @param props - The `Match` props.
- * @returns The props unchanged (the Switch will interpret them).
  */
 export function Match<T = any>(props: MatchProps<T>): MatchProps<T> {
     return props;
@@ -101,37 +95,28 @@ export function Match<T = any>(props: MatchProps<T>): MatchProps<T> {
  * Props for the `Switch` control‑flow component.
  */
 export interface SwitchProps<T = any> {
-    /**
-     * Optional value to compare against each Match's `when`.
-     * If omitted, each Match's `when` is treated as a boolean condition.
-     */
+    /** Optional value to compare against each Match's `when`. */
     value?: MaybeAccessor<T>;
 
-    /**
-     * The Match branches inside this Switch.
-     * In JSX, this will be an array of MatchProps.
-     */
+    /** The Match branches inside this Switch. */
     children: any;
 
-    /**
-     * Optional fallback rendered when no Match branch matches.
-     */
+    /** Optional fallback when no Match matches. */
     fallback?: Node | (() => Node);
 }
 
 /**
  * Renders the first matching `<Match>` branch.
  *
- * If `value` is provided:
- *   - Each Match's `when` is compared to `value`.
- *
- * If `value` is omitted:
- *   - Each Match's `when` is treated as a boolean condition.
- *
  * @param props - The `Switch` component props.
  * @returns A reactive template function.
  */
 export function Switch<T = any>(props: SwitchProps<T>): TemplateFn {
+    Debug.emit("template:create", {
+        type: "Switch",
+        props
+    });
+
     return () => {
         const children = Array.isArray(props.children)
             ? props.children
@@ -141,8 +126,12 @@ export function Switch<T = any>(props: SwitchProps<T>): TemplateFn {
             ? resolve(props.value)
             : undefined;
 
+        Debug.emit("template:update", {
+            type: "Switch",
+            value
+        });
+
         for (const child of children) {
-            // Skip anything that isn't a Match
             if (!child || typeof child !== "object" || !("when" in child)) {
                 continue;
             }
@@ -151,20 +140,30 @@ export function Switch<T = any>(props: SwitchProps<T>): TemplateFn {
             const cond = resolve(match.when);
 
             if (value !== undefined) {
-                // Value-based switch
                 if (cond === value) {
+                    Debug.emit("template:branch", {
+                        type: "Switch",
+                        branch: "match",
+                        match
+                    });
                     return resolveNode(match.children);
                 }
             } else {
-                // Boolean switch
                 if (cond) {
+                    Debug.emit("template:branch", {
+                        type: "Switch",
+                        branch: "match",
+                        match
+                    });
                     return resolveNode(match.children);
                 }
             }
         }
 
-        // No match found → fallback
         if (props.fallback) {
+            Debug.emit("template:fallback", {
+                type: "Switch"
+            });
             return resolveNode(props.fallback);
         }
 

@@ -29,6 +29,7 @@
  */
 
 import { signal, type Signal } from "./signal";
+import { Debug } from "../debug/events";
 
 type AnyObj = Record<string | symbol, any>;
 
@@ -69,6 +70,8 @@ export type Reactive<T extends AnyObj> = T;
  * @returns A Proxy that exposes reactive reads/writes.
  */
 export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
+  Debug.emit("reactive:create", { source: obj });
+
   const store: AnyObj = {};
 
   // Initialize signals or nested reactive objects
@@ -89,8 +92,18 @@ export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
 
       // If it's a signal → return its value
       if (typeof v === "function" && "_dep" in v && "_value" in v) {
+        Debug.emit("reactive:get", {
+          target,
+          prop,
+          value: v(),
+        });
         return (v as Signal<any>)();
       }
+      Debug.emit("reactive:get", {
+        target,
+        prop,
+        value: v,
+      });
 
       return v;
     },
@@ -100,6 +113,14 @@ export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
 
       // Existing signal → update it
       if (typeof existing === "function" && "_dep" in existing && "_value" in existing) {
+        Debug.emit("reactive:set", {
+          target,
+          prop,
+          oldValue: existing(),
+          newValue: value,
+          signal: existing,
+        });
+
         if (isObject(value)) {
           (existing as Signal<any>).set(reactive(value));
         } else {
@@ -110,6 +131,14 @@ export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
 
       // New property → wrap it and set it
       const wrapped = wrap(value);
+
+      Debug.emit("reactive:set", {
+        target,
+        prop,
+        oldValue: existing,
+        newValue: wrapped,
+      });
+
       Reflect.set(target, prop, wrapped, receiver);
 
       // If a lazy signal was created earlier, update it now

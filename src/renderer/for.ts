@@ -16,6 +16,7 @@
 import { effect } from "../reactivity/effect";
 import { createFragment, insert, remove } from "./dom";
 import { updateKeyedList, KeyedItem } from "./updateKeyedList";
+import { Debug } from "../debug/events";
 
 export interface ForProps<T> {
     /** Reactive getter returning the array to iterate over */
@@ -37,28 +38,63 @@ export interface ForProps<T> {
 export function For<T>(props: ForProps<T>): Node {
     const parent = createFragment();
 
+    Debug.emit("list:create", {
+        type: "For",
+        props,
+        parent
+    });
+
     let oldItems: KeyedItem[] = [];
 
     effect(() => {
         const array = props.each();
         const getKey = props.key ?? ((item: any, i: number) => item.key ?? i);
 
+        Debug.emit("list:update", {
+            type: "For",
+            arrayLength: array.length
+        });
+
         const newItems: KeyedItem[] = array.map((item, i) => {
             const node = props.children(item, () => i);
+
             return {
                 key: getKey(item, i),
-                node,
+                node
             };
+        });
+
+        Debug.emit("list:reconcile", {
+            type: "For",
+            oldCount: oldItems.length,
+            newCount: newItems.length
         });
 
         updateKeyedList(
             parent,
             oldItems,
             newItems,
+
             // mount
-            (item, p, anchor) => insert(p, item.node, anchor),
+            (item, p, anchor) => {
+                Debug.emit("list:mount", {
+                    type: "For",
+                    key: item.key,
+                    node: item.node,
+                    anchor
+                });
+                insert(p, item.node, anchor);
+            },
+
             // unmount
-            (item, p) => remove(item.node)
+            (item, p) => {
+                Debug.emit("list:unmount", {
+                    type: "For",
+                    key: item.key,
+                    node: item.node
+                });
+                remove(item.node);
+            }
         );
 
         oldItems = newItems;
