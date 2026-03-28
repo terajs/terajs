@@ -2,66 +2,108 @@ import { UINode, UINodeFlags, ComponentFn, Fragment } from "../ui/node";
 import { mount } from "./mount";
 import { setProp } from "./setProp";
 import { bindText } from "./patch";
-
+import { effect } from "../reactivity/effect";
+import { domMap } from "./domMap";
+import { DomNode, ParentDomNode } from "./domTypes";
 
 /**
- * Create a DOM node from a UINode.
+ * Create a real DOM node from a Nebula `UINode`.
  *
- * @param node - The UI node to convert into a DOM node.
- * @returns A DOM Node representing the UI node.
+ * @remarks
+ * This is the core entry point for DOM creation in the renderer.
+ * It handles:
+ * - Text nodes (static + reactive)
+ * - Elements
+ * - Components
+ * - Fragments
+ *
+ * Every created DOM node is stored in `domMap` so that the patcher
+ * can later update, move, or remove it during reconciliation.
+ *
+ * @param node - The abstract UI node to convert.
+ * @returns A real DOM `Node` instance.
  */
-export function createNode(node: UINode): Node {
+export function createNode(node: UINode): DomNode {
     const flags = node.flags ?? 0;
 
-    // Text node
+    // -------------------------------------------------------------
+    // TEXT NODE
+    // -------------------------------------------------------------
     if (flags & UINodeFlags.TEXT) {
-        // If the text is reactive (a function), bind it
+        // Reactive text: children is a getter function
         if (typeof node.children === "function") {
             const text = document.createTextNode("");
             bindText(text, node.children as any);
+   
             return text;
         }
 
-        return document.createTextNode(node.children as string);
+        // Static text
+        const text = document.createTextNode(node.children as string);
+
+        return text;
     }
 
-    // Component
+    // -------------------------------------------------------------
+    // COMPONENT NODE
+    // -------------------------------------------------------------
     if (flags & UINodeFlags.COMPONENT) {
         const component = node.type as ComponentFn;
+
+        // Render the component into a child UINode
         const rendered = component(node.props ?? {});
-        return createNode(rendered);
+
+        // Recursively create DOM for the rendered subtree
+        const dom = createNode(rendered) as ParentDomNode;
+
+        // Store the root DOM node for this component
+        domMap.set(node, dom);
+        return dom;
     }
 
-    // Fragment
+    // -------------------------------------------------------------
+    // FRAGMENT NODE
+    // -------------------------------------------------------------
     if (flags & UINodeFlags.FRAGMENT || node.type === Fragment) {
         const frag = document.createDocumentFragment();
+        domMap.set(node, frag);
+
         if (Array.isArray(node.children)) {
             for (const child of node.children) {
                 mount(child, frag);
             }
         }
+
         return frag;
     }
 
-    // Element
+    // -------------------------------------------------------------
+    // ELEMENT NODE
+    // -------------------------------------------------------------
     if (flags & UINodeFlags.ELEMENT && typeof node.type === "string") {
         const el = document.createElement(node.type);
+        domMap.set(node, el);
 
-        // Props (reactive or static)
+        // -----------------------------
+        // Props (static + reactive)
+        // -----------------------------
         if (node.props) {
             for (const key in node.props) {
                 const value = node.props[key];
 
                 if (typeof value === "function") {
-                    // Reactive prop
+                    // Reactive prop: bind via effect()
                     bindProp(el, key, value);
                 } else {
+                    // Static prop
                     setProp(el, key, value);
                 }
             }
         }
 
+        // -----------------------------
         // Children
+        // -----------------------------
         if (Array.isArray(node.children)) {
             for (const child of node.children) {
                 mount(child, el);
@@ -83,11 +125,19 @@ export function createNode(node: UINode): Node {
 
 /**
  * Bind a reactive prop to a DOM element.
+ *
+ * @remarks
+ * This attaches an effect that re-runs whenever the reactive
+ * getter changes. The effect calls `setProp()` with the latest
+ * value, ensuring DOM stays in sync with reactive state.
+ *
+ * @param el - The DOM element to update.
+ * @param key - The prop name.
+ * @param getter - A reactive getter returning the prop value.
  */
 function bindProp(el: HTMLElement, key: string, getter: () => any): void {
-    bindText(document.createTextNode(""), () => {
+    effect(() => {
         const value = getter();
         setProp(el, key, value);
-        return "";
     });
 }
