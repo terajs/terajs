@@ -1,3 +1,20 @@
+/**
+ * @file reactivity-core.test.ts
+ * @group Reactivity
+ * @description
+ * Comprehensive test suite validating Nebula’s fine‑grained reactivity engine.
+ * Covers:
+ *  - state primitives
+ *  - effects and dependency tracking
+ *  - cleanup behavior
+ *  - computed memoization
+ *  - watchEffect and disposal
+ *  - SSR mode behavior
+ *  - nested effect correctness
+ *
+ * This suite ensures the core reactive graph behaves predictably and efficiently.
+ */
+
 import { describe, it, expect } from "vitest";
 import { effect } from "../src/reactivity/effect";
 import { state } from "../src/reactivity/state";
@@ -6,13 +23,6 @@ import { onCleanup } from "../src/dx/cleanup";
 import { watchEffect } from "../src/dx/watchEffect";
 import { setRuntimeMode } from "../src/dx/runtime";
 
-/**
- * @group Reactivity
- * @description
- * Comprehensive test suite validating Nebula’s fine‑grained reactivity engine.
- * Covers signals, effects, cleanup, batching, computed values, watchers,
- * SSR mode, and nested effect behavior.
- */
 describe("Reactivity Core", () => {
 
     // ---------------------------------------------------------------------
@@ -21,8 +31,9 @@ describe("Reactivity Core", () => {
 
     /**
      * @test State basic integrity
-     * @description Ensures the Signal-like 'state' primitive maintains
-     * synchronous value consistency.
+     * @description
+     * Ensures the `state()` primitive maintains synchronous value consistency
+     * and updates immediately when `.set()` is called.
      */
     it("state get/set works", () => {
         const count = state<number>(0);
@@ -38,9 +49,9 @@ describe("Reactivity Core", () => {
 
     /**
      * @test Automatic Dependency Tracking
-     * @description Verifies that the global 'effect' stack correctly
-     * captures state reads and re-triggers the provided callback
-     * whenever those specific dependencies notify an update.
+     * @description
+     * Verifies that `effect()` automatically tracks dependencies accessed
+     * during execution and re-runs when those dependencies change.
      */
     it("effect runs when state changes", () => {
         const count = state<number>(0);
@@ -63,9 +74,10 @@ describe("Reactivity Core", () => {
     /**
      * @test Memoization and Lazy Evaluation
      * @description
-     * 1. 'computed' should not execute until .get() is called (Lazy).
-     * 2. 'computed' should return a cached value if dependencies haven't changed.
-     * 3. 'computed' should invalidate and re-run only when a dependency changes.
+     * Validates that:
+     *  1. computed values are lazy (not executed until `.get()` is called),
+     *  2. cached values are reused when dependencies haven't changed,
+     *  3. recomputation occurs only when dependencies update.
      */
     it("computed caches value and updates when dependencies change", () => {
         const count = state<number>(0);
@@ -76,17 +88,21 @@ describe("Reactivity Core", () => {
             return count.get() * 2;
         });
 
+        // Lazy: should not run until first .get()
         expect(computeRuns).toBe(0);
 
         expect(double.get()).toBe(0);
         expect(computeRuns).toBe(1);
 
+        // Dependency changed → should invalidate but not recompute yet
         count.set(5);
         expect(computeRuns).toBe(1);
 
+        // Now recompute
         expect(double.get()).toBe(10);
         expect(computeRuns).toBe(2);
 
+        // Cached
         double.get();
         expect(computeRuns).toBe(2);
     });
@@ -98,8 +114,8 @@ describe("Reactivity Core", () => {
     /**
      * @test Dynamic Dependency Branching (Cleanup)
      * @description
-     * Ensures effects correctly unsubscribe from stale dependencies when
-     * switching branches, preventing ghost updates.
+     * Ensures effects unsubscribe from stale dependencies when switching
+     * branches, preventing ghost updates from old reactive paths.
      */
     it("effect cleanup removes old dependencies", () => {
         const toggle = state<boolean>(true);
@@ -115,9 +131,11 @@ describe("Reactivity Core", () => {
 
         expect(calls).toBe(1);
 
+        // count is tracked
         count.set(1);
         expect(calls).toBe(2);
 
+        // switch branch → count should no longer be tracked
         toggle.set(false);
         expect(calls).toBe(3);
 
@@ -128,8 +146,8 @@ describe("Reactivity Core", () => {
     /**
      * @test Cleanup Execution Order
      * @description
-     * Ensures that `onCleanup()` callbacks run before the next execution
-     * of an effect.
+     * Ensures cleanup functions registered via `onCleanup()` run before
+     * the next effect execution.
      */
     it("onCleanup runs before next effect execution", () => {
         const count = state<number>(0);
@@ -156,8 +174,7 @@ describe("Reactivity Core", () => {
     /**
      * @test watchEffect Re-Execution
      * @description
-     * Validates that `watchEffect()` automatically tracks dependencies and
-     * re-runs whenever those dependencies change.
+     * Ensures `watchEffect()` tracks dependencies and re-runs when they change.
      */
     it("watchEffect re-runs when dependencies change", () => {
         const count = state<number>(0);
@@ -177,8 +194,8 @@ describe("Reactivity Core", () => {
     /**
      * @test watchEffect Disposal
      * @description
-     * Ensures that the stop function returned by `watchEffect()` correctly
-     * disposes the watcher.
+     * Ensures the stop function returned by `watchEffect()` prevents further
+     * re-runs and executes cleanup.
      */
     it("watchEffect stop function prevents further re-runs", () => {
         const count = state<number>(0);
@@ -204,7 +221,8 @@ describe("Reactivity Core", () => {
     /**
      * @test SSR Mode Behavior
      * @description
-     * Effects should NOT run in server mode.
+     * Effects should not run in server mode. This ensures SSR safety and
+     * prevents side effects during server rendering.
      */
     it("effects do not run in server mode", () => {
         setRuntimeMode("server");
@@ -219,18 +237,19 @@ describe("Reactivity Core", () => {
 
         expect(calls).toBe(0);
 
+        // Reset mode for other tests
         setRuntimeMode("client");
     });
 
     // ---------------------------------------------------------------------
-    // 8. NESTED EFFECTS
+    // 7. NESTED EFFECTS
     // ---------------------------------------------------------------------
 
     /**
      * @test Nested Effects
      * @description
-     * Validates that nested effects track dependencies independently and
-     * re-run in the correct order.
+     * Ensures nested effects track dependencies independently and re-run
+     * in the correct order when their respective dependencies change.
      */
     it("nested effects track correctly", () => {
         const a = state<number>(1);

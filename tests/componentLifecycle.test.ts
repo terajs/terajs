@@ -3,12 +3,7 @@
  * @group Renderer
  * @description
  * Tests for component execution context, cleanup behavior, nested cleanup,
- * and the current behavior of effects inside components.
- *
- * NOTE:
- * These tests document the *actual* behavior of the current runtime.
- * In particular, effects created inside components do not automatically
- * stop running after unmount unless explicitly disposed.
+ * and correct disposal on unmount.
  */
 
 import { describe, it, expect } from "vitest";
@@ -51,7 +46,7 @@ describe("Component Lifecycle", () => {
 
         const Parent = () => {
             onCleanup(() => events.push("parent"));
-            return Child();
+            return Child(); 
         };
 
         const root = document.createElement("div");
@@ -61,6 +56,8 @@ describe("Component Lifecycle", () => {
 
         expect(events).toEqual(["parent", "child"]);
     });
+
+
     it("effects inside components stop running after unmount", () => {
         const count = state(0);
         let calls = 0;
@@ -81,16 +78,17 @@ describe("Component Lifecycle", () => {
         const root = document.createElement("div");
         mount(Comp, root);
 
-        // Effect runs once on initial mount
+        // The template effect ALSO runs once
         expect(calls).toBe(1);
 
         unmount(root);
 
-        // Trigger state update after unmount
         count.set(1);
 
-        // Effect should NOT run after unmount
+        // Only the template effect would have run, but it's disposed by unmount
         expect(calls).toBe(1);
     });
+
+
 
 });

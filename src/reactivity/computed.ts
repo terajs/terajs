@@ -27,7 +27,7 @@ export function computed<T>(fn: () => T) {
      * we simply mark this computed as "dirty" and notify its own subscribers.
      */
     const scheduler = () => {
-        if (!dirty) {
+
             dirty = true;
 
             // Trigger any effects that are watching this computed value
@@ -39,7 +39,7 @@ export function computed<T>(fn: () => T) {
                     scheduleEffect(dep);
                 }
             });
-        }
+        
     };
 
     /**
