@@ -20,6 +20,7 @@
     { "path": "./packages/sfc" },
     { "path": "./packages/runtime" },
     { "path": "./packages/renderer" },
+    { "path": "./packages/renderer-web" },
     { "path": "./packages/router" },
     { "path": "./packages/ui" }
   ]

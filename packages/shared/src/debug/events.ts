@@ -18,38 +18,62 @@ export type DebugEventType =
     | "ref:create" | "ref:get" | "ref:set"
     | "effect:create" | "effect:schedule" | "effect:run" | "effect:cleanup" | "effect:dispose" | "effect:getCurrent"
     | "batch:start" | "batch:end" | "batch:flush" | "batch:run" | "batch:queue"
-    | "computed:create" | "computed:update" | "computed:recomputed" // ADDED
-    | "reactive:create" | "reactive:created" | "reactive:get" | "reactive:set" | "reactive:read" | "reactive:updated" // ADDED
+    | "computed:create" | "computed:update" | "computed:recomputed"
+    | "reactive:create" | "reactive:created" | "reactive:get" | "reactive:set" | "reactive:read" | "reactive:updated"
     | "model:create" | "model:update" | "model:update:child-to-parent" | "model:update:parent-to-child"
     | "effect:cleanup:register"
     | "contract:create" | "contract:reactive:create" | "contract:reactive:wrap"
     | "effect:dispose:start" | "effect:dispose:cleanup" | "effect:dispose:deps" | "effect:dispose:end"
     | "runtime:mode:set" | "runtime:mode:check"
-    | "watch:create" | "watch:source" | "watch:callback" | "watch:cleanup" | "watch:stop" 
+    | "watch:create" | "watch:source" | "watch:callback" | "watch:cleanup" | "watch:stop"
     | "watchEffect:create" | "watch:dispose" | "watchEffect:run" | "watchEffect:cleanup" | "watchEffect:stop"
+
     /* ------------------------------- Renderer ------------------------------- */
     | "component:context:get" | "component:context:set" | "component:context:create" | "component:context:cleanup"
     | "component:cleanup:register" | "component:setup:start" | "component:setup:end"
     | "component:render:root" | "component:render:start" | "component:render:static" | "component:render:template" | "component:render:end"
-    | "dom:create" | "dom:insert" | "dom:remove" | "dom:update" | "dom:replace" | "dom:clear" // ADDED
+    | "dom:create" | "dom:insert" | "dom:remove" | "dom:update" | "dom:replace" | "dom:clear"
     | "dom:fragment:create" | "dom:fragment:insert" | "dom:fragment:remove"
     | "dom:keyed-diff:start" | "dom:keyed-diff:move" | "dom:keyed-diff:insert" | "dom:keyed-diff:remove" | "dom:keyed-diff:end"
     | "dom:hydrate:start" | "dom:hydrate:end"
     | "unwrap:ref" | "unwrap:signal" | "unwrap:accessor" | "unwrap:raw"
     | "list:diff:sync-start" | "list:diff:sync-end" | "list:diff:mount" | "list:diff:unmount" | "list:diff:move" | "list:diff:lis" | "list:diff:end" | "list:diff:start"
+
     /* ------------------------------ Components ------------------------------ */
-    | "component:create" | "component:mount" | "component:update" | "component:unmount" | "component:props:update" | "component:state:update" | "component:dispose"
+    | "component:create" | "component:mount" | "component:update" | "component:unmount"
+    | "component:props:update" | "component:state:update" | "component:dispose"
+
     /* ------------------------------- Templates ------------------------------ */
-    | "template:branch" | "template:fallback" | "template:create" | "template:mount" | "template:update" | "template:unmount" | "template:replace" | "template:dispose" | "template:empty" // ADDED
-    | "binding:create" | "binding:update" | "binding:dispose"
+    | "template:branch" | "template:fallback" | "template:create" | "template:mount"
+    | "template:update" | "template:unmount" | "template:replace" | "template:dispose" | "template:empty"
+
+    /* ------------------------------- Bindings ------------------------------- */
+    | "binding:create"
+    | "binding:update"
+    | "binding:dispose"
+    
+    /* ------------------------------- AST Rendering --------------------------- */
+    | "template:ast:render"
+    | "template:ast:text"
+    | "template:ast:interp"
+    | "template:ast:element"
+    | "template:ast:if"
+    | "template:ast:for"
+
     /* -------------------------------- Contracts ----------------------------- */
     | "contract:update" | "contract:dispose"
+
     /* --------------------------------- Errors ------------------------------- */
-    | "error:reactivity" | "error:renderer" | "error:component" | "error:template" | "error:contract" | "error:unknown"
-    /* ------------------------------ List ----------------------------- */
+    | "error:reactivity" | "error:renderer" | "error:component"
+    | "error:template" | "error:contract" | "error:unknown"
+
+    /* ------------------------------ List ------------------------------------ */
     | "list:create" | "list:update" | "list:reconcile" | "list:mount" | "list:unmount"
+
     /* ------------------------------ JSX Runtime ------------------------------ */
-    | "jsx:create" | "jsx:fragment" | "jsx:component" | "jsx:children" | "jsx:element" | "jsx:props" | "jsx:normalize" | "lifecycle:warn";
+    | "jsx:create" | "jsx:fragment" | "jsx:component" | "jsx:children"
+    | "jsx:element" | "jsx:props" | "jsx:normalize"
+    | "lifecycle:warn";
 
 /* -------------------------------------------------------------------------- */
 /*                               Event Payload                                */

@@ -7,6 +7,7 @@
  * Components may return:
  * - A DOM Node (static component)
  * - A TemplateFn (reactive component)
+ * - An AST (from SFC compiler)
  *
  * Reactive components are wrapped with `template()` to produce a DOM node
  * that updates automatically when dependencies change.
@@ -22,13 +23,19 @@ import type { ComponentContext } from "@nebula/runtime";
 import { template, type TemplateFn } from "./template";
 import { Debug } from "@nebula/shared";
 
+// ⭐ AST → JSX adapter
+import { renderAst } from "./astToJsx";
+import type { ASTNode } from "@nebula/renderer";
+
 /**
  * A framework component.
  * It may return either:
  * - a DOM Node (static component)
  * - a TemplateFn (reactive component)
+ * - an AST (SFC compiler output)
  */
-export type FrameworkComponent = (props?: any) => Node | TemplateFn;
+export type FrameworkComponent = (props?: any) =>
+    Node | TemplateFn | ASTNode;
 
 /**
  * Result of rendering a component.
@@ -66,21 +73,38 @@ export function renderComponent(
 
     let node: Node;
 
-    if (out instanceof Node) {
+    // ⭐ AST support
+    if (isAst(out)) {
+        Debug.emit("component:render:template", {
+            component,
+            templateFn: "AST"
+        });
+
+        // TemplateFn MUST be () => Node
+        // So we close over ctx instead of passing it
+        const fn: TemplateFn = () => {
+            const jsx = renderAst(out, ctx); // AST → JSX
+            return jsx;                      // JSX → DOM happens in template()
+        };
+
+        node = template(fn);
+    }
+    else if (out instanceof Node) {
         Debug.emit("component:render:static", {
             component,
             node: out
         });
         node = out;
-    } else if (typeof out === "function") {
+    }
+    else if (typeof out === "function") {
         Debug.emit("component:render:template", {
             component,
             templateFn: out
         });
 
-        // Reactive component — MUST run template() inside the component context
         node = template(out);
-    } else {
+    }
+    else {
         throw new Error("Invalid component return value.");
     }
 
@@ -127,4 +151,9 @@ export function renderIntoRoot(
     insert(root, node);
 
     return ctx;
+}
+
+/** Type guard for AST nodes */
+function isAst(value: any): value is ASTNode {
+    return value && typeof value === "object" && typeof value.type === "string";
 }

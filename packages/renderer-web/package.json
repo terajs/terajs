@@ -1,0 +1,19 @@
+{
+  "name": "@nebula/renderer-web",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@nebula/shared": "*",
+    "@nebula/runtime": "*",
+    "@nebula/reactivity": "*",
+    "@nebula/renderer": "*"
+  }
+}

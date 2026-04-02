@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Show } from "@nebula/renderer";
+import { Show } from "./controlFlow";
 import { mount } from "./mount";
 import { state } from "@nebula/reactivity";
 

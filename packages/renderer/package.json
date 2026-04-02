@@ -1,14 +1,21 @@
 {
   "name": "@nebula/renderer",
   "version": "0.0.1",
+  "description": "Platform-agnostic rendering interfaces and types for the Nebula UI engine.",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "dependencies": {
-    "@nebula/shared": "*",
-    "@nebula/runtime": "*",
-    "@nebula/reactivity": "*"
-  }
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist"
+  },
+  "license": "MIT",
+  "author": "Nebula Labs",
+  "sideEffects": false
 }

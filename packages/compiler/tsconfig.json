@@ -1,12 +1,14 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist",
     "rootDir": "src",
+    "outDir": "dist",
     "composite": true,
     "declaration": true,
-    "declarationMap": true,
-    "strict": true
+    "declarationMap": true
   },
+  "references": [
+    { "path": "../renderer"}
+  ],
   "include": ["src"]
 }

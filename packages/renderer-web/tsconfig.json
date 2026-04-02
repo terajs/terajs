@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json",
+
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    "types": ["vitest/globals"]
+  },
+
+  "include": ["src"],
+  "exclude": ["dist"],
+
+  "references": [
+    { "path": "../shared" },
+    { "path": "../runtime" },
+    { "path": "../reactivity" },
+    { "path": "../renderer" }
+  ]
+}
