@@ -1,13 +1,26 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+
+    "paths": {
+      "@nebula/*": ["./packages/*/dist/index.d.ts"]
+    }
   },
-  "include": ["src", "test.ts", "tests", "tsconfig.devtools.json"],
-  "exclude": ["src/ui/detools"]
+  "files": [],
+  "include": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/reactivity" },
+    { "path": "./packages/sfc" },
+    { "path": "./packages/runtime" },
+    { "path": "./packages/renderer" },
+    { "path": "./packages/router" },
+    { "path": "./packages/ui" }
+  ]
 }

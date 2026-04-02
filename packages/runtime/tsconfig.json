@@ -16,6 +16,7 @@
   "exclude": ["dist"],
 
   "references": [
-    { "path": "../shared" }
+    { "path": "../shared" },
+    { "path": "../sfc" }
   ]
 }
