@@ -1,21 +1,22 @@
-# 🚀 Nebula Roadmap
+#  Nebula Roadmap (Updated)
 
-Nebula is a fine‑grained, JSX‑based UI framework designed for clarity, performance, and flexibility. This roadmap outlines the core features, architectural goals, and future directions of the framework.
+Nebula is a fine‑grained, compiler‑powered UI framework designed for clarity, performance, and flexibility. This roadmap reflects Nebula’s current architecture and future direction.
 
-Nebula’s philosophy:
-> Provide structure without restricting creativity.  
-> Stay fast, predictable, and platform‑agnostic.
+Nebula’s philosophy:  
+> **Provide structure without restricting creativity.  
+> Stay fast, predictable, and platform‑agnostic.  
+> TypeScript‑first, but TypeScript‑optional.**
 
 ---
 
-## 1. Fine‑Grained Reactivity
+## **1. Fine‑Grained Reactivity**
 
 Nebula uses explicit, dependency‑tracked signals:
 
-- `state()` for reactive values  
+- `signal()` for reactive values  
 - `computed()` for derived values  
 - `effect()` for side effects  
-- automatic dependency tracking  
+- deterministic updates  
 - no VDOM  
 - direct DOM/native updates  
 
@@ -23,54 +24,60 @@ Reactivity is predictable, fast, and SSR‑safe.
 
 ---
 
-## 2. Component Model
+## **2. Component Model**
 
-Nebula components are simple functions:
+Nebula components are **units of UI, logic, metadata, and routing**:
 
-- props → logic → template → styles  
+- props → logic → template → styles → meta → route  
 - JSX templates  
-- no custom file formats  
-- no compiler  
-- no magic  
+- optional SFC format (`.nbl`)  
+- templates compile to IR → DOM  
+- components run once; templates update reactively  
 
-Components run once; templates update reactively.
+Nebula is **TypeScript‑first**, but every feature works in plain JavaScript.
 
 ---
 
-## 3. Props System
+## **3. Props System**
 
 - TypeScript‑first  
 - fully inferred  
 - immutable  
 - simple, predictable API  
+- works identically in JS and TS  
 
 ---
 
-## 4. Styles
+## **4. Styles (Fully Optional)**
 
-Nebula supports:
+Nebula is **style‑agnostic**.
 
-- optional scoped styles  
-- global CSS  
-- CSS modules  
-- Tailwind / utility frameworks  
-- design systems  
+Use:
 
-Scoped styles require no compiler.
+- Tailwind  
+- UnoCSS  
+- CSS Modules  
+- SCSS  
+- Styled Components  
+- Vanilla CSS  
+- Inline styles  
+- Design systems  
+
+Scoped styles are optional and require no build step.
 
 ---
 
-## 5. Async Components
+## **5. Async Components**
 
 - `lazy(() => import(...))`  
 - SSR‑friendly  
 - no Suspense boundaries  
-- no waterfalls  
 - predictable hydration  
+- async logic stays in the component, not the template  
 
 ---
 
-## 6. SSR & Hydration
+## **6. SSR & Hydration**
 
 Nebula’s SSR model:
 
@@ -79,27 +86,45 @@ Nebula’s SSR model:
 - deterministic hydration  
 - no VDOM diffing  
 - no hydration mismatch traps  
+- hydration logs for debugging  
 
 Streaming SSR is planned.
 
 ---
 
-## 7. Routing System
+## **7. Routing System**
 
-Nebula will include an official router:
+Nebula’s router is **component‑driven**:
 
-- file‑based routing (optional)  
-- manual routing API  
+- routes defined inside components  
+- meta (SEO + AI) defined per component  
 - nested routes & layouts  
-- SSR‑aware route loaders  
 - async route components  
+- SSR‑aware loaders  
 - simple guards & redirects  
+- optional file‑based routing  
+
+Routing is flexible, not prescriptive.
 
 ---
 
-## 8. State Management
+## **8. Meta System (SEO + AI)**
 
-Nebula will expand reactivity into global state:
+Nebula treats metadata as first‑class:
+
+- title, description, OpenGraph  
+- AI hints, semantic tags  
+- component‑level meta  
+- template‑level overrides  
+- route‑level aggregation  
+
+This enables AI‑aware tooling and consistent SEO.
+
+---
+
+## **9. State Management**
+
+Nebula expands reactivity into global state:
 
 - `createStore()` for structured global state  
 - `createContext()` / `useContext()`  
@@ -110,47 +135,60 @@ Nebula will expand reactivity into global state:
 
 ---
 
-## 9. UI Library & Framework Compatibility
+## **10. Tooling & Build Integration**
 
-Nebula works with any DOM‑based UI library:
-
-- Tailwind, Bootstrap, UnoCSS  
-- Material Web Components, Radix, ShadCN  
-- CSS Modules, SCSS, Styled Components  
-- Web Components  
-
-Nebula does not enforce a design system.
-
----
-
-## 10. Tooling & Build Integration
-
-Nebula will support:
+Nebula supports:
 
 - Vite (first‑class)  
 - ESBuild / Rollup  
-- optional JSX transforms  
+- JSX transforms  
 - optional scoped‑style transforms  
 - fast HMR with preserved state  
 - TypeScript‑first DX  
+- zero‑config JS support  
+
+Debugging is a priority:
+
+- readable stack traces  
+- hydration logs  
+- reactive graph inspection  
+- template → IR → DOM mapping  
 
 ---
 
-## 11. Multi‑Platform Rendering (Web, Native, Canvas)
+## **11. Multi‑Platform Rendering**
 
-Nebula Core is renderer‑agnostic. Planned renderers:
+Nebula Core is renderer‑agnostic.
 
-- **nebula-dom** — HTML  
-- **nebula-native** — iOS/Android native views  
+Planned renderers:
+
+- **nebula-web** — DOM  
+- **nebula-native** — iOS/Android  
 - **nebula-canvas** — Canvas/WebGL/Skia  
-- **nebula-server** — SSR output  
-- **nebula-terminal** — terminal UIs (future)  
+- **nebula-ssr** — server output  
+- **nebula-terminal** — terminal UIs  
 
 Components remain the same; only the renderer changes.
 
 ---
 
-## 12. Slots & Composition
+## **12. Template Compiler**
+
+Nebula includes a full compiler:
+
+- tokenizer  
+- parser  
+- AST transforms  
+- IR generation  
+- optimized codegen  
+- SSR‑aware output  
+- hydration hints  
+
+Templates compile into direct DOM operations bound to signals.
+
+---
+
+## **13. Slots & Composition**
 
 Nebula supports:
 
@@ -158,25 +196,23 @@ Nebula supports:
 - named slots  
 - scoped slots  
 - slot functions  
-- optional `<Slot>` helper  
 
 Slots are fully reactive and SSR‑safe.
 
 ---
 
-## 13. Portals (Teleporting Content)
+## **14. Portals (Teleporting Content)**
 
-Nebula will include a `<Portal>` primitive:
+Nebula includes a `<Portal>` primitive:
 
-- render content outside normal hierarchy  
-- modals, popovers, tooltips, dropdowns  
+- modals, popovers, tooltips  
 - works across web, native, canvas  
 - hydration‑safe  
 - fine‑grained updates  
 
 ---
 
-## 14. Virtualized Lists & Infinite Feeds
+## **15. Virtualized Lists & Infinite Feeds**
 
 Nebula will include high‑performance list primitives:
 
@@ -186,13 +222,12 @@ Nebula will include high‑performance list primitives:
 - recycled DOM/native nodes  
 - variable item heights  
 - infinite scrolling  
-- cross‑platform support  
 
-Designed for ecommerce, dashboards, and doom‑scroll feeds.
+Designed for dashboards, ecommerce, and social feeds.
 
 ---
 
-## 15. Data Loading & Server Functions
+## **16. Data Loading & Server Functions**
 
 Nebula Kit will include:
 
@@ -201,12 +236,12 @@ Nebula Kit will include:
 - caching & refetching  
 - error/loading states  
 - server‑only functions  
-- streaming data support  
+- streaming data  
 - hydration with serialized data  
 
 ---
 
-## 16. Nebula Kit (Application Framework Layer)
+## **17. Nebula Kit (Application Framework Layer)**
 
 Nebula Kit is the batteries‑included meta‑framework:
 
@@ -216,15 +251,15 @@ Nebula Kit is the batteries‑included meta‑framework:
 - partial hydration  
 - virtualization components  
 - portal & slot primitives  
-- built‑in UI patterns (modal, popover, toast)  
-- integration patterns for ecommerce, CMS, APIs  
+- built‑in UI patterns  
+- ecommerce/CMS/API integrations  
 
 Nebula Core = rendering engine.  
 Nebula Kit = full application framework.
 
 ---
 
-## 17. Philosophy Summary
+## **18. Philosophy Summary**
 
 Nebula aims to be:
 
@@ -234,7 +269,10 @@ Nebula aims to be:
 - flexible  
 - platform‑agnostic  
 - scalable from small apps to enterprise systems  
+- TypeScript‑first, but JS‑friendly  
+- debuggable by design  
 
 Nebula Core stays minimal.  
 Nebula Kit provides structure when needed.
 
+---

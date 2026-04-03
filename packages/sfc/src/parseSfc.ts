@@ -40,11 +40,15 @@ export function parseSFC(source: string, filePath: string): ParsedSFC {
   const meta: MetaConfig = parseMiniYAML(metaRaw) ?? {};
   const routeOverride: RouteOverride | null = parseMiniYAML(routeRaw);
 
+  const aiRaw = extractBlock(source, "ai");
+  const ai = parseMiniYAML(aiRaw) ?? {};
+
   return {
     filePath,
     template,
     script,
     style: style ?? null,
+    ai,
     meta,
     routeOverride
   };

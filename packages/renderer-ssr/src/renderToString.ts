@@ -37,11 +37,11 @@ export function renderToString(
 ): SSRResult {
   const body = ir.template.map(renderNode).join("");
   const hydration = resolveHydration(ir, ctx);
-  const marker = renderHydrationMarker(hydration);
+  const marker = renderHydrationMarker(hydration, ctx.ai ?? ir.ai);
   const html = body + marker;
   const head = renderHead(ir, ctx);
 
-  return { html, head, hydration };
+  return { html, head, hydration, ai: ctx.ai ?? ir.ai };
 }
 
 /**
@@ -176,8 +176,12 @@ function resolveHydration(
  * This is consumed by the client renderer to determine how and when
  * to hydrate the server-rendered HTML.
  */
-function renderHydrationMarker(hint: SSRHydrationHint): string {
-  const payload = JSON.stringify({ mode: hint.mode });
+function renderHydrationMarker(hint: SSRHydrationHint, ai?: Record<string, any>): string {
+  const payload = JSON.stringify({
+    mode: hint.mode,
+    ai: ai ?? null
+  });
+
   return `<script type="application/nebula-hydration">${payload}</script>`;
 }
 

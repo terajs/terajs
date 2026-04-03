@@ -33,6 +33,7 @@ export function generateIRModule(sfc: ParsedSFC): IRModule {
     filePath: sfc.filePath,
     template,
     meta: sfc.meta,
+    ai: sfc.ai,    
     route: sfc.routeOverride
   }
 }

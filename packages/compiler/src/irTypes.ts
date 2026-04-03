@@ -121,19 +121,24 @@ export type IRNode =
  * - SSR renderer
  * - DOM renderer
  * - router
+ * - ai metadata system
  * - meta system
  * - devtools
  */
 export interface IRModule {
   /** Absolute or project‑relative file path of the SFC. */
-  filePath: string
+  filePath: string;
 
   /** Normalized template IR nodes. */
-  template: IRNode[]
+  template: IRNode[];
 
   /** Parsed metadata from the <meta> block. */
-  meta: MetaConfig
+  meta: MetaConfig;
+
+  /** Parsed AI metadata from the <ai> block, if present. */
+  ai?: Record<string, any>;
 
   /** Parsed route overrides from the <route> block, if present. */
-  route: RouteOverride | null
+  route: RouteOverride | null;
 }
+

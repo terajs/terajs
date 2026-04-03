@@ -22,6 +22,8 @@ export interface RouteDefinition {
   edge: boolean;
   /** Metadata configuration for SEO, AI, analytics, etc. */
   meta: MetaConfig;
+  /** AI metadata, if present. This is opaque and passed through from the SFC. */
+  ai?: Record<string, any>; 
 }
 
 /**
@@ -72,5 +74,6 @@ export function buildRouteFromSFC(sfc: ParsedSFC): RouteDefinition {
     hydrate: o.hydrate ?? "eager",
     edge: o.edge ?? false,
     meta: sfc.meta,
+    ai: sfc.ai,
   };
 }

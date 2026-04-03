@@ -1,10 +1,16 @@
-```md
-# 🎨 Nebula Style Guide
+#  Nebula Style Guide (Updated)
 
-This guide outlines recommended patterns for writing clean, maintainable Nebula components. These conventions are optional but strongly encouraged to keep codebases consistent and scalable.
+Nebula encourages clarity, predictability, and small composable pieces — without forcing a rigid structure. These conventions help teams write consistent, maintainable components while preserving full flexibility.
 
-Nebula’s philosophy:
-> Provide structure without restricting creativity.
+Nebula’s philosophy:  
+> **Provide structure without restricting creativity.**
+
+Nebula is:  
+- **TypeScript‑first, but TypeScript‑optional**  
+- **style‑agnostic**  
+- **platform‑agnostic**  
+- **DX‑driven**  
+- **debuggable by design**  
 
 ---
 
@@ -26,11 +32,13 @@ formatDate.ts
 router.ts
 ```
 
+Nebula does not enforce a folder structure — choose what fits your team.
+
 ---
 
 ## 2. Recommended Component Structure
 
-Nebula encourages a clear structure inside `.tsx` files:
+Nebula components can include logic, template, styles, metadata, and routing in one file.
 
 ```tsx
 // --- Props ---
@@ -38,19 +46,34 @@ export interface Props {}
 
 // --- Logic ---
 export function Component(props: Props) {
-  // state, computed, effects, handlers
+  const count = signal(0)
 
   // --- Template ---
   return () => (
-    <div>...</div>
-  );
+    <div class="root">
+      Count: {count()}
+    </div>
+  )
 }
 
 // --- Styles (optional) ---
-export const styles = `...`;
+export const styles = `
+  .root { padding: 8px; }
+`
+
+// --- Meta (optional) ---
+export const meta = {
+  title: "Counter",
+  description: "A simple counter component"
+}
+
+// --- Route config (optional) ---
+export const route = {
+  path: "/counter"
+}
 ```
 
-This keeps components predictable and easy to navigate.
+This structure is recommended, not required.
 
 ---
 
@@ -72,6 +95,8 @@ UserCard/
   UserCard.styles.css
 ```
 
+Nebula does not enforce this — it’s just a helpful pattern.
+
 ---
 
 ## 4. Use Computed Values for Derived State
@@ -81,15 +106,15 @@ Avoid recalculating expensive values inside templates.
 ❌ Avoid:
 
 ```tsx
-return () => <div>{expensiveCalculation()}</div>;
+return () => <div>{expensiveCalculation()}</div>
 ```
 
 ✔ Prefer:
 
 ```ts
-const result = computed(expensiveCalculation);
+const result = computed(expensiveCalculation)
 
-return () => <div>{result.get()}</div>;
+return () => <div>{result()}</div>
 ```
 
 ---
@@ -106,39 +131,41 @@ Templates should:
 Good:
 
 ```tsx
-return () => <div>{count.get()}</div>;
+return () => <div>{count()}</div>
 ```
 
 Bad:
 
 ```tsx
-return () => <div>{Math.random()}</div>;
+return () => <div>{Math.random()}</div>
 ```
 
 ---
 
-## 6. Use Scoped Styles When Appropriate
+## 6. Styling: Use Anything You Want
 
-Nebula supports optional scoped styles:
+Nebula is **style‑agnostic**.
+
+Use:
+
+- Tailwind  
+- UnoCSS  
+- CSS Modules  
+- SCSS  
+- Styled Components  
+- Vanilla CSS  
+- Inline styles  
+- Design systems  
+
+Nebula does not enforce or prefer any styling approach.
+
+Scoped styles are optional:
 
 ```ts
 export const styles = `
-  .root {
-    padding: 8px;
-  }
-`;
+  .root { padding: 8px; }
+`
 ```
-
-Use scoped styles for:
-
-- component‑specific styling  
-- reusable UI elements  
-
-Use global CSS or utility frameworks for:
-
-- layout  
-- typography  
-- spacing  
 
 ---
 
@@ -169,7 +196,7 @@ Use `isServer()` when needed:
 
 ```ts
 if (!isServer()) {
-  effect(() => console.log("client only"));
+  effect(() => console.log("client only"))
 }
 ```
 
@@ -179,14 +206,14 @@ if (!isServer()) {
 
 Use:
 
-- `state()` for local component state  
+- `signal()` for local state  
 - `createStore()` for global state  
 - `createContext()` for dependency injection  
 
 Avoid:
 
 - global singletons unless intentional  
-- passing props deeply through many layers  
+- prop drilling through many layers  
 
 ---
 
@@ -203,7 +230,7 @@ Avoid:
 - `doubleCount`, `formattedDate`  
 
 ### Event handlers:
-- `handleSubmit`, `handleClick`, `handleChange`  
+- `handleSubmit`, `handleClick`  
 
 ---
 
@@ -214,7 +241,6 @@ Use descriptive names:
 ```ts
 function handleSubmit() {}
 function handleClick() {}
-function handleChange() {}
 ```
 
 Avoid inline anonymous handlers when possible.
@@ -227,8 +253,7 @@ Use async functions inside logic, not templates:
 
 ```ts
 async function loadUser() {
-  const data = await fetchUser();
-  user.set(data);
+  user.set(await fetchUser())
 }
 ```
 
@@ -243,9 +268,9 @@ Use try/catch inside logic:
 ```ts
 async function load() {
   try {
-    data.set(await fetchData());
+    data.set(await fetchData())
   } catch (err) {
-    error.set(err);
+    error.set(err)
   }
 }
 ```
@@ -264,8 +289,6 @@ Nebula uses fine‑grained, explicit dependency tracking.
 - avoid unnecessary watchers  
 - prefer computed values for derived data  
 
-This keeps reactivity predictable and performant.
-
 ---
 
 ## 15. Slots & Composition Patterns
@@ -281,9 +304,8 @@ Use slots for:
 - layout components  
 - cards, modals, popovers  
 - lists and data tables  
-- reusable UI patterns  
 
-Slots should be pure functions and should not contain side effects.
+Slots should be pure functions.
 
 ---
 
@@ -295,13 +317,26 @@ Use `<Portal>` for:
 - popovers  
 - tooltips  
 - dropdowns  
-- global overlays  
 
-Portals should contain only UI, not business logic.
+Portals should contain UI, not business logic.
 
 ---
 
-## 17. Philosophy Summary
+## 17. Debugging Best Practices
+
+Nebula is designed to be easy to debug:
+
+- keep signal names meaningful  
+- avoid deeply nested reactive chains  
+- use computed values for clarity  
+- keep templates pure  
+- avoid mixing side effects with rendering  
+
+Readable code = debuggable code.
+
+---
+
+## 18. Philosophy Summary
 
 Nebula encourages components that are:
 
@@ -314,4 +349,5 @@ Nebula encourages components that are:
 - easy to read and maintain  
 
 These guidelines help teams build consistent, scalable Nebula applications without sacrificing flexibility.
-```
+
+---

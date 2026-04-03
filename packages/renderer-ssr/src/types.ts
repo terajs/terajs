@@ -18,6 +18,9 @@ export interface SSRContext {
 
   /** Additional or overriding route fields. */
   route?: Record<string, any>;
+  
+  /** AI metadata, if present. This is opaque and passed through from the SFC. */
+  ai?: Record<string, any>;
 }
 
 /**
@@ -56,4 +59,7 @@ export interface SSRResult {
 
   /** Hydration hint for the client renderer. */
   hydration: SSRHydrationHint;
+
+  /** AI metadata, if present. This is opaque and passed through from the SFC. */
+  ai?: Record<string, any>;
 }

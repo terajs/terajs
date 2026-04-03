@@ -135,6 +135,8 @@ export interface ParsedSFC {
   /** Parsed metadata configuration from the `<meta>` block. */
   meta: MetaConfig;
 
+  ai?: Record<string, any>;
+
   /** Parsed route override configuration from the `<route>` block, if present. */
   routeOverride: RouteOverride | null;
 }
