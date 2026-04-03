@@ -1,0 +1,139 @@
+/**
+ * @file irTypes.ts
+ * @description
+ * Core Intermediate Representation (IR) types for Nebula's compiler.
+ *
+ * Nebula's IR is intentionally renderer‑agnostic. It represents:
+ * - normalized template structure
+ * - metadata extracted from <meta> blocks
+ * - route overrides extracted from <route> blocks
+ * - file‑level context for SSR, hydration, routing, and devtools
+ *
+ * This IR is the foundation for:
+ * - SSR codegen
+ * - client‑side DOM codegen
+ * - routing + meta transforms
+ * - AI‑assisted analysis
+ * - static optimization passes
+ */
+
+import type { MetaConfig, RouteOverride } from "@nebula/sfc"
+
+/**
+ * IR flags used for static analysis and optimization.
+ */
+export interface IRFlags {
+  /** Whether this node contains dynamic bindings. */
+  dynamic?: boolean
+
+  /** Whether this node is fully static and can be hoisted. */
+  static?: boolean
+
+  /** Whether this node contains directives (v-if, v-for, etc.). */
+  hasDirectives?: boolean
+}
+
+/**
+ * Base shape shared by all IR nodes.
+ */
+export interface IRNodeBase {
+  /** Discriminant for the node kind. */
+  type: string
+
+  /** Optional source location for devtools + error overlays. */
+  loc?: { start: number; end: number }
+
+  /** Optional optimization flags. */
+  flags?: IRFlags
+}
+
+/**
+ * Text node in IR.
+ */
+export interface IRTextNode extends IRNodeBase {
+  type: "text"
+  value: string
+}
+
+/**
+ * Interpolation node in IR (e.g. {{ expr }}).
+ */
+export interface IRInterpolationNode extends IRNodeBase {
+  type: "interp"
+  expression: string
+}
+
+/**
+ * Element node in IR.
+ */
+export interface IRElementNode extends IRNodeBase {
+  type: "element"
+  tag: string
+  props: IRPropNode[]
+  children: IRNode[]
+}
+
+/**
+ * v-if node in IR.
+ */
+export interface IRIfNode extends IRNodeBase {
+  type: "if"
+  condition: string
+  then: IRNode[]
+  else?: IRNode[]
+}
+
+/**
+ * v-for node in IR.
+ */
+export interface IRForNode extends IRNodeBase {
+  type: "for"
+  each: string
+  item: string
+  index?: string
+  body: IRNode[]
+}
+
+/**
+ * Prop node in IR (static, bind, event, directive, etc.).
+ * This can be refined later as needed.
+ */
+export interface IRPropNode {
+  kind: "static" | "bind" | "event" | "directive" | string
+  name: string
+  value: unknown
+}
+
+/**
+ * Discriminated union of all IR node kinds.
+ */
+export type IRNode =
+  | IRTextNode
+  | IRInterpolationNode
+  | IRElementNode
+  | IRIfNode
+  | IRForNode
+
+/**
+ * The full IR module produced from a Nebula SFC++ file.
+ *
+ * This is the compiler's primary output and the input to:
+ * - SSR renderer
+ * - DOM renderer
+ * - router
+ * - meta system
+ * - devtools
+ */
+export interface IRModule {
+  /** Absolute or project‑relative file path of the SFC. */
+  filePath: string
+
+  /** Normalized template IR nodes. */
+  template: IRNode[]
+
+  /** Parsed metadata from the <meta> block. */
+  meta: MetaConfig
+
+  /** Parsed route overrides from the <route> block, if present. */
+  route: RouteOverride | null
+}
