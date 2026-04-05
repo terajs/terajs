@@ -27,9 +27,24 @@ describe("parseSFC", () => {
   it("extracts all blocks correctly", () => {
     const sfc = parseSFC(sample, "/pages/test.nbl");
 
-    expect(sfc.template).toContain("<div>Hello</div>");
-    expect(sfc.script).toContain("const x = 1");
-    expect(sfc.style).toContain(".a { color: red; }");
+    const templateText =
+      typeof sfc.template === "string"
+        ? sfc.template
+        : sfc.template.content;
+
+    const scriptText =
+      typeof sfc.script === "string"
+        ? sfc.script
+        : sfc.script.content;
+
+    const styleText =
+      typeof sfc.style === "string"
+        ? sfc.style
+        : sfc.style?.content ?? "";
+
+    expect(templateText).toContain("<div>Hello</div>");
+    expect(scriptText).toContain("const x = 1");
+    expect(styleText).toContain(".a { color: red; }");
 
     expect(sfc.meta.title).toBe("Hello");
     expect(sfc.routeOverride?.layout).toBe("blog");

@@ -34,7 +34,7 @@ export function stripTypes(source: string): string {
   code = code.replace(/=\s*<[^>]+>\s*\(/g, "= (");
 
   // Remove type annotations on variables and params: foo: Type
-  code = code.replace(/:\s*[\w\[\]\<\>\|&\s,]+(?=[=;,)])/g, "");
+  code = code.replace(/:\s*[\w\[\]\<\>\|&\s,]+(?=[=;),{])/g, "")
 
   return code;
 }

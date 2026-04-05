@@ -32,7 +32,9 @@ function extractBlock(source: string, tag: string): string | null {
 export function parseSFC(source: string, filePath: string): ParsedSFC {
   const template = extractBlock(source, "template") ?? "";
   const script = extractBlock(source, "script") ?? "";
-  const style = extractBlock(source, "style");
+  const styleRaw = extractBlock(source, "style");
+  const style = styleRaw === null ? null : styleRaw;
+
 
   const metaRaw = extractBlock(source, "meta");
   const routeRaw = extractBlock(source, "route");
@@ -43,12 +45,17 @@ export function parseSFC(source: string, filePath: string): ParsedSFC {
   const aiRaw = extractBlock(source, "ai");
   const ai = aiRaw ? (parseMiniYAML(aiRaw) ?? {}) : undefined;
 
-
+  if (ai && typeof ai.keywords === "string") {
+    ai.keywords = ai.keywords
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  }
   return {
     filePath,
     template,
     script,
-    style: style ?? null,
+    style: style,
     ai,
     meta,
     routeOverride
