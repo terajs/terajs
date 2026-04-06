@@ -12,6 +12,7 @@
     }
   },
   "dependencies": {
-    "@terajs/renderer": "*"
+    "@terajs/renderer": "*",
+    "@terajs/shared": "*"
   }
 }

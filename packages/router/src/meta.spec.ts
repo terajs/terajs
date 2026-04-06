@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RouteDefinition } from "./builder";
+import type { RouteDefinition } from "./definition";
 import { resolveLoadedRouteMetadata } from "./meta";
 
 function route(overrides: Partial<RouteDefinition>): RouteDefinition {

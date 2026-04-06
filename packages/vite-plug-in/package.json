@@ -17,6 +17,7 @@
   "dependencies": {
     "@terajs/shared": "*",
     "@terajs/runtime": "*",
+    "@terajs/router-manifest": "*",
     "@terajs/router": "*",
     "@terajs/sfc": "*",
     "@terajs/compiler": "*"

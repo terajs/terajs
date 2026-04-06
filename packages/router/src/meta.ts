@@ -1,9 +1,8 @@
-import type { MetaConfig } from "@terajs/sfc";
-import type { RouteDefinition } from "./builder";
+import type { RouteDefinition, RouteMetaConfig } from "./definition";
 import type { LoadedLayoutModule, LoadedRouteMatch } from "./loading";
 
 export interface ResolvedRouteMetadata {
-  meta: MetaConfig;
+  meta: RouteMetaConfig;
   ai?: Record<string, unknown>;
   route: Pick<
     RouteDefinition,
@@ -103,10 +102,10 @@ export function resolveLoadedRouteMetadata<TData = unknown>(
   const layoutCarriers = metadataCarriersFromLayouts(loaded.layouts);
   const pageCarrier = readMetadataCarrier(loaded.component);
 
-  const meta = mergeRecords<MetaConfig>(
-    ...layoutCarriers.map((carrier) => carrier.meta as MetaConfig | undefined),
-    loaded.match.route.meta as MetaConfig,
-    pageCarrier.meta as MetaConfig | undefined
+  const meta = mergeRecords<RouteMetaConfig>(
+    ...layoutCarriers.map((carrier) => carrier.meta as RouteMetaConfig | undefined),
+    loaded.match.route.meta as RouteMetaConfig,
+    pageCarrier.meta as RouteMetaConfig | undefined
   );
 
   const ai = mergeRecords<Record<string, unknown>>(

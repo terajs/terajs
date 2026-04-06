@@ -8,6 +8,7 @@
     "declarationMap": true
   },
   "references": [
+    { "path": "../shared"},
     { "path": "../renderer"}
   ],
   "include": ["src"],

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RouteDefinition } from "./builder";
+import type { RouteDefinition } from "./definition";
 import {
   createRouteHydrationSnapshot,
   loadRouteMatch,

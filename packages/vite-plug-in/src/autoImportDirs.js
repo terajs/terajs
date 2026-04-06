@@ -1,1 +1,0 @@
-export { getAutoImportDirs } from "./config.js";

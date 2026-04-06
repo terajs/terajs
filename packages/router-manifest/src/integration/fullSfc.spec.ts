@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { parseSFC } from "@terajs/sfc";
 import { buildRouteFromSFC } from "../builder";
 
@@ -35,4 +35,3 @@ describe("Full SFC integration", () => {
     expect(route.meta).toBeTypeOf("object");
   });
 });
-

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Debug } from "@terajs/shared";
-import type { RouteDefinition } from "./builder";
+import type { RouteDefinition } from "./definition";
 import {
   createMemoryHistory,
   createRouter,

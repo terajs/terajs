@@ -6,8 +6,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getAutoImportDirs } from './autoImportDirs.js';
-import { getConfiguredRoutes, getRouteDirs } from './config.js';
+import { getAutoImportDirs } from "./autoImportDirs";
+import { getConfiguredRoutes, getRouteDirs } from "./config";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { sfcToComponent } from "@terajs/sfc";
@@ -59,13 +59,13 @@ function terajsPlugin(): Plugin {
   }
 
   function generateAutoImports() {
-    let code = '';
+    let code = "";
     for (const dir of autoImportDirs) {
       if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.nbl'));
+      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".nbl"));
       for (const f of files) {
-        const name = pascalCase(f.replace(/\.nbl$/, ''));
-        const rel = './' + f;
+        const name = pascalCase(f.replace(/\.nbl$/, ""));
+        const rel = "./" + f;
         code += `export { default as ${name} } from '${rel}';\n`;
       }
     }
@@ -98,7 +98,7 @@ function terajsPlugin(): Plugin {
   }`);
 
     return [
-      `import { buildRouteManifest } from '@terajs/router';`,
+      `import { buildRouteManifest } from '@terajs/router-manifest';`,
       `const routeSources = [`,
       routeSources.join(",\n"),
       `];`,
@@ -143,7 +143,7 @@ function terajsPlugin(): Plugin {
       Debug.emit("sfc:load", { scope: id });
 
       // Inject auto-imports at the top of every SFC
-  const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
+      const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
       let compiled = sfcToComponent(sfc);
       compiled = autoImport + compiled;
       return compiled;

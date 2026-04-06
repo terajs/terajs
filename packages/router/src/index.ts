@@ -4,13 +4,6 @@
  * Entry point for the @terajs/router package.
  */
 
-export { 
-  inferPathFromFile, 
-  buildRouteFromSFC 
-} from "./builder";
-
-export { buildRouteManifest } from "./manifest";
-
 export { createRouteHydrationSnapshot, loadRouteMatch } from "./loading";
 export { resolveLoadedRouteMetadata } from "./meta";
 
@@ -21,8 +14,7 @@ export {
   matchRoute
 } from "./runtime";
 
-export type { RouteDefinition, RouteLayoutDefinition } from "./builder";
-export type { RouteConfigInput, RouteManifestOptions, RouteSourceInput } from "./manifest";
+export type { RouteDefinition, RouteLayoutDefinition, RouteMetaConfig } from "./definition";
 export type {
   LoadedLayoutModule,
   LoadedRouteMatch,

@@ -1,5 +1,5 @@
 import { Debug } from "@terajs/shared";
-import type { RouteDefinition } from "./builder";
+import type { RouteDefinition } from "./definition";
 import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta";
 import type { RouteMatch } from "./runtime";
 

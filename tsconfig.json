@@ -24,6 +24,8 @@
     { "path": "./packages/renderer-ssr"},
     { "path": "./packages/renderer-web" },
     { "path": "./packages/router" },
-    { "path": "./packages/ui" }
+    { "path": "./packages/router-manifest" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/vite-plug-in" }
   ]
 }

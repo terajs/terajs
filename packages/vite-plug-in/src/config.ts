@@ -1,10 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import type { RouteConfigInput } from "@terajs/router-manifest";
 
 const require = createRequire(import.meta.url);
 
-function readTerajsConfig() {
+interface TerajsUserConfig {
+  autoImportDirs?: string[];
+  routeDirs?: string[];
+  routes?: Array<{
+    file?: string;
+    filePath?: string;
+    path?: string;
+    layout?: string;
+    middleware?: string | string[];
+    prerender?: boolean;
+    hydrate?: RouteConfigInput["hydrate"];
+    edge?: boolean;
+  }>;
+}
+
+function readTerajsConfig(): TerajsUserConfig {
   const cwd = process.cwd();
   const configPath = path.resolve(cwd, "terajs.config.js");
 
@@ -12,18 +28,18 @@ function readTerajsConfig() {
     return {};
   }
 
-  return require(configPath) ?? {};
+  return (require(configPath) as TerajsUserConfig | undefined) ?? {};
 }
 
-export function getTerajsConfig() {
+export function getTerajsConfig(): TerajsUserConfig {
   return readTerajsConfig();
 }
 
-export function getAutoImportDirs() {
+export function getAutoImportDirs(): string[] {
   const cwd = process.cwd();
   const config = readTerajsConfig();
   const defaultDirs = [path.resolve(cwd, "packages/devtools/src/components")];
-  const configuredDirs = Array.isArray(config?.autoImportDirs) ? config.autoImportDirs : [];
+  const configuredDirs = Array.isArray(config.autoImportDirs) ? config.autoImportDirs : [];
 
   if (configuredDirs.length === 0) {
     return defaultDirs;
@@ -32,10 +48,10 @@ export function getAutoImportDirs() {
   return configuredDirs.map((dir) => path.resolve(cwd, dir));
 }
 
-export function getRouteDirs() {
+export function getRouteDirs(): string[] {
   const cwd = process.cwd();
   const config = readTerajsConfig();
-  const configuredDirs = Array.isArray(config?.routeDirs) ? config.routeDirs : [];
+  const configuredDirs = Array.isArray(config.routeDirs) ? config.routeDirs : [];
   const defaultDirs = ["src/routes", "src/pages"];
   const dirs = configuredDirs.length > 0 ? configuredDirs : defaultDirs;
 
@@ -44,14 +60,17 @@ export function getRouteDirs() {
     .filter((dir, index, values) => fs.existsSync(dir) && values.indexOf(dir) === index);
 }
 
-export function getConfiguredRoutes() {
+export function getConfiguredRoutes(): RouteConfigInput[] {
   const cwd = process.cwd();
   const config = readTerajsConfig();
-  const routes = Array.isArray(config?.routes) ? config.routes : [];
+  const routes = Array.isArray(config.routes) ? config.routes : [];
+  const configuredRoutes: RouteConfigInput[] = [];
 
-  return routes
-    .filter((route) => route && typeof route === "object")
-    .map((route) => {
+  for (const route of routes) {
+    if (route === null || typeof route !== "object") {
+      continue;
+    }
+
       const file = typeof route.file === "string"
         ? route.file
         : typeof route.filePath === "string"
@@ -59,22 +78,23 @@ export function getConfiguredRoutes() {
         : null;
 
       if (!file) {
-        return null;
+        continue;
       }
 
-      return {
+      configuredRoutes.push({
         filePath: path.resolve(cwd, file),
         path: typeof route.path === "string" ? route.path : undefined,
         layout: typeof route.layout === "string" ? route.layout : undefined,
         middleware: Array.isArray(route.middleware)
-          ? route.middleware.filter((value) => typeof value === "string")
+          ? route.middleware.filter((value): value is string => typeof value === "string")
           : typeof route.middleware === "string"
           ? route.middleware
           : undefined,
         prerender: typeof route.prerender === "boolean" ? route.prerender : undefined,
         hydrate: typeof route.hydrate === "string" ? route.hydrate : undefined,
         edge: typeof route.edge === "boolean" ? route.edge : undefined
-      };
-    })
-    .filter(Boolean);
+      });
+  }
+
+  return configuredRoutes;
 }

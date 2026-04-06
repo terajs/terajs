@@ -1,5 +1,5 @@
 {
-  "name": "@terajs/router",
+  "name": "@terajs/router-manifest",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,6 +12,8 @@
     }
   },
   "dependencies": {
+    "@terajs/router": "*",
+    "@terajs/sfc": "*",
     "@terajs/shared": "*"
   }
 }

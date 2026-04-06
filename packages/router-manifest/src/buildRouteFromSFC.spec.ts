@@ -1,6 +1,6 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
+import type { ParsedSFC } from "@terajs/sfc";
 import { buildRouteFromSFC } from "./index";
-import { ParsedSFC, type MetaConfig } from "@terajs/sfc";
 
 function mockSFC(overrides: Partial<ParsedSFC>): ParsedSFC {
   return {
@@ -8,7 +8,7 @@ function mockSFC(overrides: Partial<ParsedSFC>): ParsedSFC {
     template: "",
     script: "",
     style: null,
-    meta: {} as MetaConfig,
+    meta: {},
     routeOverride: null,
     ...overrides
   };
@@ -46,4 +46,3 @@ describe("buildRouteFromSFC", () => {
     expect(route.middleware).toEqual(["auth"]);
   });
 });
-

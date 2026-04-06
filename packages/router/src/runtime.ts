@@ -1,5 +1,5 @@
 import { Debug } from "@terajs/shared";
-import type { RouteDefinition } from "./builder";
+import type { RouteDefinition } from "./definition";
 
 export type RouteParams = Record<string, string>;
 export type RouteQueryValue = string | string[];
