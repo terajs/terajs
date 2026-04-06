@@ -10,10 +10,10 @@ describe("component() meta/AI integration", () => {
     const meta = { title: "Test", description: "desc" };
     const ai = { keywords: ["foo", "bar"] };
     const route = { layout: "main" };
-    const Comp = component({ name: "Test", meta, ai, route }, () => () => null);
+    const Comp = component({ name: "Test", meta, ai, route }, () => () => document.createElement("div"));
     // Meta/AI/route should be accessible on the component wrapper
-    expect(Comp.meta).toEqual(meta);
-    expect(Comp.ai).toEqual(ai);
-    expect(Comp.route).toEqual(route);
+    expect((Comp as any).meta).toEqual(meta);
+    expect((Comp as any).ai).toEqual(ai);
+    expect((Comp as any).route).toEqual(route);
   });
 });

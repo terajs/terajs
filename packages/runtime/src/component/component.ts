@@ -53,7 +53,7 @@ export function onCleanup(fn: Disposer): void {
  * in development, registers the component for HMR.
  */
 export function component<P = any>(
-  options: { name?: string; meta?: any },
+  options: { name?: string; meta?: any; ai?: any; route?: any },
   setup: (props: P) => Node | (() => Node)
 ) {
   const name = options.name ?? "AnonymousComponent";

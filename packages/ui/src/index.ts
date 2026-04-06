@@ -3,5 +3,4 @@
  * @description Entry point for Nebula DevTools UI components.
  */
 
-export { mountDevtoolsOverlay } from "./devtools/overlay";
-export { initDevtoolsApp } from "./devtools/app";
+// Devtools exports removed; use packages/devtools for actual implementations.
