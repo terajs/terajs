@@ -11,7 +11,7 @@ export {
 
 export { buildRouteManifest } from "./manifest";
 
-export { loadRouteMatch } from "./loading";
+export { createRouteHydrationSnapshot, loadRouteMatch } from "./loading";
 export { resolveLoadedRouteMetadata } from "./meta";
 
 export {
@@ -26,6 +26,7 @@ export type { RouteConfigInput, RouteManifestOptions, RouteSourceInput } from ".
 export type {
   LoadedLayoutModule,
   LoadedRouteMatch,
+  RouteHydrationSnapshot,
   RouteLoadContext,
   RouteModule
 } from "./loading";

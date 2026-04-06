@@ -1,7 +1,8 @@
-import type { LoadedRouteMatch, RouteMatch, Router } from "@terajs/router";
+import type { LoadedRouteMatch, RouteHydrationSnapshot, RouteMatch, Router } from "@terajs/router";
 import { loadRouteMatch } from "@terajs/router";
 import { onCleanup } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
+import { readHydrationPayload } from "./hydrate";
 import { mount, unmount } from "./mount";
 import type { FrameworkComponent } from "./render";
 
@@ -17,6 +18,7 @@ export interface RouteViewOptions<TData = unknown> {
   notFound?: (context: { router: Router; target: string }) => Node;
   error?: (context: { router: Router; target: string; error: unknown }) => Node;
   applyMeta?: boolean;
+  hydrationSnapshot?: RouteHydrationSnapshot<TData>;
 }
 
 function createTextNode(message: string): Node {
@@ -117,6 +119,7 @@ export function createRouteView<TData = unknown>(
     let started = false;
     let lastTarget = router.history.getLocation();
     let currentAbort: AbortController | null = null;
+    let hydrationSnapshot = options.hydrationSnapshot ?? readHydrationPayload().routeSnapshot as RouteHydrationSnapshot<TData> | undefined;
 
     const renderNode = (node: Node) => {
       try {
@@ -150,8 +153,13 @@ export function createRouteView<TData = unknown>(
 
       try {
         const loaded = await loadRouteMatch<TData>(match, {
-          signal: currentAbort.signal
+          signal: currentAbort.signal,
+          hydrationSnapshot
         });
+
+        if (hydrationSnapshot?.to === match.fullPath) {
+          hydrationSnapshot = undefined;
+        }
 
         if (token !== navigationToken || currentAbort.signal.aborted) {
           return;

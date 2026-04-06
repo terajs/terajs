@@ -6,6 +6,8 @@
  * and the final SSR output returned by `renderToString`.
  */
 
+import type { RouteHydrationSnapshot } from "@terajs/router";
+
 /**
  * Context object passed into SSR.
  *
@@ -21,6 +23,9 @@ export interface SSRContext {
   
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;
+
+  /** Serialized route payload used to resume route state on the client. */
+  routeSnapshot?: RouteHydrationSnapshot<unknown>;
 }
 
 /**
@@ -62,4 +67,7 @@ export interface SSRResult {
 
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;
+
+  /** Serialized route payload used to resume route state on the client. */
+  routeSnapshot?: RouteHydrationSnapshot<unknown>;
 }

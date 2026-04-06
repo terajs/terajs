@@ -78,5 +78,38 @@ describe("renderToString", () => {
 
     expect(hydration.mode).toBe("interaction");
   });
+
+  it("serializes a route snapshot into the hydration marker", () => {
+    const ir = mockIR([{ type: "text", value: "Hello" }], { title: "Docs" });
+
+    const result = renderToString(ir, {
+      routeSnapshot: {
+        to: "/docs",
+        params: {},
+        query: {},
+        hash: "",
+        data: { slug: "docs" },
+        resolved: {
+          meta: { title: "Docs" },
+          route: {
+            id: "docs",
+            path: "/docs",
+            filePath: "/pages/docs.nbl",
+            layout: null,
+            middleware: [],
+            prerender: true,
+            hydrate: "eager",
+            edge: false,
+            layouts: []
+          }
+        }
+      }
+    });
+
+    expect(result.html).toContain('"routeSnapshot":{"to":"/docs"');
+    expect(result.routeSnapshot).toEqual(
+      expect.objectContaining({ to: "/docs", data: { slug: "docs" } })
+    );
+  });
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMemoryHistory, createRouter, type RouteDefinition } from "@terajs/router";
+import { createMemoryHistory, createRouteHydrationSnapshot, createRouter, type RouteDefinition } from "@terajs/router";
 import { Debug } from "@terajs/shared";
 import { mount, unmount } from "./mount";
 import { createRouteView } from "./routerView";
@@ -75,6 +75,63 @@ describe("createRouteView", () => {
     expect(document.title).toBe("Docs");
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("Read the docs");
     expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toBe("terajs, docs");
+
+    unmount(root);
+  });
+
+  it("uses a hydration snapshot for the initial route render", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const loadSpy = vi.fn(() => ({ fromLoader: true }));
+    const router = createRouter(
+      [
+        route({
+          path: "/docs",
+          meta: { title: "Docs" },
+          component: async () => ({
+            default: ({ data }: { data: { fromSnapshot?: boolean } }) =>
+              document.createTextNode(data.fromSnapshot ? "snapshot" : "loader"),
+            load: loadSpy
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    const match = router.resolve("/docs");
+    expect(match).not.toBeNull();
+
+    const snapshot = createRouteHydrationSnapshot({
+      match: match!,
+      module: {},
+      component: Object.assign(
+        ({ data }: { data: { fromSnapshot?: boolean } }) =>
+          document.createTextNode(data.fromSnapshot ? "snapshot" : "loader"),
+        { meta: { title: "Docs" } }
+      ),
+      layouts: [],
+      resolved: {
+        meta: { title: "Docs" },
+        route: {
+          id: match!.route.id,
+          path: match!.route.path,
+          filePath: match!.route.filePath,
+          layout: match!.route.layout,
+          middleware: match!.route.middleware,
+          prerender: match!.route.prerender,
+          hydrate: match!.route.hydrate,
+          edge: match!.route.edge,
+          layouts: []
+        }
+      },
+      data: { fromSnapshot: true }
+    });
+
+    mount(createRouteView(router, { hydrationSnapshot: snapshot }), root);
+    await flush();
+
+    expect(root.textContent).toContain("snapshot");
+    expect(loadSpy).not.toHaveBeenCalled();
 
     unmount(root);
   });

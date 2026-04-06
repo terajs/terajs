@@ -37,11 +37,11 @@ export function renderToString(
 ): SSRResult {
   const body = ir.template.map(renderNode).join("");
   const hydration = resolveHydration(ir, ctx);
-  const marker = renderHydrationMarker(hydration, ctx.ai ?? ir.ai);
+  const marker = renderHydrationMarker(hydration, ctx.ai ?? ir.ai, ctx.routeSnapshot);
   const html = body + marker;
   const head = renderHead(ir, ctx);
 
-  return { html, head, hydration, ai: ctx.ai ?? ir.ai };
+  return { html, head, hydration, ai: ctx.ai ?? ir.ai, routeSnapshot: ctx.routeSnapshot };
 }
 
 /**
@@ -178,18 +178,24 @@ function resolveHydration(
  */
 function renderHydrationMarker(
   hint: SSRHydrationHint,
-  ai?: Record<string, any>
+  ai?: Record<string, any>,
+  routeSnapshot?: SSRContext["routeSnapshot"]
 ): string {
 
   const payload: {
     mode: SSRHydrationHint["mode"];
     ai?: Record<string, any>;
+    routeSnapshot?: SSRContext["routeSnapshot"];
   } = {
     mode: hint.mode
   };
 
   if (ai !== undefined) {
     payload.ai = ai;
+  }
+
+  if (routeSnapshot !== undefined) {
+    payload.routeSnapshot = routeSnapshot;
   }
 
   return `<script type="application/nebula-hydration">${JSON.stringify(payload)}</script>`;

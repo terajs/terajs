@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RouteDefinition } from "./builder";
-import { loadRouteMatch, type RouteLoadContext } from "./loading";
+import {
+  createRouteHydrationSnapshot,
+  loadRouteMatch,
+  type RouteLoadContext
+} from "./loading";
 import { matchRoute } from "./runtime";
 
 function route(overrides: Partial<RouteDefinition>): RouteDefinition {
@@ -60,5 +64,38 @@ describe("loadRouteMatch", () => {
     expect(loaded.data).toEqual({ id: "42", view: "full" });
     expect(loaded.resolved.meta).toEqual({});
     expect(loaded.resolved.route.layouts).toEqual(["root", "products"]);
+  });
+
+  it("reuses a hydration snapshot instead of rerunning the route loader", async () => {
+    const loadSpy = vi.fn(({ params }: RouteLoadContext) => ({ id: params.id, hydrated: false }));
+    const matched = matchRoute(
+      [
+        route({
+          path: "/products/:id",
+          filePath: "/pages/products/[id].nbl",
+          component: async () => ({
+            default: "ProductPage",
+            load: loadSpy
+          })
+        })
+      ],
+      "/products/42"
+    );
+
+    expect(matched).not.toBeNull();
+
+    const firstLoad = await loadRouteMatch(matched!);
+    const snapshot = createRouteHydrationSnapshot({
+      ...firstLoad,
+      data: { id: "42", hydrated: true }
+    });
+
+    const hydratedLoad = await loadRouteMatch(matched!, {
+      hydrationSnapshot: snapshot
+    });
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(hydratedLoad.data).toEqual({ id: "42", hydrated: true });
+    expect(hydratedLoad.resolved).toEqual(snapshot.resolved);
   });
 });

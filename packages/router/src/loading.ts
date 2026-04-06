@@ -33,6 +33,15 @@ export interface LoadedRouteMatch<TData = unknown> {
   data?: TData;
 }
 
+export interface RouteHydrationSnapshot<TData = unknown> {
+  to: string;
+  params: RouteMatch["params"];
+  query: RouteMatch["query"];
+  hash: string;
+  data?: TData;
+  resolved: ResolvedRouteMetadata;
+}
+
 function hasDefaultExport(value: unknown): value is { default: unknown } {
   return typeof value === "object" && value !== null && "default" in value;
 }
@@ -43,13 +52,21 @@ function hasLoadFunction<TData>(value: unknown): value is RouteModule<unknown, T
 
 export async function loadRouteMatch<TData = unknown>(
   match: RouteMatch,
-  options: { signal?: AbortSignal } = {}
+  options: {
+    signal?: AbortSignal;
+    hydrationSnapshot?: RouteHydrationSnapshot<TData>;
+  } = {}
 ): Promise<LoadedRouteMatch<TData>> {
+  const hydrationSnapshot = options.hydrationSnapshot?.to === match.fullPath
+    ? options.hydrationSnapshot
+    : undefined;
+
   Debug.emit("route:load:start", {
     to: match.fullPath,
     route: match.route.path,
     params: match.params,
-    query: match.query
+    query: match.query,
+    hydrated: hydrationSnapshot !== undefined
   });
 
   const routeModule = await match.route.component();
@@ -65,9 +82,9 @@ export async function loadRouteMatch<TData = unknown>(
       })
     );
 
-    let data: TData | undefined;
+    let data: TData | undefined = hydrationSnapshot?.data;
 
-    if (hasLoadFunction<TData>(routeModule)) {
+    if (!hydrationSnapshot && hasLoadFunction<TData>(routeModule)) {
       const load = (
         routeModule as RouteModule<unknown, TData> & {
           load: NonNullable<RouteModule<unknown, TData>["load"]>;
@@ -90,18 +107,21 @@ export async function loadRouteMatch<TData = unknown>(
       module: routeModule,
       component: hasDefaultExport(routeModule) ? routeModule.default : routeModule,
       layouts: layoutModules,
-      resolved: undefined as unknown as ResolvedRouteMetadata,
+      resolved: hydrationSnapshot?.resolved ?? (undefined as unknown as ResolvedRouteMetadata),
       data
     };
 
-    loaded.resolved = resolveLoadedRouteMetadata(loaded);
+    if (!hydrationSnapshot) {
+      loaded.resolved = resolveLoadedRouteMetadata(loaded);
+    }
 
     Debug.emit("route:load:end", {
       to: match.fullPath,
       route: match.route.path,
       layoutCount: layoutModules.length,
       hasData: data !== undefined,
-      title: loaded.resolved.meta.title
+      title: loaded.resolved.meta.title,
+      hydrated: hydrationSnapshot !== undefined
     });
     Debug.emit("route:meta:resolved", {
       to: match.fullPath,
@@ -120,4 +140,17 @@ export async function loadRouteMatch<TData = unknown>(
     });
     throw error;
   }
+}
+
+export function createRouteHydrationSnapshot<TData = unknown>(
+  loaded: LoadedRouteMatch<TData>
+): RouteHydrationSnapshot<TData> {
+  return {
+    to: loaded.match.fullPath,
+    params: loaded.match.params,
+    query: loaded.match.query,
+    hash: loaded.match.hash,
+    data: loaded.data,
+    resolved: loaded.resolved
+  };
 }

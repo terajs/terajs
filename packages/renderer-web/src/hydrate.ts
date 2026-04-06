@@ -11,25 +11,38 @@
  */
 
 import { scheduleHydration } from "@terajs/runtime";
+import type { RouteHydrationSnapshot } from "@terajs/router";
 import type { HydrationMode } from "@terajs/shared";
 import { mount } from "./mount";
 import type { FrameworkComponent } from "./render";
 
+export interface HydrationPayload {
+  mode: HydrationMode | "ai";
+  ai?: Record<string, unknown>;
+  routeSnapshot?: RouteHydrationSnapshot<unknown>;
+}
+
 /**
  * Parse the SSR hydration marker.
  */
-function readHydrationMarker(): HydrationMode | "ai" {
+export function readHydrationPayload(): HydrationPayload {
   const script = document.querySelector<HTMLScriptElement>(
     'script[type="application/nebula-hydration"]'
   );
 
-  if (!script || !script.textContent) return "eager";
+  if (!script || !script.textContent) {
+    return { mode: "eager" };
+  }
 
   try {
     const payload = JSON.parse(script.textContent);
-    return payload.mode ?? "eager";
+    return {
+      mode: payload.mode ?? "eager",
+      ai: payload.ai,
+      routeSnapshot: payload.routeSnapshot
+    };
   } catch {
-    return "eager";
+    return { mode: "eager" };
   }
 }
 
@@ -45,10 +58,10 @@ export function hydrateRoot(
   root: HTMLElement,
   props?: any
 ): void {
-  const mode = readHydrationMarker();
+  const payload = readHydrationPayload();
 
   scheduleHydration(
-    mode,
+    payload.mode,
     () => {
       // Replace SSR HTML with a fresh client-side mount
       mount(component, root, props);

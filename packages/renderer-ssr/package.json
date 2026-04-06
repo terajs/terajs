@@ -15,6 +15,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@terajs/compiler": "*"
+    "@terajs/compiler": "*",
+    "@terajs/router": "*"
   }
 }
