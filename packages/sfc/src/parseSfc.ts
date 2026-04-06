@@ -88,15 +88,17 @@ function parseYamlBlock<T = any>(
 }
 
 /**
- * Main SFC parser.
+ * Nebula SFC parser: always treats <script> as setup context.
+ * No <script setup> needed—just use <script> for all setup logic.
  *
- * Produces a fully structured ParsedSFC object with:
- * - template
- * - script
- * - style (with scoped + lang support)
- * - meta
- * - routeOverride
- * - ai
+ * Supported blocks: <template>, <script>, <style>, <meta>, <route>, <ai>
+ *
+ * Example:
+ * <template>...</template>
+ * <script>/* setup logic *&#47;</script>
+ * <style>...</style>
+ * <meta>title: ...</meta>
+ * <ai>keywords: ...</ai>
  */
 export function parseSFC(source: string, filePath: string): ParsedSFC {
   const template = parseTemplateBlock(source);
