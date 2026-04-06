@@ -1,0 +1,26 @@
+<template>
+  <div>
+    <div class="font-bold mb-2">Component Tree</div>
+    <div class="text-xs text-text/70 mb-2">(Live Nebula component tree)</div>
+    <div v-if="components.length === 0" class="text-xs text-text/50">No components mounted.</div>
+    <ul v-else class="space-y-1">
+      <li v-for="c in components" :key="c.scope + '#' + c.instance" class="px-2 py-1 text-xs border-b border-border last:border-0">
+        <span class="font-bold text-primary">{{ c.scope }}</span>
+        <span class="ml-1 text-text/70">#{{ c.instance }}</span>
+        <span v-if="c.route" class="ml-2 text-text/60">({{ c.route }})</span>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+import { createSignal, onMount } from '@nebula/reactivity'
+
+const [components, setComponents] = createSignal([])
+
+onMount(() => {
+  // Poll for updates (replace with event-driven if available)
+  setInterval(() => {
+    setComponents(DevtoolsBridge.getAllComponents ? DevtoolsBridge.getAllComponents() : [])
+  }, 500)
+})
+</script>

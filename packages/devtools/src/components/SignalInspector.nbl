@@ -1,0 +1,27 @@
+<template>
+  <div>
+    <div class="font-bold mb-2">Signal & Effect Inspector</div>
+    <div class="text-xs text-text/70 mb-2">(Live signals, effects, dependencies, values)</div>
+    <div v-if="reactives.length === 0" class="text-xs text-text/50">No signals/effects found.</div>
+    <ul v-else class="space-y-1">
+      <li v-for="r in reactives" :key="r.meta.rid" class="px-2 py-1 text-xs border-b border-border last:border-0">
+        <span class="font-bold text-primary">[{{ r.meta.type }}]</span>
+        <span class="ml-1">{{ r.meta.key || r.meta.rid }}</span>
+        <span v-if="r.currentValue !== undefined" class="ml-2 text-text/60">= {{ JSON.stringify(r.currentValue) }}</span>
+        <span v-if="r.owner" class="ml-2 text-text/50">({{ r.owner.scope }}#{{ r.owner.instance }})</span>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+import { createSignal, onMount } from '@nebula/reactivity'
+
+const [reactives, setReactives] = createSignal([])
+
+onMount(() => {
+  // Poll for updates (replace with event-driven if available)
+  setInterval(() => {
+    setReactives(DevtoolsBridge.getAllReactives ? DevtoolsBridge.getAllReactives() : [])
+  }, 500)
+})
+</script>

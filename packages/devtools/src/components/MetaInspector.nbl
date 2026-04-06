@@ -1,0 +1,31 @@
+<template>
+  <div>
+    <div class="font-bold mb-2">Meta / AI / Route Inspector</div>
+    <div class="text-xs text-text/70 mb-2">(Meta, AI, and route data for selected component)</div>
+    <div v-if="!component" class="text-xs text-text/50">No component selected.</div>
+    <div v-else class="text-xs">
+      <div><span class="font-bold">Scope:</span> {{ component.scope }}</div>
+      <div><span class="font-bold">Instance:</span> {{ component.instance }}</div>
+      <div v-if="component.route"><span class="font-bold">Route:</span> {{ component.route }}</div>
+      <div v-if="component.reactives && component.reactives.size > 0" class="mt-2">
+        <div class="font-bold">Reactives:</div>
+        <ul class="ml-4 list-disc">
+          <li v-for="rid in Array.from(component.reactives)" :key="rid">{{ rid }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { createSignal, onMount } from '@nebula/reactivity'
+
+const [component, setComponent] = createSignal(null)
+
+onMount(() => {
+  // For now, just show the first component (could be improved with selection)
+  setInterval(() => {
+    const all = DevtoolsBridge.getAllComponents ? DevtoolsBridge.getAllComponents() : []
+    setComponent(all.length > 0 ? all[0] : null)
+  }, 500)
+})
+</script>

@@ -1,0 +1,23 @@
+<template>
+  <div>
+    <div class="font-bold mb-2 text-red-400">Issues & Warnings</div>
+    <div class="text-xs text-text/70 mb-2">(Live errors, hydration issues, reactivity warnings, file/line info, jump-to-source coming soon)</div>
+    <div v-if="filtered.length === 0" class="text-xs text-text/50">No issues detected.</div>
+    <ul v-else class="space-y-1">
+      <li v-for="issue in filtered" :key="issue.timestamp" class="bg-red-50/80 border border-red-200 rounded px-2 py-1 text-xs">
+        <span class="font-bold text-red-500">[{{ issue.type }}]</span>
+        <span class="ml-1">{{ issue.payload?.message || JSON.stringify(issue.payload) }}</span>
+        <span v-if="issue.payload?.file" class="ml-2 text-text/60">({{ issue.payload.file }}:{{ issue.payload.line }})</span>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+export let events = []
+// Show only error/warning/hydration issues
+const filtered = events.filter(e =>
+  e.type.startsWith('error:') ||
+  e.type.includes('warn') ||
+  e.type.includes('hydration')
+)
+</script>

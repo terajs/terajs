@@ -1,0 +1,17 @@
+<template>
+  <div>
+    <div class="font-bold mb-2">Logs</div>
+    <div class="text-xs text-text/70 mb-2">(Live event log, all runtime events)</div>
+    <div v-if="events.length === 0" class="text-xs text-text/50">No events yet.</div>
+    <ul v-else class="space-y-1 max-h-96 overflow-y-auto">
+      <li v-for="log in events" :key="log.timestamp" class="border-b border-border last:border-0 px-2 py-1 text-xs">
+        <span class="font-bold text-primary">[{{ log.type }}]</span>
+        <span class="ml-1">{{ log.payload?.message || JSON.stringify(log.payload) }}</span>
+        <span v-if="log.payload?.file" class="ml-2 text-text/60">({{ log.payload.file }}:{{ log.payload.line }})</span>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+export let events = []
+</script>

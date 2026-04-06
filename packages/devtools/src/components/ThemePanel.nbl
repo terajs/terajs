@@ -1,0 +1,11 @@
+<template>
+  <div class="flex items-center gap-2">
+    <button class="rounded px-2 py-1 text-xs bg-primary text-white" @click="toggleTheme">Theme</button>
+    <span class="text-xs text-text/60">(Preview coming soon)</span>
+  </div>
+</template>
+<script>
+export function toggleTheme() {
+  // TODO: Implement theme switching
+}
+</script>

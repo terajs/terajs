@@ -1,0 +1,38 @@
+<template>
+  <div class="flex flex-col h-full">
+    <div class="flex items-center border-b border-border bg-surface px-4 py-2">
+      <div class="font-bold text-lg text-primary flex-1">Nebula DevTools</div>
+      <ThemePanel />
+    </div>
+    <div class="flex flex-row h-full">
+      <div class="flex flex-col w-32 border-r border-border bg-surface">
+        <button v-for="tab in tabs" :key="tab" :class="['px-4 py-2 text-left', tab === activeTab ? 'bg-background text-primary font-bold' : 'text-text']" @click="activeTab = tab">{{ tab }}</button>
+      </div>
+      <div class="flex-1 overflow-auto p-4">
+        <ComponentTree v-if="activeTab === 'Components'" />
+        <SignalInspector v-if="activeTab === 'Signals'" />
+        <MetaInspector v-if="activeTab === 'Meta'" />
+        <IssuesPanel v-if="activeTab === 'Issues'" :events="events()" />
+        <LogsPanel v-if="activeTab === 'Logs'" :events="events()" />
+        <SettingsPanel v-if="activeTab === 'Settings'" />
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Debug } from '@nebula/shared'
+import { createSignal, onCleanup, onMount } from '@nebula/reactivity'
+
+export let tabs = ['Components', 'Signals', 'Meta', 'Issues', 'Logs', 'Settings']
+export let activeTab = 'Components'
+
+// Live event state
+const [events, setEvents] = createSignal([])
+
+onMount(() => {
+  const unsub = Debug.on((event) => {
+    setEvents([...events(), event])
+  })
+  onCleanup(unsub)
+})
+</script>

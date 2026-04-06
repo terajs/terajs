@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: theme('colors.primary');
+  --color-accent: theme('colors.accent');
+  --color-background: theme('colors.background');
+  --color-surface: theme('colors.surface');
+  --color-border: theme('colors.border');
+  --color-text: theme('colors.text');
+}

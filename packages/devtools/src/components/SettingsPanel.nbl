@@ -1,0 +1,9 @@
+<template>
+  <div>
+    <div class="font-bold mb-2">Settings</div>
+    <div class="text-xs text-text/70">(Coming soon: devtools config, keyboard shortcuts, etc.)</div>
+  </div>
+</template>
+<script>
+// TODO: Implement settings panel
+</script>
