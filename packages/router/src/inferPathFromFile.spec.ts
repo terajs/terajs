@@ -18,4 +18,9 @@ describe("inferPathFromFile", () => {
     expect(inferPathFromFile("/src/pages/admin/users/[id].nbl"))
       .toBe("/admin/users/:id");
   });
+
+  it("supports routes directories too", () => {
+    expect(inferPathFromFile("/src/routes/dashboard/index.nbl"))
+      .toBe("/dashboard");
+  });
 });

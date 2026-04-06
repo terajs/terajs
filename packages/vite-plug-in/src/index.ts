@@ -9,18 +9,55 @@ import path from "node:path";
 import { getAutoImportDirs } from './autoImportDirs.js';
 import type { Plugin } from "vite";
 
+import { buildRouteManifest } from "@terajs/router";
 import { parseSFC } from "@terajs/sfc";
 import { sfcToComponent } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
 
+const AUTO_IMPORT_VIRTUAL_ID = "virtual:terajs-auto-imports";
+const RESOLVED_AUTO_IMPORT_VIRTUAL_ID = `\0${AUTO_IMPORT_VIRTUAL_ID}`;
+const ROUTES_VIRTUAL_ID = "virtual:terajs-routes";
+const RESOLVED_ROUTES_VIRTUAL_ID = `\0${ROUTES_VIRTUAL_ID}`;
+
+function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+function toProjectImportPath(filePath: string): string {
+  const relativePath = normalizePath(path.relative(process.cwd(), filePath));
+  return relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
+}
+
+function getRouteDirs(): string[] {
+  return [
+    path.resolve(process.cwd(), "src/routes"),
+    path.resolve(process.cwd(), "src/pages")
+  ].filter((dir, index, dirs) => fs.existsSync(dir) && dirs.indexOf(dir) === index);
+}
+
+function readNblFilesRecursively(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...readNblFilesRecursively(fullPath));
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith(".nbl")) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
 
 function terajsPlugin(): Plugin {
-  // Virtual module id for auto-imports
-  const VIRTUAL_ID = 'virtual:terajs-auto-imports';
-  const RESOLVED_VIRTUAL_ID = '\0' + VIRTUAL_ID;
-
   // Support multiple auto-import roots
   const autoImportDirs = getAutoImportDirs();
+  const routeDirs = getRouteDirs();
 
   function pascalCase(str: string) {
     return str
@@ -42,19 +79,52 @@ function terajsPlugin(): Plugin {
     return code;
   }
 
+  function generateRoutesModule() {
+    const routeFiles = routeDirs.flatMap((dir) => readNblFilesRecursively(dir)).sort();
+
+    const routeSources = routeFiles.map((filePath) => {
+      const importPath = toProjectImportPath(filePath);
+      return `  {
+    filePath: ${JSON.stringify(importPath)},
+    source: ${JSON.stringify(fs.readFileSync(filePath, "utf8"))},
+    component: () => import(${JSON.stringify(importPath)})
+  }`;
+    });
+
+    return [
+      `import { buildRouteManifest } from '@terajs/router';`,
+      `const routeSources = [`,
+      routeSources.join(",\n"),
+      `];`,
+      `export const routes = buildRouteManifest(routeSources);`,
+      `export default routes;`
+    ].join("\n");
+  }
+
+  function invalidateVirtualModule(server: { moduleGraph: { getModuleById(id: string): any; invalidateModule(mod: any): void; }; }, id: string) {
+    const module = server.moduleGraph.getModuleById(id);
+    if (module) {
+      server.moduleGraph.invalidateModule(module);
+    }
+  }
+
   return {
     name: "terajs",
     enforce: "pre",
 
     resolveId(id) {
-      if (id === VIRTUAL_ID) return RESOLVED_VIRTUAL_ID;
+      if (id === AUTO_IMPORT_VIRTUAL_ID) return RESOLVED_AUTO_IMPORT_VIRTUAL_ID;
+      if (id === ROUTES_VIRTUAL_ID) return RESOLVED_ROUTES_VIRTUAL_ID;
       if (id.endsWith(".nbl")) return id;
       return null;
     },
 
     load(id) {
-      if (id === RESOLVED_VIRTUAL_ID) {
+      if (id === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
         return generateAutoImports();
+      }
+      if (id === RESOLVED_ROUTES_VIRTUAL_ID) {
+        return generateRoutesModule();
       }
       if (!id.endsWith(".nbl")) return null;
 
@@ -64,7 +134,7 @@ function terajsPlugin(): Plugin {
       Debug.emit("sfc:load", { scope: id });
 
       // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as TerajsAutoImports from 'virtual:terajs-auto-imports';\n`;
+  const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
       let compiled = sfcToComponent(sfc);
       compiled = autoImport + compiled;
       return compiled;
@@ -79,13 +149,24 @@ function terajsPlugin(): Plugin {
       Debug.emit("sfc:hmr", { scope: ctx.file });
 
       // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as TerajsAutoImports from 'virtual:terajs-auto-imports';\n`;
+      const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
       let newModule = sfcToComponent(sfc);
       newModule = autoImport + newModule;
 
       // Replace the module in Vite's graph
       const mod = ctx.server.moduleGraph.getModuleById(ctx.file)!;
       ctx.server.moduleGraph.invalidateModule(mod);
+
+      const normalizedFile = normalizePath(ctx.file);
+      if (normalizedFile.endsWith(".nbl")) {
+        if (routeDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {
+          invalidateVirtualModule(ctx.server, RESOLVED_ROUTES_VIRTUAL_ID);
+        }
+
+        if (autoImportDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {
+          invalidateVirtualModule(ctx.server, RESOLVED_AUTO_IMPORT_VIRTUAL_ID);
+        }
+      }
 
       // Send updated code to the client
       ctx.read = () => newModule;

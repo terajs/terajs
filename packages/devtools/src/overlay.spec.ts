@@ -78,4 +78,19 @@ describe("devtools overlay public entry", () => {
 
     expect(shadowRoot?.textContent).toContain("Events: 0");
   });
+
+  it("shows router issues in the issues panel", () => {
+    mountDevtoolsOverlay();
+
+    Debug.emit("error:router", {
+      message: "No route matched /missing",
+      to: "/missing"
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const issuesTab = shadowRoot?.querySelector('[data-tab="Issues"]') as HTMLButtonElement | null;
+    issuesTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("No route matched /missing");
+  });
 });

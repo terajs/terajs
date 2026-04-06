@@ -18,10 +18,12 @@ describe("buildRouteFromSFC", () => {
   it("builds default route", () => {
     const route = buildRouteFromSFC(mockSFC({}));
 
+    expect(route.id).toBe("test");
     expect(route.path).toBe("/test");
     expect(route.layout).toBeNull();
     expect(route.prerender).toBe(true);
     expect(route.hydrate).toBe("eager");
+    expect(route.layouts).toEqual([]);
   });
 
   it("applies route overrides", () => {

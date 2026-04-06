@@ -46,7 +46,34 @@ module.exports = {
 };
 ```
 
-### 3. Devtools Overlay
+### 3. File-based routes
+
+The plugin also exposes a virtual route manifest module:
+
+```ts
+import routes from 'virtual:terajs-routes';
+```
+
+It scans `src/routes` and `src/pages` for `.nbl` files, preserves `<route>` metadata, and attaches any discovered `layout.nbl` files as an ordered layout chain.
+
+Supported route conventions:
+
+```txt
+src/routes/
+  layout.nbl
+  index.nbl
+  docs/
+    layout.nbl
+    [slug].nbl
+```
+
+This produces a manifest that already includes:
+- inferred paths like `/docs/:slug`
+- file-based layout wrappers from outermost to innermost
+- `<route>` overrides for path, middleware, hydration, prerender, and edge hints
+- lazy component loaders for each route
+
+### 4. Devtools Overlay
 
 To enable the Nebula DevTools overlay, import and call:
 
@@ -70,6 +97,7 @@ npx vitest run
 ---
 
 ## Advanced
-- The plugin injects a virtual module `virtual:terajs-auto-imports` for auto-imports.
+- The plugin injects `virtual:terajs-auto-imports` for auto-imports.
+- The plugin injects `virtual:terajs-routes` for file-based route manifests.
 - You can extend or override the plugin for custom workflows.
 

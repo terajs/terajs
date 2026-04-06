@@ -86,6 +86,17 @@ export interface RouteChangedEvent extends DebugEventBase {
   query?: Record<string, string | string[]>;
 }
 
+export interface RouterWarningEvent extends DebugEventBase {
+  type: "route:warn";
+  message: string;
+}
+
+export interface RouterErrorEvent extends DebugEventBase {
+  type: "error:router";
+  message: string;
+  to?: string;
+}
+
 /**
  * Union of all debug events.
  * * Using these specific types in a switch(event.type) block 
@@ -100,4 +111,6 @@ export type DebugEvent =
   | ComponentMountedEvent
   | ComponentUnmountedEvent
   | DomUpdatedEvent
-  | RouteChangedEvent;
+  | RouteChangedEvent
+  | RouterWarningEvent
+  | RouterErrorEvent;

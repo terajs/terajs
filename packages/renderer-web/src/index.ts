@@ -30,3 +30,6 @@ export * from "./hydrate";
 // IR Renderer (SSR-aligned baseline for client-side rendering)
 export * from "./renderFromIR";
 
+// Router bridge
+export * from "./routerView";
+

@@ -42,6 +42,10 @@ export type DebugEventType =
     | "component:create" | "component:mount" | "component:update" | "component:unmount"
     | "component:props:update" | "component:state:update" | "component:dispose"
 
+    /* -------------------------------- Routing ------------------------------- */
+    | "route:changed" | "route:navigate:start" | "route:navigate:end" | "route:load:start" | "route:load:end"
+    | "route:redirect" | "route:blocked" | "route:warn" | "error:router"
+
     /* ------------------------------- Templates ------------------------------ */
     | "template:branch" | "template:fallback" | "template:create" | "template:mount"
     | "template:update" | "template:unmount" | "template:replace" | "template:dispose" | "template:empty"

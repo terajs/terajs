@@ -1,10 +1,21 @@
 import type { HydrationMode } from "@terajs/shared";
 import type { MetaConfig, ParsedSFC } from "@terajs/sfc";
 
+export interface RouteLayoutDefinition {
+  /** Stable identifier for the layout entry. */
+  id: string;
+  /** File path of the layout component. */
+  filePath: string;
+  /** Lazy loader for the layout module. */
+  component: () => Promise<unknown>;
+}
+
 /**
  * Fully-resolved route definition used by the router and runtime.
  */
 export interface RouteDefinition {
+  /** Stable identifier for this route. */
+  id: string;
   /** Final path for this route, e.g. "/blog/:slug". */
   path: string;
   /** File path of the underlying SFC. */
@@ -25,6 +36,23 @@ export interface RouteDefinition {
   meta: MetaConfig;
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>; 
+  /** File-based layouts discovered for this route, ordered from outermost to innermost. */
+  layouts: RouteLayoutDefinition[];
+}
+
+function normalizeFilePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+function inferRouteId(filePath: string): string {
+  const normalized = normalizeFilePath(filePath).replace(/\.nbl$/, "");
+  const rootMatch = normalized.match(/^(.*\/)(pages|routes)\/(.*)$/);
+
+  if (!rootMatch) {
+    return normalized;
+  }
+
+  return rootMatch[3] || "index";
 }
 
 /**
@@ -36,7 +64,8 @@ export interface RouteDefinition {
  * - "/src/pages/blog/[slug].nbl"  → "/blog/:slug"
  */
 export function inferPathFromFile(filePath: string): string {
-  const withoutPrefix = filePath.replace(/^.*\/pages\//, "/");
+  const normalized = normalizeFilePath(filePath);
+  const withoutPrefix = normalized.replace(/^.*\/(pages|routes)\//, "/");
   const withoutExt = withoutPrefix.replace(/\.nbl$/, "");
   const withParams = withoutExt.replace(/\[([^\]]+)\]/g, ":$1");
   
@@ -65,6 +94,7 @@ export function buildRouteFromSFC(sfc: ParsedSFC): RouteDefinition {
     : [];
 
   return {
+    id: inferRouteId(sfc.filePath),
     path: o.path ?? basePath,
     filePath: sfc.filePath,
     // Use Vite-friendly dynamic import for the SFC path
@@ -76,5 +106,6 @@ export function buildRouteFromSFC(sfc: ParsedSFC): RouteDefinition {
     edge: o.edge ?? false,
     meta: sfc.meta,
     ai: sfc.ai,
+    layouts: [],
   };
 }

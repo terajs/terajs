@@ -25,6 +25,7 @@
     { "path": "../shared" },
     { "path": "../runtime" },
     { "path": "../reactivity" },
-    { "path": "../renderer" }
+    { "path": "../renderer" },
+    { "path": "../router" }
   ]
 }
