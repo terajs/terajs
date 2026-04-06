@@ -73,7 +73,7 @@ export function component<P = any>(
     instances
   });
 
-  return function ComponentWrapper(props?: P) {
+  function ComponentWrapper(props?: P) {
     const instance = (instanceCounters.get(name) ?? 0) + 1;
     instanceCounters.set(name, instance);
 
@@ -131,5 +131,10 @@ export function component<P = any>(
     instances.add(hmrInstance);
 
     return out;
-  };
+  }
+  // Attach meta/ai/route to the wrapper for runtime/devtools access (agnostic, not web-specific)
+  Object.defineProperty(ComponentWrapper, "meta", { value: options.meta, enumerable: false });
+  Object.defineProperty(ComponentWrapper, "ai", { value: options.ai, enumerable: false });
+  Object.defineProperty(ComponentWrapper, "route", { value: options.route, enumerable: false });
+  return ComponentWrapper;
 }
