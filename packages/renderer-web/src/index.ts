@@ -33,6 +33,9 @@ export * from "./portal";
 // Router-aware link primitive
 export * from "./link";
 
+// Enhanced form primitive
+export * from "./form";
+
 // Error boundaries
 export * from "./errorBoundary";
 
