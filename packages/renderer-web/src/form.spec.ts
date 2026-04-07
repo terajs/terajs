@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { Form, formDataToObject, type FormRenderState } from "./form";
+import { Form, FormStatus, SubmitButton, formDataToObject, type FormRenderState } from "./form";
 import { jsx } from "./jsx-runtime";
 import { mount, unmount } from "./mount";
 
@@ -107,6 +107,76 @@ describe("Form", () => {
     await flush();
 
     expect(input.value).toBe("");
+
+    unmount(root);
+  });
+
+  it("binds SubmitButton and FormStatus helpers to the nearest enhanced form", async () => {
+    let resolveSubmit: (() => void) | undefined;
+    const root = document.createElement("div");
+
+    mount(() => Form({
+      action: () => new Promise<void>((resolve) => {
+        resolveSubmit = resolve;
+      }),
+      children: [
+        jsx("input", { name: "title", value: "nebula" }),
+        SubmitButton({ children: "Save" }),
+        FormStatus({ idle: "idle", pending: "saving", success: "saved" })
+      ]
+    }), root);
+
+    const form = root.querySelector("form") as HTMLFormElement;
+    const button = root.querySelector("button") as HTMLButtonElement;
+
+    await flush();
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("data-state")).toBe("idle");
+    expect(root.textContent).toContain("idle");
+
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("data-state")).toBe("pending");
+    expect(root.textContent).toContain("saving");
+
+    resolveSubmit?.();
+    await flush();
+
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("data-state")).toBe("success");
+    expect(root.textContent).toContain("saved");
+
+    unmount(root);
+  });
+
+  it("renders error status helpers after failed submission", async () => {
+    const root = document.createElement("div");
+
+    mount(() => Form({
+      action: async () => {
+        throw new Error("save failed");
+      },
+      children: [
+        SubmitButton({ children: "Save" }),
+        FormStatus({
+          idle: "idle",
+          error: (error: unknown) => error instanceof Error ? error.message : String(error)
+        })
+      ]
+    }), root);
+
+    const form = root.querySelector("form") as HTMLFormElement;
+    const button = root.querySelector("button") as HTMLButtonElement;
+
+    await flush();
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("data-state")).toBe("error");
+    expect(root.textContent).toContain("save failed");
 
     unmount(root);
   });
