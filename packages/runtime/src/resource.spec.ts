@@ -8,6 +8,17 @@ describe("createResource", () => {
   beforeEach(() => {
     setRuntimeMode("client");
     setHydrationState({});
+
+    const storage: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage[key] ?? null,
+      setItem: (key: string, value: string) => {
+        storage[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete storage[key];
+      }
+    });
   });
 
   it("loads immediately and exposes resolved data", async () => {
@@ -89,5 +100,24 @@ describe("createResource", () => {
 
     expect(res.data()).toEqual({ id: 1 });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("loads cached local persistence immediately before network resolution", async () => {
+    localStorage.setItem("user", JSON.stringify({ id: 1 }));
+
+    const fetcher = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { id: 2 };
+    });
+
+    const resource = createResource(() => fetcher(), { persistent: "user" });
+
+    await Promise.resolve();
+    expect(resource.data()).toEqual({ id: 1 });
+    expect(fetcher).toHaveBeenCalled();
+
+    await resource.promise();
+    expect(resource.data()).toEqual({ id: 2 });
+    expect(resource.state()).toBe("ready");
   });
 });

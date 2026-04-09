@@ -99,6 +99,20 @@ function partitionSuspenseChildren(node: IRElementNode) {
   return { primary, fallback };
 }
 
+function getResourceErrorInfo(resourceData?: Record<string, any>) {
+  if (!resourceData || typeof resourceData !== "object") {
+    return null;
+  }
+
+  for (const value of Object.values(resourceData)) {
+    if (value && typeof value === "object" && value.status === "error") {
+      return String(value.error ?? "Resource failed to load");
+    }
+  }
+
+  return null;
+}
+
 function renderSuspenseToStream(
   node: IRElementNode,
   scope: Record<string, unknown>,
@@ -117,10 +131,27 @@ function renderSuspenseToStream(
   const closing = `</div>`;
 
   if (hasAsyncResource && primary.length > 0) {
-    const resolvedChunk = flattenChunks(primaryChunks).then((resolvedHtml) => {
-      const dataScript = resourceData ? renderDataChunk(resourceData) : "";
-      return `<template id="${templateId}" hidden>${resolvedHtml}</template><script>${dataScript}$teraSwap(${JSON.stringify(templateId)}, ${JSON.stringify(targetId)});</script>`;
-    });
+    const errorMessage = getResourceErrorInfo(resourceData);
+    const resolvedChunk = flattenChunks(primaryChunks)
+      .then((resolvedHtml) => {
+        if (errorMessage) {
+          const errorHtml = `<template id="${templateId}" hidden><div class="terajs-suspense-error">${escapeHtml(errorMessage)}</div></template>`;
+          const dataScript = renderDataChunk(Object.assign({}, resourceData, { status: "error", error: errorMessage }));
+          return `${errorHtml}<script>${dataScript}$teraSwap(${JSON.stringify(templateId)}, ${JSON.stringify(targetId)});</script>`;
+        }
+
+        const dataScript = resourceData ? renderDataChunk(resourceData) : "";
+        return `<template id="${templateId}" hidden>${resolvedHtml}</template><script>${dataScript}$teraSwap(${JSON.stringify(templateId)}, ${JSON.stringify(targetId)});</script>`;
+      })
+      .catch((error) => {
+        const errorString = escapeHtml(String(error instanceof Error ? error.message : error));
+        const errorHtml = `<template id="${templateId}" hidden><div class="terajs-suspense-error">${errorString}</div></template>`;
+        const errorPayload = resourceData
+          ? renderDataChunk(Object.assign({}, resourceData, { status: "error", error: errorString }))
+          : renderDataChunk({ status: "error", error: errorString });
+
+        return `${errorHtml}<script>${errorPayload}$teraSwap(${JSON.stringify(templateId)}, ${JSON.stringify(targetId)});</script>`;
+      });
     swapChunks.push(resolvedChunk);
   }
 
@@ -142,6 +173,15 @@ function renderDataChunk(data: Record<string, any>): string {
     el.textContent = JSON.stringify(current);
     window.__TERAJS_DATA__ = current;
   })();`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 async function flattenChunks(chunks: Array<string | Promise<string>>): Promise<string> {

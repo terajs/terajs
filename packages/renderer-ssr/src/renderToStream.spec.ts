@@ -100,7 +100,45 @@ describe("renderToStream", () => {
     });
     const html = await readStream(stream);
 
-    expect(html).toContain("window.__TERAJS_DATA__");
+    expect(html).toContain('window.__TERAJS_DATA__');
     expect(html).toContain('"user":{"status":"success","data":{"id":1}}');
+  });
+
+  it("renders an error swap chunk when async content fails", async () => {
+    const ir = mockIR([
+      {
+        type: "element",
+        tag: "Suspense",
+        props: [],
+        children: [
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [{ type: "text", value: "Loaded" }]
+          },
+          {
+            type: "slot",
+            name: "fallback",
+            fallback: [{ type: "text", value: "Loading..." }]
+          }
+        ]
+      }
+    ]);
+    ir.hasAsyncResource = true;
+
+    const stream = await renderToStream(ir, {
+      data: {
+        user: {
+          status: "error",
+          error: "Failed to load"
+        }
+      }
+    });
+    const html = await readStream(stream);
+
+    expect(html).toContain('terajs-suspense-error');
+    expect(html).toContain('Failed to load');
+    expect(html).toContain('status":"error"');
   });
 });

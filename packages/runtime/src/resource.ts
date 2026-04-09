@@ -4,6 +4,7 @@ import { onCleanup } from "./component/component";
 import { getCurrentContext } from "./component/context";
 import { consumeHydratedResource } from "./hydration";
 import { registerResourceInvalidation, type ResourceKey } from "./invalidation";
+import { localStorageAdapter } from "./persistence/adapters";
 
 export interface ResourcePayload<T = any> {
   data?: T;
@@ -57,6 +58,7 @@ interface ResourceOptions<TData> {
   immediate?: boolean;
   hydrateKey?: string;
   key?: ResourceKey | ResourceKey[];
+  persistent?: string;
 }
 
 export function createResource<TData>(
@@ -80,6 +82,7 @@ export function createResource<TSource, TData>(
     : sourceOrFetcher) as ResourceFetcher<TSource | void, TData>;
   const options = (hasSource ? maybeOptions : maybeFetcher) as ResourceOptions<TData> | undefined;
   const hydrationKey = options?.hydrateKey ?? (typeof options?.key === "string" ? options.key : undefined);
+  const persistentKey = options?.persistent;
   const hydratedValue = hydrationKey
     ? consumeHydratedResource<TData>(hydrationKey) ?? getHydratedData<TData>(hydrationKey)
     : undefined;
@@ -100,6 +103,19 @@ export function createResource<TSource, TData>(
   const data = signal<TData | undefined>(initialValue);
   const error = signal<unknown>(initialError);
   const state = signal<ResourceState>(initialState);
+
+  if (persistentKey && hydratedValue === undefined && typeof window !== "undefined") {
+    void localStorageAdapter.getItem<TData>(persistentKey)
+      .then((cached) => {
+        if (cached !== null && cached !== undefined) {
+          data.set(cached);
+          if (state() === "idle") {
+            state.set("ready");
+          }
+        }
+      })
+      .catch(() => undefined);
+  }
 
   let currentPromise: Promise<TData> | null = null;
   let requestVersion = 0;
@@ -129,6 +145,11 @@ export function createResource<TSource, TData>(
       data.set(resolved);
       state.set("ready");
       error.set(undefined);
+      if (persistentKey && typeof window !== "undefined") {
+        void Promise.resolve()
+          .then(() => localStorageAdapter.setItem(persistentKey, resolved))
+          .catch(() => undefined);
+      }
       Debug.emit("resource:load:end", {
         source: value,
         state: "ready"

@@ -32,6 +32,10 @@ export {
 } from "./hydration";
 export type { RuntimeHydrationState } from "./hydration";
 
+// Persistence
+export { localStorageAdapter } from "./persistence/adapters";
+export type { PersistenceAdapter } from "./persistence/types";
+
 // Renderer bridge
 export {
   setCurrentRenderer,
