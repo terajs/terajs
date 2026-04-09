@@ -24,6 +24,7 @@ export {
   createRouter,
   matchRoute
 } from "./runtime";
+export { updateHead } from "./clientMeta";
 
 export type { RouteDefinition, RouteLayoutDefinition, RouteMetaConfig } from "./definition";
 export type {

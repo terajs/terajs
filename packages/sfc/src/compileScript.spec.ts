@@ -12,7 +12,7 @@ describe("compileScript (dependency‑free analyzer)", () => {
 
     expect(compiled.exposed).toContain("count");
     expect(compiled.exposed).toContain("inc");
-    expect(compiled.setupCode).toContain("function setup");
+    expect(compiled.setupCode).toContain("function __ssfc");
     expect(compiled.setupCode).toContain("const { props, slots, emit } = ctx");
     expect(compiled.setupCode).toContain("return { count, inc }");
   });

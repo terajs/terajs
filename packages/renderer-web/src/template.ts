@@ -8,9 +8,10 @@
  * changes, the template re-runs and updates the DOM by replacing its root node.
  */
 
-import { effect } from "@terajs/reactivity";
+import { effect, getCurrentEffect } from "@terajs/reactivity";
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
+import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom";
 
 /**
  * A reactive template function.
@@ -35,8 +36,12 @@ export function template(fn: TemplateFn): Node {
     let current: Node | null = null;
     const boundary = getCurrentContext()?.errorBoundary;
     const ownerName = getCurrentContext()?.name;
+    const isNestedTemplate = !!getCurrentEffect();
 
-    const stop = effect(() => {
+    let stop: () => void;
+    const cleanup = () => stop?.();
+
+    stop = effect(() => {
         let next: Node;
 
         try {
@@ -67,22 +72,39 @@ export function template(fn: TemplateFn): Node {
                 node: next
             });
             current = next;
+            if (!isNestedTemplate) {
+                addNodeCleanup(current, cleanup);
+            }
         } else if (next !== current) {
             // Replace DOM node
             const parent = current.parentNode;
+            const oldNode = current;
 
             Debug.emit("template:replace", {
                 templateFn: fn,
-                oldNode: current,
+                oldNode,
                 newNode: next,
                 parent
             });
 
-            if (parent) {
-                parent.replaceChild(next, current);
+            if (!isNestedTemplate) {
+                removeNodeCleanup(oldNode, cleanup);
             }
-            
+
+            if (parent) {
+                parent.replaceChild(next, oldNode);
+            }
+
             current = next;
+            if (!isNestedTemplate) {
+                addNodeCleanup(current, cleanup);
+            }
+
+            if (!isNestedTemplate) {
+                queueMicrotask(() => {
+                    disposeNodeTree(oldNode);
+                });
+            }
         }
     });
 

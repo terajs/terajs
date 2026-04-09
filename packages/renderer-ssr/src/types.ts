@@ -32,6 +32,9 @@ export interface SSRContext {
 
   /** Serialized route payload used to resume route state on the client. */
   routeSnapshot?: RouteHydrationSnapshot<unknown>;
+
+  /** Serialized loader data returned during SSR. */
+  data?: Record<string, any>;
 }
 
 /**
@@ -79,4 +82,7 @@ export interface SSRResult {
 
   /** Serialized route payload used to resume route state on the client. */
   routeSnapshot?: RouteHydrationSnapshot<unknown>;
+
+  /** Serialized loader data for client hydration. */
+  data?: Record<string, any>;
 }

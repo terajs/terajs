@@ -55,7 +55,7 @@ export function bindText(node: Text, compute: () => any): void {
  * @param compute - A function returning the latest value.
  */
 export function bindProp(
-    el: HTMLElement,
+    el: Element,
     name: string,
     compute: () => any
 ): void {
@@ -86,7 +86,7 @@ export function bindProp(
  * @param compute - A function returning the class string or class object.
  */
 export function bindClass(
-    el: HTMLElement,
+    el: Element,
     compute: () => any
 ): void {
     Debug.emit("binding:create", {
@@ -114,7 +114,7 @@ export function bindClass(
  * @param compute - A function returning a style object.
  */
 export function bindStyle(
-    el: HTMLElement,
+    el: Element,
     compute: () => Record<string, any>
 ): void {
     Debug.emit("binding:create", {

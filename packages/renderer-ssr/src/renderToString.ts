@@ -26,6 +26,180 @@ import type {
 } from "@terajs/compiler";
 import type { SSRContext, SSRResult, SSRHydrationHint } from "./types";
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function mergeValues(base: unknown, incoming: unknown): unknown {
+  if (incoming === undefined) {
+    return base;
+  }
+
+  if (Array.isArray(base) && Array.isArray(incoming)) {
+    return Array.from(new Set([...base, ...incoming]));
+  }
+
+  if (isPlainObject(base) && isPlainObject(incoming)) {
+    const merged: Record<string, unknown> = { ...base };
+    for (const [key, value] of Object.entries(incoming)) {
+      merged[key] = mergeValues(merged[key], value);
+    }
+    return merged;
+  }
+
+  return incoming;
+}
+
+function mergeMeta(...sources: Array<Record<string, unknown> | undefined>): Record<string, unknown> {
+  let merged: Record<string, unknown> = {};
+
+  for (const source of sources) {
+    if (!isPlainObject(source)) continue;
+    for (const [key, value] of Object.entries(source)) {
+      merged[key] = mergeValues(merged[key], value);
+    }
+  }
+
+  return merged;
+}
+
+function normalizeMetaValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join(",");
+  }
+  return String(value);
+}
+
+function renderMetaTag(name: string, content: string, attrName: "name" | "property" = "name"): string {
+  return `<meta ${attrName}="${escapeAttr(name)}" content="${escapeAttr(content)}">`;
+}
+
+function renderStructuredMeta(meta: Record<string, unknown>): string[] {
+  const parts: string[] = [];
+
+  if (meta.title) {
+    parts.push(`<title>${escapeText(String(meta.title))}</title>`);
+  }
+
+  if (meta.description) {
+    parts.push(renderMetaTag("description", String(meta.description)));
+  }
+
+  if (meta.keywords) {
+    parts.push(renderMetaTag("keywords", normalizeMetaValue(meta.keywords)));
+  }
+
+  if (meta.aiSummary) {
+    parts.push(renderMetaTag("ai:summary", normalizeMetaValue(meta.aiSummary)));
+  }
+
+  if (meta.aiKeywords) {
+    parts.push(renderMetaTag("ai:keywords", normalizeMetaValue(meta.aiKeywords)));
+  }
+
+  if (meta.aiAltText !== undefined) {
+    parts.push(renderMetaTag("ai:alt-text", normalizeMetaValue(meta.aiAltText)));
+  }
+
+  if (isPlainObject(meta.analytics)) {
+    const analytics = meta.analytics as Record<string, unknown>;
+    if (analytics.track !== undefined) {
+      parts.push(renderMetaTag("analytics-track", normalizeMetaValue(analytics.track)));
+    }
+    if (analytics.events !== undefined) {
+      parts.push(renderMetaTag("analytics-events", normalizeMetaValue(analytics.events)));
+    }
+  }
+
+  if (isPlainObject(meta.performance)) {
+    const perf = meta.performance as Record<string, unknown>;
+    if (perf.priority !== undefined) {
+      parts.push(renderMetaTag("performance-priority", normalizeMetaValue(perf.priority)));
+    }
+    if (perf.hydrate !== undefined) {
+      parts.push(renderMetaTag("performance-hydrate", normalizeMetaValue(perf.hydrate)));
+    }
+    if (perf.cache !== undefined) {
+      parts.push(renderMetaTag("performance-cache", normalizeMetaValue(perf.cache)));
+    }
+    if (perf.edge !== undefined) {
+      parts.push(renderMetaTag("performance-edge", normalizeMetaValue(perf.edge)));
+    }
+  }
+
+  if (isPlainObject(meta.a11y)) {
+    const a11y = meta.a11y as Record<string, unknown>;
+    for (const [key, value] of Object.entries(a11y)) {
+      parts.push(renderMetaTag(`a11y:${key}`, normalizeMetaValue(value)));
+    }
+  }
+
+  if (isPlainObject(meta.i18n)) {
+    const i18n = meta.i18n as Record<string, unknown>;
+    for (const [key, value] of Object.entries(i18n)) {
+      parts.push(renderMetaTag(`i18n:${key}`, normalizeMetaValue(value)));
+    }
+  }
+
+  for (const [key, value] of Object.entries(meta)) {
+    if ([
+      "title",
+      "description",
+      "keywords",
+      "aiSummary",
+      "aiKeywords",
+      "aiAltText",
+      "schema",
+      "analytics",
+      "performance",
+      "a11y",
+      "i18n"
+    ].includes(key)) {
+      continue;
+    }
+
+    if (value == null || value === false) {
+      continue;
+    }
+
+    if (key.startsWith("og:")) {
+      parts.push(renderMetaTag(key, normalizeMetaValue(value), "property"));
+      continue;
+    }
+
+    if (key.startsWith("twitter:")) {
+      parts.push(renderMetaTag(key, normalizeMetaValue(value), "name"));
+      continue;
+    }
+
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      parts.push(renderMetaTag(key, normalizeMetaValue(value)));
+    }
+  }
+
+  return parts;
+}
+
+function escapeJson(json: string): string {
+  return json.replace(/</g, "\\u003c");
+}
+
+function renderSchema(schema: any): string {
+  if (schema == null) return "";
+  try {
+    const json = JSON.stringify(schema).replace(/</g, "\\u003c");
+    return `<script type="application/ld+json">${json}</script>`;
+  } catch {
+    return "";
+  }
+}
+
+function renderAICoord(ai: Record<string, any>): string {
+  if (!isPlainObject(ai) || Object.keys(ai).length === 0) return "";
+  const content = JSON.stringify(ai).replace(/"/g, "&quot;");
+  return `<meta name="terajs-ai-hint" content="${content}">`;
+}
+
 export interface SSRHtml {
   __ssrHtml: string;
 }
@@ -56,7 +230,8 @@ export function renderToString(
     resources: ctx.resources,
     routeSnapshot: ctx.routeSnapshot
   });
-  const html = body + marker;
+  const data = ctx.data;
+  const html = body + marker + renderHydrationData(data ?? {});
   const head = renderHead(ir, ctx);
 
   return {
@@ -65,7 +240,8 @@ export function renderToString(
     hydration,
     ai: ctx.ai ?? ir.ai,
     resources: ctx.resources,
-    routeSnapshot: ctx.routeSnapshot
+    routeSnapshot: ctx.routeSnapshot,
+    data
   };
 }
 
@@ -231,19 +407,16 @@ function renderAttrs(props: any[], scope: Record<string, unknown>): string {
  * Render <head> metadata from IR meta + SSR context.
  */
 export function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
-  const meta = { ...(ir.meta || {}), ...(ctx.meta || {}) };
-  const parts: string[] = [];
+  const irRouteMeta = isPlainObject(ir.route?.meta) ? ir.route?.meta as Record<string, unknown> : undefined;
+  const routeMeta = isPlainObject(ctx.route?.meta) ? ctx.route?.meta as Record<string, unknown> : undefined;
+  const meta = mergeMeta(ir.meta ?? {}, irRouteMeta, routeMeta, ctx.meta ?? {});
+  const mergedAi = mergeMeta(ir.ai ?? {}, ctx.ai ?? {});
 
-  if (meta.title) {
-    parts.push(`<title>${escapeText(String(meta.title))}</title>`);
-  }
-  if (meta.description) {
-    parts.push(
-      `<meta name="description" content="${escapeAttr(
-        String(meta.description)
-      )}">`
-    );
-  }
+  const parts = renderStructuredMeta(meta);
+  const aiTag = renderAICoord(mergedAi as Record<string, any>);
+  if (aiTag) parts.push(aiTag);
+  const schemaTag = renderSchema(meta.schema);
+  if (schemaTag) parts.push(schemaTag);
 
   return parts.join("");
 }
@@ -310,6 +483,15 @@ export function renderHydrationMarker(
   }
 
   return `<script type="application/terajs-hydration">${JSON.stringify(payload)}</script>`;
+}
+
+/**
+ * Renders the state hydration script.
+ */
+function renderHydrationData(data: Record<string, any>): string {
+  if (!data || Object.keys(data).length === 0) return "";
+  const serialized = JSON.stringify(data).replace(/</g, "\\u003c");
+  return `<script id="__TERAJS_DATA__" type="application/json">${serialized}</script>`;
 }
 
 

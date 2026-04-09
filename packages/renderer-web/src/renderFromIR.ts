@@ -23,6 +23,7 @@ import {
   createFragment,
   insert,
   remove,
+  addNodeCleanup,
 } from "./dom";
 
 import {
@@ -33,7 +34,7 @@ import {
   bindEvent,
 } from "./bindings";
 
-import { effect } from "@terajs/reactivity";
+import { dispose, effect } from "@terajs/reactivity";
 import { Debug } from "@terajs/shared";
 import { Portal as WebPortal } from "./portal";
 
@@ -54,22 +55,22 @@ export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragme
   return frag;
 }
 
-export function renderIRNode(node: IRNode, ctx: any): Node | null {
+export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): Node | null {
   switch (node.type) {
     case "text":
       return renderIRText(node);
     case "interp":
       return renderIRInterpolation(node, ctx);
     case "element":
-      return renderIRElement(node, ctx);
+      return renderIRElement(node, ctx, isSvg);
     case "portal":
-      return renderIRPortal(node, ctx);
+      return renderIRPortal(node, ctx, isSvg);
     case "slot":
-      return renderIRSlot(node, ctx);
+      return renderIRSlot(node, ctx, isSvg);
     case "if":
-      return renderIRIf(node, ctx);
+      return renderIRIf(node, ctx, isSvg);
     case "for":
-      return renderIRFor(node, ctx);
+      return renderIRFor(node, ctx, isSvg);
     default:
       Debug.emit("error:renderer", { message: "Unknown IR node", node });
       return null;
@@ -103,33 +104,34 @@ function renderIRInterpolation(node: IRInterpolationNode, ctx: any): Text {
 /*                                  ELEMENT                                   */
 /* -------------------------------------------------------------------------- */
 
-function renderIRElement(node: IRElementNode, ctx: any): HTMLElement {
-  Debug.emit("ir:render:element", { tag: node.tag });
+function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element {
+  Debug.emit("ir:render:element", { tag: node.tag, svg: isSvg });
 
-  const el = createElement(node.tag);
+  const nextSvg = isSvg || node.tag === "svg";
+  const el = createElement(node.tag, nextSvg);
 
   applyIRProps(el, node.props, ctx);
 
   for (const child of node.children) {
-    const dom = renderIRNode(child, ctx);
+    const dom = renderIRNode(child, ctx, nextSvg);
     if (dom) insert(el, dom);
   }
 
   return el;
 }
 
-function renderIRPortal(node: IRPortalNode, ctx: any): Node {
+function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
   Debug.emit("ir:render:portal", {
     hasTarget: node.target != null
   });
 
   return WebPortal({
     to: resolvePortalTarget(node.target, ctx),
-    children: node.children.map((child) => renderIRNode(child, ctx))
+    children: node.children.map((child) => renderIRNode(child, ctx, isSvg))
   });
 }
 
-function renderIRSlot(node: IRSlotNode, ctx: any): Node {
+function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
   Debug.emit("ir:render:slot", { name: node.name ?? "default" });
 
   const slotName = node.name ?? "default";
@@ -141,7 +143,7 @@ function renderIRSlot(node: IRSlotNode, ctx: any): Node {
 
   const frag = createFragment();
   for (const child of node.fallback) {
-    const dom = renderIRNode(child, ctx);
+    const dom = renderIRNode(child, ctx, isSvg);
     if (dom) {
       insert(frag, dom);
     }
@@ -222,14 +224,14 @@ function applyEventProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
 /*                                    IF                                      */
 /* -------------------------------------------------------------------------- */
 
-function renderIRIf(node: IRIfNode, ctx: any): Node {
+function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
   Debug.emit("ir:render:if", { condition: node.condition });
 
   const anchor = document.createComment("if");
   const parent = createFragment();
   parent.appendChild(anchor);
 
-  effect(() => {
+  const effectFn = effect(() => {
     const condition = !!resolveExpr(ctx, node.condition);
     const branch = condition ? node.then : node.else ?? [];
 
@@ -244,13 +246,15 @@ function renderIRIf(node: IRIfNode, ctx: any): Node {
     // Insert new nodes in correct order
     let ref: ChildNode | null = anchor.nextSibling;
     for (const child of branch) {
-      const dom = renderIRNode(child, ctx);
+      const dom = renderIRNode(child, ctx, isSvg);
       if (dom) {
         insert(parent, dom, ref ?? null);
         ref = null;
       }
     }
   });
+
+  addNodeCleanup(anchor, () => dispose(effectFn));
 
   return parent;
 }
@@ -259,14 +263,14 @@ function renderIRIf(node: IRIfNode, ctx: any): Node {
 /*                                    FOR                                     */
 /* -------------------------------------------------------------------------- */
 
-function renderIRFor(node: IRForNode, ctx: any): Node {
+function renderIRFor(node: IRForNode, ctx: any, isSvg: boolean): Node {
   Debug.emit("ir:render:for", { each: node.each });
 
   const anchor = document.createComment("for");
   const parent = createFragment();
   parent.appendChild(anchor);
 
-  effect(() => {
+  const effectFn = effect(() => {
     const array = resolveExpr(ctx, node.each) || [];
     const nodes: Node[] = [];
 
@@ -279,7 +283,7 @@ function renderIRFor(node: IRForNode, ctx: any): Node {
 
       const frag = createFragment();
       for (const child of node.body) {
-        const dom = renderIRNode(child, childCtx);
+        const dom = renderIRNode(child, childCtx, isSvg);
         if (dom) frag.appendChild(dom);
       }
 
@@ -301,6 +305,8 @@ function renderIRFor(node: IRForNode, ctx: any): Node {
       ref = null;
     }
   });
+
+  addNodeCleanup(anchor, () => dispose(effectFn));
 
   return parent;
 }

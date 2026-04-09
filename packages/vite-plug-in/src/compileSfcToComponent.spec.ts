@@ -29,7 +29,7 @@ describe("compileSfcToComponent", () => {
     expect(compileScript).toHaveBeenCalledWith("export function setup() {}");
     expect(out).toContain('import { renderIRModuleToFragment } from "@terajs/renderer-web";');
     expect(out).toContain("const slots = normalizeSlots(props);");
-    expect(out).toContain("setup({ props: componentProps, slots, emit })");
+    expect(out).toContain("__ssfc({ props: componentProps, slots, emit })");
     expect(out).toContain("import.meta.hot.accept");
   });
 });

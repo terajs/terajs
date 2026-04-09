@@ -51,7 +51,7 @@ function normalizeSlots(input) {
 
 export let ir = ${JSON.stringify(ir, null, 2)};
 
-export { setup };
+export { __ssfc };
 
 const Comp = component(
   {
@@ -64,14 +64,14 @@ const Comp = component(
     const componentProps = normalizeComponentProps(props);
     const slots = normalizeSlots(props);
     const emit = () => {};
-    const ctx = setup({ props: componentProps, slots, emit });
+    const ctx = __ssfc({ props: componentProps, slots, emit });
     return () => renderIRModuleToFragment(ir, { ...ctx, props: componentProps, slots, emit });
   }
 );
 
 if (import.meta.hot) {
   import.meta.hot.accept((mod) => {
-    const nextSetup = mod.setup ?? null;
+    const nextSetup = mod.__ssfc ?? null;
     const nextIR = ir;
     applyHMRUpdate("${name}", nextSetup, nextIR);
   });

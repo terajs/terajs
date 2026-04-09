@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { signal, setRuntimeMode } from "@terajs/reactivity";
 import { setHydrationState } from "./hydration";
 import { invalidateResources } from "./invalidation";
@@ -79,5 +79,15 @@ describe("createResource", () => {
 
     expect(resource.data()).toBe("post-2");
     expect(resource.state()).toBe("ready");
+  });
+
+  it("hydrates from __TERAJS_DATA__ script if available", async () => {
+    document.body.innerHTML = `<script id="__TERAJS_DATA__" type="application/json">{"user":{"id":1}}</script>`;
+
+    const fetcher = vi.fn(async () => ({ id: 2 }));
+    const res = createResource(() => fetcher(), { key: "user" });
+
+    expect(res.data()).toEqual({ id: 1 });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

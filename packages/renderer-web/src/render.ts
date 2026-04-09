@@ -13,7 +13,7 @@
  * that updates automatically when dependencies change.
  */
 
-import { insert } from "./dom";
+import { insert, clear } from "./dom";
 import {
     createComponentContext,
     setCurrentContext,
@@ -143,7 +143,7 @@ export function renderIntoRoot(
 
     // Clear root and notify debug
     Debug.emit("dom:clear", { el: root });
-    root.innerHTML = "";
+    clear(root);
 
     const { node, ctx } = renderComponent(component, props);
 

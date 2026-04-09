@@ -44,9 +44,9 @@ export function compileScript(script: string): CompiledScript {
   // 3. Scan top‑level declarations
   const { identifiers } = scanTopLevel(tokens);
 
-  // 4. Wrap in setup(ctx)
+  // 4. Wrap in a renderer-local setup function
   const setupCode = `
-function setup(ctx) {
+function __ssfc(ctx) {
   const { props, slots, emit } = ctx;
   ${jsLike}
   return { ${identifiers.join(", ")} };

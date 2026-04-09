@@ -16,7 +16,7 @@
  * - Clears the DOM
  */
 
-import { insert } from "./dom";
+import { insert, clear } from "./dom";
 import { renderComponent, type FrameworkComponent } from "./render";
 import type { ComponentContext } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
@@ -46,8 +46,11 @@ export function mount(
     props
   });
 
-  // Clear root
-  root.innerHTML = "";
+  if (root.__ctx) {
+    unmount(root);
+  } else {
+    clear(root);
+  }
 
   // Render component
   const { node, ctx } = renderComponent(component, props);
@@ -125,5 +128,5 @@ export function unmount(root: HTMLElement): void {
   }
 
   // Clear DOM
-  root.innerHTML = "";
+  clear(root);
 }

@@ -56,6 +56,67 @@ describe("renderToString", () => {
     );
   });
 
+  it("renders OpenGraph, Twitter, and AI metadata", () => {
+    const ir = mockIR(
+      [{ type: "text", value: "Home" }],
+      {
+        title: "Home",
+        "og:title": "Open Graph Home",
+        "og:description": "OG description",
+        "twitter:card": "summary_large_image",
+        aiSummary: "AI summary text"
+      }
+    );
+
+    const { head } = renderToString(ir);
+
+    expect(head).toContain("<title>Home</title>");
+    expect(head).toContain(
+      `<meta property="og:title" content="Open Graph Home">`
+    );
+    expect(head).toContain(
+      `<meta property="og:description" content="OG description">`
+    );
+    expect(head).toContain(
+      `<meta name="twitter:card" content="summary_large_image">`
+    );
+    expect(head).toContain(
+      `<meta name="ai:summary" content="AI summary text">`
+    );
+  });
+
+  it("renders <ai> block from IR into head metadata", () => {
+    const ir: IRModule = {
+      filePath: "/pages/ai.nbl",
+      template: [],
+      meta: { title: "AI Test" },
+      ai: { intent: "documentation", priority: 0.9 },
+      route: null
+    };
+
+    const { head } = renderToString(ir);
+
+    expect(head).toContain('name="terajs-ai-hint"');
+    expect(head).toContain('documentation');
+  });
+
+  it("merges route.meta and context.meta with IR meta", () => {
+    const ir = mockIR(
+      [{ type: "text", value: "Page" }],
+      { title: "IR Title", description: "IR desc" }
+    );
+
+    const { head } = renderToString(ir, {
+      meta: { title: "Context Title" },
+      route: { meta: { description: "Route desc" } }
+    });
+
+    expect(head).toContain("<title>Context Title</title>");
+    expect(head).toContain(
+      `<meta name="description" content="Route desc">`
+    );
+  });
+
   it("uses meta.performance.hydrate when present", () => {
     const ir = mockIR(
       [{ type: "text", value: "Hello" }],
@@ -110,6 +171,18 @@ describe("renderToString", () => {
     expect(result.routeSnapshot).toEqual(
       expect.objectContaining({ to: "/docs", data: { slug: "docs" } })
     );
+  });
+
+  it("serializes loader data into the hydration payload", () => {
+    const ir = mockIR([{ type: "text", value: "Hello" }], { title: "Docs" });
+
+    const result = renderToString(ir, {
+      data: { user: { id: 1 } }
+    });
+
+    expect(result.html).toContain('<script id="__TERAJS_DATA__" type="application/json">');
+    expect(result.html).toContain('"user":{"id":1}');
+    expect(result.data).toEqual({ user: { id: 1 } });
   });
 
   it("renders interpolations, conditionals, loops, and bound attrs from scope", () => {

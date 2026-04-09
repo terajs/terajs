@@ -43,6 +43,30 @@ describe("mount() / unmount()", () => {
         expect(root.textContent).toBe("new");
     });
 
+    it("unmounts previous component before remounting", () => {
+        let cleanupCalls = 0;
+
+        const First = () => () => {
+            onCleanup(() => cleanupCalls++);
+            const div = document.createElement("div");
+            div.textContent = "first";
+            return div;
+        };
+
+        const Second = () => {
+            const div = document.createElement("div");
+            div.textContent = "second";
+            return div;
+        };
+
+        const root = document.createElement("div");
+        mount(First, root);
+        mount(Second, root);
+
+        expect(cleanupCalls).toBe(1);
+        expect(root.textContent).toBe("second");
+    });
+
     it("unmount runs cleanup and clears DOM", () => {
         let calls = 0;
 

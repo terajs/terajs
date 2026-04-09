@@ -6,7 +6,22 @@ import { consumeHydratedResource } from "./hydration";
 import { registerResourceInvalidation, type ResourceKey } from "./invalidation";
 
 export type ResourceState = "idle" | "pending" | "ready" | "error";
+function getHydratedData<TValue = unknown>(key: string): TValue | undefined {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return undefined;
+  }
 
+  const el = document.getElementById("__TERAJS_DATA__");
+  if (!el) return undefined;
+
+  try {
+    const raw = el.textContent || "{}";
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    return data[key] as TValue | undefined;
+  } catch {
+    return undefined;
+  }
+}
 export interface Resource<TData> {
   data: Signal<TData | undefined>;
   error: Signal<unknown>;
@@ -47,8 +62,9 @@ export function createResource<TSource, TData>(
     ? maybeFetcher
     : sourceOrFetcher) as ResourceFetcher<TSource | void, TData>;
   const options = (hasSource ? maybeOptions : maybeFetcher) as ResourceOptions<TData> | undefined;
-  const hydratedValue = options?.hydrateKey
-    ? consumeHydratedResource<TData>(options.hydrateKey)
+  const hydrationKey = options?.hydrateKey ?? (typeof options?.key === "string" ? options.key : undefined);
+  const hydratedValue = hydrationKey
+    ? consumeHydratedResource<TData>(hydrationKey) ?? getHydratedData<TData>(hydrationKey)
     : undefined;
   const initialValue = hydratedValue !== undefined ? hydratedValue : options?.initialValue;
 

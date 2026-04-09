@@ -10,6 +10,7 @@ export interface RouteOverride {
 }
 
 export interface MetaConfig {
+  [key: string]: unknown;
   title?: string;
   description?: string;
   keywords?: string[] | string;

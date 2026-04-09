@@ -181,6 +181,43 @@ describe("IR -> DOM Renderer", () => {
     expect(dom.textContent).toBe("NO");
   });
 
+  it("disposes old branch effects when if node is removed", async () => {
+    const show = signal(true);
+    const count = signal(1);
+
+    const node: IRIfNode = {
+      type: "if",
+      condition: "show",
+      then: [
+        {
+          type: "interp",
+          expression: "count",
+          loc: undefined,
+          flags: { dynamic: true }
+        } as IRInterpolationNode
+      ],
+      else: [],
+      loc: undefined,
+      flags: {}
+    };
+
+    const root = document.createElement("div");
+    const dom = renderIRNode(node, { show, count })!;
+    root.appendChild(dom);
+
+    const removedText = root.lastChild as Text;
+    expect(root.textContent).toBe("1");
+
+    show.set(false);
+    await tick();
+    expect(root.textContent).toBe("");
+
+    count.set(2);
+    await tick();
+
+    expect(removedText.textContent).toBe("1");
+  });
+
   /* ---------------------------------------------------------------------- */
   /* FOR (reactive)                                                         */
   /* ---------------------------------------------------------------------- */
@@ -335,6 +372,30 @@ describe("IR -> DOM Renderer", () => {
 
     const frag = renderIRModuleToFragment(ir, {});
     expect(frag.textContent).toBe("AB");
+  });
+
+  it("creates SVG namespaced elements for SVG tags", () => {
+    const node: IRElementNode = {
+      type: "element",
+      tag: "svg",
+      props: [],
+      children: [
+        {
+          type: "element",
+          tag: "path",
+          props: [{ kind: "static", name: "d", value: "M0 0" }],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, {}) as Element;
+    expect(el.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect(el.firstChild?.namespaceURI).toBe("http://www.w3.org/2000/svg");
   });
 });
 
