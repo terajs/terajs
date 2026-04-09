@@ -41,7 +41,7 @@ export interface SSRContext {
   routeSnapshot?: RouteHydrationSnapshot<unknown>;
 
   /** Serialized hydration payloads for keyed resources. */
-  data?: Record<string, ResourcePayload>;
+  data?: Record<string, unknown>;
 }
 
 /**

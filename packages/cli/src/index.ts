@@ -14,7 +14,7 @@ program
 program
   .command("init <name>")
   .description("Scaffold a new Terajs project")
-  .action(async (name) => {
+  .action(async (name: string) => {
     console.log(`🌌 Creating "${name}" in the nebula...`);
     await scaffoldProject(name);
     console.log(`✅ Project ready. Run 'cd ${name} && tera dev' to start.`);
@@ -24,7 +24,7 @@ program
   .command("dev")
   .description("Start the development server with Terajs DevTools")
   .option("-p, --port <number>", "port to run on", "3000")
-  .action(async (options) => {
+  .action(async (options: { port: string }) => {
     const server = await createServer({
       plugins: [
         terajsPlugin({

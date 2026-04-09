@@ -395,7 +395,7 @@ describe("IR -> DOM Renderer", () => {
 
     const el = renderIRNode(node, {}) as Element;
     expect(el.namespaceURI).toBe("http://www.w3.org/2000/svg");
-    expect(el.firstChild?.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect((el.firstChild as Element | null)?.namespaceURI).toBe("http://www.w3.org/2000/svg");
   });
 });
 

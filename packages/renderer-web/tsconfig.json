@@ -15,7 +15,7 @@
     "paths": {
       "./src/jsx-runtime": ["./src/jsx-runtime.ts"]
     },
-    "types": ["vitest/globals"]
+    "types": ["node", "vitest/globals"]
   },
 
   "include": ["src/**/*"],

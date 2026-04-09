@@ -35,7 +35,7 @@ function extractBlockWithAttributes(
  * Parses a <template> block.
  * Currently no attributes are supported, but this is future‑proof.
  */
-function parseTemplateBlock(source: string): ParsedSFC["template"] {
+function parseTemplateBlock(source: string): string {
   const raw = extractBlockWithAttributes(source, "template");
   if (!raw) return "";
   return raw.content;

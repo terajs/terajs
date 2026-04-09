@@ -150,7 +150,7 @@ export function bindStyle(
  * @param handler - The event handler function.
  */
 export function bindEvent(
-    el: HTMLElement,
+    el: Element,
     name: string,
     handler: EventListener
 ): void {
@@ -172,7 +172,7 @@ export function bindEvent(
  * @param handler - The handler to remove.
  */
 export function unbindEvent(
-    el: HTMLElement,
+    el: Element,
     name: string,
     handler: EventListener
 ): void {

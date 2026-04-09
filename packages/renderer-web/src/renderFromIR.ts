@@ -151,7 +151,7 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
   return frag;
 }
 
-function applyIRProps(el: HTMLElement, props: IRPropNode[], ctx: any): void {
+function applyIRProps(el: Element, props: IRPropNode[], ctx: any): void {
   for (const p of props) {
     switch (p.kind) {
       case "static":
@@ -172,20 +172,25 @@ function applyIRProps(el: HTMLElement, props: IRPropNode[], ctx: any): void {
   }
 }
 
-function applyStaticProp(el: HTMLElement, p: IRPropNode): void {
+function applyStaticProp(el: Element, p: IRPropNode): void {
   if (p.name === "class") {
-    el.className = String(p.value ?? "");
+    if (el instanceof HTMLElement) {
+      el.className = String(p.value ?? "");
+      return;
+    }
   } else if (p.name === "style" && typeof p.value === "object") {
     const styleObj = p.value as Record<string, any>;
+    const styleTarget = (el as HTMLElement | SVGElement).style;
     for (const key in styleObj) {
-      el.style[key as any] = String(styleObj[key]);
+      styleTarget[key as any] = String(styleObj[key]);
     }
-  } else {
-    if (p.value != null) el.setAttribute(p.name, String(p.value));
+    return;
   }
+
+  if (p.value != null) el.setAttribute(p.name, String(p.value));
 }
 
-function applyBindProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
+function applyBindProp(el: Element, p: IRPropNode, ctx: any): void {
   const expr = String(p.value);
 
   if (p.name === "class") {
@@ -207,7 +212,7 @@ function applyBindProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
   bindProp(el, p.name, () => resolveExpr(ctx, expr));
 }
 
-function applyEventProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
+function applyEventProp(el: Element, p: IRPropNode, ctx: any): void {
   const handler = resolveExpr(ctx, String(p.value));
 
   if (typeof handler === "function") {

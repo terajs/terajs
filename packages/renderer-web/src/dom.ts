@@ -72,7 +72,7 @@ export function disposeNodeChildren(node: Node): void {
 /**
  * Create a DOM element node.
  */
-export function createElement(type: string, svg: boolean = false): Element {
+export function createElement(type: string, svg: boolean = false): HTMLElement | SVGElement {
     const el = svg || type === "svg"
         ? document.createElementNS("http://www.w3.org/2000/svg", type)
         : document.createElement(type);

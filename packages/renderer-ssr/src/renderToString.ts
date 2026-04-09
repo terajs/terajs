@@ -434,9 +434,8 @@ export function renderAttrs(props: any[], scope: Record<string, unknown>): strin
  * @returns HTML string for injection into <head>.
  */
 export function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
-  const irRouteMeta = isPlainObject(ir.route?.meta) ? ir.route?.meta as Record<string, unknown> : undefined;
   const routeMeta = isPlainObject(ctx.route?.meta) ? ctx.route?.meta as Record<string, unknown> : undefined;
-  const meta = mergeMeta(ir.meta ?? {}, irRouteMeta, routeMeta, ctx.meta ?? {});
+  const meta = mergeMeta(ir.meta ?? {}, routeMeta, ctx.meta ?? {});
   const mergedAi = mergeMeta(ir.ai ?? {}, ctx.ai ?? {});
 
   const parts: string[] = [];

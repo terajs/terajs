@@ -40,6 +40,7 @@ const allowedRootDevDependencies = new Set([
 ]);
 
 const allowedPackageExternalDependencies = new Map<string, Set<string>>([
+  ["cli", new Set(["commander", "vite"])],
   ["vite-plug-in", new Set<string>()],
   ["renderer-web", new Set<string>()],
   ["renderer-ssr", new Set<string>()],
@@ -177,7 +178,11 @@ describe("architecture guardrails", () => {
           continue;
         }
 
-        if (packageName === "vite-plug-in" && importPath === "vite") {
+        if ((packageName === "vite-plug-in" || packageName === "cli") && importPath === "vite") {
+          continue;
+        }
+
+        if (packageName === "cli" && importPath === "commander") {
           continue;
         }
 

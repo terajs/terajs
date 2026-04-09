@@ -140,7 +140,7 @@ function prepareComponentProps(props: Record<string, any>): Record<string, any> 
 /**
  * Apply JSX props to a DOM element.
  */
-function applyProps(el: HTMLElement, props: Record<string, any>) {
+function applyProps(el: Element, props: Record<string, any>) {
     Debug.emit("jsx:props", {
         el,
         props

@@ -7,9 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vitest/globals"],
 
     "paths": {
-      "@terajs/*": ["./packages/*/dist/index.d.ts"]
+      "@terajs/*": ["./packages/*/src"]
     }
   },
   "files": [],
