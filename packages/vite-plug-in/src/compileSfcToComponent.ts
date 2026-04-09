@@ -12,6 +12,7 @@ export function compileSfcToComponent(sfc: ParsedSFC): string {
 
   const script = compileScript(scriptSource);
   const ir = compileTemplateFromSFC(sfc);
+  ir.hasAsyncResource = script.hasAsyncResource;
   const name = inferComponentName(sfc.filePath);
 
   return `

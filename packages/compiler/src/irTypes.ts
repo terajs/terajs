@@ -161,6 +161,9 @@ export interface IRModule {
   /** Parsed route overrides from the <route> block, if present. */
   route: RouteOverride | null;
 
+  /** Whether this IR module contains async resource loading. */
+  hasAsyncResource?: boolean;
+
   scopeId?: string; // For scoped styles, if needed
 }
 

@@ -13,7 +13,7 @@
  */
 
 import { stripTypes } from "./stripTypes";
-import { tokenizeScript } from "./tokenizeScript";
+import { tokenizeScript, type Token } from "./tokenizeScript";
 import { scanTopLevel } from "./scanTopLevel";
 
 export interface CompiledScript {
@@ -26,6 +26,23 @@ export interface CompiledScript {
    * Top‑level identifiers exposed to the template compiler.
    */
   exposed: string[];
+
+  /**
+   * Whether this script uses createResource and should be treated as async.
+   */
+  hasAsyncResource: boolean;
+}
+
+function hasCreateResourceCall(tokens: Token[]): boolean {
+  for (let i = 0; i < tokens.length - 1; i += 1) {
+    if (tokens[i].type === "identifier" && tokens[i].value === "createResource") {
+      const next = tokens[i + 1];
+      if (next && next.type === "punct" && next.value === "(") {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -44,7 +61,10 @@ export function compileScript(script: string): CompiledScript {
   // 3. Scan top‑level declarations
   const { identifiers } = scanTopLevel(tokens);
 
-  // 4. Wrap in a renderer-local setup function
+  // 4. Detect async resource usage for streaming suspension.
+  const hasAsyncResource = hasCreateResourceCall(tokens);
+
+  // 5. Wrap in a renderer-local setup function
   const setupCode = `
 function __ssfc(ctx) {
   const { props, slots, emit } = ctx;
@@ -55,6 +75,7 @@ function __ssfc(ctx) {
 
   return {
     setupCode,
-    exposed: identifiers
+    exposed: identifiers,
+    hasAsyncResource
   };
 }

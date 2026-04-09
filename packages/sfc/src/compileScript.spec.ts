@@ -58,4 +58,15 @@ describe("compileScript (dependency‑free analyzer)", () => {
     // Only "outer" should be exposed
     expect(compiled.exposed).toEqual(["outer"]);
   });
+
+  it("detects createResource usage in script code", () => {
+    const raw = `
+      import { createResource } from '@terajs/runtime';
+      const user = createResource(async () => fetch('/api/user').then(r => r.json()));
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.hasAsyncResource).toBe(true);
+  });
 });

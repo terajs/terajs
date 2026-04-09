@@ -21,6 +21,9 @@ export interface SSRContext {
 
   /** Additional or overriding route fields. */
   route?: Record<string, any>;
+
+  /** Whether the current render includes async resources. */
+  hasAsyncResource?: boolean;
   
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;

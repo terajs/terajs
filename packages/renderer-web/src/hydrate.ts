@@ -16,6 +16,7 @@ import type { HydrationMode } from "@terajs/shared";
 import { mount } from "./mount";
 import type { FrameworkComponent } from "./render";
 import { validateHydration } from "./hydration/diagnostics";
+import { installTeraSwap } from "./hydration/streamUtils";
 
 export interface HydrationPayload {
   mode: HydrationMode | "ai";
@@ -70,6 +71,8 @@ export function hydrateRoot(
   if (isDev) {
     serverSnapshot = root.innerHTML;
   }
+
+  installTeraSwap();
 
   scheduleHydration(
     payload.mode,

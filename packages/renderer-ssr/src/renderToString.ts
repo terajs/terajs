@@ -440,6 +440,9 @@ export function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
   const mergedAi = mergeMeta(ir.ai ?? {}, ctx.ai ?? {});
 
   const parts: string[] = [];
+  if (ir.hasAsyncResource || ctx.hasAsyncResource) {
+    parts.push(renderStreamHelper());
+  }
   const assetTags = renderAssets(ctx.assets ?? []);
   if (assetTags) {
     parts.push(assetTags);
@@ -527,6 +530,20 @@ export function renderHydrationData(data: Record<string, any>): string {
   if (!data || Object.keys(data).length === 0) return "";
   const serialized = JSON.stringify(data).replace(/</g, "\\u003c");
   return `<script id="__TERAJS_DATA__" type="application/json">${serialized}</script>`;
+}
+
+export function renderStreamHelper(): string {
+  return `<script>(function(){
+  function $teraSwap(templateId, targetId){
+    var template = document.getElementById(templateId);
+    var target = document.getElementById(targetId);
+    if (!template || !target) return;
+    target.replaceWith(template.content.cloneNode(true));
+  }
+  if (typeof window !== "undefined") {
+    window.$teraSwap = $teraSwap;
+  }
+})();</script>`;
 }
 
 

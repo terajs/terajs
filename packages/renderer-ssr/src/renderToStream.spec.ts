@@ -55,13 +55,52 @@ describe("renderToStream", () => {
           }
         ]
       }
-    ]);
+    ], {}, null);
+    ir.hasAsyncResource = true;
 
     const stream = await renderToStream(ir);
     const html = await readStream(stream);
 
     expect(html).toContain("Loading...");
-    expect(html).toContain("<!--suspense-ready:");
     expect(html).toContain("Loaded");
+    expect(html).toContain("$teraSwap(");
+    expect(html).toContain("<template id=\"terajs-suspense-template-");
+  });
+
+  it("injects serialized resource payloads into swap chunks", async () => {
+    const ir = mockIR([
+      {
+        type: "element",
+        tag: "Suspense",
+        props: [],
+        children: [
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [{ type: "text", value: "Loaded" }]
+          },
+          {
+            type: "slot",
+            name: "fallback",
+            fallback: [{ type: "text", value: "Loading..." }]
+          }
+        ]
+      }
+    ]);
+    ir.hasAsyncResource = true;
+
+    const stream = await renderToStream(ir, {
+      data: {
+        user: {
+          status: "success",
+          data: { id: 1 }
+        }
+      }
+    });
+    const html = await readStream(stream);
+
+    expect(html).toContain("window.__TERAJS_DATA__");
+    expect(html).toContain('"user":{"status":"success","data":{"id":1}}');
   });
 });
