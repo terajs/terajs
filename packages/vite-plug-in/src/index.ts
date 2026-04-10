@@ -181,8 +181,8 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".tera"));
       for (const f of files) {
         const name = pascalCase(f.replace(/\.tera$/, ""));
-        const rel = "./" + f;
-        code += `export { default as ${name} } from '${rel}';\n`;
+        const importPath = toProjectImportPath(path.join(dir, f));
+        code += `export { default as ${name} } from '${importPath}';\n`;
       }
     }
     return code;
