@@ -40,7 +40,10 @@ export interface ParsedSFC {
   /** Parsed metadata configuration from the `<meta>` block. */
   meta: MetaConfig;
 
-  /** Parsed AI block (optional). */
+  /**
+   * Parsed AI block (optional).
+   * Instructional-only metadata only; AI blocks are not executable code.
+   */
   ai?: Record<string, any>;
 
   /** Parsed route override configuration from the `<route>` block, if present. */

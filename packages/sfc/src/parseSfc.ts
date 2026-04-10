@@ -174,6 +174,8 @@ function parseYamlBlock<T = any>(
  * <style>...</style>
  * <meta>title: ...</meta>
  * <ai>keywords: ...</ai>
+ *
+ * Note: `<ai>` blocks are parsed as instructional metadata only and are not executable.
  */
 export function parseSFC(source: string, filePath: string): ParsedSFC {
   const template = parseTemplateBlock(source);

@@ -19,7 +19,7 @@ export {
 
 // Primitives
 export { state } from "./state";
-export { signal, type Signal } from "./signal";
+export { signal, getActiveSignals, type Signal } from "./signal";
 export { ref, type Ref } from "./ref";
 
 // Complex Reactivity

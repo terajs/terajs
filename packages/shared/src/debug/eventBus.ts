@@ -13,6 +13,10 @@ const listeners = new Set<DebugEventListener>();
  * Returns an unsubscribe function.
  */
 export function subscribeDebug(listener: DebugEventListener): () => void {
+  if (process.env.NODE_ENV !== "development") {
+    return () => {};
+  }
+
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
@@ -22,6 +26,7 @@ export function subscribeDebug(listener: DebugEventListener): () => void {
  * Internal use only from the framework.
  */
 export function emitDebug(event: DebugEvent): void {
+  if (process.env.NODE_ENV !== "development") return;
   if (listeners.size === 0) return;
   for (const listener of listeners) {
     try {

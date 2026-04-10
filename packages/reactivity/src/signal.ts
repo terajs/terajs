@@ -23,6 +23,32 @@ import {
 
 import type { ReactiveMetadata } from "@terajs/shared";
 
+const signalRegistry = new Set<WeakRef<Signal<unknown>>>();
+const signalFinalizer = new FinalizationRegistry<WeakRef<Signal<unknown>>>((ref) => {
+  signalRegistry.delete(ref);
+});
+
+function registerActiveSignal<T>(sig: Signal<T>): void {
+  const ref = new WeakRef(sig);
+  signalRegistry.add(ref);
+  signalFinalizer.register(sig, ref);
+}
+
+export function getActiveSignals(): Signal<unknown>[] {
+  const active: Signal<unknown>[] = [];
+
+  for (const ref of Array.from(signalRegistry)) {
+    const signal = ref.deref();
+    if (signal) {
+      active.push(signal);
+    } else {
+      signalRegistry.delete(ref);
+    }
+  }
+
+  return active;
+}
+
 /**
  * A reactive signal holding a value of type T.
  */
@@ -106,6 +132,10 @@ export function signal<T>(
   sig._value = value;
   sig._dep = new Set<ReactiveEffect>();
   sig._meta = meta;
+
+  if (typeof options?.key === "string" && options.key.length > 0) {
+    registerActiveSignal(sig);
+  }
 
   // Track initial value
   updateReactiveValue(meta.rid, value);

@@ -155,7 +155,7 @@ export interface IRModule {
   /** Parsed metadata from the <meta> block. */
   meta: MetaConfig;
 
-  /** Parsed AI metadata from the <ai> block, if present. */
+  /** Parsed AI metadata from the <ai> block, if present. Instructional-only metadata only. */
   ai?: Record<string, any>;
 
   /** Parsed route overrides from the <route> block, if present. */

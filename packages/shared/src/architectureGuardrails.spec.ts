@@ -29,7 +29,8 @@ const adapterImports = [
   "@terajs/renderer-ios",
   "@terajs/renderer-android",
   "@terajs/router-manifest",
-  "@terajs/ui"
+  "@terajs/ui",
+  "@terajs/adapter-ai"
 ];
 
 const allowedRootDevDependencies = new Set([
@@ -45,6 +46,7 @@ const allowedRootDevDependencies = new Set([
 const allowedPackageExternalDependencies = new Map<string, Set<string>>([
   ["adapter-react", new Set<string>()],
   ["adapter-vue", new Set<string>()],
+  ["adapter-ai", new Set<string>()],
   ["cli", new Set(["commander", "vite"])],
   ["vite-plug-in", new Set<string>()],
   ["renderer-web", new Set<string>()],
@@ -64,7 +66,8 @@ const allowedPackageExternalDependencies = new Map<string, Set<string>>([
 const allowedPackageExternalPeerDependencies = new Map<string, Set<string>>([
   ["vite-plug-in", new Set(["vite"])],
   ["adapter-react", new Set(["react", "react-dom"])],
-  ["adapter-vue", new Set(["vue"])]
+  ["adapter-vue", new Set(["vue"])],
+  ["adapter-ai", new Set<string>()]
 ]);
 
 const frameworkImportPattern = /from\s+["'](?:react|react\/[^"']*|vue|vue\/[^"']*)["']/i;
