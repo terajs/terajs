@@ -35,12 +35,12 @@
   },
 
   "dependencies": {
-    "@terajs/shared": "^0.0.1",
-    "@terajs/runtime": "^0.0.1",
-    "@terajs/router-manifest": "^0.0.1",
-    "@terajs/router": "^0.0.1",
-    "@terajs/sfc": "^0.0.1",
-    "@terajs/compiler": "^0.0.1"
+    "@terajs/shared": "*",
+    "@terajs/runtime": "*",
+    "@terajs/router-manifest": "*",
+    "@terajs/router": "*",
+    "@terajs/sfc": "*",
+    "@terajs/compiler": "*"
   },
 
   "peerDependencies": {

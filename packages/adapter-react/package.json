@@ -32,9 +32,9 @@
     "react-dom": "^18.0.0"
   },
   "dependencies": {
-    "@terajs/reactivity": "^0.0.1",
-    "@terajs/renderer-web": "^0.0.1",
-    "@terajs/runtime": "^0.0.1"
+    "@terajs/reactivity": "*",
+    "@terajs/renderer-web": "*",
+    "@terajs/runtime": "*"
   },
   "publishConfig": {
     "access": "public"
