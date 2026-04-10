@@ -44,7 +44,7 @@ Terajs components use a clean, declarative format:
 <script>
 <style>
 <meta>
-<ai>      <- planned feature
+<ai>      <- supported metadata block
 <route>
 ```
 
@@ -55,7 +55,7 @@ Everything a component needs lives in one place.
 ## **Auto-imports & DevTools**
 
 - All `.tera` files in `src/components` (or configured dirs) are globally available in SFCs - no manual imports needed.
-- DevTools overlay: live inspection of components, signals, effects, logs, and issues.
+- DevTools overlay: live inspection of components, signals, effects, logs, issues, performance, and sanity checks.
 
 ### Example: Using auto-imported components
 
@@ -113,7 +113,7 @@ Terajs components can define:
 
 - route configuration
 - SEO metadata
-- **AI metadata (planned)**
+- AI metadata
 - layouts
 - nested routes
 
@@ -131,7 +131,7 @@ Terajs's SSR model:
 - no hydration mismatch traps
 - hydration logs for debugging
 
-Streaming SSR is planned.
+Streaming SSR is supported through `@terajs/renderer-ssr`.
 
 For applications that need server-owned logic, Terajs can also expose an optional app server boundary for route loaders and server functions.
 
@@ -279,7 +279,7 @@ Terajs is built for humans:
 - clear error messages
 - fast HMR
 - template -> IR -> DOM mapping
-- devtools hooks (planned)
+- devtools hooks and overlay tooling
 
 Debugging is a first-class feature.
 
@@ -338,8 +338,8 @@ Debugging is a first-class feature.
 ```
 
 > **Note:**
-> The `<ai>` block is a **planned feature**.
-> It is not yet implemented in the SFC parser, compiler, or runtime.
+> The `<ai>` block is parsed and available in the metadata pipeline.
+> Advanced AI tooling on top of that metadata remains an evolving area.
 
 ---
 
@@ -374,11 +374,11 @@ Terajs Kit (future) provides structure when needed.
 - [x] Routing
 - [x] Metadata system
 - [x] Template compiler
-- [ ] **AI metadata block (`<ai>`)**
-- [ ] Streaming SSR
+- [x] **AI metadata block (`<ai>`)**
+- [x] Streaming SSR
 - [ ] Virtualized lists
-- [ ] Portal primitives
-- [ ] Devtools
+- [x] Portal primitives
+- [x] Devtools
 - [ ] Terajs Kit (meta-framework)
 - [ ] Native renderer
 - [ ] Canvas renderer

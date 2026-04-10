@@ -37,6 +37,10 @@ export function emitDebug(event: DebugEvent): void {
   }
 }
 
+export function getDebugListenerCount(): number {
+  return listeners.size;
+}
+
 export function resetDebugListeners(): void {
   listeners.clear();
 }

@@ -1,379 +1,211 @@
-```md
 # Terajs API Reference
 
-This document describes the full public API of **Terajs Core** — the reactivity system, component model, lifecycle utilities, and DOM‑agnostic primitives that power Terajs’s rendering engine and Terajs Kit.
+This reference describes the **current public surface** used by web-first Terajs apps.
 
-Terajs’s API is intentionally small, predictable, and stable.
+Release scope reflected here:
+- `@terajs/reactivity`
+- `@terajs/runtime`
+- `@terajs/renderer-web`
+- `@terajs/router`
+- `@terajs/renderer-ssr`
 
 ---
 
-# 1. Reactivity API
+# 1. Reactivity (`@terajs/reactivity`)
 
-Terajs uses fine‑grained, explicit dependency tracking. Signals are the foundation of all reactive behavior.
+## 1.1 `signal(initialValue)`
 
----
+Creates a callable signal accessor with mutation helpers.
 
-## 1.1 `state(initialValue)`
+```ts
+const count = signal(0);
+count();           // 0
+count.set(1);      // update
+count.update((n) => n + 1);
+```
 
-Creates a reactive signal.
+## 1.2 `state(initialValue)`
+
+Creates a state container with explicit `get()` / `set()`.
 
 ```ts
 const count = state(0);
-count.get();     // 0
-count.set(1);    // triggers updates
+count.get();
+count.set(1);
 ```
 
-### Returns:
-- `{ get(): T; set(value: T): void }`
+## 1.3 `computed(fn)`
 
-### Notes:
-- Signals are shallow  
-- Use nested signals for nested state  
-- SSR‑safe  
-
----
-
-## 1.2 `computed(fn)`
-
-Creates a derived reactive value.
+Creates a lazy, memoized derived value.
 
 ```ts
-const double = computed(() => count.get() * 2);
-double.get(); // auto‑tracks dependencies
+const doubled = computed(() => count.get() * 2);
+doubled.get();
 ```
 
-### Features:
-- memoized  
-- lazy  
-- recalculates only when dependencies change  
+## 1.4 `effect(fn)`
 
----
-
-## 1.3 `effect(fn)`
-
-Runs a function whenever its dependencies change.
+Runs `fn` reactively and returns a `ReactiveEffect` handle.
 
 ```ts
-effect(() => {
-  console.log(count.get());
+const stopTarget = effect(() => {
+  console.log(count());
 });
 ```
 
-### Notes:
-- runs once on mount  
-- tracks dependencies automatically  
-- does **not** run on the server  
+## 1.5 Effect utilities
+
+- `onEffectCleanup(fn)` registers cleanup for the current running effect.
+- `dispose(effectHandle)` disposes a reactive effect.
+- `watch(source, callback)` and `watchEffect(fn)` are available from the DX layer.
+
+## 1.6 Other exports
+
+- `ref(...)`
+- `reactive(...)`
+- `model(...)`
+- `memo(...)`, `markStatic(...)`, `shallowRef(...)`
+- `isServer()`, `setRuntimeMode(...)`
 
 ---
 
-## 1.4 `onCleanup(fn)`
+# 2. Runtime (`@terajs/runtime`)
 
-Registers cleanup logic for an effect.
+## 2.1 Component wrapper
+
+Use `component(options, setup)` to define Terajs components.
 
 ```ts
-effect(() => {
-  const id = setInterval(...);
-  onCleanup(() => clearInterval(id));
+const App = component({ name: "App" }, () => () => {
+  return document.createTextNode("hello");
 });
 ```
 
----
+## 2.2 Component cleanup
 
-# 2. Component API
+`onCleanup(fn)` registers disposers owned by the active component/effect context.
 
-Terajs components are simple functions that return a template function.
+## 2.3 Lifecycle hooks
 
----
+Current lifecycle hook names:
+- `onMounted(fn)`
+- `onUpdated(fn)`
+- `onUnmounted(fn)`
 
-## 2.1 Component Signature
+## 2.4 Context / dependency injection
 
-```ts
-export function Component(props) {
-  // logic
-  return () => (
-    <div>...</div>
-  );
-}
-```
+Current context APIs are low-level and explicit:
+- `provide(key, value)`
+- `inject(key, fallback?)`
 
-### Rules:
-- component runs once  
-- template runs reactively  
-- props are immutable  
-- SSR‑safe  
+There is no `<Context.Provider>` component API in the runtime package today.
 
----
+## 2.5 Hydration resource helpers
 
-## 2.2 `lazy(importFn)`
+- `setHydrationState(...)`
+- `getHydratedResource(key)`
+- `consumeHydratedResource(key)`
+- `scheduleHydration(mode, mount, element)`
 
-Loads a component asynchronously.
+## 2.6 Server function APIs
 
-```ts
-const User = lazy(() => import("./User"));
-```
+Runtime exports include:
+- `server(...)`
+- `executeServerFunction(...)`
+- `createFetchServerFunctionTransport(...)`
+- `createServerFunctionRequestHandler(...)`
 
-### Features:
-- SSR‑friendly  
-- no Suspense boundaries  
-- hydrates normally  
+Use these for app-owned server boundaries, not as a replacement for your external API contracts.
 
 ---
 
-## 2.3 `isServer()`
+# 3. Web Renderer (`@terajs/renderer-web`)
 
-Returns `true` during SSR.
+## 3.1 Mounting
 
-```ts
-if (isServer()) {
-  // skip client-only logic
-}
-```
+- `mount(component, root, props?)`
+- `unmount(root)`
 
----
+## 3.2 Hydration
 
-# 3. Lifecycle API
+- `hydrateRoot(component, root, props?)`
+- `readHydrationPayload()`
 
-Terajs provides minimal lifecycle utilities.
+Hydration uses in-place reconciliation when SSR DOM shape matches and falls back to replacement when it does not.
 
----
+## 3.3 JSX / template primitives
 
-## 3.1 `onMount(fn)`
+- JSX runtime exports (`jsx`, `jsxs`, `Fragment`)
+- control-flow exports (`Switch`, `Match`, `Show`, `For`)
+- `Portal(...)`
 
-Runs when the component is mounted.
+## 3.4 Router-aware web primitives
 
-```ts
-onMount(() => {
-  console.log("mounted");
-});
-```
+- `createRouteView(router, options?)`
+- `Link(props)`
 
----
+## 3.5 Forms
 
-## 3.2 `onUnmount(fn)`
-
-Runs when the component is removed.
-
-```ts
-onUnmount(() => {
-  console.log("unmounted");
-});
-```
+- `Form(props)`
+- `SubmitButton(props)`
+- `FormStatus(props)`
 
 ---
 
-## Server Runtime Overview
+# 4. Router (`@terajs/router`)
 
-Terajs's runtime can optionally expose a server boundary for loaders and server functions.
+## 4.1 Core router APIs
 
-Use that boundary when code must stay app-owned and server-side, such as:
+- `createRouter(routes, options?)`
+- `createMemoryHistory(initialPath?)`
+- `createBrowserHistory(window?)`
+- `matchRoute(routes, target)`
 
-- database access  
-- auth and session checks  
-- cookie-aware reads or mutations  
-- secret-bearing backend calls  
+## 4.2 Loading and prefetch
 
-Do not use it as a replacement for a formal service contract. If your app already uses OpenAPI, Kiota, REST, GraphQL, or another generated client boundary, Terajs can consume that client directly or wrap it in a server function when the call must remain server-only.
+- `loadRouteMatch(match, options?)`
+- `prefetchRouteMatch(match)`
+- `prefetchRoute(router, target)`
+- `clearPrefetchedRouteMatches()`
 
-The transport layer is adapter-based:
+## 4.3 Route metadata
 
-- the client side can use `fetch` to call an app endpoint such as `/_terajs/server`  
-- the server side can dispatch those calls from standard `Request` and `Response` primitives  
-- no specific HTTP framework is required by the runtime itself  
-
-This keeps the core runtime modular while still allowing a batteries-included app layer on top.
-
----
-
-# 4. Context API
-
-Terajs supports dependency injection via context.
+- `resolveLoadedRouteMetadata(...)`
+- `updateHead(meta, ai)`
 
 ---
 
-## 4.1 `createContext(defaultValue?)`
+# 5. SSR (`@terajs/renderer-ssr`)
 
-Creates a context object.
+## 5.1 String rendering
 
-```ts
-const ThemeContext = createContext("light");
-```
+- `renderToString(component, options?)`
 
----
+## 5.2 Streaming rendering
 
-## 4.2 `useContext(Context)`
+- `renderToStream(component, options?)`
 
-Reads a context value.
+## 5.3 Route execution helpers
 
-```ts
-const theme = useContext(ThemeContext);
-```
+- `executeServerRoute(routeModule, options?)`
 
 ---
 
-## 4.3 `<Context.Provider value={...}>`
+# 6. Notes on Stable vs Deferred
 
-Provides a context value to children.
+This API reference intentionally describes shipped web-first APIs.
 
-```tsx
-<ThemeContext.Provider value="dark">
-  <App />
-</ThemeContext.Provider>
-```
-
----
-
-# 5. Portal API
-
-Terajs supports teleporting content outside the normal hierarchy.
+Deferred/non-goal for this release cycle:
+- native renderer implementation details
+- transitions/animation framework
+- expanded app-framework layer guarantees beyond current exports
 
 ---
 
-## 5.1 `<Portal to="target">`
+# 7. Philosophy Summary
 
-```tsx
-<Portal to="body">
-  <Modal />
-</Portal>
-```
-
-### Behavior:
-- DOM → mounts into a DOM node  
-- Native → mounts into overlay layer  
-- Canvas → draws in higher z‑index layer  
-- Server → renders inline  
-
----
-
-# 6. Slot API
-
-Terajs supports default, named, and scoped slots.
-
----
-
-## 6.1 Default Slot
-
-```tsx
-export function Card(props) {
-  return () => <div>{props.children?.()}</div>;
-}
-```
-
----
-
-## 6.2 Named Slots
-
-```tsx
-<Modal
-  header={() => <h1>Title</h1>}
-  footer={() => <button>Close</button>}
->
-  Body content
-</Modal>
-```
-
----
-
-## 6.3 Scoped Slots
-
-```tsx
-<List items={users} item={user => <UserCard user={user} />} />
-```
-
----
-
-# 7. Renderer API (Low‑Level)
-
-Renderers implement the following interface:
-
-```ts
-interface Renderer {
-  createElement(type: string): Node;
-  createText(value: string): Node;
-  createFragment(): Node;
-  insert(parent: Node, child: Node, anchor?: Node): void;
-  remove(node: Node): void;
-  setText(node: Node, value: string): void;
-  setProp(node: Node, name: string, value: any): void;
-  addEvent(node: Node, name: string, handler: Function): void;
-  removeEvent(node: Node, name: string): void;
-}
-```
-
-Terajs Core is renderer‑agnostic.
-
----
-
-# 8. SSR API
-
-Terajs supports deterministic SSR.
-
----
-
-## 8.1 `renderToString(component)`
-
-Renders a component to an HTML string.
-
----
-
-## 8.2 `renderToStream(component)`
-
-Streams HTML chunks.
-
----
-
-## 8.3 Hydration Markers
-
-Terajs automatically inserts hydration markers for:
-
-- signals  
-- components  
-- portals  
-- async boundaries  
-
----
-
-# 9. Utility API
-
-Terajs includes small utilities.
-
----
-
-## 9.1 `mergeProps(a, b)`
-
-Merges props objects.
-
----
-
-## 9.2 `classList(obj)`
-
-Converts an object to a class string.
-
-```ts
-classList({ active: isActive.get(), disabled: isDisabled.get() });
-```
-
----
-
-## 9.3 `styleMap(obj)`
-
-Converts an object to inline styles.
-
----
-
-# 10. Philosophy Summary
-
-Terajs’s API is:
-
-- small  
-- predictable  
-- stable  
-- platform‑agnostic  
-- SSR‑safe  
-- fine‑grained  
-- easy to learn  
-
-Terajs Core stays minimal.  
-Terajs Kit adds structure.  
-Renderers handle output.
-
-```
+Terajs keeps the runtime small and explicit:
+- fine-grained reactivity
+- deterministic updates
+- direct rendering paths
+- modular packages with clear boundaries

@@ -12,6 +12,100 @@ import { unwrap } from "./unwrap";
 
 const nodeCleanup = new WeakMap<Node, Array<() => void>>();
 
+interface HydrationFrame {
+    parent: Node;
+    nextChild: ChildNode | null;
+}
+
+let hydrationFrames: HydrationFrame[] = [];
+let hydrationRoot: HTMLElement | null = null;
+
+function isHydrating(): boolean {
+    return hydrationRoot != null;
+}
+
+function currentHydrationFrame(): HydrationFrame | undefined {
+    if (hydrationFrames.length === 0) return undefined;
+    return hydrationFrames[hydrationFrames.length - 1];
+}
+
+function claimHydrationChild(matcher: (candidate: ChildNode) => boolean): ChildNode | null {
+    const frame = currentHydrationFrame();
+    if (!frame || !frame.nextChild) {
+        return null;
+    }
+
+    const candidate = frame.nextChild;
+    if (!matcher(candidate)) {
+        return null;
+    }
+
+    frame.nextChild = candidate.nextSibling;
+    return candidate;
+}
+
+function pruneHydrationRemainder(frame: HydrationFrame): void {
+    let node = frame.nextChild;
+    while (node) {
+        const next = node.nextSibling;
+        remove(node);
+        node = next;
+    }
+
+    frame.nextChild = null;
+}
+
+export function startHydration(root: HTMLElement): void {
+    hydrationRoot = root;
+    hydrationFrames = [{
+        parent: root,
+        nextChild: root.firstChild
+    }];
+
+    Debug.emit("dom:hydrate:start", {
+        root
+    });
+}
+
+export function finishHydration(): void {
+    const root = hydrationRoot;
+    if (!root) {
+        return;
+    }
+
+    const rootFrame = hydrationFrames[0];
+    if (rootFrame) {
+        pruneHydrationRemainder(rootFrame);
+    }
+
+    hydrationFrames = [];
+    hydrationRoot = null;
+
+    Debug.emit("dom:hydrate:end", {
+        root
+    });
+}
+
+export function withHydrationParent<T>(parent: Node, run: () => T): T {
+    if (!isHydrating()) {
+        return run();
+    }
+
+    hydrationFrames.push({
+        parent,
+        nextChild: parent.firstChild
+    });
+
+    try {
+        return run();
+    } finally {
+        const frame = hydrationFrames.pop();
+        if (frame) {
+            pruneHydrationRemainder(frame);
+        }
+    }
+}
+
 export function addNodeCleanup(node: Node, cleanup: () => void): void {
     const existing = nodeCleanup.get(node);
     if (existing) {
@@ -73,7 +167,32 @@ export function disposeNodeChildren(node: Node): void {
  * Create a DOM element node.
  */
 export function createElement(type: string, svg: boolean = false): HTMLElement | SVGElement {
-    const el = svg || type === "svg"
+    const expectedTag = type.toLowerCase();
+    const expectsSvg = svg || expectedTag === "svg";
+
+    const claimed = claimHydrationChild((candidate) => {
+        if (candidate.nodeType !== Node.ELEMENT_NODE) {
+            return false;
+        }
+
+        const element = candidate as Element;
+        const tagMatches = element.tagName.toLowerCase() === expectedTag;
+        if (!tagMatches) {
+            return false;
+        }
+
+        if (expectsSvg) {
+            return element.namespaceURI === "http://www.w3.org/2000/svg";
+        }
+
+        return element.namespaceURI !== "http://www.w3.org/2000/svg";
+    });
+
+    if (claimed) {
+        return claimed as HTMLElement | SVGElement;
+    }
+
+    const el = expectsSvg
         ? document.createElementNS("http://www.w3.org/2000/svg", type)
         : document.createElement(type);
 
@@ -90,6 +209,16 @@ export function createElement(type: string, svg: boolean = false): HTMLElement |
  * Create a DOM text node.
  */
 export function createText(value: string): Text {
+    const claimed = claimHydrationChild((candidate) => candidate.nodeType === Node.TEXT_NODE);
+    if (claimed) {
+        const text = claimed as Text;
+        if (text.data !== value) {
+            text.data = value;
+        }
+
+        return text;
+    }
+
     const node = document.createTextNode(value);
 
     Debug.emit("dom:create", {
@@ -119,6 +248,16 @@ export function createFragment(): DocumentFragment {
  * Insert a child node into a parent before an optional anchor.
  */
 export function insert(parent: Node, child: Node, anchor: Node | null = null): void {
+    if (child.parentNode === parent) {
+        if (anchor === null && parent.lastChild === child) {
+            return;
+        }
+
+        if (anchor !== null && child.nextSibling === anchor) {
+            return;
+        }
+    }
+
     Debug.emit("dom:insert", {
         parent,
         child,

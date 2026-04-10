@@ -14,7 +14,8 @@ import { scheduleHydration, setHydrationState } from "@terajs/runtime";
 import type { RouteHydrationSnapshot } from "@terajs/router";
 import type { HydrationMode } from "@terajs/shared";
 import { mount } from "./mount";
-import type { FrameworkComponent } from "./render";
+import { finishHydration, insert, startHydration } from "./dom";
+import { renderComponent, type FrameworkComponent } from "./render";
 import { validateHydration } from "./hydration/diagnostics";
 import { installTeraSwap } from "./hydration/streamUtils";
 
@@ -77,8 +78,12 @@ export function hydrateRoot(
   scheduleHydration(
     payload.mode,
     () => {
-      // Replace SSR HTML with a fresh client-side mount
-      mount(component, root, props);
+      // If a client context already exists, fall back to normal remount semantics.
+      if (root.__ctx) {
+        mount(component, root, props);
+      } else {
+        mountPreservingMarkup(component, root, props);
+      }
 
       if (isDev) {
         validateHydration(root, serverSnapshot);
@@ -86,5 +91,39 @@ export function hydrateRoot(
     },
     root
   );
+}
+
+function mountPreservingMarkup(
+  component: FrameworkComponent,
+  root: HTMLElement,
+  props?: any
+): void {
+  startHydration(root);
+
+  let renderResult: ReturnType<typeof renderComponent>;
+
+  try {
+    renderResult = renderComponent(component, props);
+  } finally {
+    finishHydration();
+  }
+
+  const { node, ctx } = renderResult;
+
+  if (node.parentNode !== root) {
+    insert(root, node);
+  }
+
+  root.__ctx = ctx;
+
+  if (ctx.mounted) {
+    for (const fn of ctx.mounted) {
+      try {
+        fn();
+      } catch {
+        // Keep hydration resilient to user lifecycle hook errors.
+      }
+    }
+  }
 }
 

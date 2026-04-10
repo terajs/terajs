@@ -17,7 +17,7 @@ export { addDependency, removeDependencyNode } from "./debug/dependencyGraph";
 // 4. The Event System
 // IMPORTANT: We need both the Debug object AND the named functions
 export { Debug, resetDebugHandlers } from "./debug/events"; 
-export { emitDebug, subscribeDebug } from "./debug/eventBus"; 
+export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus"; 
 export { resetDebugListeners } from "./debug/eventBus";
 // 5. Context & Types
 export * from "./debug/context";

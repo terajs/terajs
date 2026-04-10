@@ -6,6 +6,8 @@
     "build": "npm run clean && tsc -b",
     "clean": "tsc -b --clean",
     "test": "vitest",
+    "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
+    "test:docs": "vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
     "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts",
     "typecheck": "npm run clean && tsc -b --pretty false"
   },

@@ -1,6 +1,8 @@
 import { buildTimeline, computePerformanceMetrics, replayEventsAtIndex } from "./analytics";
-import { Debug, emitDebug, subscribeDebug } from "@terajs/shared";
+import { Debug, getDebugListenerCount, subscribeDebug } from "@terajs/shared";
 import { captureStateSnapshot } from "@terajs/adapter-ai";
+import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "./sanity";
+import { buildAIPrompt } from "./aiPrompt";
 
 export interface DevtoolsEvent {
   type: string;
@@ -21,6 +23,7 @@ type TabName =
   | "Logs"
   | "Timeline"
   | "Performance"
+  | "Sanity Check"
   | "Settings";
 
 interface DevtoolsState {
@@ -44,6 +47,7 @@ const TABS: TabName[] = [
   "Logs",
   "Timeline",
   "Performance",
+  "Sanity Check",
   "Settings"
 ];
 
@@ -107,7 +111,14 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
     }
 
     if (target.closest("[data-action='ask-ai']")) {
-      state.aiPrompt = buildAIPrompt();
+      state.aiPrompt = buildAIPrompt({
+        snapshot: captureStateSnapshot(),
+        sanity: computeSanityMetrics(state.events, {
+          ...DEFAULT_SANITY_THRESHOLDS,
+          debugListenerCount: getDebugListenerCount()
+        }),
+        events: state.events
+      });
       render();
       return;
     }
@@ -243,6 +254,8 @@ function renderPanel(state: DevtoolsState): string {
       return renderTimelinePanel(state);
     case "Performance":
       return renderPerformancePanel(state.events);
+    case "Sanity Check":
+      return renderSanityPanel(state.events);
     case "Settings":
       return renderSettingsPanel();
   }
@@ -465,6 +478,42 @@ function renderPerformancePanel(events: DevtoolsEvent[]): string {
   `;
 }
 
+function renderSanityPanel(events: DevtoolsEvent[]): string {
+  const metrics = computeSanityMetrics(events, {
+    ...DEFAULT_SANITY_THRESHOLDS,
+    debugListenerCount: getDebugListenerCount()
+  });
+
+  const criticalCount = metrics.alerts.filter((alert) => alert.severity === "critical").length;
+  const warningCount = metrics.alerts.filter((alert) => alert.severity === "warning").length;
+
+  return `
+    <div>
+      <div class="panel-title is-red">Sanity Check</div>
+      <div class="panel-subtitle">Critical: ${criticalCount} | Warnings: ${warningCount}</div>
+      <div class="metrics-grid">
+        ${renderMetricCard("Active Effects", String(metrics.activeEffects))}
+        ${renderMetricCard("Effect Creates", String(metrics.effectCreates))}
+        ${renderMetricCard("Effect Disposes", String(metrics.effectDisposes))}
+        ${renderMetricCard("Effect Runs / sec", String(metrics.effectRunsPerSecond))}
+        ${renderMetricCard("Effect Imbalance", String(metrics.effectImbalance))}
+        ${renderMetricCard("Debug Listeners", String(metrics.debugListenerCount))}
+      </div>
+      ${metrics.alerts.length === 0 ? `<div class="empty-state">No runaway effects or listener leaks detected in the active window.</div>` : `
+        <ul class="stack-list">
+          ${metrics.alerts.map((alert) => `
+            <li class="stack-item ${alert.severity === "critical" ? "issue-error" : "issue-warn"}">
+              <span class="item-label">[${escapeHtml(alert.severity.toUpperCase())}]</span>
+              <span>${escapeHtml(alert.message)}</span>
+              <span class="muted-text">current=${escapeHtml(String(alert.current))}, threshold=${escapeHtml(String(alert.threshold))}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `}
+    </div>
+  `;
+}
+
 function renderSettingsPanel(): string {
   return `
     <div>
@@ -619,11 +668,6 @@ function issueMessage(event: DevtoolsEvent): string {
   const likelyCause = readString(event.payload, "likelyCause");
   if (likelyCause) return `Likely Cause: ${likelyCause}`;
   return shortJson(event.payload ?? {});
-}
-
-function buildAIPrompt(): string {
-  const snapshot = captureStateSnapshot();
-  return `Terajs AI Debug Prompt:\n\nPlease analyze the current application state and provide debugging guidance.\n\n${JSON.stringify(snapshot, null, 2)}`;
 }
 
 function generateLikelyCause(payload: Record<string, unknown> | undefined): string | null {

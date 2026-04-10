@@ -19,6 +19,7 @@ import {
     createFragment,
     insert,
     setStyle,
+    withHydrationParent,
 } from "./dom";
 
 import {
@@ -255,13 +256,15 @@ function createVNode(type: any, props: any): Node {
         children
     });
 
-    if (Array.isArray(children)) {
-        for (const child of children) {
-            insert(el, normalizeChild(child));
+    withHydrationParent(el, () => {
+        if (Array.isArray(children)) {
+            for (const child of children) {
+                insert(el, normalizeChild(child));
+            }
+        } else if (children != null) {
+            insert(el, normalizeChild(children));
         }
-    } else if (children != null) {
-        insert(el, normalizeChild(children));
-    }
+    });
 
     return el;
 }
