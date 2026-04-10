@@ -1,6 +1,25 @@
 import { signal, type Signal } from "@terajs/reactivity";
+import type { MutationQueue } from "./queue/mutationQueue";
 
-export type ActionState = "idle" | "pending" | "success" | "error";
+export type ActionState = "idle" | "pending" | "success" | "error" | "queued";
+
+export interface ActionQueueOptions {
+  queue: MutationQueue;
+  type?: string;
+  maxRetries?: number;
+  shouldQueue?: (error: unknown) => boolean;
+}
+
+export type QueuedActionResult<TResult> =
+  | {
+      status: "success";
+      result: TResult;
+    }
+  | {
+      status: "queued";
+      mutationId: string;
+      error: unknown;
+    };
 
 export interface Action<TArgs extends unknown[] = unknown[], TResult = unknown> {
   data: Signal<TResult | undefined>;
@@ -10,10 +29,12 @@ export interface Action<TArgs extends unknown[] = unknown[], TResult = unknown> 
   latest: () => TResult | undefined;
   promise: () => Promise<TResult> | null;
   run: (...args: TArgs) => Promise<TResult>;
+  runQueued: (queueOptions: ActionQueueOptions, ...args: TArgs) => Promise<QueuedActionResult<TResult>>;
   reset: () => void;
 }
 
 export interface ActionOptions<TResult> {
+  id?: string;
   initialValue?: TResult;
   clearDataOnRun?: boolean;
 }
@@ -25,6 +46,7 @@ export function createAction<TArgs extends unknown[], TResult>(
   const data = signal<TResult | undefined>(options.initialValue);
   const error = signal<unknown>(undefined);
   const state = signal<ActionState>(options.initialValue === undefined ? "idle" : "success");
+  const queueType = normalizeQueueType(options.id ?? handler.name ?? "anonymous");
 
   let currentPromise: Promise<TResult> | null = null;
   let activeRunCount = 0;
@@ -66,6 +88,46 @@ export function createAction<TArgs extends unknown[], TResult>(
     }
   };
 
+  const runQueued = async (
+    queueOptions: ActionQueueOptions,
+    ...args: TArgs
+  ): Promise<QueuedActionResult<TResult>> => {
+    try {
+      const result = await run(...args);
+      return {
+        status: "success",
+        result
+      };
+    } catch (actionError) {
+      if (queueOptions.shouldQueue && !queueOptions.shouldQueue(actionError)) {
+        throw actionError;
+      }
+
+      const type = queueOptions.type ?? queueType;
+      queueOptions.queue.register(type, (payload) => {
+        if (!Array.isArray(payload)) {
+          throw new Error("Terajs Action queue payload must be an arguments array.");
+        }
+
+        return handler(...(payload as TArgs));
+      });
+
+      const queued = await queueOptions.queue.enqueue({
+        type,
+        payload: args,
+        maxRetries: queueOptions.maxRetries
+      });
+
+      state.set("queued");
+
+      return {
+        status: "queued",
+        mutationId: queued.id,
+        error: actionError
+      };
+    }
+  };
+
   return {
     data,
     error,
@@ -74,6 +136,7 @@ export function createAction<TArgs extends unknown[], TResult>(
     latest: () => data(),
     promise: () => currentPromise,
     run,
+    runQueued,
     reset: () => {
       currentPromise = null;
       activeRunCount = 0;
@@ -83,4 +146,17 @@ export function createAction<TArgs extends unknown[], TResult>(
       state.set(options.initialValue === undefined ? "idle" : "success");
     }
   };
+}
+
+function normalizeQueueType(value: string): string {
+  const normalized = value.trim().replace(/\s+/g, "-");
+  if (normalized.length === 0) {
+    return "action:anonymous";
+  }
+
+  if (normalized.startsWith("action:")) {
+    return normalized;
+  }
+
+  return `action:${normalized}`;
 }

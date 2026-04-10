@@ -232,6 +232,17 @@ const App = createRouteView(router, {
 
 This is the current center of gravity for Terajs on the web: route-driven loading, trusted mutations, and reactive UI primitives without bringing in a VDOM layer.
 
+### Local-first foundation (current)
+
+The current release includes a local-first baseline:
+
+- resource persistence via `createResource(..., { persistent: key })`
+- mutation queue contracts via `createMutationQueue(...)`
+- queue-aware action execution via `createAction(...).runQueued(...)`
+- queue-aware enhanced forms via `Form({ queue, ... })`
+
+This is a foundation layer. Advanced sync conflict strategies and multi-device merge policies are still planned.
+
 ---
 
 ## **Style-agnostic**

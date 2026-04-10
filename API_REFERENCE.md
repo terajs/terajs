@@ -117,6 +117,16 @@ Runtime exports include:
 
 Use these for app-owned server boundaries, not as a replacement for your external API contracts.
 
+## 2.7 Local-first foundation APIs
+
+- `createMutationQueue(options?)`
+- `createMutationQueueStorage(adapter, key?)`
+- `defaultMutationRetryPolicy`
+- `createAction(...).runQueued(queueOptions, ...args)`
+- `createResource(...).mutate(value, { queue, serverCall, ... })`
+
+These APIs provide queue contracts, retry hooks, and persistence-friendly mutation flows. Advanced conflict resolution remains a planned extension.
+
 ---
 
 # 3. Web Renderer (`@terajs/renderer-web`)

@@ -3,6 +3,7 @@ import { signal, setRuntimeMode } from "@terajs/reactivity";
 import { setHydrationState } from "./hydration";
 import { invalidateResources } from "./invalidation";
 import { createResource } from "./resource";
+import { createMutationQueue } from "./queue/mutationQueue";
 
 describe("createResource", () => {
   beforeEach(() => {
@@ -132,5 +133,76 @@ describe("createResource", () => {
     expect(resource.data()).toEqual([{ title: "cached task" }]);
     expect(resource.source()).toBe("hydration");
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("writes local persistence when mutate updates cached resources", async () => {
+    const resource = createResource(async () => ({ id: 1 }), {
+      persistent: "profile"
+    });
+
+    await resource.promise();
+    resource.mutate({ id: 2 });
+    await Promise.resolve();
+
+    expect(JSON.parse(localStorage.getItem("profile") ?? "null")).toEqual({ id: 2 });
+  });
+
+  it("queues failed mutate server calls when queue integration is provided", async () => {
+    let offline = true;
+    const queue = await createMutationQueue({
+      createId: () => "resource-q-1",
+      now: () => 1_000
+    });
+
+    const resource = createResource(async () => ["server"], {
+      immediate: false,
+      persistent: "notes"
+    });
+
+    resource.mutate(["local"], {
+      queue,
+      queueType: "resource:notes",
+      maxRetries: 1,
+      serverCall: async (payload) => {
+        if (offline) {
+          throw new Error("offline");
+        }
+
+        return payload;
+      }
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(queue.pendingCount()).toBe(1);
+
+    offline = false;
+    const flushed = await queue.flush();
+
+    expect(flushed.flushed).toBe(1);
+    expect(queue.pendingCount()).toBe(0);
+    expect(resource.data()).toEqual(["local"]);
+  });
+
+  it("respects shouldQueue guard for mutate server call failures", async () => {
+    const queue = await createMutationQueue({ now: () => 5 });
+    const resource = createResource(async () => ({ ok: true }), {
+      immediate: false,
+      persistent: "guarded"
+    });
+
+    resource.mutate({ ok: false }, {
+      queue,
+      queueType: "resource:guarded",
+      shouldQueue: () => false,
+      serverCall: async () => {
+        throw new Error("fatal");
+      }
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(queue.pendingCount()).toBe(0);
   });
 });

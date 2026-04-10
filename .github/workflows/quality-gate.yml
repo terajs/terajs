@@ -31,6 +31,9 @@ jobs:
       - name: Validate Docs Examples
         run: npm run test:docs
 
+      - name: Validate Local-First Foundation
+        run: npm run test:local-first
+
       - name: Run Architecture Guardrails
         run: npm run test:architecture
 

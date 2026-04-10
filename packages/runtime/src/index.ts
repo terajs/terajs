@@ -45,9 +45,31 @@ export type { Renderer } from "./renderer";
 
 // Async data
 export { createAction } from "./action";
-export type { Action, ActionOptions, ActionState } from "./action";
+export type {
+  Action,
+  ActionOptions,
+  ActionQueueOptions,
+  ActionState,
+  QueuedActionResult
+} from "./action";
 export { createResource } from "./resource";
-export type { Resource, ResourceState, ResourcePayload } from "./resource";
+export type { Resource, ResourceState, ResourcePayload, ResourceMutateOptions } from "./resource";
+export {
+  createMutationQueue,
+  createMutationQueueStorage,
+  defaultMutationRetryPolicy
+} from "./queue/mutationQueue";
+export type {
+  EnqueueMutationInput,
+  MutationFlushResult,
+  MutationHandler,
+  MutationQueue,
+  MutationQueueOptions,
+  MutationQueueStorage,
+  MutationRetryPolicy,
+  MutationStatus,
+  QueuedMutation
+} from "./queue/mutationQueue";
 export {
   invalidateResources,
   registerResourceInvalidation

@@ -5,6 +5,7 @@ import { getCurrentContext } from "./component/context";
 import { consumeHydratedResource } from "./hydration";
 import { registerResourceInvalidation, type ResourceKey } from "./invalidation";
 import { localStorageAdapter } from "./persistence/adapters";
+import type { MutationQueue } from "./queue/mutationQueue";
 
 export interface ResourcePayload<T = any> {
   data?: T;
@@ -49,7 +50,16 @@ export interface Resource<TData> {
   source: () => "hydration" | "persistence" | "network" | undefined;
   promise: () => Promise<TData> | null;
   refetch: () => Promise<TData>;
-  mutate: (value: TData | ((current: TData | undefined) => TData)) => void;
+  mutate: (value: TData | ((current: TData | undefined) => TData), options?: ResourceMutateOptions) => void;
+}
+
+export interface ResourceMutateOptions {
+  queue?: MutationQueue;
+  queueType?: string;
+  queuePayload?: unknown;
+  maxRetries?: number;
+  shouldQueue?: (error: unknown) => boolean;
+  serverCall?: (payload: unknown) => Promise<unknown> | unknown;
 }
 
 type ResourceFetcher<TSource, TData> = (source: TSource) => Promise<TData> | TData;
@@ -227,10 +237,53 @@ export function createResource<TSource, TData>(
     source: () => sourceSignal(),
     promise: () => currentPromise,
     refetch: () => execute(currentSource),
-    mutate: (value) => {
-      data.set(typeof value === "function" ? (value as (current: TData | undefined) => TData)(data()) : value);
+    mutate: (value, options) => {
+      const nextValue = typeof value === "function"
+        ? (value as (current: TData | undefined) => TData)(data())
+        : value;
+
+      data.set(nextValue);
       state.set("ready");
       error.set(undefined);
+
+      if (persistentKey && typeof window !== "undefined") {
+        void Promise.resolve()
+          .then(() => localStorageAdapter.setItem(persistentKey, nextValue))
+          .catch(() => undefined);
+      }
+
+      const serverCall = options?.serverCall;
+      if (serverCall) {
+        const queuePayload = options?.queuePayload ?? nextValue;
+
+        void Promise.resolve()
+          .then(() => serverCall(queuePayload))
+          .catch(async (mutationError) => {
+            if (options?.shouldQueue && !options.shouldQueue(mutationError)) {
+              return;
+            }
+
+            if (!options?.queue) {
+              Debug.emit("resource:error", {
+                source: persistentKey,
+                error: mutationError instanceof Error ? mutationError.message : mutationError
+              });
+              return;
+            }
+
+            const queueType = options.queueType
+              ?? (persistentKey ? `resource:${persistentKey}` : "resource:mutation");
+
+            options.queue.register(queueType, (payload) => serverCall(payload));
+
+            await options.queue.enqueue({
+              type: queueType,
+              payload: queuePayload,
+              maxRetries: options.maxRetries
+            });
+          });
+      }
+
       Debug.emit("resource:mutate", {
         state: "ready"
       });

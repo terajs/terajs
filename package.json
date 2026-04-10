@@ -8,6 +8,7 @@
     "test": "vitest",
     "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
     "test:docs": "vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
+    "test:local-first": "vitest --run packages/runtime/src/queue/mutationQueue.spec.ts packages/runtime/src/action.spec.ts packages/runtime/src/resource.spec.ts packages/renderer-web/src/form.spec.ts packages/devtools/src/analytics.spec.ts",
     "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts",
     "typecheck": "npm run clean && tsc -b --pretty false"
   },

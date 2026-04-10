@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAction } from "./action";
+import { createMutationQueue } from "./queue/mutationQueue";
 
 describe("createAction", () => {
   it("tracks pending, data, and success state", async () => {
@@ -67,5 +68,53 @@ describe("createAction", () => {
     expect(action.data()).toBe("draft");
     expect(action.state()).toBe("success");
     expect(action.error()).toBeUndefined();
+  });
+
+  it("queues failed runs when using runQueued", async () => {
+    let offline = true;
+    const action = createAction(async (value: string) => {
+      if (offline) {
+        throw new Error("offline");
+      }
+
+      return value.toUpperCase();
+    }, {
+      id: "profileSave"
+    });
+    const queue = await createMutationQueue({
+      createId: () => "queued-1",
+      now: () => 10
+    });
+
+    const outcome = await action.runQueued({ queue }, "tera");
+
+    expect(outcome.status).toBe("queued");
+    expect(action.state()).toBe("queued");
+    expect(queue.pendingCount()).toBe(1);
+
+    offline = false;
+    const flushed = await queue.flush();
+
+    expect(flushed.flushed).toBe(1);
+    expect(queue.pendingCount()).toBe(0);
+  });
+
+  it("can opt out of queueing for selected errors", async () => {
+    const action = createAction(async () => {
+      throw new Error("fatal");
+    }, {
+      id: "fatalAction"
+    });
+    const queue = await createMutationQueue({
+      now: () => 20
+    });
+
+    await expect(action.runQueued({
+      queue,
+      shouldQueue: () => false
+    })).rejects.toThrow("fatal");
+
+    expect(queue.pendingCount()).toBe(0);
+    expect(action.state()).toBe("error");
   });
 });

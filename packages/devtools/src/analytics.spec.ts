@@ -63,14 +63,38 @@ describe("devtools analytics", () => {
     expect(metrics.totalEvents).toBe(7);
     expect(metrics.effectRuns).toBe(5);
     expect(metrics.renderEvents).toBe(1);
+    expect(metrics.queueEnqueued).toBe(0);
+    expect(metrics.queueRetried).toBe(0);
+    expect(metrics.queueFailed).toBe(0);
+    expect(metrics.queueFlushed).toBe(0);
+    expect(metrics.queueDepthEstimate).toBe(0);
     expect(metrics.byType[0].type).toBe("effect:run");
     expect(metrics.hotTypes).toContain("effect:run");
     expect(metrics.updatesPerSecond).toBe(4.67);
   });
 
+  it("tracks queue metrics from queue lifecycle events", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "queue:enqueue", timestamp: 1000, payload: { id: "1" } },
+      { type: "queue:enqueue", timestamp: 1200, payload: { id: "2" } },
+      { type: "queue:retry", timestamp: 1400, payload: { id: "2" } },
+      { type: "queue:fail", timestamp: 1600, payload: { id: "2" } },
+      { type: "queue:drained", timestamp: 1800, payload: { flushed: 1 } }
+    ];
+
+    const metrics = computePerformanceMetrics(events, 2000);
+
+    expect(metrics.queueEnqueued).toBe(2);
+    expect(metrics.queueRetried).toBe(1);
+    expect(metrics.queueFailed).toBe(1);
+    expect(metrics.queueFlushed).toBe(1);
+    expect(metrics.queueDepthEstimate).toBe(0);
+  });
+
   it("returns empty metrics when no events are present", () => {
     const metrics = computePerformanceMetrics([]);
     expect(metrics.totalEvents).toBe(0);
+    expect(metrics.queueDepthEstimate).toBe(0);
     expect(metrics.byType).toEqual([]);
     expect(metrics.hotTypes).toEqual([]);
   });

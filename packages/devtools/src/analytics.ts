@@ -23,6 +23,11 @@ export interface PerformanceMetrics {
   updatesPerSecond: number;
   effectRuns: number;
   renderEvents: number;
+  queueEnqueued: number;
+  queueRetried: number;
+  queueFailed: number;
+  queueFlushed: number;
+  queueDepthEstimate: number;
   hotTypes: string[];
   byType: PerformanceTypeMetric[];
 }
@@ -89,6 +94,11 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
       updatesPerSecond: 0,
       effectRuns: 0,
       renderEvents: 0,
+      queueEnqueued: 0,
+      queueRetried: 0,
+      queueFailed: 0,
+      queueFlushed: 0,
+      queueDepthEstimate: 0,
       hotTypes: [],
       byType: [],
     };
@@ -101,10 +111,18 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
   const map = new Map<string, { count: number; last: number | null; deltaTotal: number; deltaMax: number }>();
   let effectRuns = 0;
   let renderEvents = 0;
+  let queueEnqueued = 0;
+  let queueRetried = 0;
+  let queueFailed = 0;
+  let queueFlushed = 0;
 
   for (const event of windowed) {
     if (event.type === "effect:run") effectRuns++;
     if (event.type.startsWith("component:render:")) renderEvents++;
+    if (event.type === "queue:enqueue") queueEnqueued++;
+    if (event.type === "queue:retry") queueRetried++;
+    if (event.type === "queue:fail") queueFailed++;
+    if (event.type === "queue:drained") queueFlushed++;
 
     const found = map.get(event.type) ?? { count: 0, last: null, deltaTotal: 0, deltaMax: 0 };
     if (found.last !== null) {
@@ -131,12 +149,18 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
 
   const updatesPerSecond = Number((windowed.length / (windowMs / 1000)).toFixed(2));
   const hotTypes = byType.filter((m) => m.count >= 5).map((m) => m.type);
+  const queueDepthEstimate = Math.max(0, queueEnqueued - queueFlushed - queueFailed);
 
   return {
     totalEvents: windowed.length,
     updatesPerSecond,
     effectRuns,
     renderEvents,
+    queueEnqueued,
+    queueRetried,
+    queueFailed,
+    queueFlushed,
+    queueDepthEstimate,
     hotTypes,
     byType,
   };

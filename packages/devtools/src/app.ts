@@ -460,6 +460,11 @@ function renderPerformancePanel(events: DevtoolsEvent[]): string {
         ${renderMetricCard("Events / sec", String(metrics.updatesPerSecond))}
         ${renderMetricCard("Effect Runs", String(metrics.effectRuns))}
         ${renderMetricCard("Render Events", String(metrics.renderEvents))}
+        ${renderMetricCard("Queue Enqueued", String(metrics.queueEnqueued))}
+        ${renderMetricCard("Queue Retried", String(metrics.queueRetried))}
+        ${renderMetricCard("Queue Failed", String(metrics.queueFailed))}
+        ${renderMetricCard("Queue Flushed", String(metrics.queueFlushed))}
+        ${renderMetricCard("Queue Depth Est.", String(metrics.queueDepthEstimate))}
       </div>
       <div class="panel-subtitle">Hot event types: ${metrics.hotTypes.length === 0 ? "none" : escapeHtml(metrics.hotTypes.join(", "))}</div>
       ${metrics.byType.length === 0 ? `<div class="empty-state">No performance data yet.</div>` : `

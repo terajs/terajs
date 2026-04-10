@@ -28,9 +28,18 @@ This checklist tracks web-first RC readiness for the current release cycle.
 
 - [x] Sanity gate integrated in `.github/workflows/quality-gate.yml`
 - [x] Docs validation integrated in `.github/workflows/quality-gate.yml`
+- [x] Local-first foundation gate integrated in `.github/workflows/quality-gate.yml`
 - [ ] Optional: add `typecheck` to quality gate before RC tag
 
-## 5. Release Packaging
+## 5. Local-First Foundation
+
+- [x] Runtime mutation queue contracts shipped (`createMutationQueue`, retry policy hooks)
+- [x] Queue-aware action execution shipped (`runQueued`)
+- [x] Queue-aware form path shipped for enhanced submissions
+- [x] Devtools performance telemetry includes queue metrics
+- [ ] Conflict-resolution strategies and multi-device merge policy (planned)
+
+## 6. Release Packaging
 
 - [ ] Finalize version bump strategy and changelog entries
 - [ ] Confirm package exports and public API freeze for RC

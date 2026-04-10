@@ -1,4 +1,9 @@
-import { createAction, type ActionState } from "@terajs/runtime";
+import {
+  createAction,
+  type ActionState,
+  type MutationQueue,
+  type QueuedActionResult
+} from "@terajs/runtime";
 import { signal } from "@terajs/reactivity";
 import { jsx } from "./jsx-runtime";
 import { template } from "./template";
@@ -24,11 +29,16 @@ export interface FormRenderState<TResult = unknown> {
 
 export interface FormProps<TResult = unknown> {
   action?: string | ((context: FormSubmitContext<TResult>) => Promise<TResult> | TResult);
+  queue?: MutationQueue;
+  queueType?: string;
+  queueMaxRetries?: number;
+  shouldQueue?: (error: unknown) => boolean;
   resetOnSuccess?: boolean;
   children?: any | ((state: FormRenderState<TResult>) => any);
   onSubmit?: (event: SubmitEvent) => void;
   onSuccess?: (result: TResult, context: FormSubmitContext<TResult>) => void;
   onError?: (error: unknown, context: FormSubmitContext<TResult>) => void;
+  onQueued?: (result: Extract<QueuedActionResult<TResult>, { status: "queued" }>, context: FormSubmitContext<TResult>) => void;
   [key: string]: unknown;
 }
 
@@ -176,11 +186,16 @@ function normalizeStatusContent(value: any): Node {
 export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
   const {
     action,
+    queue,
+    queueType,
+    queueMaxRetries,
+    shouldQueue,
     resetOnSuccess,
     children,
     onSubmit,
     onSuccess,
     onError,
+    onQueued,
     ...rest
   } = props;
   const enhancedAction = typeof action === "function" ? action : undefined;
@@ -221,7 +236,27 @@ export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
       const context = createSubmitContext<TResult>(form, (event as SubmitEvent).submitter as HTMLElement | null, rest.method);
 
       try {
-        const result = await submission.run(context);
+        const outcome = queue
+          ? await submission.runQueued(
+              {
+                queue,
+                type: queueType,
+                maxRetries: queueMaxRetries,
+                shouldQueue
+              },
+              context
+            )
+          : {
+              status: "success",
+              result: await submission.run(context)
+            } as QueuedActionResult<TResult>;
+
+        if (outcome.status === "queued") {
+          onQueued?.(outcome, context);
+          return;
+        }
+
+        const result = outcome.result;
         if (resetOnSuccess) {
           form.reset();
         }

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createMutationQueue } from "@terajs/runtime";
 
 import { Form, FormStatus, SubmitButton, formDataToObject, type FormRenderState } from "./form";
 import { jsx } from "./jsx-runtime";
@@ -177,6 +178,50 @@ describe("Form", () => {
     expect(button.disabled).toBe(false);
     expect(button.getAttribute("data-state")).toBe("error");
     expect(root.textContent).toContain("save failed");
+
+    unmount(root);
+  });
+
+  it("queues enhanced submissions when queue integration is enabled", async () => {
+    let offline = true;
+    const queued = vi.fn();
+    const queue = await createMutationQueue({
+      createId: () => "form-q-1",
+      now: () => 1_000
+    });
+    const root = document.createElement("div");
+
+    mount(() => Form({
+      action: async () => {
+        if (offline) {
+          throw new Error("offline");
+        }
+
+        return "saved";
+      },
+      queue,
+      queueType: "form:save",
+      onQueued: queued,
+      children: [
+        jsx("input", { name: "title", value: "terajs" }),
+        SubmitButton({ children: "Save" }),
+        FormStatus({ idle: "idle", queued: "queued", success: "saved" } as any)
+      ]
+    }), root);
+
+    const form = root.querySelector("form") as HTMLFormElement;
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await flush();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(form.getAttribute("data-state")).toBe("queued");
+    expect(queue.pendingCount()).toBe(1);
+    expect(queued).toHaveBeenCalledTimes(1);
+
+    offline = false;
+    const flushed = await queue.flush();
+    expect(flushed.flushed).toBe(1);
+    expect(queue.pendingCount()).toBe(0);
 
     unmount(root);
   });
