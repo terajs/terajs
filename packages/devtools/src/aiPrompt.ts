@@ -14,6 +14,12 @@ export interface AIPromptInput {
   events: AIPromptEvent[];
 }
 
+/**
+ * Builds a structured prompt for Terajs AI diagnostics.
+ *
+ * The prompt combines runtime snapshot state, sanity metrics, and recent
+ * prioritized issues so AI-assisted triage can focus on root causes first.
+ */
 export function buildAIPrompt(input: AIPromptInput): string {
   const recentIssues = collectRecentIssues(input.events, 12);
   const critical = input.sanity.alerts.filter((alert) => alert.severity === "critical");
@@ -68,7 +74,10 @@ function isIssueEvent(event: AIPromptEvent): boolean {
     event.level === "error" ||
     event.type.startsWith("error:") ||
     event.type.includes("warn") ||
-    event.type.includes("hydration")
+    event.type.includes("hydration") ||
+    event.type === "queue:fail" ||
+    event.type === "queue:conflict" ||
+    event.type === "queue:skip:missing-handler"
   );
 }
 
@@ -76,6 +85,28 @@ function summarizeIssue(event: AIPromptEvent): string {
   const payload = event.payload;
   if (!payload) {
     return event.type;
+  }
+
+  if (event.type === "queue:fail") {
+    const type = readString(payload, "type") ?? "unknown";
+    const attempts = readNumber(payload, "attempts");
+    const error = readString(payload, "error") ?? "unknown error";
+    const attemptsSuffix = attempts === undefined
+      ? ""
+      : ` after ${attempts} attempt${attempts === 1 ? "" : "s"}`;
+
+    return `Queue mutation ${type} failed${attemptsSuffix}: ${error}`;
+  }
+
+  if (event.type === "queue:conflict") {
+    const type = readString(payload, "type") ?? "unknown";
+    const decision = readString(payload, "decision") ?? "replace";
+    return `Queue conflict for ${type} resolved as ${decision}`;
+  }
+
+  if (event.type === "queue:skip:missing-handler") {
+    const type = readString(payload, "type") ?? "unknown";
+    return `Queue handler missing for mutation type ${type}`;
   }
 
   const message = payload.message;
@@ -107,4 +138,14 @@ function toAlertSummary(alert: SanityAlert): {
     current: alert.current,
     threshold: alert.threshold
   };
+}
+
+function readString(payload: Record<string, unknown>, key: string): string | undefined {
+  const value = payload[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function readNumber(payload: Record<string, unknown>, key: string): number | undefined {
+  const value = payload[key];
+  return typeof value === "number" ? value : undefined;
 }

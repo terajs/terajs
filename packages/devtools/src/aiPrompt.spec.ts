@@ -76,4 +76,64 @@ describe("devtools ai prompt builder", () => {
     expect(prompt).toContain("Render failed");
     expect(prompt).toContain("Route fallback");
   });
+
+  it("prioritizes queue failures, conflicts, and missing handlers", () => {
+    const prompt = buildAIPrompt({
+      snapshot: {
+        "@context": "https://schema.org",
+        "@type": "TerajsStateSnapshot",
+        generatedAt: "2026-04-10T00:00:00.000Z",
+        signals: []
+      },
+      sanity: {
+        activeEffects: 0,
+        effectCreates: 0,
+        effectDisposes: 0,
+        effectRunsPerSecond: 0,
+        effectImbalance: 0,
+        debugListenerCount: 0,
+        alerts: []
+      },
+      events: [
+        {
+          type: "queue:retry",
+          timestamp: 1,
+          payload: {
+            type: "note:save",
+            attempts: 1,
+            delayMs: 200
+          }
+        },
+        {
+          type: "queue:fail",
+          timestamp: 2,
+          payload: {
+            type: "note:save",
+            attempts: 3,
+            error: "offline"
+          }
+        },
+        {
+          type: "queue:conflict",
+          timestamp: 3,
+          payload: {
+            type: "profile:save",
+            decision: "merge"
+          }
+        },
+        {
+          type: "queue:skip:missing-handler",
+          timestamp: 4,
+          payload: {
+            type: "draft:sync"
+          }
+        }
+      ]
+    });
+
+    expect(prompt).toContain("Queue mutation note:save failed after 3 attempts: offline");
+    expect(prompt).toContain("Queue conflict for profile:save resolved as merge");
+    expect(prompt).toContain("Queue handler missing for mutation type draft:sync");
+    expect(prompt).not.toContain('"type": "queue:retry"');
+  });
 });

@@ -28,6 +28,7 @@ export type DebugEventType =
     | "watchEffect:create" | "watch:dispose" | "watchEffect:run" | "watchEffect:cleanup" | "watchEffect:stop"
     | "resource:load:start" | "resource:load:end" | "resource:error" | "resource:mutate" | "resource:invalidate"
     | "queue:enqueue" | "queue:retry" | "queue:flush" | "queue:drained" | "queue:fail" | "queue:conflict"
+    | "queue:backoff" | "queue:skip:backoff" | "queue:skip:missing-handler"
     | "server:function:invoke" | "server:function:transport" | "server:function:error"
 
     /* ------------------------------- Renderer ------------------------------- */
