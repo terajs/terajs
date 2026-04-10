@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scaffoldProject } from "./scaffold.js";
+import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 
 const program = new Command();
 
@@ -79,6 +80,18 @@ program
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       console.error(`Terajs build failed: ${reason}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("doctor")
+  .description("Inspect current project setup and report actionable issues")
+  .action(async () => {
+    const report = await inspectTerajsProject(process.cwd());
+    console.log(formatDoctorReport(report));
+
+    if (!report.ok) {
       process.exitCode = 1;
     }
   });
