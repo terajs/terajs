@@ -1,6 +1,8 @@
 ```md
 # 🧩 Terajs Component System
 
+Status note (April 2026): This guide describes component philosophy and patterns. For exact shipped APIs and signatures, use API_REFERENCE.md.
+
 Terajs components are lightweight functions built on fine‑grained reactivity. Components run once; templates update automatically when reactive values change. This makes Terajs predictable, fast, and easy to reason about.
 
 Terajs encourages a simple structure inside `.tsx` files:

@@ -9,6 +9,8 @@ It keeps your tone, your intent, and your direction — just sharpened.
 
 # **Terajs Vision**
 
+Status note (April 2026): This document is directional. For shipped web-first APIs and current behavior, use API_REFERENCE.md as the canonical source. Local-first foundations (resource persistence, mutation queue contracts, queue-aware actions/forms, and queue diagnostics) are shipped; advanced multi-device merge strategies remain planned.
+
 Terajs is a next‑generation UI framework built on three pillars:
 
 ---

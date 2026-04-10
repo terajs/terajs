@@ -2,6 +2,8 @@
 
 Terajs is a fine‑grained, compiler‑powered UI framework designed for clarity, performance, and flexibility. This roadmap reflects Terajs’s current architecture and future direction.
 
+Status note (April 2026): This roadmap mixes shipped and planned items. Canonical shipped API behavior is documented in API_REFERENCE.md and README.md.
+
 Terajs’s philosophy:  
 > **Provide structure without restricting creativity.  
 > Stay fast, predictable, and platform‑agnostic.  
@@ -88,7 +90,7 @@ Terajs’s SSR model:
 - no hydration mismatch traps  
 - hydration logs for debugging  
 
-Streaming SSR is planned.
+Streaming SSR is available via `@terajs/renderer-ssr` and will continue to be hardened.
 
 ---
 
