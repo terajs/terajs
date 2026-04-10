@@ -6,7 +6,7 @@ function normalizeFilePath(filePath: string): string {
 }
 
 function inferRouteId(filePath: string): string {
-  const normalized = normalizeFilePath(filePath).replace(/\.nbl$/, "");
+  const normalized = normalizeFilePath(filePath).replace(/\.tera$/, "");
   const rootMatch = normalized.match(/^(.*\/)(pages|routes)\/(.*)$/);
 
   if (!rootMatch) {
@@ -19,7 +19,7 @@ function inferRouteId(filePath: string): string {
 export function inferPathFromFile(filePath: string): string {
   const normalized = normalizeFilePath(filePath);
   const withoutPrefix = normalized.replace(/^.*\/(pages|routes)\//, "/");
-  const withoutExt = withoutPrefix.replace(/\.nbl$/, "");
+  const withoutExt = withoutPrefix.replace(/\.tera$/, "");
   const withParams = withoutExt.replace(/\[([^\]]+)\]/g, ":$1");
   const finalPath = withParams.endsWith("/index")
     ? withParams.slice(0, -6) || "/"

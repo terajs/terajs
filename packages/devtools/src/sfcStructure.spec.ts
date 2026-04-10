@@ -4,17 +4,17 @@ import { describe, expect, it } from "vitest";
 import { parseSFC } from "@terajs/sfc";
 
 const componentFiles = [
-  "ComponentTree.nbl",
-  "DevtoolsApp.nbl",
-  "DevtoolsOverlay.nbl",
-  "IssuesPanel.nbl",
-  "LogsPanel.nbl",
-  "MetaInspector.nbl",
-  "PerformancePanel.nbl",
-  "SettingsPanel.nbl",
-  "SignalInspector.nbl",
-  "ThemePanel.nbl",
-  "TimelinePanel.nbl"
+  "ComponentTree.tera",
+  "DevtoolsApp.tera",
+  "DevtoolsOverlay.tera",
+  "IssuesPanel.tera",
+  "LogsPanel.tera",
+  "MetaInspector.tera",
+  "PerformancePanel.tera",
+  "SettingsPanel.tera",
+  "SignalInspector.tera",
+  "ThemePanel.tera",
+  "TimelinePanel.tera"
 ];
 
 function scriptContent(script: string | { content: string; lang?: string }) {

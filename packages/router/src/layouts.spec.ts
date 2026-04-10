@@ -6,7 +6,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "page",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     component: async () => ({ default: null }),
     layout: null,
     middleware: [],

@@ -3,7 +3,7 @@ import { renderToString } from "./renderToString";
 describe("SSR Asset Injection", () => {
   it("should inject modulepreload and stylesheet links correctly", () => {
     const ir = {
-      filePath: "/pages/index.nbl",
+      filePath: "/pages/index.tera",
       template: [],
       meta: {},
       ai: {},

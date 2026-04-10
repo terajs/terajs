@@ -6,7 +6,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "page",
     path: "/docs",
-    filePath: "/pages/docs.nbl",
+    filePath: "/pages/docs.tera",
     component: async () => ({ default: null }),
     layout: null,
     middleware: [],
@@ -28,8 +28,8 @@ describe("resolveLoadedRouteMetadata", () => {
           ai: { summary: "page summary" },
           hydrate: "visible",
           layouts: [
-            { id: "root", filePath: "/pages/layout.nbl", component: async () => ({ default: null }) },
-            { id: "docs", filePath: "/pages/docs/layout.nbl", component: async () => ({ default: null }) }
+            { id: "root", filePath: "/pages/layout.tera", component: async () => ({ default: null }) },
+            { id: "docs", filePath: "/pages/docs/layout.tera", component: async () => ({ default: null }) }
           ]
         }),
         pathname: "/docs",
@@ -45,7 +45,7 @@ describe("resolveLoadedRouteMetadata", () => {
       }),
       layouts: [
         {
-          definition: { id: "root", filePath: "/pages/layout.nbl", component: async () => ({ default: null }) },
+          definition: { id: "root", filePath: "/pages/layout.tera", component: async () => ({ default: null }) },
           module: {},
           component: Object.assign(() => null, {
             meta: { title: "Terajs", keywords: ["tera"], analytics: { track: true } },
@@ -54,7 +54,7 @@ describe("resolveLoadedRouteMetadata", () => {
           })
         },
         {
-          definition: { id: "docs", filePath: "/pages/docs/layout.nbl", component: async () => ({ default: null }) },
+          definition: { id: "docs", filePath: "/pages/docs/layout.tera", component: async () => ({ default: null }) },
           module: {},
           component: Object.assign(() => null, {
             meta: { description: "Docs layout", keywords: ["docs"] },

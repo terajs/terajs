@@ -6,7 +6,7 @@ function normalizeFilePath(file: string): string {
 }
 
 function stripExtension(file: string): string {
-  return file.replace(/\.(?:nbl|tsx?|jsx?|js)$/i, "");
+  return file.replace(/\.(?:tera|tsx?|jsx?|js)$/i, "");
 }
 
 function segmentToPath(segment: string): string {
@@ -84,7 +84,7 @@ function buildRouteTree(files: string[]): RouteNode {
       node = node.children.get(segment)!;
     }
 
-    if (fileName.toLowerCase() === "layout.tsx" || fileName.toLowerCase() === "layout.nbl") {
+    if (fileName.toLowerCase() === "layout.tsx" || fileName.toLowerCase() === "layout.tera") {
       node.layoutFile = file;
       continue;
     }

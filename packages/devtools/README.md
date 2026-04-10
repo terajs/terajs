@@ -26,7 +26,7 @@ mountDevtoolsOverlay();
 
 ### 2. Use auto-imported components
 
-Any `.nbl` file in `src/components` (or configured dirs) is globally available in your SFCs:
+Any `.tera` file in `src/components` (or configured dirs) is globally available in your SFCs:
 
 ```
 <template>
@@ -69,7 +69,7 @@ module.exports = {
 
 ## Example: Adding a new panel
 
-1. Create `src/components/MyPanel.nbl`:
+1. Create `src/components/MyPanel.tera`:
 	 ```
 	 <template>
 		 <div>My Custom Panel</div>
@@ -78,7 +78,7 @@ module.exports = {
 	 // Panel logic here
 	 </script>
 	 ```
-2. Add to the `tabs` array in `DevtoolsApp.nbl`:
+2. Add to the `tabs` array in `DevtoolsApp.tera`:
 	 ```js
 	 export let tabs = [..., 'MyPanel']
 	 ```

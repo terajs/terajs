@@ -19,7 +19,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "index",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     component: async () => ({ default: () => document.createTextNode("home") }),
     layout: null,
     middleware: [],
@@ -206,7 +206,7 @@ describe("createRouteView", () => {
           layouts: [
             {
               id: "root",
-              filePath: "/pages/layout.nbl",
+              filePath: "/pages/layout.tera",
               component: async () => ({
                 default: ({ children }: { children: Node }) => {
                   const el = document.createElement("section");
@@ -218,7 +218,7 @@ describe("createRouteView", () => {
             },
             {
               id: "docs",
-              filePath: "/pages/docs/layout.nbl",
+              filePath: "/pages/docs/layout.tera",
               component: async () => ({
                 default: ({ children }: { children: Node }) => {
                   const el = document.createElement("article");
@@ -450,8 +450,8 @@ describe("createRouteView", () => {
     let releaseGuard: (() => void) | undefined;
     const router = createRouter(
       [
-        route({ path: "/", filePath: "/pages/index.nbl" }),
-        route({ path: "/docs", filePath: "/pages/docs.nbl", middleware: ["slow"] })
+        route({ path: "/", filePath: "/pages/index.tera" }),
+        route({ path: "/docs", filePath: "/pages/docs.tera", middleware: ["slow"] })
       ],
       {
         history: createMemoryHistory("/"),

@@ -7,7 +7,7 @@
     "rendering": "Streaming SSR, Out-of-order Hydration, Local-First Persistence"
   },
   "conventions": {
-    "extension": ".nbl",
+    "extension": ".tera",
     "autoImports": ["ref", "shallowRef", "watchEffect", "createResource", "onMounted"],
     "reservedTags": ["template", "script", "style", "meta", "ai", "route"]
   },

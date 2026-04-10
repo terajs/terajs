@@ -9,7 +9,7 @@ export * from "./render";
 export * from "./mount";
 export * from "./template";
 
-// JSX Runtime (Crucial for .nbl file compilation)
+// JSX Runtime (Crucial for .tera file compilation)
 export * from "./jsx-runtime";
 
 // Control Flow Components

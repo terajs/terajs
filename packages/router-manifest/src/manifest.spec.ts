@@ -10,19 +10,19 @@ describe("buildRouteManifest", () => {
   it("supports routes directories and ignores layout files as pages", () => {
     const manifest = buildRouteManifest([
       {
-        filePath: "/src/routes/layout.nbl",
+        filePath: "/src/routes/layout.tera",
         source: pageSource
       },
       {
-        filePath: "/src/routes/dashboard/layout.nbl",
+        filePath: "/src/routes/dashboard/layout.tera",
         source: pageSource
       },
       {
-        filePath: "/src/routes/dashboard/index.nbl",
+        filePath: "/src/routes/dashboard/index.tera",
         source: pageSource
       },
       {
-        filePath: "/src/routes/blog/[slug].nbl",
+        filePath: "/src/routes/blog/[slug].tera",
         source: `
 <template><article /></template>
 <script>export default () => null</script>
@@ -42,11 +42,11 @@ describe("buildRouteManifest", () => {
   it("preserves explicit route path overrides while attaching file layouts", () => {
     const manifest = buildRouteManifest([
       {
-        filePath: "/src/pages/admin/layout.nbl",
+        filePath: "/src/pages/admin/layout.tera",
         source: pageSource
       },
       {
-        filePath: "/src/pages/admin/users.nbl",
+        filePath: "/src/pages/admin/users.tera",
         source: `
 <template><section /></template>
 <script>export default () => null</script>
@@ -67,14 +67,14 @@ describe("buildRouteManifest", () => {
     const manifest = buildRouteManifest(
       [
         {
-          filePath: "/src/pages/docs/getting-started.nbl",
+          filePath: "/src/pages/docs/getting-started.tera",
           source: pageSource
         }
       ],
       {
         routeConfigs: [
           {
-            filePath: "/src/pages/docs/getting-started.nbl",
+            filePath: "/src/pages/docs/getting-started.tera",
             path: "/learn/start",
             middleware: ["docs"],
             prerender: false
@@ -92,7 +92,7 @@ describe("buildRouteManifest", () => {
     const manifest = buildRouteManifest(
       [
         {
-          filePath: "/src/pages/account/profile.nbl",
+          filePath: "/src/pages/account/profile.tera",
           source: `
 <template><section /></template>
 <script>export default () => null</script>
@@ -106,7 +106,7 @@ describe("buildRouteManifest", () => {
       {
         routeConfigs: [
           {
-            filePath: "/src/pages/account/profile.nbl",
+            filePath: "/src/pages/account/profile.tera",
             path: "/account/profile",
             layout: "settings",
             middleware: ["auth"],

@@ -16,7 +16,7 @@ The Terajs runtime coordinates component mounting, context, and the connection b
 
 ```ts
 import { mount } from '@terajs/runtime';
-import App from './App.nbl';
+import App from './App.tera';
 
 mount(App, document.getElementById('app'));
 ```

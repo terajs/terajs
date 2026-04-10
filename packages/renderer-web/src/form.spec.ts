@@ -20,7 +20,7 @@ describe("Form", () => {
     mount(() => Form({
       action,
       children: [
-        jsx("input", { name: "title", value: "nebula" }),
+        jsx("input", { name: "title", value: "terajs" }),
         jsx("button", { type: "submit", children: "Save" })
       ]
     }), root);
@@ -30,7 +30,7 @@ describe("Form", () => {
     await flush();
 
     expect(action).toHaveBeenCalledWith(expect.objectContaining({
-      values: { title: "nebula" },
+      values: { title: "terajs" },
       method: "GET"
     }));
     expect(form.getAttribute("data-state")).toBe("pending");
@@ -120,7 +120,7 @@ describe("Form", () => {
         resolveSubmit = resolve;
       }),
       children: [
-        jsx("input", { name: "title", value: "nebula" }),
+        jsx("input", { name: "title", value: "terajs" }),
         SubmitButton({ children: "Save" }),
         FormStatus({ idle: "idle", pending: "saving", success: "saved" })
       ]

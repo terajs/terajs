@@ -10,7 +10,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "index",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     component: async () => ({ default: null }),
     layout: null,
     middleware: [],
@@ -28,10 +28,10 @@ describe("executeServerRoute", () => {
     const result = await executeServerRoute([
       route({
         path: "/docs/:slug",
-        filePath: "/pages/docs/[slug].nbl",
+        filePath: "/pages/docs/[slug].tera",
         component: async () => ({
           ir: {
-            filePath: "/pages/docs/[slug].nbl",
+            filePath: "/pages/docs/[slug].tera",
             template: [
               { type: "element", tag: "article", props: [], children: [{ type: "interp", expression: "title" }] }
             ],
@@ -60,8 +60,8 @@ describe("executeServerRoute", () => {
   it("returns redirects from router middleware", async () => {
     const result = await executeServerRoute(
       [
-        route({ path: "/admin", filePath: "/pages/admin.nbl", middleware: ["auth"] }),
-        route({ path: "/signin", filePath: "/pages/signin.nbl" })
+        route({ path: "/admin", filePath: "/pages/admin.tera", middleware: ["auth"] }),
+        route({ path: "/signin", filePath: "/pages/signin.tera" })
       ],
       "/admin",
       {
@@ -79,10 +79,10 @@ describe("executeServerRoute", () => {
       route({
         id: "profile",
         path: "/profile",
-        filePath: "/pages/profile.nbl",
+        filePath: "/pages/profile.tera",
         component: async () => ({
           ir: {
-            filePath: "/pages/profile.nbl",
+            filePath: "/pages/profile.tera",
             template: [
               {
                 type: "element",
@@ -126,14 +126,14 @@ describe("executeServerRoute", () => {
       route({
         id: "docs",
         path: "/docs/:slug",
-        filePath: "/pages/docs/[slug].nbl",
+        filePath: "/pages/docs/[slug].tera",
         layouts: [
           {
             id: "root",
-            filePath: "/pages/layout.nbl",
+            filePath: "/pages/layout.tera",
             component: async () => ({
               ir: {
-                filePath: "/pages/layout.nbl",
+                filePath: "/pages/layout.tera",
                 template: [
                   {
                     type: "element",
@@ -149,10 +149,10 @@ describe("executeServerRoute", () => {
           },
           {
             id: "docs-shell",
-            filePath: "/pages/docs/layout.nbl",
+            filePath: "/pages/docs/layout.tera",
             component: async () => ({
               ir: {
-                filePath: "/pages/docs/layout.nbl",
+                filePath: "/pages/docs/layout.tera",
                 template: [
                   {
                     type: "element",
@@ -169,7 +169,7 @@ describe("executeServerRoute", () => {
         ],
         component: async () => ({
           ir: {
-            filePath: "/pages/docs/[slug].nbl",
+            filePath: "/pages/docs/[slug].tera",
             template: [
               {
                 type: "element",

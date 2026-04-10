@@ -15,9 +15,9 @@ program
   .command("init <name>")
   .description("Scaffold a new Terajs project")
   .action(async (name: string) => {
-    console.log(`🌌 Creating "${name}" in the nebula...`);
+    console.log("Initializing Terajs project...");
     await scaffoldProject(name);
-    console.log(`✅ Project ready. Run 'cd ${name} && tera dev' to start.`);
+    console.log(`Project ready. Run 'cd ${name} && tera dev' to start.`);
   });
 
 program
@@ -35,7 +35,7 @@ program
     });
 
     await server.listen();
-    console.log(`🚀 Terajs Dev Server active at http://localhost:${options.port}`);
+    console.log(`Terajs Dev Server active at http://localhost:${options.port}`);
     server.printUrls();
   });
 
@@ -43,7 +43,7 @@ program
   .command("build")
   .description("Compile for production (Streaming SSR + Edge Optimized)")
   .action(async () => {
-    console.log("🏗️ Building for production...");
+    console.log("Building for production...");
     // TODO: invoke Vite build with Terajs manifest generation
   });
 

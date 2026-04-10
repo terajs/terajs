@@ -13,7 +13,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "index",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     component: async () => ({ default: null }),
     layout: null,
     middleware: [],
@@ -36,7 +36,7 @@ describe("loadRouteMatch", () => {
       route({
         id: "docs",
         path: "/docs",
-        filePath: "/pages/docs.nbl",
+        filePath: "/pages/docs.tera",
         component: componentSpy
       })
     ]);
@@ -60,7 +60,7 @@ describe("loadRouteMatch", () => {
       [
         route({
           path: "/products/:id",
-          filePath: "/pages/products/[id].nbl",
+          filePath: "/pages/products/[id].tera",
           component: async () => ({
             default: "ProductPage",
             load: ({ params, query }: RouteLoadContext) => ({ id: params.id, view: query.view })
@@ -68,12 +68,12 @@ describe("loadRouteMatch", () => {
           layouts: [
             {
               id: "root",
-              filePath: "/pages/layout.nbl",
+              filePath: "/pages/layout.tera",
               component: async () => ({ default: "RootLayout" })
             },
             {
               id: "products",
-              filePath: "/pages/products/layout.nbl",
+              filePath: "/pages/products/layout.tera",
               component: async () => ({ default: "ProductsLayout" })
             }
           ]
@@ -102,7 +102,7 @@ describe("loadRouteMatch", () => {
       [
         route({
           path: "/products/:id",
-          filePath: "/pages/products/[id].nbl",
+          filePath: "/pages/products/[id].tera",
           component: async () => ({
             default: "ProductPage",
             load: loadSpy

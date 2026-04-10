@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="panel">
     <div class="panel-title">Component Tree</div>
-    <div class="panel-subtitle">Live Nebula component instances</div>
+    <div class="panel-subtitle">Live Tera component instances</div>
 
     <div v-if="componentList().length === 0" class="empty-state">
       No components mounted.

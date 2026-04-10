@@ -5,7 +5,7 @@
  *
  * Example:
  *   .btn { color: red; }
- *   → .btn[data-nbl-abc123] { color: red; }
+ *   → .btn[data-tera-abc123] { color: red; }
  *
  * This is intentionally simple and avoids a full CSS parser.
  * It handles the majority of real‑world selectors well and is
@@ -17,7 +17,7 @@
  * only apply to elements carrying the given scopeId.
  *
  * @param css - Raw CSS string from the SFC <style> block
- * @param scopeId - The generated scope identifier (e.g. "nbl-abc123")
+ * @param scopeId - The generated scope identifier (e.g. "tera-abc123")
  * @returns Scoped CSS string
  */
 export function rewriteScopedCss(css: string, scopeId: string): string {

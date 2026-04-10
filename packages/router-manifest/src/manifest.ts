@@ -61,7 +61,7 @@ function getRelativeDirectory(filePath: string): string {
 }
 
 function isLayoutFile(filePath: string): boolean {
-  return /(^|\/)layout\.nbl$/i.test(normalizeFilePath(filePath));
+  return /(^|\/)layout\.tera$/i.test(normalizeFilePath(filePath));
 }
 
 function toLayoutId(filePath: string): string {

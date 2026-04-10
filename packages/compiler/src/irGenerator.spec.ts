@@ -6,7 +6,7 @@ import type { ParsedSFC } from "./sfcTypes";
 describe("IRModule Generator (integration)", () => {
   it("generates a minimal IRModule", () => {
     const sfc: ParsedSFC = {
-      filePath: "/pages/index.nbl",
+      filePath: "/pages/index.tera",
       template: "Hello",
       script: "",
       style: null,
@@ -17,7 +17,7 @@ describe("IRModule Generator (integration)", () => {
     const ir = generateIRModule(sfc);
 
     const expected: IRModule = {
-      filePath: "/pages/index.nbl",
+      filePath: "/pages/index.tera",
       meta: {},
       route: null,
       template: [
@@ -30,7 +30,7 @@ describe("IRModule Generator (integration)", () => {
 
   it("includes meta from <meta> block", () => {
     const sfc: ParsedSFC = {
-      filePath: "/pages/home.nbl",
+      filePath: "/pages/home.tera",
       template: "",
       script: "",
       style: null,
@@ -49,7 +49,7 @@ describe("IRModule Generator (integration)", () => {
 
   it("includes route overrides from <route> block", () => {
     const sfc: ParsedSFC = {
-      filePath: "/pages/admin.nbl",
+      filePath: "/pages/admin.tera",
       template: "",
       script: "",
       style: null,
@@ -68,7 +68,7 @@ describe("IRModule Generator (integration)", () => {
 
   it("normalizes template AST into IRNodes", () => {
     const sfc: ParsedSFC = {
-      filePath: "/pages/test.nbl",
+      filePath: "/pages/test.tera",
       template: "<div>{{ msg }}</div>",
       script: "",
       style: null,
@@ -89,7 +89,7 @@ describe("IRModule Generator (integration)", () => {
 
   it("normalizes Portal nodes into portal IR", () => {
     const sfc: ParsedSFC = {
-      filePath: "/pages/modal.nbl",
+      filePath: "/pages/modal.tera",
       template: `<Portal :to="overlay"><div>{{ msg }}</div></Portal>`,
       script: "",
       style: null,

@@ -54,7 +54,7 @@ Everything a component needs lives in one place.
 
 ## **Auto-imports & DevTools**
 
-- All `.nbl` files in `src/components` (or configured dirs) are globally available in SFCs - no manual imports needed.
+- All `.tera` files in `src/components` (or configured dirs) are globally available in SFCs - no manual imports needed.
 - DevTools overlay: live inspection of components, signals, effects, logs, and issues.
 
 ### Example: Using auto-imported components
@@ -62,7 +62,7 @@ Everything a component needs lives in one place.
 Suppose you have:
 
 ```
-src/components/FancyButton.nbl
+src/components/FancyButton.tera
 ```
 
 You can use `<FancyButton />` in any SFC without importing it.
@@ -179,7 +179,7 @@ const router = createRouter([
   {
     id: "home",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     layout: null,
     middleware: [],
     prerender: true,
@@ -194,7 +194,7 @@ const router = createRouter([
   {
     id: "settings",
     path: "/settings",
-    filePath: "/pages/settings.nbl",
+    filePath: "/pages/settings.tera",
     layout: null,
     middleware: [],
     prerender: true,
@@ -287,7 +287,7 @@ Debugging is a first-class feature.
 
 # Example Component
 
-```nbl
+```tera
 <template>
   <button class="root" @click="increment">
     Count: {{ count }}
@@ -354,7 +354,7 @@ packages/
   renderer-ssr/    -> server renderer
   runtime/         -> hydration, scheduling, lifecycle
   router/          -> component-driven routing
-  sfc/             -> .nbl single-file component parser
+  sfc/             -> .tera single-file component parser
   shared/          -> shared utilities
   ui/              -> optional UI primitives
 ```

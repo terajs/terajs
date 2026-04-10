@@ -3,7 +3,7 @@
 This plugin enables Terajs SFC compilation, HMR, and auto-imports for your project.
 
 ## Features
-- Compiles `.nbl` Single-File Components
+- Compiles `.tera` Single-File Components
 - Hot Module Replacement (HMR) for SFCs
 - **Auto-imports**: All components in configured directories are available globally in SFCs (no manual imports needed)
 - Production route manifest support with hashed asset resolution from Vite `manifest.json`
@@ -23,13 +23,13 @@ export default {
 
 ### 2. Auto-imports
 
-By default, all `.nbl` files in `packages/devtools/src/components` are auto-imported and available in your SFCs.
+By default, all `.tera` files in `packages/devtools/src/components` are auto-imported and available in your SFCs.
 
 #### Example
 Suppose you have:
 
 ```
-packages/devtools/src/components/FancyButton.nbl
+packages/devtools/src/components/FancyButton.tera
 ```
 
 You can use `<FancyButton />` in any SFC without importing it.
@@ -55,17 +55,17 @@ The plugin also exposes a virtual route manifest module:
 import routes from 'virtual:terajs-routes';
 ```
 
-It scans `src/routes` and `src/pages` for `.nbl` files, preserves `<route>` metadata, and attaches any discovered `layout.nbl` files as an ordered layout chain.
+It scans `src/routes` and `src/pages` for `.tera` files, preserves `<route>` metadata, and attaches any discovered `layout.tera` files as an ordered layout chain.
 
 Supported route conventions:
 
 ```txt
 src/routes/
-  layout.nbl
-  index.nbl
+  layout.tera
+  index.tera
   docs/
-    layout.nbl
-    [slug].nbl
+    layout.tera
+    [slug].tera
 ```
 
 This produces a manifest that already includes:

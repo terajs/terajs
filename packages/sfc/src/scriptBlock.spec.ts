@@ -10,7 +10,7 @@ describe("SFC <script> block", () => {
         export function setup() { return { msg: "hi" } }
       </script>
       `,
-      "/components/ScriptTest.nbl"
+      "/components/ScriptTest.tera"
     );
 
     const scriptText =
@@ -22,7 +22,7 @@ describe("SFC <script> block", () => {
   });
 
   it("handles no script block", () => {
-    const sfc = parseSFC(`<template>Hello</template>`, "/x.nbl");
+    const sfc = parseSFC(`<template>Hello</template>`, "/x.tera");
     expect(sfc.script).toBe("");
   });
 
@@ -34,7 +34,7 @@ describe("SFC <script> block", () => {
         export const count = 1;
       </script>
       `,
-      "/components/NamedExport.nbl"
+      "/components/NamedExport.tera"
     );
 
     const scriptText =

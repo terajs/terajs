@@ -124,10 +124,10 @@ describe("createResource", () => {
   });
 
   it("uses persistent key as SSR hydrate key when ssr: true is enabled", async () => {
-    document.body.innerHTML = `<script id="__TERAJS_DATA__" type="application/json">{"nebula-tasks-v1":[{"title":"cached task"}]}</script>`;
+    document.body.innerHTML = `<script id="__TERAJS_DATA__" type="application/json">{"terajs-tasks-v1":[{"title":"cached task"}]}</script>`;
 
     const fetcher = vi.fn(async () => [{ title: "remote task" }]);
-    const resource = createResource(() => fetcher(), { persistent: "nebula-tasks-v1", ssr: true });
+    const resource = createResource(() => fetcher(), { persistent: "terajs-tasks-v1", ssr: true });
 
     expect(resource.data()).toEqual([{ title: "cached task" }]);
     expect(resource.source()).toBe("hydration");

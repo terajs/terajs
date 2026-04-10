@@ -13,7 +13,7 @@ describe("compileSFC integration", () => {
       </template>
     `;
 
-    const sfc = parseSFC(code, "test.nbl");
+    const sfc = parseSFC(code, "test.tera");
     const compiled = compileSfcToComponent(sfc);
 
     expect(compiled).toContain('const name = signal("Terajs");');

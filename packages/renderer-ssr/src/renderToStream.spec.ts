@@ -4,7 +4,7 @@ import { renderToStream } from "./renderToStream";
 
 function mockIR(template: any[], meta: any = {}, route: any = null): IRModule {
   return {
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     template,
     meta,
     route

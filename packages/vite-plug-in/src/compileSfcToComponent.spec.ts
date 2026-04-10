@@ -15,7 +15,7 @@ vi.mock("@terajs/sfc", async () => {
 describe("compileSfcToComponent", () => {
   it("generates a runnable component module with setup and renderer codegen", () => {
     const sfc = {
-      filePath: "/components/Test.nbl",
+      filePath: "/components/Test.tera",
       template: "<div>Hello</div>",
       script: "export function setup() {}",
       style: null,

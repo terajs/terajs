@@ -4,7 +4,7 @@ import { buildRouteFromSFC } from "./index";
 
 function mockSFC(overrides: Partial<ParsedSFC>): ParsedSFC {
   return {
-    filePath: "/pages/test.nbl",
+    filePath: "/pages/test.tera",
     template: "",
     script: "",
     style: null,

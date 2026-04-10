@@ -6,11 +6,11 @@ export async function scaffoldProject(name: string): Promise<void> {
   const src = join(root, "src");
   const routes = join(src, "routes");
   const components = join(src, "components");
-  const nebula = join(root, ".nebula");
+  const terajs = join(root, ".terajs");
 
   await mkdir(routes, { recursive: true });
   await mkdir(components, { recursive: true });
-  await mkdir(nebula, { recursive: true });
+  await mkdir(terajs, { recursive: true });
 
   await writeFile(
     join(root, "package.json"),
@@ -42,7 +42,7 @@ export async function scaffoldProject(name: string): Promise<void> {
   );
 
   await writeFile(
-    join(routes, "index.nbl"),
+    join(routes, "index.tera"),
     `<template>
   <div>Welcome to ${name}</div>
 </template>

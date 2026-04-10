@@ -30,7 +30,7 @@ Terajs components are **units of UI, logic, metadata, and routing**:
 
 - props → logic → template → styles → meta → route  
 - JSX templates  
-- optional SFC format (`.nbl`)  
+- optional SFC format (`.tera`)  
 - templates compile to IR → DOM  
 - components run once; templates update reactively  
 

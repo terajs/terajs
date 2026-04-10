@@ -11,7 +11,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "index",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     component: async () => ({ default: () => document.createTextNode("home") }),
     layout: null,
     middleware: [],

@@ -61,7 +61,7 @@ export function generateIRModule(sfc: ParsedSFC): IRModule {
     sfc.style.scoped
   ) {
     // Stable hash based on file path
-    scopeId = `nbl-${hash(sfc.filePath)}`;
+    scopeId = `tera-${hash(sfc.filePath)}`;
   }
 
   // Convert AST -> IR, injecting scopeId into element nodes

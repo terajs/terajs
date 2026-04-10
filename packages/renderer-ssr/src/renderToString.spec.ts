@@ -7,7 +7,7 @@ import { renderToString } from "./renderToString";
  */
 function mockIR(template: any[], meta: any = {}, route: any = null): IRModule {
   return {
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     template,
     meta,
     route
@@ -87,7 +87,7 @@ describe("renderToString", () => {
 
   it("renders <ai> block from IR into head metadata", () => {
     const ir: IRModule = {
-      filePath: "/pages/ai.nbl",
+      filePath: "/pages/ai.tera",
       template: [],
       meta: { title: "AI Test" },
       ai: { intent: "documentation", priority: 0.9 },
@@ -155,7 +155,7 @@ describe("renderToString", () => {
           route: {
             id: "docs",
             path: "/docs",
-            filePath: "/pages/docs.nbl",
+            filePath: "/pages/docs.tera",
             layout: null,
             middleware: [],
             prerender: true,

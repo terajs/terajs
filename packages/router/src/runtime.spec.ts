@@ -14,7 +14,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
     id: "index",
     path: "/",
-    filePath: "/pages/index.nbl",
+    filePath: "/pages/index.tera",
     component: loadComponent,
     layout: null,
     middleware: [],
@@ -30,7 +30,7 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
 describe("matchRoute", () => {
   it("extracts params, query, and hash", () => {
     const matched = matchRoute(
-      [route({ path: "/blog/:slug", filePath: "/pages/blog/[slug].nbl" })],
+      [route({ path: "/blog/:slug", filePath: "/pages/blog/[slug].tera" })],
       "/blog/hello-world?draft=1&tag=tera&tag=router#summary"
     );
 
@@ -43,13 +43,13 @@ describe("matchRoute", () => {
   it("prefers static routes over param routes", () => {
     const matched = matchRoute(
       [
-        route({ path: "/blog/:slug", filePath: "/pages/blog/[slug].nbl" }),
-        route({ path: "/blog/new", filePath: "/pages/blog/new.nbl" })
+        route({ path: "/blog/:slug", filePath: "/pages/blog/[slug].tera" }),
+        route({ path: "/blog/new", filePath: "/pages/blog/new.tera" })
       ],
       "/blog/new"
     );
 
-    expect(matched?.route.filePath).toBe("/pages/blog/new.nbl");
+    expect(matched?.route.filePath).toBe("/pages/blog/new.tera");
   });
 });
 
@@ -57,7 +57,7 @@ describe("createRouter", () => {
   it("starts from history and exposes current route", async () => {
     const history = createMemoryHistory("/dashboard?tab=signals");
     const router = createRouter([
-      route({ path: "/dashboard", filePath: "/pages/dashboard.nbl" })
+      route({ path: "/dashboard", filePath: "/pages/dashboard.tera" })
     ], { history });
 
     const result = await router.start();
@@ -69,8 +69,8 @@ describe("createRouter", () => {
   it("navigates and notifies subscribers", async () => {
     const history = createMemoryHistory("/");
     const router = createRouter([
-      route({ path: "/", filePath: "/pages/index.nbl" }),
-      route({ path: "/docs/:section", filePath: "/pages/docs/[section].nbl" })
+      route({ path: "/", filePath: "/pages/index.tera" }),
+      route({ path: "/docs/:section", filePath: "/pages/docs/[section].tera" })
     ], { history });
     const listener = vi.fn();
 
@@ -89,8 +89,8 @@ describe("createRouter", () => {
     const history = createMemoryHistory("/");
     const router = createRouter(
       [
-        route({ path: "/", filePath: "/pages/index.nbl" }),
-        route({ path: "/docs", filePath: "/pages/docs.nbl", middleware: ["slow"] })
+        route({ path: "/", filePath: "/pages/index.tera" }),
+        route({ path: "/docs", filePath: "/pages/docs.tera", middleware: ["slow"] })
       ],
       {
         history,
@@ -138,8 +138,8 @@ describe("createRouter", () => {
     const history = createMemoryHistory("/");
     const router = createRouter(
       [
-        route({ path: "/", filePath: "/pages/index.nbl" }),
-        route({ path: "/admin", filePath: "/pages/admin.nbl", middleware: ["auth"] })
+        route({ path: "/", filePath: "/pages/index.tera" }),
+        route({ path: "/admin", filePath: "/pages/admin.tera", middleware: ["auth"] })
       ],
       {
         history,
@@ -170,9 +170,9 @@ describe("createRouter", () => {
     const history = createMemoryHistory("/");
     const router = createRouter(
       [
-        route({ path: "/", filePath: "/pages/index.nbl" }),
-        route({ path: "/admin", filePath: "/pages/admin.nbl", middleware: ["auth"] }),
-        route({ path: "/signin", filePath: "/pages/signin.nbl" })
+        route({ path: "/", filePath: "/pages/index.tera" }),
+        route({ path: "/admin", filePath: "/pages/admin.tera", middleware: ["auth"] }),
+        route({ path: "/signin", filePath: "/pages/signin.tera" })
       ],
       {
         history,

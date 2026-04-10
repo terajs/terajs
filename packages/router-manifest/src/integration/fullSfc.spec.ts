@@ -26,7 +26,7 @@ const full = `
 
 describe("Full SFC integration", () => {
   it("parses and builds route definition", () => {
-    const sfc = parseSFC(full, "/pages/blog/[slug].nbl");
+    const sfc = parseSFC(full, "/pages/blog/[slug].tera");
     const route = buildRouteFromSFC(sfc);
 
     expect(route.path).toBe("/blog/:slug");

@@ -23,7 +23,7 @@ describe("SFC mixed blocks", () => {
         layout: main
       </route>
       `,
-      "/components/Mixed.nbl"
+      "/components/Mixed.tera"
     );
 
     // template
