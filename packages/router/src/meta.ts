@@ -1,5 +1,5 @@
-import type { RouteDefinition, RouteMetaConfig } from "./definition";
-import type { LoadedLayoutModule, LoadedRouteMatch } from "./loading";
+import type { RouteDefinition, RouteMetaConfig } from "./definition.js";
+import type { LoadedLayoutModule, LoadedRouteMatch } from "./loading.js";
 
 export interface ResolvedRouteMetadata {
   meta: RouteMetaConfig;

@@ -1,4 +1,4 @@
-import { mountDevtoolsApp } from "./app";
+import { mountDevtoolsApp } from "./app.js";
 
 let overlayEl: HTMLDivElement | null = null;
 let cleanupOverlay: (() => void) | null = null;

@@ -8,7 +8,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] Sanity critical gate passes (`npm run test:sanity`)
 - [x] Docs example gate passes (`npm run test:docs`)
 - [x] Architecture guardrails pass (`npm run test:architecture`)
-- [ ] Typecheck passes (`npm run typecheck`)
+- [x] Typecheck passes (`npm run typecheck`)
 
 ## 2. Hydration and Runtime Stability
 
@@ -22,7 +22,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] README roadmap reflects shipped web features
 - [x] API reference router loading signatures aligned with source
 - [x] Devtools/Sanity behavior documented in README/API surface
-- [ ] Remaining core docs (`VISION.md`, `ROADMAP.md`, `COMPONENTS.md`) contradiction pass
+- [x] Remaining core docs (`VISION.md`, `ROADMAP.md`, `COMPONENTS.md`) contradiction pass
 
 ## 4. CI and Workflow
 
@@ -30,6 +30,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] Docs validation integrated in `.github/workflows/quality-gate.yml`
 - [x] Local-first foundation gate integrated in `.github/workflows/quality-gate.yml`
 - [x] Optional: add `typecheck` to quality gate before RC tag
+- [x] External scaffold smoke run passes (`npm run smoke:external`)
 
 ## 5. Local-First Foundation
 

@@ -1,4 +1,4 @@
-import type { DevtoolsEventLike } from "./analytics";
+import type { DevtoolsEventLike } from "./analytics.js";
 
 export type SanitySeverity = "warning" | "critical";
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file index.ts
  * @description
  * Entry point for the @terajs/router package.
@@ -10,31 +10,31 @@ export {
   loadRouteMatch,
   prefetchRoute,
   prefetchRouteMatch
-} from "./loading";
-export { resolveLoadedRouteMetadata } from "./meta";
+} from "./loading.js";
+export { resolveLoadedRouteMetadata } from "./meta.js";
 export {
   getRouteDataResourceKey,
   getRouteDataResourceKeys,
   ROUTE_DATA_RESOURCE_KEY
-} from "./resourceKeys";
+} from "./resourceKeys.js";
 
 export {
   createBrowserHistory,
   createMemoryHistory,
   createRouter,
   matchRoute
-} from "./runtime";
-export { updateHead } from "./clientMeta";
+} from "./runtime.js";
+export { updateHead } from "./clientMeta.js";
 
-export type { RouteDefinition, RouteLayoutDefinition, RouteMetaConfig } from "./definition";
+export type { RouteDefinition, RouteLayoutDefinition, RouteMetaConfig } from "./definition.js";
 export type {
   LoadedLayoutModule,
   LoadedRouteMatch,
   RouteHydrationSnapshot,
   RouteLoadContext,
   RouteModule
-} from "./loading";
-export type { ResolvedRouteMetadata } from "./meta";
+} from "./loading.js";
+export type { ResolvedRouteMetadata } from "./meta.js";
 export type {
   GuardContext,
   NavigationGuard,
@@ -48,4 +48,4 @@ export type {
   Router,
   RouterHistory,
   RouterOptions
-} from "./runtime";
+} from "./runtime.js";

@@ -5,8 +5,8 @@
  * using the existing renderer-web JSX runtime.
  */
 
-import { jsx, jsxs, Fragment } from "./jsx-runtime";
-import { Portal as WebPortal } from "./portal";
+import { jsx, jsxs, Fragment } from "./jsx-runtime.js";
+import { Portal as WebPortal } from "./portal.js";
 import { Debug } from "@terajs/shared";
 
 import type {

@@ -11,7 +11,7 @@
  * Renderers decide how to interpret the returned value.
  */
 
-import type { TemplateFn } from "./templateFn";
+import type { TemplateFn } from "./templateFn.js";
 
 export type FrameworkComponent<Props = any, Output = any> =
   (props?: Props) => Output | TemplateFn<Output>;

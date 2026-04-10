@@ -12,9 +12,9 @@
  * - Return the setup function code and exposed identifiers
  */
 
-import { stripTypes } from "./stripTypes";
-import { tokenizeScript, type Token } from "./tokenizeScript";
-import { scanTopLevel } from "./scanTopLevel";
+import { stripTypes } from "./stripTypes.js";
+import { tokenizeScript, type Token } from "./tokenizeScript.js";
+import { scanTopLevel } from "./scanTopLevel.js";
 
 export interface CompiledScript {
   /**

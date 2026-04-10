@@ -1,6 +1,6 @@
-import { ParsedSFC, MetaConfig, RouteOverride } from "./types";
-import { parseMiniYAML } from "./parseMiniYAML";
-import { createSfcError } from "./errors";
+import { ParsedSFC, MetaConfig, RouteOverride } from "./types.js";
+import { parseMiniYAML } from "./parseMiniYAML.js";
+import { createSfcError } from "./errors.js";
 
 /**
  * Extracts a block with attributes and content.

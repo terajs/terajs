@@ -7,7 +7,7 @@
  * intended for DevTools, debugging, and visualization.
  */
 
-import { getDependencyNode } from "../../dependencyGraph";
+import { getDependencyNode } from "../../dependencyGraph.js";
 
 /**
  * Returns all RIDs that the given node depends on.

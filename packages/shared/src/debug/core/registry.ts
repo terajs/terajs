@@ -1,5 +1,5 @@
-import type { ComponentInstanceInfo, ReactiveInstanceInfo } from "../types/registry";
-import type { ReactiveMetadata } from "../types/metadata";
+import type { ComponentInstanceInfo, ReactiveInstanceInfo } from "../types/registry.js";
+import type { ReactiveMetadata } from "../types/metadata.js";
 
 /**
  * In-memory registry of all active component instances.

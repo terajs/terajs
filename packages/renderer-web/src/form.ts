@@ -8,8 +8,8 @@ import {
   type Validator
 } from "@terajs/runtime";
 import { signal } from "@terajs/reactivity";
-import { jsx } from "./jsx-runtime";
-import { template } from "./template";
+import { jsx } from "./jsx-runtime.js";
+import { template } from "./template.js";
 
 export type FormValue = FormDataEntryValue;
 export type FormValues = Record<string, FormValue | FormValue[]>;

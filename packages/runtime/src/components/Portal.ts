@@ -1,6 +1,6 @@
 import { effect } from "@terajs/reactivity";
-import { onCleanup } from "../component/component";
-import { getCurrentRenderer } from "../renderer";
+import { onCleanup } from "../component/component.js";
+import { getCurrentRenderer } from "../renderer.js";
 
 export interface PortalProps {
   to?: string;

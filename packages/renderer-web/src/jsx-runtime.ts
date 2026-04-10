@@ -12,7 +12,7 @@
  * No VDOM. No diffing. No re-renders.
  */
 
-import { unwrap } from "./unwrap";
+import { unwrap } from "./unwrap.js";
 import {
     createElement,
     createText,
@@ -20,7 +20,7 @@ import {
     insert,
     setStyle,
     withHydrationParent,
-} from "./dom";
+} from "./dom.js";
 
 import {
     bindText,
@@ -28,7 +28,7 @@ import {
     bindClass,
     bindStyle,
     bindEvent,
-} from "./bindings";
+} from "./bindings.js";
 
 import { Debug } from "@terajs/shared";
 

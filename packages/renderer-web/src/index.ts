@@ -1,61 +1,61 @@
-﻿/**
+/**
  * @file index.ts
  * @description
  * Complete entry point for the @terajs/renderer.
  */
 
 // Core Rendering & Mounting
-export * from "./render";
-export * from "./mount";
-export * from "./template";
+export * from "./render.js";
+export * from "./mount.js";
+export * from "./template.js";
 
 // JSX Runtime (Crucial for .tera file compilation)
-export * from "./jsx-runtime";
+export * from "./jsx-runtime.js";
 
 // Control Flow Components
-export * from "./controlFlow";
-export * from "./for";
+export * from "./controlFlow.js";
+export * from "./for.js";
 
 // DOM & Reconciliation Utilities
-export * from "./dom";
-export * from "./bindings";
-export * from "./updateKeyedList";
-export * from "./styles";
+export * from "./dom.js";
+export * from "./bindings.js";
+export * from "./updateKeyedList.js";
+export * from "./styles.js";
 
 // Internal Helpers
-export * from "./unwrap";
+export * from "./unwrap.js";
 
 // Hydration API
-export * from "./hydrate";
+export * from "./hydrate.js";
 
 // Portal primitive
-export * from "./portal";
+export * from "./portal.js";
 
 // Router-aware link primitive
-export * from "./link";
+export * from "./link.js";
 
 // Enhanced form primitive
-export * from "./form";
+export * from "./form.js";
 
 // Error boundaries
-export * from "./errorBoundary";
+export * from "./errorBoundary.js";
 
 // Router context helpers
-export * from "./routerContext";
+export * from "./routerContext.js";
 
 // Route-shell helpers
-export * from "./routeShell";
+export * from "./routeShell.js";
 
 // IR Renderer (SSR-aligned baseline for client-side rendering)
-export * from "./renderFromIR";
+export * from "./renderFromIR.js";
 
 // Router bridge
-export * from "./routerView";
+export * from "./routerView.js";
 
 // Web Component integration
-import { mount, unmount } from "./mount";
+import { mount, unmount } from "./mount.js";
 import { signal, type Signal } from "@terajs/reactivity";
-import type { FrameworkComponent } from "./render";
+import type { FrameworkComponent } from "./render.js";
 
 function normalizeAttributeName(name: string): string {
   return name.replace(/-([a-z])/g, (_, char) => char.toUpperCase());

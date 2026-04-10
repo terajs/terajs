@@ -1,4 +1,4 @@
-﻿// packages/compiler/src/parseTemplateToAst.ts
+// packages/compiler/src/parseTemplateToAst.ts
 
 import type {
   ASTNode,
@@ -11,7 +11,7 @@ import type {
   IfNode,
   ForNode
 } from "@terajs/renderer";
-import { tokenizeTemplate, type Token } from "./templateTokenizer";
+import { tokenizeTemplate, type Token } from "./templateTokenizer.js";
 
 export function parseTemplateToAst(template: string): ASTNode[] {
   const tokens = tokenizeTemplate(template);

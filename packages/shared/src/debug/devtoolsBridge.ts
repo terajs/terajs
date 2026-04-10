@@ -13,13 +13,13 @@
 import {
   getDependencyGraphSnapshot,
   getDependencyNode
-} from "./dependencyGraph";
+} from "./dependencyGraph.js";
 
 import {
   getDependencies,
   getDependents,
   traceUpdate
-} from "./core/graph/queries";
+} from "./core/graph/queries.js";
 
 export const DevtoolsBridge = {
   /**

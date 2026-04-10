@@ -1,10 +1,10 @@
-﻿/**
+/**
  * @file context.ts
  * Shared component execution context contract.
  */
 
-import { Debug } from "./debug/events";
-import type { ComponentErrorBoundaryHandler } from "./errorBoundary";
+import { Debug } from "./debug/events.js";
+import type { ComponentErrorBoundaryHandler } from "./errorBoundary.js";
 
 export type Disposer = () => void;
 

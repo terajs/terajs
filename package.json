@@ -10,7 +10,8 @@
     "test:docs": "vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
     "test:local-first": "vitest --run packages/runtime/src/queue/mutationQueue.spec.ts packages/runtime/src/action.spec.ts packages/runtime/src/resource.spec.ts packages/renderer-web/src/form.spec.ts packages/devtools/src/analytics.spec.ts",
     "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts",
-    "typecheck": "npm run clean && tsc -b --pretty false"
+    "typecheck": "npm run clean && tsc -b --pretty false",
+    "smoke:external": "node scripts/external-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",

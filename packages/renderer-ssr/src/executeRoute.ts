@@ -20,8 +20,8 @@ import {
   renderHydrationMarker,
   resolveHydration,
   type SSRHtml
-} from "./renderToString";
-import type { SSRContext, SSRResult } from "./types";
+} from "./renderToString.js";
+import type { SSRContext, SSRResult } from "./types.js";
 
 export interface SSRRouteModule<TData = unknown> {
   default?: unknown;

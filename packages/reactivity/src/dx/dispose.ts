@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file dispose.ts
  * @description
  * Disposes of a reactive effect, unsubscribing it from all dependencies
@@ -11,7 +11,7 @@
  * - avoiding memory leaks
  */
 
-import { type ReactiveEffect } from "../deps";
+import { type ReactiveEffect } from "../deps.js";
 import { Debug } from "@terajs/shared";
 
 /**

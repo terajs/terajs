@@ -1,3 +1,3 @@
-import terajsPlugin from './src/index';
+import terajsPlugin from './src/index.js';
 
 export default terajsPlugin;

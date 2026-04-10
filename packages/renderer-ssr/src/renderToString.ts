@@ -24,7 +24,7 @@ import type {
   IRIfNode,
   IRForNode
 } from "@terajs/compiler";
-import type { SSRContext, SSRResult, SSRHydrationHint } from "./types";
+import type { SSRContext, SSRResult, SSRHydrationHint } from "./types.js";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

@@ -8,34 +8,34 @@
  */
 
 // Core Tracking & Execution
-export { effect, scheduleEffect } from "./effect";
+export { effect, scheduleEffect } from "./effect.js";
 export { 
   pushEffect, 
   popEffect, 
   currentEffect, 
   getCurrentEffect, // Essential for DX utilities
   type ReactiveEffect 
-} from "./deps";
+} from "./deps.js";
 
 // Primitives
-export { state } from "./state";
-export { signal, getActiveSignals, type Signal } from "./signal";
-export { ref, type Ref } from "./ref";
+export { state } from "./state.js";
+export { signal, getActiveSignals, type Signal } from "./signal.js";
+export { ref, type Ref } from "./ref.js";
 
 // Complex Reactivity
-export { reactive, type Reactive } from "./reactive";
-export { computed } from "./computed";
-export { model } from "./model";
+export { reactive, type Reactive } from "./reactive.js";
+export { computed } from "./computed.js";
+export { model } from "./model.js";
 
 // DX Layer (Platform Agnostic)
-export { onEffectCleanup } from "./dx/cleanup";
-export { dispose } from "./dx/dispose";
-export { watch } from "./dx/watch";
-export { watchEffect } from "./dx/watchEffect";
-export { contract } from "./dx/contract";
+export { onEffectCleanup } from "./dx/cleanup.js";
+export { dispose } from "./dx/dispose.js";
+export { watch } from "./dx/watch.js";
+export { watchEffect } from "./dx/watchEffect.js";
+export { contract } from "./dx/contract.js";
 
 // DX Utilities
-export { memo, markStatic, shallowRef } from "./memo";
+export { memo, markStatic, shallowRef } from "./memo.js";
 
 // Runtime mode helpers
-export { isServer, setRuntimeMode, type RuntimeMode } from "./dx/runtime";
+export { isServer, setRuntimeMode, type RuntimeMode } from "./dx/runtime.js";

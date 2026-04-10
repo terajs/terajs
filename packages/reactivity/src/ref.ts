@@ -20,7 +20,7 @@
  * - Participates in the dependency graph automatically
  */
 
-import { signal, type Signal } from "./signal";
+import { signal, type Signal } from "./signal.js";
 import {
   createReactiveMetadata,
   registerReactiveInstance,

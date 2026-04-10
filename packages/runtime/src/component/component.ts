@@ -11,16 +11,16 @@ import {
   pushContextFrame,
   popContextFrame,
   contextStack
-} from "../context/contextStack";
+} from "../context/contextStack.js";
 import {
   type Disposer,
   type ComponentContext,
   getCurrentContext,
   setCurrentContext
-} from "./context";
+} from "./context.js";
 
-import type { HMRInstance } from "../hmr";
-import { registerHMRComponent } from "../hmr";
+import type { HMRInstance } from "../hmr.js";
+import { registerHMRComponent } from "../hmr.js";
 
 /** Global instance counter per component name */
 const instanceCounters = new Map<string, number>();

@@ -1,4 +1,4 @@
-export { inferPathFromFile, buildRouteFromSFC } from "./builder";
-export { buildRouteManifest } from "./manifest";
+export { inferPathFromFile, buildRouteFromSFC } from "./builder.js";
+export { buildRouteManifest } from "./manifest.js";
 
-export type { RouteConfigInput, RouteManifestOptions, RouteSourceInput } from "./manifest";
+export type { RouteConfigInput, RouteManifestOptions, RouteSourceInput } from "./manifest.js";

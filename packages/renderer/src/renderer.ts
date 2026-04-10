@@ -14,7 +14,7 @@ import type {
   InterpolationNode,
   IfNode,
   ForNode
-} from "./ast";
+} from "./ast.js";
 
 /**
  * Rendering context passed to all renderer functions.

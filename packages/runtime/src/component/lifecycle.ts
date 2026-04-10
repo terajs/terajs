@@ -8,7 +8,7 @@ import { emitDebug as emit } from "@terajs/shared";
 import { 
   type ComponentContext,
   getCurrentContext
- } from "./context";
+ } from "./context.js";
 
 /**
  * Internal helper to ensure lifecycle arrays exist on the context.

@@ -1,39 +1,39 @@
-﻿/**
+/**
  * @file index.ts
  * @description Entry point for the @terajs/shared package.
  */
 
 // 1. Identity & Metadata
-export * from "./debug/utils/id";
-export * from "./debug/metadata"; 
+export * from "./debug/utils/id.js";
+export * from "./debug/metadata.js"; 
 
 // 2. Core Registries & Logic
-export * from "./debug/core/registry";
-export * from "./debug/core/graphRegistry"; // This provides addDependency, getNode, etc.
+export * from "./debug/core/registry.js";
+export * from "./debug/core/graphRegistry.js"; // This provides addDependency, getNode, etc.
 
 // 3. The Public API Facade (THE TRUTH)
-export { addDependency, removeDependencyNode } from "./debug/dependencyGraph"; 
+export { addDependency, removeDependencyNode } from "./debug/dependencyGraph.js"; 
 
 // 4. The Event System
 // IMPORTANT: We need both the Debug object AND the named functions
-export { Debug, resetDebugHandlers } from "./debug/events"; 
-export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus"; 
-export { resetDebugListeners } from "./debug/eventBus";
+export { Debug, resetDebugHandlers } from "./debug/events.js"; 
+export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus.js"; 
+export { resetDebugListeners } from "./debug/eventBus.js";
 // 5. Context & Types
-export * from "./debug/context";
-export * from "./debug/devtoolsBridge";
-export * from "./debug/types/events"; 
-export * from "./debug/types/metadata";
-export * from "./debug/types/registry";
-export * from "./debug/types/graph";
-export * from "./hydration";
-export * from "./routeTypes";
-export * from "./server";
-export * from "./errorBoundary";
+export * from "./debug/context.js";
+export * from "./debug/devtoolsBridge.js";
+export * from "./debug/types/events.js"; 
+export * from "./debug/types/metadata.js";
+export * from "./debug/types/registry.js";
+export * from "./debug/types/graph.js";
+export * from "./hydration.js";
+export * from "./routeTypes.js";
+export * from "./server.js";
+export * from "./errorBoundary.js";
 
 export { 
   getCurrentContext, 
   setCurrentContext, 
   createComponentContext, 
-} from "./context";
-export type { ComponentContext, Disposer } from "./context";
+} from "./context.js";
+export type { ComponentContext, Disposer } from "./context.js";

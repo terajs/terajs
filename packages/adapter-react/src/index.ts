@@ -1,4 +1,4 @@
-export { TerajsWrapper } from "./TerajsWrapper";
-export type { TerajsWrapperProps } from "./TerajsWrapper";
-export { useTerajsResource } from "./useTerajsResource";
-export type { TerajsResourceBridge } from "./useTerajsResource";
+export { TerajsWrapper } from "./TerajsWrapper.js";
+export type { TerajsWrapperProps } from "./TerajsWrapper.js";
+export { useTerajsResource } from "./useTerajsResource.js";
+export type { TerajsResourceBridge } from "./useTerajsResource.js";

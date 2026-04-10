@@ -6,10 +6,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getAutoImportDirs } from "./autoImportDirs";
-import { getConfiguredRoutes, getRouteDirs } from "./config";
-import { compileSfcToComponent } from "./compileSfcToComponent";
-import { generateRouteConfigWithAssets } from "./routesScanner";
+import { getAutoImportDirs } from "./autoImportDirs.js";
+import { getConfiguredRoutes, getRouteDirs } from "./config.js";
+import { compileSfcToComponent } from "./compileSfcToComponent.js";
+import { generateRouteConfigWithAssets } from "./routesScanner.js";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
@@ -262,7 +262,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     resolveId(id) {
       if (id === AUTO_IMPORT_VIRTUAL_ID) return RESOLVED_AUTO_IMPORT_VIRTUAL_ID;
       if (id === ROUTES_VIRTUAL_ID) return RESOLVED_ROUTES_VIRTUAL_ID;
-      if (id.endsWith(".tera")) return id;
       return null;
     },
 

@@ -8,7 +8,7 @@
  */
 
 import { Debug } from "@terajs/shared";
-import { unwrap } from "./unwrap"; 
+import { unwrap } from "./unwrap.js"; 
 
 const nodeCleanup = new WeakMap<Node, Array<() => void>>();
 

@@ -1,7 +1,7 @@
 import { prefetchRoute, type Router } from "@terajs/router";
 
-import { jsx } from "./jsx-runtime";
-import { useCurrentRoute, useNavigationState, useRouter } from "./routerContext";
+import { jsx } from "./jsx-runtime.js";
+import { useCurrentRoute, useNavigationState, useRouter } from "./routerContext.js";
 
 export interface LinkProps {
   router?: Router;

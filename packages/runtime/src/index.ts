@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file index.ts
  * @description
  * Entry point for the @terajs/runtime package.
@@ -6,22 +6,24 @@
  */
 
 // Component Core
-export { component, onCleanup } from "./component/component";
-export { ComponentContext, getCurrentContext, setCurrentContext, createComponentContext } from "./component/context";
-export type { Disposer } from "./component/context";
+export { component, onCleanup } from "./component/component.js";
+export { ComponentContext, getCurrentContext, setCurrentContext, createComponentContext } from "./component/context.js";
+export type { Disposer } from "./component/context.js";
 
 // Lifecycle Hooks
-export { onMounted, onUpdated, onUnmounted } from "./component/lifecycle";
+export { onMounted, onUpdated, onUnmounted } from "./component/lifecycle.js";
+export { applyHMRUpdate, registerHMRComponent, unregisterHMRComponent } from "./hmr.js";
+export type { HMRComponentHandle, HMRInstance } from "./hmr.js";
 
 // Context / Dependency Injection (The "Nerve System")
-export { provide } from "./context/provide";
-export { inject } from "./context/inject";
+export { provide } from "./context/provide.js";
+export { inject } from "./context/inject.js";
 export { 
   contextStack, 
   pushContextFrame, 
   popContextFrame 
-} from "./context/contextStack";
-export type { ContextFrame, ContextKey } from "./context/contextStack";
+} from "./context/contextStack.js";
+export type { ContextFrame, ContextKey } from "./context/contextStack.js";
 
 // Hydration (For SSR/Edge support)
 export {
@@ -29,36 +31,36 @@ export {
   getHydratedResource,
   scheduleHydration,
   setHydrationState
-} from "./hydration";
-export type { RuntimeHydrationState } from "./hydration";
+} from "./hydration.js";
+export type { RuntimeHydrationState } from "./hydration.js";
 
 // Persistence
-export { localStorageAdapter } from "./persistence/adapters";
-export type { PersistenceAdapter } from "./persistence/types";
+export { localStorageAdapter } from "./persistence/adapters.js";
+export type { PersistenceAdapter } from "./persistence/types.js";
 
 // Renderer bridge
 export {
   setCurrentRenderer,
   getCurrentRenderer
-} from "./renderer";
-export type { Renderer } from "./renderer";
+} from "./renderer.js";
+export type { Renderer } from "./renderer.js";
 
 // Async data
-export { createAction } from "./action";
+export { createAction } from "./action.js";
 export type {
   Action,
   ActionOptions,
   ActionQueueOptions,
   ActionState,
   QueuedActionResult
-} from "./action";
-export { createResource } from "./resource";
-export type { Resource, ResourceState, ResourcePayload, ResourceMutateOptions } from "./resource";
+} from "./action.js";
+export { createResource } from "./resource.js";
+export type { Resource, ResourceState, ResourcePayload, ResourceMutateOptions } from "./resource.js";
 export {
   createMutationQueue,
   createMutationQueueStorage,
   defaultMutationRetryPolicy
-} from "./queue/mutationQueue";
+} from "./queue/mutationQueue.js";
 export type {
   EnqueueMutationInput,
   MutationConflictDecision,
@@ -72,20 +74,20 @@ export type {
   MutationRetryPolicy,
   MutationStatus,
   QueuedMutation
-} from "./queue/mutationQueue";
+} from "./queue/mutationQueue.js";
 export {
   invalidateResources,
   registerResourceInvalidation
-} from "./invalidation";
-export type { ResourceKey } from "./invalidation";
-export { createSchemaValidator } from "./validation";
+} from "./invalidation.js";
+export type { ResourceKey } from "./invalidation.js";
+export { createSchemaValidator } from "./validation.js";
 export type {
   ParseSchema,
   SafeParseSchema,
   ValidationIssue,
   ValidationResult,
   Validator
-} from "./validation";
+} from "./validation.js";
 
 // Server functions
 export {
@@ -96,7 +98,7 @@ export {
   hasServerFunction,
   server,
   setServerFunctionTransport
-} from "./server";
+} from "./server.js";
 export type {
   ServerExecutionContext,
   ServerFunctionExecutionResult,
@@ -104,23 +106,23 @@ export type {
   ServerFunctionCall,
   ServerFunctionOptions,
   ServerFunctionTransport
-} from "./server";
+} from "./server.js";
 export {
   createFetchServerFunctionTransport,
   createServerContextFromRequest,
   createServerFunctionRequestHandler,
   handleServerFunctionRequest,
   readServerFunctionCall
-} from "./serverTransport";
+} from "./serverTransport.js";
 export type {
   FetchServerFunctionTransportOptions,
   ServerFunctionErrorResponse,
   ServerFunctionRequestHandlerOptions,
   ServerFunctionResponse,
   ServerFunctionSuccessResponse
-} from "./serverTransport";
+} from "./serverTransport.js";
 
 // Components
-export { Portal } from "./components/Portal";
-export { Suspense } from "./components/Suspense";
-export type { PortalProps } from "./components/Portal";
+export { Portal } from "./components/Portal.js";
+export { Suspense } from "./components/Suspense.js";
+export type { PortalProps } from "./components/Portal.js";

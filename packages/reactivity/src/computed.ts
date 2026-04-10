@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file computed.ts
  * @description
  * A lazily evaluated, cached derived reactive value.
@@ -9,9 +9,9 @@
  * - the value is recomputed on next access
  */
 
-import { effect } from "./effect";
-import { currentEffect, type ReactiveEffect } from "./deps";
-import { scheduleEffect } from "./effect";
+import { effect } from "./effect.js";
+import { currentEffect, type ReactiveEffect } from "./deps.js";
+import { scheduleEffect } from "./effect.js";
 
 import {
   addDependency,

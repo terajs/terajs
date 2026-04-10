@@ -1,6 +1,6 @@
 import { isServer } from "@terajs/reactivity";
 import { Debug, type ServerContext } from "@terajs/shared";
-import { captureInvalidatedResources, type ResourceKey } from "./invalidation";
+import { captureInvalidatedResources, type ResourceKey } from "./invalidation.js";
 
 const serverFunctionHandlerSymbol = Symbol("terajs.serverFunctionHandler");
 

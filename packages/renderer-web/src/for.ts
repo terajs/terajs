@@ -14,8 +14,8 @@
  */
 
 import { effect } from "@terajs/reactivity";
-import { createFragment, insert, remove } from "./dom";
-import { updateKeyedList, type KeyedItem } from "./updateKeyedList";
+import { createFragment, insert, remove } from "./dom.js";
+import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
 import { Debug } from "@terajs/shared";
 
 export interface ForProps<T> {

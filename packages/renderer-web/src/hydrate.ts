@@ -13,11 +13,11 @@
 import { scheduleHydration, setHydrationState } from "@terajs/runtime";
 import type { RouteHydrationSnapshot } from "@terajs/router";
 import type { HydrationMode } from "@terajs/shared";
-import { mount } from "./mount";
-import { finishHydration, insert, startHydration } from "./dom";
-import { renderComponent, type FrameworkComponent } from "./render";
-import { validateHydration } from "./hydration/diagnostics";
-import { installTeraSwap } from "./hydration/streamUtils";
+import { mount } from "./mount.js";
+import { finishHydration, insert, startHydration } from "./dom.js";
+import { renderComponent, type FrameworkComponent } from "./render.js";
+import { validateHydration } from "./hydration/diagnostics.js";
+import { installTeraSwap } from "./hydration/streamUtils.js";
 
 export interface HydrationPayload {
   mode: HydrationMode | "ai";

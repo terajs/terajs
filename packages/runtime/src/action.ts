@@ -1,5 +1,5 @@
 import { signal, type Signal } from "@terajs/reactivity";
-import type { MutationQueue } from "./queue/mutationQueue";
+import type { MutationQueue } from "./queue/mutationQueue.js";
 
 export type ActionState = "idle" | "pending" | "success" | "error" | "queued";
 

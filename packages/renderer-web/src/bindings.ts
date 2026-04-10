@@ -11,7 +11,7 @@
  */
 
 import { effect } from "@terajs/reactivity";
-import { unwrap } from "./unwrap";
+import { unwrap } from "./unwrap.js";
 import {
     setText,
     setProp,
@@ -19,7 +19,7 @@ import {
     setClass,
     addEvent,
     removeEvent,
-} from "./dom";
+} from "./dom.js";
 import { Debug } from "@terajs/shared";
 
 /**

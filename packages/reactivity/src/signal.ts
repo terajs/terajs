@@ -9,9 +9,9 @@
  * - typed debug events
  */
 
-import { currentEffect } from "./deps";
-import type { ReactiveEffect } from "./deps";
-import { scheduleEffect } from "./effect";
+import { currentEffect } from "./deps.js";
+import type { ReactiveEffect } from "./deps.js";
+import { scheduleEffect } from "./effect.js";
 
 import {
   createReactiveMetadata,

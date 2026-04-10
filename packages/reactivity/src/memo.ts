@@ -10,8 +10,8 @@
  *   <Memo deps={[a, b]}>{([a, b]) => expensiveFn(a, b)}</Memo>
  */
 
-import { Signal } from "./signal";
-import { Ref } from "./ref";
+import { Signal } from "./signal.js";
+import { Ref } from "./ref.js";
 
 /**
  * Shallow equality check for arrays/objects.

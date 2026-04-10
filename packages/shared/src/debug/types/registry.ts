@@ -1,4 +1,4 @@
-import type { ReactiveMetadata } from "./metadata";
+import type { ReactiveMetadata } from "./metadata.js";
 
 /**
  * Runtime information about a component instance.

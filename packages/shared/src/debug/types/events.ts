@@ -1,4 +1,4 @@
-import type { ReactiveMetadata } from "./metadata";
+import type { ReactiveMetadata } from "./metadata.js";
 
 /**
  * Base shape for all debug events.

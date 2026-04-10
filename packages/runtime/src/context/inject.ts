@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file inject.ts
  * @description
  * Retrieves a value from the nearest ancestor context frame.
  */
 
 import { emitDebug as emit } from "@terajs/shared";
-import { contextStack, type ContextKey } from "./contextStack";
+import { contextStack, type ContextKey } from "./contextStack.js";
 
 /**
  * Inject a value previously provided by an ancestor component.

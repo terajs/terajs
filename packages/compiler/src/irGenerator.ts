@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file irGenerator.ts
  * @description
  * Converts a ParsedSFC + AST into a full IRModule.
@@ -7,9 +7,9 @@
  */
 
 import type { ASTNode } from "@terajs/renderer";
-import type { IRModule, IRNode, IRFlags } from "./irTypes";
-import { parseTemplateToAst } from "./parseTemplateToAst";
-import type { ParsedSFC } from "./sfcTypes";
+import type { IRModule, IRNode, IRFlags } from "./irTypes.js";
+import { parseTemplateToAst } from "./parseTemplateToAst.js";
+import type { ParsedSFC } from "./sfcTypes.js";
 
 /**
  * Tiny deterministic hash for generating scope IDs.

@@ -13,18 +13,18 @@
  * that updates automatically when dependencies change.
  */
 
-import { insert, clear } from "./dom";
+import { insert, clear } from "./dom.js";
 import {
     createComponentContext,
     setCurrentContext,
     getCurrentContext,
 } from "@terajs/runtime";
 import type { ComponentContext } from "@terajs/runtime";
-import { template, type TemplateFn } from "./template";
+import { template, type TemplateFn } from "./template.js";
 import { Debug } from "@terajs/shared";
 
 // AST to JSX adapter
-import { renderAst } from "./astToJsx";
+import { renderAst } from "./astToJsx.js";
 import type { ASTNode } from "@terajs/renderer";
 
 /**

@@ -10,7 +10,7 @@
  * nested blocks or expressions.
  */
 
-import type { Token } from "./tokenizeScript";
+import type { Token } from "./tokenizeScript.js";
 
 export interface TopLevelScanResult {
   identifiers: string[];

@@ -1,4 +1,4 @@
-﻿import type { TemplateFn } from "./template";
+import type { TemplateFn } from "./template.js";
 import { Debug } from "@terajs/shared";
 
 /**

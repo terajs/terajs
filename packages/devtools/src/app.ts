@@ -1,8 +1,8 @@
-import { buildTimeline, computePerformanceMetrics, replayEventsAtIndex } from "./analytics";
+import { buildTimeline, computePerformanceMetrics, replayEventsAtIndex } from "./analytics.js";
 import { Debug, getDebugListenerCount, subscribeDebug } from "@terajs/shared";
 import { captureStateSnapshot } from "@terajs/adapter-ai";
-import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "./sanity";
-import { buildAIPrompt } from "./aiPrompt";
+import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "./sanity.js";
+import { buildAIPrompt } from "./aiPrompt.js";
 
 export interface DevtoolsEvent {
   type: string;

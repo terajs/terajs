@@ -1,8 +1,8 @@
 import { Debug } from "@terajs/shared";
 import type { ServerContext } from "@terajs/shared";
-import type { RouteDefinition } from "./definition";
-import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta";
-import type { RouteMatch, Router } from "./runtime";
+import type { RouteDefinition } from "./definition.js";
+import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta.js";
+import type { RouteMatch, Router } from "./runtime.js";
 
 const prefetchedRouteMatches = new Map<string, Promise<LoadedRouteMatch<unknown>>>();
 

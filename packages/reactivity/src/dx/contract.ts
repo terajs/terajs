@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file contract.ts
  * @description
  * A contract is a shared reactive object passed explicitly between components.
@@ -6,7 +6,7 @@
  * Contracts define a structured, reactive API shared between parent and child.
  */
 
-import { ref } from "../ref";
+import { ref } from "../ref.js";
 import { Debug } from "@terajs/shared";
 
 /**

@@ -26,9 +26,9 @@
  * - `watchEffect:stop`
  */
 
-import { type ReactiveEffect } from "../deps";
-import { effect } from "../effect";
-import { onEffectCleanup } from "./cleanup";
+import { type ReactiveEffect } from "../deps.js";
+import { effect } from "../effect.js";
+import { onEffectCleanup } from "./cleanup.js";
 import { Debug } from "@terajs/shared";
 
 /**

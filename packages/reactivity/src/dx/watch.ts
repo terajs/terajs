@@ -25,8 +25,8 @@
  * - `watch:stop` - when the watcher is disposed
  */
 
-import { watchEffect } from "./watchEffect";
-import { onEffectCleanup } from "./cleanup";
+import { watchEffect } from "./watchEffect.js";
+import { onEffectCleanup } from "./cleanup.js";
 import { Debug } from "@terajs/shared";
 
 /**

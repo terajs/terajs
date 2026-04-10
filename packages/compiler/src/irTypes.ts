@@ -17,7 +17,7 @@
  * - static optimization passes
  */
 
-import type { MetaConfig, RouteOverride } from "./sfcTypes"
+import type { MetaConfig, RouteOverride } from "./sfcTypes.js"
 
 /**
  * IR flags used for static analysis and optimization.

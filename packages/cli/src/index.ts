@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { build as viteBuild, createServer } from "vite";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scaffoldProject } from "./scaffold.js";
-import terajsPlugin from "@terajs/vite-plugin";
 
 const program = new Command();
 
@@ -35,6 +33,11 @@ program
   .description("Start the development server with Terajs DevTools")
   .option("-p, --port <number>", "port to run on", "3000")
   .action(async (options: { port: string }) => {
+    const [{ createServer }, { default: terajsPlugin }] = await Promise.all([
+      import("vite"),
+      import("@terajs/vite-plugin")
+    ]);
+
     const server = await createServer({
       plugins: [
         terajsPlugin({
@@ -56,6 +59,11 @@ program
     console.log("Building for production...");
 
     try {
+      const [{ build: viteBuild }, { default: terajsPlugin }] = await Promise.all([
+        import("vite"),
+        import("@terajs/vite-plugin")
+      ]);
+
       await viteBuild({
         plugins: [
           terajsPlugin({

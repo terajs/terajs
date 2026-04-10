@@ -16,8 +16,8 @@
  * - Clears the DOM
  */
 
-import { insert, clear } from "./dom";
-import { renderComponent, type FrameworkComponent } from "./render";
+import { insert, clear } from "./dom.js";
+import { renderComponent, type FrameworkComponent } from "./render.js";
 import type { ComponentContext } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 

@@ -11,7 +11,7 @@
 import { dispose, effect, getCurrentEffect, type ReactiveEffect } from "@terajs/reactivity";
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
-import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom";
+import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom.js";
 
 /**
  * A reactive template function.

@@ -1,11 +1,11 @@
 import { effect, getCurrentEffect, signal, type Signal } from "@terajs/reactivity";
 import { Debug } from "@terajs/shared";
-import { onCleanup } from "./component/component";
-import { getCurrentContext } from "./component/context";
-import { consumeHydratedResource } from "./hydration";
-import { registerResourceInvalidation, type ResourceKey } from "./invalidation";
-import { localStorageAdapter } from "./persistence/adapters";
-import type { MutationQueue } from "./queue/mutationQueue";
+import { onCleanup } from "./component/component.js";
+import { getCurrentContext } from "./component/context.js";
+import { consumeHydratedResource } from "./hydration.js";
+import { registerResourceInvalidation, type ResourceKey } from "./invalidation.js";
+import { localStorageAdapter } from "./persistence/adapters.js";
+import type { MutationQueue } from "./queue/mutationQueue.js";
 
 export interface ResourcePayload<T = any> {
   data?: T;

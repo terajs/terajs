@@ -2,11 +2,11 @@ import type { LoadedRouteMatch, RouteHydrationSnapshot, RouteMatch, Router } fro
 import { getRouteDataResourceKeys, loadRouteMatch } from "@terajs/router";
 import { onCleanup, registerResourceInvalidation } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
-import { withErrorBoundary } from "./errorBoundary";
-import { readHydrationPayload } from "./hydrate";
-import { mount, unmount } from "./mount";
-import type { FrameworkComponent } from "./render";
-import { withRouterContext } from "./routerContext";
+import { withErrorBoundary } from "./errorBoundary.js";
+import { readHydrationPayload } from "./hydrate.js";
+import { mount, unmount } from "./mount.js";
+import type { FrameworkComponent } from "./render.js";
+import { withRouterContext } from "./routerContext.js";
 
 export interface RouteRenderContext<TData = unknown> {
   router: Router;

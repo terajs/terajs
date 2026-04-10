@@ -24,7 +24,7 @@ import {
   insert,
   remove,
   addNodeCleanup,
-} from "./dom";
+} from "./dom.js";
 
 import {
   bindText,
@@ -32,11 +32,11 @@ import {
   bindClass,
   bindStyle,
   bindEvent,
-} from "./bindings";
+} from "./bindings.js";
 
 import { dispose, effect } from "@terajs/reactivity";
 import { Debug } from "@terajs/shared";
-import { Portal as WebPortal } from "./portal";
+import { Portal as WebPortal } from "./portal.js";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */

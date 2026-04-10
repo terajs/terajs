@@ -1,4 +1,4 @@
-import type { HydrationMode } from "./hydration";
+import type { HydrationMode } from "./hydration.js";
 
 export interface RouteOverride {
   path?: string;

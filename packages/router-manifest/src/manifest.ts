@@ -1,7 +1,7 @@
 import { Debug } from "@terajs/shared";
 import { parseSFC, type ParsedSFC } from "@terajs/sfc";
 import type { RouteDefinition, RouteLayoutDefinition } from "@terajs/router";
-import { buildRouteFromSFC } from "./builder";
+import { buildRouteFromSFC } from "./builder.js";
 
 export interface RouteConfigInput {
   filePath: string;

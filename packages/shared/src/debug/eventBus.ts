@@ -1,4 +1,4 @@
-import type { DebugEvent } from "./types/events";
+import type { DebugEvent } from "./types/events.js";
 
 /**
  * Simple in-memory pub/sub for debug events.

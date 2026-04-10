@@ -24,7 +24,7 @@
  * ```
  */
 
-import { ref, type Ref } from "./ref";
+import { ref, type Ref } from "./ref.js";
 import { Debug } from "@terajs/shared";
 
 /**

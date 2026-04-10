@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file onCleanup.ts
  * @description
  * Registers cleanup functions for reactive effects.
@@ -9,7 +9,7 @@
  * - when the owning component is disposed
  */
 
-import { getCurrentEffect } from "../deps";
+import { getCurrentEffect } from "../deps.js";
 import { Debug } from "@terajs/shared";
 
 /**

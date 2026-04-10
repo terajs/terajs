@@ -1,6 +1,6 @@
 import type { Router, RouterNavigationState } from "@terajs/router";
-import type { TemplateFn } from "./template";
-import { useNavigationState } from "./routerContext";
+import type { TemplateFn } from "./template.js";
+import { useNavigationState } from "./routerContext.js";
 
 export interface RoutePendingProps {
   router?: Router;

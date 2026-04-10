@@ -1,5 +1,5 @@
 import type { AIStateSnapshot } from "@terajs/adapter-ai";
-import type { SanityAlert, SanityMetrics } from "./sanity";
+import type { SanityAlert, SanityMetrics } from "./sanity.js";
 
 export interface AIPromptEvent {
   type: string;

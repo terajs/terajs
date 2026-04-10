@@ -4,17 +4,17 @@
  * Reactive Graph Manager for Terajs.
  */
 
-import type { ReactiveMetadata } from "../../types/metadata";
-import type { DebugEvent } from "../../types/events";
-import type { DependencyNode } from "../../types/graph";
+import type { ReactiveMetadata } from "../../types/metadata.js";
+import type { DebugEvent } from "../../types/events.js";
+import type { DependencyNode } from "../../types/graph.js";
 
 import {
   getDependencyNode,
   getDependencyGraphSnapshot,
   removeDependencyNode
-} from "../../dependencyGraph";
+} from "../../dependencyGraph.js";
 
-import { subscribeDebug } from "../../eventBus";
+import { subscribeDebug } from "../../eventBus.js";
 
 /**
  * High‑level classification of nodes in the reactive graph.

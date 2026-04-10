@@ -1,10 +1,10 @@
 import { Debug, type ServerContext } from "@terajs/shared";
-import { invalidateResources } from "./invalidation";
+import { invalidateResources } from "./invalidation.js";
 import {
   executeServerFunctionCallWithMetadata,
   type ServerFunctionCall,
   type ServerFunctionTransport
-} from "./server";
+} from "./server.js";
 
 export interface ServerFunctionSuccessResponse<TResult = unknown> {
   ok: true;

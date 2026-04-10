@@ -28,14 +28,14 @@
  * - effects re-running to subscribe to new nested signals
  */
 
-import { signal, type Signal } from "./signal";
+import { signal, type Signal } from "./signal.js";
 import {
   createReactiveMetadata,
   registerReactiveInstance,
   updateReactiveValue,
   Debug
 } from "@terajs/shared";
-import { analyzeReactivity } from "./analyzer";
+import { analyzeReactivity } from "./analyzer.js";
 
 import type { ReactiveMetadata } from "@terajs/shared";
 

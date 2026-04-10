@@ -5,7 +5,7 @@
  */
 
 // Import the graph logic to satisfy the proxy method
-import { addDependency as addGraphEdge } from "./dependencyGraph";
+import { addDependency as addGraphEdge } from "./dependencyGraph.js";
 
 /* -------------------------------------------------------------------------- */
 /*                               Event Taxonomy                               */

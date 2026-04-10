@@ -1,7 +1,7 @@
 import { onCleanup } from "@terajs/runtime";
 
-import { createText, insert, remove } from "./dom";
-import { unwrap } from "./unwrap";
+import { createText, insert, remove } from "./dom.js";
+import { unwrap } from "./unwrap.js";
 
 export type PortalTarget =
     | string

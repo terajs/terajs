@@ -1,4 +1,4 @@
-import type { DependencyNode } from "../types/graph";
+import type { DependencyNode } from "../types/graph.js";
 
 /**
  * In‑memory dependency graph registry.

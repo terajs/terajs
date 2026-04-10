@@ -8,7 +8,7 @@
  * assume DOM or any specific platform.
  */
 
-import type { FrameworkComponent } from "./component";
+import type { FrameworkComponent } from "./component.js";
 
 export interface MountOptions {
   /** Optional props passed to the component. */

@@ -1,4 +1,4 @@
-import { PersistenceAdapter } from "./types";
+import { PersistenceAdapter } from "./types.js";
 
 export const localStorageAdapter: PersistenceAdapter = {
   async getItem(key) {

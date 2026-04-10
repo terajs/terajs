@@ -8,7 +8,7 @@
  */
 
 import { Debug } from "@terajs/shared";
-import type { ComponentContext } from "./component/context";
+import type { ComponentContext } from "./component/context.js";
 
 export interface HMRInstance {
   ctx: ComponentContext;

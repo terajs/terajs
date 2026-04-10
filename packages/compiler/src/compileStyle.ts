@@ -1,12 +1,12 @@
-﻿/**
+/**
  * @file compileStyle.ts
  * @description
  * Compiles the <style> block of a ParsedSFC into final CSS,
  * applying scoped rewriting when needed.
  */
 
-import { rewriteScopedCss } from "./rewriteScopedCss";
-import type { ParsedSFC } from "./sfcTypes";
+import { rewriteScopedCss } from "./rewriteScopedCss.js";
+import type { ParsedSFC } from "./sfcTypes.js";
 
 /**
  * Result of compiling an SFC style block.

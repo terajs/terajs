@@ -9,8 +9,8 @@
  * This is similar to SolidJS batching and Vue's flush mechanism.
  */
 
-import type { ReactiveEffect } from "../deps";
-import { scheduleEffect } from "../effect";
+import type { ReactiveEffect } from "../deps.js";
+import { scheduleEffect } from "../effect.js";
 import { Debug } from "@terajs/shared";
 
 let batchDepth = 0;

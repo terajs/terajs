@@ -9,7 +9,7 @@ import type {
   IRIfNode,
   IRForNode
 } from "@terajs/compiler";
-import type { SSRContext } from "./types";
+import type { SSRContext } from "./types.js";
 import {
   renderHydrationMarker,
   renderHydrationData,
@@ -21,7 +21,7 @@ import {
   renderSlot,
   renderIf,
   renderFor
-} from "./renderToString";
+} from "./renderToString.js";
 
 function isSuspenseElement(node: IRElementNode): boolean {
   return node.tag.toLowerCase() === "suspense";

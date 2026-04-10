@@ -14,9 +14,9 @@ import {
     popEffect,
     type ReactiveEffect,
     currentEffect
-} from "./deps";
-import { isServer } from "./dx/runtime";
-import { shouldBatch, queueEffect } from "./dx/batch";
+} from "./deps.js";
+import { isServer } from "./dx/runtime.js";
+import { shouldBatch, queueEffect } from "./dx/batch.js";
 import {
     Debug,
     createReactiveMetadata,

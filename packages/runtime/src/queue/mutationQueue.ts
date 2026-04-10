@@ -1,5 +1,5 @@
 import { Debug } from "@terajs/shared";
-import type { PersistenceAdapter } from "../persistence/types";
+import type { PersistenceAdapter } from "../persistence/types.js";
 
 export type MutationStatus = "pending" | "failed";
 

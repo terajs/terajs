@@ -3,7 +3,11 @@ import path from "path";
 
 export default defineConfig({
   test: {
-    include: ["packages/**/*.{test,spec}.{ts,tsx,js,jsx}"],
+    include: [
+      "packages/**/*.{test,spec}.ts",
+      "packages/**/*.{test,spec}.js",
+      "packages/adapter-react/**/*.{test,spec}.tsx"
+    ],
     exclude: ["**/dist/**"],
     environment: "jsdom",
     globals: true,

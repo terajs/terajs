@@ -1,8 +1,8 @@
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
 import { Debug, type ComponentBoundaryError } from "@terajs/shared";
 
-import { mount, unmount } from "./mount";
-import type { FrameworkComponent } from "./render";
+import { mount, unmount } from "./mount.js";
+import type { FrameworkComponent } from "./render.js";
 
 export interface ErrorBoundaryFallbackContext {
   error: unknown;
