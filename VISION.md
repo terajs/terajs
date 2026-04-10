@@ -1,5 +1,5 @@
 
-# 🌌 **Terajs Vision — Polished, Coherent, and Ready for Prime Time**
+# **Terajs Vision — Polished, Coherent, and Ready for Prime Time**
 
 Below is a refined version of your two drafts, merged into a single, tight, compelling vision that reads like something you’d put at the top of the Terajs docs or the README.
 
