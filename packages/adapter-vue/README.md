@@ -49,6 +49,28 @@ const dispose = mountTerajs(root, Counter, { initialCount: 1 });
 - `TerajsDirective`: Vue directive that mounts and updates a Terajs component.
 - `mountTerajs`: programmatic mount helper returning a disposer.
 - `TerajsVueBinding`: binding payload shape for directive usage.
+- `useTerajsResource(resource)`: Vue composable bridge for reading Terajs resource state and calling `mutate`/`refetch`.
+- `injectTerajsResource(resource)`: alias of `useTerajsResource` for dependency-injection style naming.
+
+## Auto-Bridge Resource Composable
+
+```ts
+import { useTerajsResource } from "@terajs/adapter-vue";
+import { createResource } from "@terajs/runtime";
+
+const profileResource = createResource(async () => ({ name: "Ada" }));
+
+export default {
+  setup() {
+    const profile = useTerajsResource(profileResource);
+
+    return {
+      profile,
+      refresh: () => profile.refetch()
+    };
+  }
+};
+```
 
 ## Notes
 

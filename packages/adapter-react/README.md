@@ -32,6 +32,31 @@ export function App() {
 - `TerajsWrapper`: React component that mounts and unmounts a Terajs component.
 - `TerajsWrapperProps.component`: Terajs component to render.
 - `TerajsWrapperProps.props`: Optional props forwarded as Terajs signals.
+- `useTerajsResource(resource)`: React hook bridge for reading Terajs resource state and calling `mutate`/`refetch`.
+
+## Auto-Bridge Resource Hook
+
+```tsx
+import { useTerajsResource } from "@terajs/adapter-react";
+import { createResource } from "@terajs/runtime";
+
+const profileResource = createResource(async () => ({ name: "Ada" }));
+
+function ProfileCard() {
+  const profile = useTerajsResource(profileResource);
+
+  if (profile.loading) {
+    return <p>Loading profile...</p>;
+  }
+
+  return (
+    <div>
+      <p>Name: {profile.data?.name}</p>
+      <button onClick={() => profile.refetch()}>Refresh</button>
+    </div>
+  );
+}
+```
 
 ## Notes
 
