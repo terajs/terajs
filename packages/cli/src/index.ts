@@ -27,7 +27,7 @@ program
       JSON.stringify({ files: { associations: { "*.tera": "html" } } }, null, 2)
     );
 
-    console.log(`Project ready. Run 'cd ${name} && tera dev' to start.`);
+    console.log(`Project ready. Run 'cd ${name} && npm install && npm run dev' to start.`);
   });
 
 program

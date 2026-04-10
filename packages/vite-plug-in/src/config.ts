@@ -20,15 +20,34 @@ interface TerajsUserConfig {
   }>;
 }
 
+function resolveConfigPath(cwd: string): string | null {
+  const candidates = [
+    path.resolve(cwd, "terajs.config.cjs"),
+    path.resolve(cwd, "terajs.config.js")
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 function readTerajsConfig(): TerajsUserConfig {
   const cwd = process.cwd();
-  const configPath = path.resolve(cwd, "terajs.config.js");
+  const configPath = resolveConfigPath(cwd);
 
-  if (!fs.existsSync(configPath)) {
+  if (!configPath) {
     return {};
   }
 
-  return (require(configPath) as TerajsUserConfig | undefined) ?? {};
+  try {
+    return (require(configPath) as TerajsUserConfig | undefined) ?? {};
+  } catch {
+    return {};
+  }
 }
 
 export function getTerajsConfig(): TerajsUserConfig {
