@@ -78,6 +78,14 @@ export {
   registerResourceInvalidation
 } from "./invalidation";
 export type { ResourceKey } from "./invalidation";
+export { createSchemaValidator } from "./validation";
+export type {
+  ParseSchema,
+  SafeParseSchema,
+  ValidationIssue,
+  ValidationResult,
+  Validator
+} from "./validation";
 
 // Server functions
 export {

@@ -225,6 +225,95 @@ describe("Form", () => {
 
     unmount(root);
   });
+
+  it("short-circuits submission when validation fails", async () => {
+    const action = vi.fn(async () => "saved");
+    const onValidationError = vi.fn();
+    const root = document.createElement("div");
+
+    mount(() => Form({
+      action,
+      validate: (values) => {
+        const hasTitle = typeof values.title === "string" && values.title.length > 0;
+        if (hasTitle) {
+          return {
+            valid: true,
+            value: values,
+            issues: []
+          };
+        }
+
+        return {
+          valid: false,
+          issues: [
+            {
+              path: "title",
+              message: "Title is required"
+            }
+          ]
+        };
+      },
+      onValidationError,
+      children: [
+        jsx("input", { name: "title", value: "" }),
+        jsx("button", { type: "submit", children: "Save" })
+      ]
+    }), root);
+
+    const form = root.querySelector("form") as HTMLFormElement;
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(action).not.toHaveBeenCalled();
+    expect(onValidationError).toHaveBeenCalledTimes(1);
+    expect(onValidationError).toHaveBeenCalledWith(
+      {
+        valid: false,
+        issues: [
+          {
+            path: "title",
+            message: "Title is required"
+          }
+        ]
+      },
+      expect.objectContaining({
+        values: { title: "" }
+      })
+    );
+
+    unmount(root);
+  });
+
+  it("passes validator-normalized values to action handlers", async () => {
+    const action = vi.fn(async ({ values }) => values.age);
+    const root = document.createElement("div");
+
+    mount(() => Form({
+      action,
+      validate: (values) => ({
+        valid: true,
+        value: {
+          ...values,
+          age: String(values.age).trim()
+        },
+        issues: []
+      }),
+      children: [
+        jsx("input", { name: "age", value: " 42 " }),
+        jsx("button", { type: "submit", children: "Save" })
+      ]
+    }), root);
+
+    const form = root.querySelector("form") as HTMLFormElement;
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(action).toHaveBeenCalledWith(expect.objectContaining({
+      values: { age: "42" }
+    }));
+
+    unmount(root);
+  });
 });
 
 describe("formDataToObject", () => {

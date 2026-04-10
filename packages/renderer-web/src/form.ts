@@ -2,7 +2,10 @@ import {
   createAction,
   type ActionState,
   type MutationQueue,
-  type QueuedActionResult
+  type QueuedActionResult,
+  type ValidationIssue,
+  type ValidationResult,
+  type Validator
 } from "@terajs/runtime";
 import { signal } from "@terajs/reactivity";
 import { jsx } from "./jsx-runtime";
@@ -25,10 +28,12 @@ export interface FormRenderState<TResult = unknown> {
   latest: () => TResult | undefined;
   error: () => unknown;
   state: () => ActionState;
+  validationIssues: () => ValidationIssue[];
 }
 
 export interface FormProps<TResult = unknown> {
   action?: string | ((context: FormSubmitContext<TResult>) => Promise<TResult> | TResult);
+  validate?: Validator<FormValues>;
   queue?: MutationQueue;
   queueType?: string;
   queueMaxRetries?: number;
@@ -38,6 +43,7 @@ export interface FormProps<TResult = unknown> {
   onSubmit?: (event: SubmitEvent) => void;
   onSuccess?: (result: TResult, context: FormSubmitContext<TResult>) => void;
   onError?: (error: unknown, context: FormSubmitContext<TResult>) => void;
+  onValidationError?: (result: ValidationResult<FormValues>, context: FormSubmitContext<TResult>) => void;
   onQueued?: (result: Extract<QueuedActionResult<TResult>, { status: "queued" }>, context: FormSubmitContext<TResult>) => void;
   [key: string]: unknown;
 }
@@ -186,6 +192,7 @@ function normalizeStatusContent(value: any): Node {
 export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
   const {
     action,
+    validate,
     queue,
     queueType,
     queueMaxRetries,
@@ -195,6 +202,7 @@ export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
     onSubmit,
     onSuccess,
     onError,
+    onValidationError,
     onQueued,
     ...rest
   } = props;
@@ -206,13 +214,15 @@ export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
 
     return enhancedAction(context);
   });
+  const validationIssues = signal<ValidationIssue[]>([]);
 
   const renderState: FormRenderState<TResult> = {
     pending: submission.pending,
     data: submission.data,
     latest: submission.latest,
     error: submission.error,
-    state: submission.state
+    state: submission.state,
+    validationIssues
   };
 
   const formNode = jsx("form", {
@@ -234,6 +244,20 @@ export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
       }
 
       const context = createSubmitContext<TResult>(form, (event as SubmitEvent).submitter as HTMLElement | null, rest.method);
+      validationIssues.set([]);
+
+      if (validate) {
+        const validation = await validate(context.values);
+        if (!validation.valid) {
+          validationIssues.set(validation.issues);
+          onValidationError?.(validation, context);
+          return;
+        }
+
+        if (validation.value) {
+          context.values = validation.value;
+        }
+      }
 
       try {
         const outcome = queue
