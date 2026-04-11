@@ -69,4 +69,30 @@ describe("compileScript (dependency‑free analyzer)", () => {
 
     expect(compiled.hasAsyncResource).toBe(true);
   });
+
+  it("does not strip ternary array fallback expressions", () => {
+    const raw = `
+      function loadTasks(stored) {
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain("stored ? JSON.parse(stored) : []");
+    expect(compiled.setupCode).toContain("Array.isArray(parsed) ? parsed : []");
+  });
+
+  it("does not strip numeric ternary fallback expressions", () => {
+    const raw = `
+      function latency(mode) {
+        return mode === "lossy-50" ? 700 : 120;
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain("mode === \"lossy-50\" ? 700 : 120");
+  });
 });

@@ -34,7 +34,9 @@ export function stripTypes(source: string): string {
   code = code.replace(/=\s*<[^>]+>\s*\(/g, "= (");
 
   // Remove type annotations on variables and params: foo: Type
-  code = code.replace(/:\s*[\w\[\]\<\>\|&\s,]+(?=[=;),{])/g, "")
+  // Keep this matcher single-line and type-identifier led to avoid
+  // stripping ternary branches like `cond ? value : []`.
+  code = code.replace(/:\s*[A-Za-z_$][\w$<>,\[\]|& \t]*(?=[=;),{])/g, "");
 
   return code;
 }

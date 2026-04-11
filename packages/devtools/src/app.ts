@@ -1,4 +1,4 @@
-import { buildTimeline, computePerformanceMetrics, replayEventsAtIndex } from "./analytics.js";
+import { buildTimeline, computePerformanceMetrics, computeRouterMetrics, replayEventsAtIndex } from "./analytics.js";
 import { Debug, getDebugListenerCount, subscribeDebug } from "@terajs/shared";
 import { captureStateSnapshot } from "@terajs/adapter-ai";
 import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "./sanity.js";
@@ -55,6 +55,7 @@ type TabName =
   | "Issues"
   | "Logs"
   | "Timeline"
+  | "Router"
   | "Queue"
   | "Performance"
   | "Sanity Check"
@@ -65,7 +66,7 @@ interface DevtoolsState {
   events: DevtoolsEvent[];
   eventCount: number;
   selectedMetaKey: string | null;
-  logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub";
+  logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
   timelineCursor: number;
   theme: "dark" | "light";
   aiPrompt: string | null;
@@ -83,6 +84,7 @@ const TABS: TabName[] = [
   "Issues",
   "Logs",
   "Timeline",
+  "Router",
   "Queue",
   "Performance",
   "Sanity Check",
@@ -353,6 +355,8 @@ function renderPanel(state: DevtoolsState): string {
       return renderLogsPanel(state);
     case "Timeline":
       return renderTimelinePanel(state);
+    case "Router":
+      return renderRouterPanel(state.events);
     case "Queue":
       return renderQueuePanel(state.events);
     case "Performance":
@@ -505,7 +509,7 @@ function renderLogsPanel(state: DevtoolsState): string {
       <div class="panel-title is-blue">Event Logs</div>
       <div class="panel-subtitle">Total events: ${state.events.length}</div>
       <div class="button-row">
-        ${(["all", "component", "signal", "effect", "error", "hub"] as const).map((filter) => `
+        ${(["all", "component", "signal", "effect", "error", "hub", "route"] as const).map((filter) => `
           <button class="filter-button ${state.logFilter === filter ? "is-active" : ""}" data-log-filter="${filter}">${filter}</button>
         `).join("")}
       </div>
@@ -542,6 +546,84 @@ function renderTimelinePanel(state: DevtoolsState): string {
         <ul class="stack-list log-list">
           ${timeline.map((entry, index) => `
             <li class="stack-item ${index <= cursor ? "timeline-active" : "timeline-inactive"}">
+              <span class="item-label">[${escapeHtml(entry.type)}]</span>
+              <span>${escapeHtml(entry.summary)}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `}
+    </div>
+  `;
+}
+
+function renderRouterPanel(events: DevtoolsEvent[]): string {
+  const metrics = computeRouterMetrics(events, 30000);
+  const snapshot = collectRouteSnapshot(events);
+  const timeline = collectRouteTimeline(events).slice(-80).reverse();
+  const issues = collectRouteIssues(events).slice(-30).reverse();
+
+  return `
+    <div>
+      <div class="panel-title is-cyan">Router Diagnostics</div>
+      <div class="panel-subtitle">Current route: ${escapeHtml(snapshot.currentRoute ?? "unknown")}</div>
+      <div class="metrics-grid">
+        ${renderMetricCard("Route Events (30s)", String(metrics.totalRouteEvents))}
+        ${renderMetricCard("Navigate Start", String(metrics.navigationStarts))}
+        ${renderMetricCard("Navigate End", String(metrics.navigationEnds))}
+        ${renderMetricCard("Route Changed", String(metrics.routeChanges))}
+        ${renderMetricCard("Pending", String(metrics.pendingNavigations))}
+        ${renderMetricCard("Redirects", String(metrics.redirects))}
+        ${renderMetricCard("Blocked", String(metrics.blocked))}
+        ${renderMetricCard("Warnings", String(metrics.warnings))}
+        ${renderMetricCard("Router Errors", String(metrics.errors))}
+        ${renderMetricCard("Load Start", String(metrics.loadStarts))}
+        ${renderMetricCard("Load End", String(metrics.loadEnds))}
+        ${renderMetricCard("Avg Load", `${metrics.avgLoadMs}ms`)}
+        ${renderMetricCard("Max Load", `${metrics.maxLoadMs}ms`)}
+      </div>
+      <div class="detail-card">
+        <div><span class="accent-text is-cyan">Current:</span> ${escapeHtml(snapshot.currentRoute ?? "unknown")}</div>
+        <div><span class="accent-text is-cyan">Last Event:</span> ${escapeHtml(snapshot.lastEventType ?? "none")}</div>
+        <div><span class="accent-text is-cyan">Last Source:</span> ${escapeHtml(snapshot.source ?? "unknown")}</div>
+        <div><span class="accent-text is-cyan">Last From:</span> ${escapeHtml(snapshot.from ?? "null")}</div>
+        <div><span class="accent-text is-cyan">Last To:</span> ${escapeHtml(snapshot.to ?? "null")}</div>
+        <div><span class="accent-text is-cyan">Params:</span> ${escapeHtml(shortJson(snapshot.params ?? {}))}</div>
+        <div><span class="accent-text is-cyan">Query:</span> ${escapeHtml(shortJson(snapshot.query ?? {}))}</div>
+        <div><span class="accent-text is-cyan">Guard Context:</span> ${escapeHtml(snapshot.guardContext ?? "none")}</div>
+        <div><span class="accent-text is-cyan">Phase:</span> ${escapeHtml(snapshot.phase ?? "unknown")}</div>
+      </div>
+      <div class="panel-subtitle">Route activity by target</div>
+      ${metrics.byRoute.length === 0 ? `<div class="empty-state">No route activity in the current window.</div>` : `
+        <ul class="stack-list log-list">
+          ${metrics.byRoute.slice(0, 12).map((entry) => `
+            <li class="stack-item performance-item">
+              <span class="accent-text is-cyan">${escapeHtml(entry.route)}</span>
+              <span class="muted-text">hits=${entry.hits}</span>
+              <span class="muted-text">blocked=${entry.blocked}</span>
+              <span class="muted-text">redirects=${entry.redirects}</span>
+              <span class="muted-text">errors=${entry.errors}</span>
+              <span class="muted-text">avg=${entry.avgLoadMs}ms</span>
+              <span class="muted-text">max=${entry.maxLoadMs}ms</span>
+            </li>
+          `).join("")}
+        </ul>
+      `}
+      <div class="panel-subtitle">Route issues</div>
+      ${issues.length === 0 ? `<div class="empty-state">No router warnings or errors.</div>` : `
+        <ul class="stack-list">
+          ${issues.map((issue) => `
+            <li class="stack-item ${issue.type === "error:router" || issue.type === "route:blocked" ? "issue-error" : "issue-warn"}">
+              <span class="item-label">[${escapeHtml(issue.type)}]</span>
+              <span>${escapeHtml(issue.summary)}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `}
+      <div class="panel-subtitle">Recent route timeline</div>
+      ${timeline.length === 0 ? `<div class="empty-state">No route events captured yet.</div>` : `
+        <ul class="stack-list log-list">
+          ${timeline.map((entry) => `
+            <li class="stack-item">
               <span class="item-label">[${escapeHtml(entry.type)}]</span>
               <span>${escapeHtml(entry.summary)}</span>
             </li>
@@ -822,6 +904,101 @@ function collectMetaEntries(events: DevtoolsEvent[]) {
   return Array.from(metaMap.values());
 }
 
+function collectRouteSnapshot(events: DevtoolsEvent[]) {
+  let currentRoute: string | null = null;
+  let from: string | null = null;
+  let to: string | null = null;
+  let source: string | null = null;
+  let params: unknown = undefined;
+  let query: unknown = undefined;
+  let guardContext: string | null = null;
+  let phase: string | null = null;
+  let lastEventType: string | null = null;
+
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (!(event.type.startsWith("route:") || event.type === "error:router")) {
+      continue;
+    }
+
+    const payload = event.payload ?? {};
+
+    if (!lastEventType) {
+      lastEventType = event.type;
+    }
+
+    if (!to) {
+      to = readString(payload, "to") ?? readString(payload, "route") ?? null;
+    }
+
+    if (!from) {
+      from = readString(payload, "from") ?? null;
+    }
+
+    if (!source) {
+      source = readString(payload, "source") ?? null;
+    }
+
+    if (params === undefined) {
+      params = readUnknown(payload, "params");
+    }
+
+    if (query === undefined) {
+      query = readUnknown(payload, "query");
+    }
+
+    if (!phase) {
+      phase = readString(payload, "phase") ?? null;
+    }
+
+    if (!guardContext) {
+      const guardName = readString(payload, "guardName");
+      if (guardName) {
+        guardContext = guardName;
+      } else {
+        const middleware = readUnknown(payload, "middleware");
+        if (Array.isArray(middleware)) {
+          guardContext = middleware.map((value) => safeString(value)).join(", ");
+        }
+      }
+    }
+
+    if (!currentRoute && event.type === "route:changed") {
+      currentRoute = readString(payload, "to") ?? null;
+    }
+  }
+
+  return {
+    currentRoute,
+    from,
+    to,
+    source,
+    params,
+    query,
+    guardContext,
+    phase,
+    lastEventType
+  };
+}
+
+function collectRouteIssues(events: DevtoolsEvent[]) {
+  return events
+    .filter((event) => event.type === "error:router" || event.type === "route:warn" || event.type === "route:blocked")
+    .map((event) => ({
+      type: event.type,
+      summary: routeEventSummary(event)
+    }));
+}
+
+function collectRouteTimeline(events: DevtoolsEvent[]) {
+  return events
+    .filter((event) => event.type.startsWith("route:") || event.type === "error:router")
+    .map((event) => ({
+      type: event.type,
+      summary: routeEventSummary(event)
+    }));
+}
+
 function summarizeLog(event: DevtoolsEvent): string {
   const payload = event.payload ?? {};
   const scope = readString(payload, "scope") ?? readString(payload, "name");
@@ -854,6 +1031,37 @@ function queueEventSummary(event: DevtoolsEvent): string {
     attempts !== undefined ? `attempts=${attempts}` : undefined,
     pending !== undefined ? `pending=${pending}` : undefined
   ].filter((part): part is string => typeof part === "string");
+
+  return parts.length > 0 ? parts.join(" ") : shortJson(payload);
+}
+
+function routeEventSummary(event: DevtoolsEvent): string {
+  const payload = event.payload ?? {};
+  const from = readString(payload, "from");
+  const to = readString(payload, "to") ?? readString(payload, "route");
+  const source = readString(payload, "source");
+  const message = readString(payload, "message");
+  const redirectTo = readString(payload, "redirectTo");
+  const phase = readString(payload, "phase");
+  const guardName = readString(payload, "guardName");
+  const durationMs = readNumber(payload, "durationMs");
+
+  const middleware = readUnknown(payload, "middleware");
+  const middlewareSummary = Array.isArray(middleware)
+    ? middleware.map((item) => safeString(item)).join(",")
+    : undefined;
+
+  const parts = [
+    from !== undefined ? `from=${from ?? "null"}` : undefined,
+    to ? `to=${to}` : undefined,
+    source ? `source=${source}` : undefined,
+    redirectTo ? `redirect=${redirectTo}` : undefined,
+    guardName ? `guard=${guardName}` : undefined,
+    middlewareSummary ? `middleware=${middlewareSummary}` : undefined,
+    phase ? `phase=${phase}` : undefined,
+    durationMs !== undefined ? `duration=${durationMs}ms` : undefined,
+    message ? `message=${message}` : undefined
+  ].filter((part): part is string => typeof part === "string" && part.length > 0);
 
   return parts.length > 0 ? parts.join(" ") : shortJson(payload);
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTimeline,
+  computeRouterMetrics,
   computePerformanceMetrics,
   replayEventsAtIndex,
   summarizeEvent,
@@ -124,5 +125,38 @@ describe("devtools analytics", () => {
     expect(metrics.queueDepthEstimate).toBe(0);
     expect(metrics.byType).toEqual([]);
     expect(metrics.hotTypes).toEqual([]);
+  });
+
+  it("computes router metrics and route-level summaries", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "route:navigate:start", timestamp: 1000, payload: { to: "/" } },
+      { type: "route:load:start", timestamp: 1020, payload: { to: "/", route: "/" } },
+      { type: "route:load:end", timestamp: 1080, payload: { to: "/", route: "/" } },
+      { type: "route:changed", timestamp: 1100, payload: { from: null, to: "/" } },
+      { type: "route:navigate:end", timestamp: 1110, payload: { to: "/" } },
+      { type: "route:navigate:start", timestamp: 1200, payload: { to: "/rc" } },
+      { type: "route:blocked", timestamp: 1220, payload: { to: "/rc", middleware: ["auth"] } },
+      { type: "route:warn", timestamp: 1230, payload: { message: "Navigation blocked" } },
+      { type: "error:router", timestamp: 1240, payload: { message: "Route render failed", to: "/rc" } }
+    ];
+
+    const metrics = computeRouterMetrics(events, 5000);
+
+    expect(metrics.totalRouteEvents).toBe(9);
+    expect(metrics.navigationStarts).toBe(2);
+    expect(metrics.navigationEnds).toBe(1);
+    expect(metrics.routeChanges).toBe(1);
+    expect(metrics.blocked).toBe(1);
+    expect(metrics.redirects).toBe(0);
+    expect(metrics.errors).toBe(1);
+    expect(metrics.warnings).toBe(1);
+    expect(metrics.loadStarts).toBe(1);
+    expect(metrics.loadEnds).toBe(1);
+    expect(metrics.currentRoute).toBe("/");
+    expect(metrics.avgLoadMs).toBe(60);
+    expect(metrics.maxLoadMs).toBe(60);
+    expect(metrics.byRoute.find((entry) => entry.route === "/")?.hits).toBe(1);
+    expect(metrics.byRoute.find((entry) => entry.route === "/rc")?.blocked).toBe(1);
+    expect(metrics.byRoute.find((entry) => entry.route === "/rc")?.errors).toBe(1);
   });
 });

@@ -37,6 +37,35 @@ export interface PerformanceMetrics {
   byType: PerformanceTypeMetric[];
 }
 
+export interface RouterRouteMetric {
+  route: string;
+  hits: number;
+  blocked: number;
+  redirects: number;
+  errors: number;
+  avgLoadMs: number;
+  maxLoadMs: number;
+}
+
+export interface RouterMetrics {
+  totalRouteEvents: number;
+  navigationStarts: number;
+  navigationEnds: number;
+  routeChanges: number;
+  redirects: number;
+  blocked: number;
+  warnings: number;
+  errors: number;
+  loadStarts: number;
+  loadEnds: number;
+  pendingNavigations: number;
+  avgLoadMs: number;
+  maxLoadMs: number;
+  currentRoute: string | null;
+  mostActiveRoute: string | null;
+  byRoute: RouterRouteMetric[];
+}
+
 function safeString(value: unknown): string {
   if (value === undefined) return "undefined";
   if (value === null) return "null";
@@ -188,5 +217,237 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
     queueDepthEstimate,
     hotTypes,
     byType,
+  };
+}
+
+export function computeRouterMetrics(events: DevtoolsEventLike[], windowMs = 30000): RouterMetrics {
+  const latestTimestamp = events.length > 0 ? events[events.length - 1].timestamp : Date.now();
+  const windowStart = latestTimestamp - windowMs;
+  const windowed = events.filter((event) => {
+    if (event.timestamp < windowStart) {
+      return false;
+    }
+
+    return event.type.startsWith("route:") || event.type === "error:router";
+  });
+
+  if (windowed.length === 0) {
+    return {
+      totalRouteEvents: 0,
+      navigationStarts: 0,
+      navigationEnds: 0,
+      routeChanges: 0,
+      redirects: 0,
+      blocked: 0,
+      warnings: 0,
+      errors: 0,
+      loadStarts: 0,
+      loadEnds: 0,
+      pendingNavigations: 0,
+      avgLoadMs: 0,
+      maxLoadMs: 0,
+      currentRoute: null,
+      mostActiveRoute: null,
+      byRoute: []
+    };
+  }
+
+  let navigationStarts = 0;
+  let navigationEnds = 0;
+  let routeChanges = 0;
+  let redirects = 0;
+  let blocked = 0;
+  let warnings = 0;
+  let errors = 0;
+  let loadStarts = 0;
+  let loadEnds = 0;
+
+  let currentRoute: string | null = null;
+  const pendingTargets = new Set<string>();
+  const loadStartByRoute = new Map<string, number>();
+  const loadDurations: number[] = [];
+
+  type RouteAccumulator = {
+    route: string;
+    hits: number;
+    blocked: number;
+    redirects: number;
+    errors: number;
+    loadDurations: number[];
+  };
+
+  const routeMap = new Map<string, RouteAccumulator>();
+
+  const ensureRoute = (route: string): RouteAccumulator => {
+    const existing = routeMap.get(route);
+    if (existing) {
+      return existing;
+    }
+
+    const created: RouteAccumulator = {
+      route,
+      hits: 0,
+      blocked: 0,
+      redirects: 0,
+      errors: 0,
+      loadDurations: []
+    };
+
+    routeMap.set(route, created);
+    return created;
+  };
+
+  for (const event of windowed) {
+    const payload = event.payload && typeof event.payload === "object"
+      ? event.payload as Record<string, unknown>
+      : {};
+
+    const to = typeof payload.to === "string"
+      ? payload.to
+      : typeof payload.route === "string"
+      ? payload.route
+      : null;
+
+    if (event.type === "route:navigate:start") {
+      navigationStarts += 1;
+      if (to) {
+        pendingTargets.add(to);
+      }
+      continue;
+    }
+
+    if (event.type === "route:navigate:end") {
+      navigationEnds += 1;
+      if (to) {
+        pendingTargets.delete(to);
+      }
+      continue;
+    }
+
+    if (event.type === "route:changed") {
+      routeChanges += 1;
+      if (to) {
+        currentRoute = to;
+        ensureRoute(to).hits += 1;
+        pendingTargets.delete(to);
+      }
+      continue;
+    }
+
+    if (event.type === "route:redirect") {
+      redirects += 1;
+      if (to) {
+        ensureRoute(to).redirects += 1;
+        pendingTargets.delete(to);
+      }
+      continue;
+    }
+
+    if (event.type === "route:blocked") {
+      blocked += 1;
+      if (to) {
+        ensureRoute(to).blocked += 1;
+        pendingTargets.delete(to);
+      }
+      continue;
+    }
+
+    if (event.type === "route:warn") {
+      warnings += 1;
+      continue;
+    }
+
+    if (event.type === "route:load:start") {
+      loadStarts += 1;
+      if (to) {
+        loadStartByRoute.set(to, event.timestamp);
+      }
+      continue;
+    }
+
+    if (event.type === "route:load:end") {
+      loadEnds += 1;
+
+      const explicitDuration = payload.durationMs;
+      let durationMs: number | undefined;
+      if (typeof explicitDuration === "number" && Number.isFinite(explicitDuration)) {
+        durationMs = Math.max(0, explicitDuration);
+      } else if (to && loadStartByRoute.has(to)) {
+        durationMs = Math.max(0, event.timestamp - (loadStartByRoute.get(to) ?? event.timestamp));
+      }
+
+      if (typeof durationMs === "number") {
+        loadDurations.push(durationMs);
+        if (to) {
+          ensureRoute(to).loadDurations.push(durationMs);
+        }
+      }
+
+      if (to) {
+        loadStartByRoute.delete(to);
+      }
+      continue;
+    }
+
+    if (event.type === "error:router") {
+      errors += 1;
+      if (to) {
+        ensureRoute(to).errors += 1;
+        pendingTargets.delete(to);
+      }
+    }
+  }
+
+  const averageLoadMs = loadDurations.length > 0
+    ? Number((loadDurations.reduce((total, value) => total + value, 0) / loadDurations.length).toFixed(2))
+    : 0;
+  const maxLoadMs = loadDurations.length > 0
+    ? Number(Math.max(...loadDurations).toFixed(2))
+    : 0;
+
+  const byRoute: RouterRouteMetric[] = Array.from(routeMap.values())
+    .map((entry) => {
+      const routeAverage = entry.loadDurations.length > 0
+        ? Number((entry.loadDurations.reduce((total, value) => total + value, 0) / entry.loadDurations.length).toFixed(2))
+        : 0;
+      const routeMax = entry.loadDurations.length > 0
+        ? Number(Math.max(...entry.loadDurations).toFixed(2))
+        : 0;
+
+      return {
+        route: entry.route,
+        hits: entry.hits,
+        blocked: entry.blocked,
+        redirects: entry.redirects,
+        errors: entry.errors,
+        avgLoadMs: routeAverage,
+        maxLoadMs: routeMax
+      };
+    })
+    .sort((left, right) => {
+      const leftScore = left.hits + left.blocked + left.redirects + left.errors;
+      const rightScore = right.hits + right.blocked + right.redirects + right.errors;
+      return rightScore - leftScore;
+    });
+
+  const mostActiveRoute = byRoute.length > 0 ? byRoute[0].route : null;
+
+  return {
+    totalRouteEvents: windowed.length,
+    navigationStarts,
+    navigationEnds,
+    routeChanges,
+    redirects,
+    blocked,
+    warnings,
+    errors,
+    loadStarts,
+    loadEnds,
+    pendingNavigations: pendingTargets.size,
+    avgLoadMs: averageLoadMs,
+    maxLoadMs,
+    currentRoute,
+    mostActiveRoute,
+    byRoute
   };
 }
