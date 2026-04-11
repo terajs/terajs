@@ -1,356 +1,222 @@
-```md
-# Nebula API Reference
+# Terajs API Reference
 
-This document describes the full public API of **Nebula Core** — the reactivity system, component model, lifecycle utilities, and DOM‑agnostic primitives that power Nebula’s rendering engine and Nebula Kit.
+This reference describes the **current public surface** used by web-first Terajs apps.
 
-Nebula’s API is intentionally small, predictable, and stable.
-
----
-
-# 1. Reactivity API
-
-Nebula uses fine‑grained, explicit dependency tracking. Signals are the foundation of all reactive behavior.
+Release scope reflected here:
+- `@terajs/reactivity`
+- `@terajs/runtime`
+- `@terajs/renderer-web`
+- `@terajs/router`
+- `@terajs/renderer-ssr`
 
 ---
 
-## 1.1 `state(initialValue)`
+# 1. Reactivity (`@terajs/reactivity`)
 
-Creates a reactive signal.
+## 1.1 `signal(initialValue)`
+
+Creates a callable signal accessor with mutation helpers.
+
+```ts
+const count = signal(0);
+count();           // 0
+count.set(1);      // update
+count.update((n) => n + 1);
+```
+
+## 1.2 `state(initialValue)`
+
+Creates a state container with explicit `get()` / `set()`.
 
 ```ts
 const count = state(0);
-count.get();     // 0
-count.set(1);    // triggers updates
+count.get();
+count.set(1);
 ```
 
-### Returns:
-- `{ get(): T; set(value: T): void }`
+## 1.3 `computed(fn)`
 
-### Notes:
-- Signals are shallow  
-- Use nested signals for nested state  
-- SSR‑safe  
-
----
-
-## 1.2 `computed(fn)`
-
-Creates a derived reactive value.
+Creates a lazy, memoized derived value.
 
 ```ts
-const double = computed(() => count.get() * 2);
-double.get(); // auto‑tracks dependencies
+const doubled = computed(() => count.get() * 2);
+doubled.get();
 ```
 
-### Features:
-- memoized  
-- lazy  
-- recalculates only when dependencies change  
+## 1.4 `effect(fn)`
 
----
-
-## 1.3 `effect(fn)`
-
-Runs a function whenever its dependencies change.
+Runs `fn` reactively and returns a `ReactiveEffect` handle.
 
 ```ts
-effect(() => {
-  console.log(count.get());
+const stopTarget = effect(() => {
+  console.log(count());
 });
 ```
 
-### Notes:
-- runs once on mount  
-- tracks dependencies automatically  
-- does **not** run on the server  
+## 1.5 Effect utilities
+
+- `onEffectCleanup(fn)` registers cleanup for the current running effect.
+- `dispose(effectHandle)` disposes a reactive effect.
+- `watch(source, callback)` and `watchEffect(fn)` are available from the DX layer.
+
+## 1.6 Other exports
+
+- `ref(...)`
+- `reactive(...)`
+- `model(...)`
+- `memo(...)`, `markStatic(...)`, `shallowRef(...)`
+- `isServer()`, `setRuntimeMode(...)`
 
 ---
 
-## 1.4 `onCleanup(fn)`
+# 2. Runtime (`@terajs/runtime`)
 
-Registers cleanup logic for an effect.
+## 2.1 Component wrapper
+
+Use `component(options, setup)` to define Terajs components.
 
 ```ts
-effect(() => {
-  const id = setInterval(...);
-  onCleanup(() => clearInterval(id));
+const App = component({ name: "App" }, () => () => {
+  return document.createTextNode("hello");
 });
 ```
 
----
+## 2.2 Component cleanup
 
-# 2. Component API
+`onCleanup(fn)` registers disposers owned by the active component/effect context.
 
-Nebula components are simple functions that return a template function.
+## 2.3 Lifecycle hooks
 
----
+Current lifecycle hook names:
+- `onMounted(fn)`
+- `onUpdated(fn)`
+- `onUnmounted(fn)`
 
-## 2.1 Component Signature
+## 2.4 Context / dependency injection
 
-```ts
-export function Component(props) {
-  // logic
-  return () => (
-    <div>...</div>
-  );
-}
-```
+Current context APIs are low-level and explicit:
+- `provide(key, value)`
+- `inject(key, fallback?)`
 
-### Rules:
-- component runs once  
-- template runs reactively  
-- props are immutable  
-- SSR‑safe  
+There is no `<Context.Provider>` component API in the runtime package today.
 
----
+## 2.5 Hydration resource helpers
 
-## 2.2 `lazy(importFn)`
+- `setHydrationState(...)`
+- `getHydratedResource(key)`
+- `consumeHydratedResource(key)`
+- `scheduleHydration(mode, mount, element)`
 
-Loads a component asynchronously.
+## 2.6 Server function APIs
 
-```ts
-const User = lazy(() => import("./User"));
-```
+Runtime exports include:
+- `server(...)`
+- `executeServerFunction(...)`
+- `createFetchServerFunctionTransport(...)`
+- `createServerFunctionRequestHandler(...)`
 
-### Features:
-- SSR‑friendly  
-- no Suspense boundaries  
-- hydrates normally  
+Use these for app-owned server boundaries, not as a replacement for your external API contracts.
 
----
+## 2.7 Local-first foundation APIs
 
-## 2.3 `isServer()`
+- `createMutationQueue(options?)`
+- `createMutationQueueStorage(adapter, key?)`
+- `defaultMutationRetryPolicy`
+- `MutationConflictResolver` hooks (`replace`, `ignore`, `merge` decisions)
+- `createAction(...).runQueued(queueOptions, ...args)`
+- `createResource(...).mutate(value, { queue, serverCall, ... })`
 
-Returns `true` during SSR.
-
-```ts
-if (isServer()) {
-  // skip client-only logic
-}
-```
+These APIs provide queue contracts, retry hooks, and persistence-friendly mutation flows. Advanced conflict resolution remains a planned extension.
 
 ---
 
-# 3. Lifecycle API
+# 3. Web Renderer (`@terajs/renderer-web`)
 
-Nebula provides minimal lifecycle utilities.
+## 3.1 Mounting
 
----
+- `mount(component, root, props?)`
+- `unmount(root)`
 
-## 3.1 `onMount(fn)`
+## 3.2 Hydration
 
-Runs when the component is mounted.
+- `hydrateRoot(component, root, props?)`
+- `readHydrationPayload()`
 
-```ts
-onMount(() => {
-  console.log("mounted");
-});
-```
+Hydration uses in-place reconciliation when SSR DOM shape matches and falls back to replacement when it does not.
 
----
+## 3.3 JSX / template primitives
 
-## 3.2 `onUnmount(fn)`
+- JSX runtime exports (`jsx`, `jsxs`, `Fragment`)
+- control-flow exports (`Switch`, `Match`, `Show`, `For`)
+- `Portal(...)`
 
-Runs when the component is removed.
+## 3.4 Router-aware web primitives
 
-```ts
-onUnmount(() => {
-  console.log("unmounted");
-});
-```
+- `createRouteView(router, options?)`
+- `Link(props)`
 
----
+## 3.5 Forms
 
-# 4. Context API
-
-Nebula supports dependency injection via context.
+- `Form(props)`
+- `SubmitButton(props)`
+- `FormStatus(props)`
 
 ---
 
-## 4.1 `createContext(defaultValue?)`
+# 4. Router (`@terajs/router`)
 
-Creates a context object.
+## 4.1 Core router APIs
 
-```ts
-const ThemeContext = createContext("light");
-```
+- `createRouter(routes, options?)`
+- `createMemoryHistory(initialPath?)`
+- `createBrowserHistory(window?)`
+- `matchRoute(routes, target)`
 
----
+## 4.2 Loading and prefetch
 
-## 4.2 `useContext(Context)`
+- `loadRouteMatch(match, options?)`
+- `prefetchRouteMatch(match)`
+- `prefetchRoute(router, target)`
+- `clearPrefetchedRouteMatches()`
 
-Reads a context value.
+## 4.3 Route metadata
 
-```ts
-const theme = useContext(ThemeContext);
-```
-
----
-
-## 4.3 `<Context.Provider value={...}>`
-
-Provides a context value to children.
-
-```tsx
-<ThemeContext.Provider value="dark">
-  <App />
-</ThemeContext.Provider>
-```
+- `resolveLoadedRouteMetadata(...)`
+- `updateHead(meta, ai)`
 
 ---
 
-# 5. Portal API
+# 5. SSR (`@terajs/renderer-ssr`)
 
-Nebula supports teleporting content outside the normal hierarchy.
+## 5.1 String rendering
 
----
+- `renderToString(component, options?)`
 
-## 5.1 `<Portal to="target">`
+## 5.2 Streaming rendering
 
-```tsx
-<Portal to="body">
-  <Modal />
-</Portal>
-```
+- `renderToStream(component, options?)`
 
-### Behavior:
-- DOM → mounts into a DOM node  
-- Native → mounts into overlay layer  
-- Canvas → draws in higher z‑index layer  
-- Server → renders inline  
+## 5.3 Route execution helpers
+
+- `executeServerRoute(routeModule, options?)`
 
 ---
 
-# 6. Slot API
+# 6. Notes on Stable vs Deferred
 
-Nebula supports default, named, and scoped slots.
+This API reference intentionally describes shipped web-first APIs.
 
----
-
-## 6.1 Default Slot
-
-```tsx
-export function Card(props) {
-  return () => <div>{props.children?.()}</div>;
-}
-```
+Deferred/non-goal for this release cycle:
+- native renderer implementation details
+- transitions/animation framework
+- expanded app-framework layer guarantees beyond current exports
 
 ---
 
-## 6.2 Named Slots
+# 7. Philosophy Summary
 
-```tsx
-<Modal
-  header={() => <h1>Title</h1>}
-  footer={() => <button>Close</button>}
->
-  Body content
-</Modal>
-```
-
----
-
-## 6.3 Scoped Slots
-
-```tsx
-<List items={users} item={user => <UserCard user={user} />} />
-```
-
----
-
-# 7. Renderer API (Low‑Level)
-
-Renderers implement the following interface:
-
-```ts
-interface Renderer {
-  createElement(type: string): Node;
-  createText(value: string): Node;
-  createFragment(): Node;
-  insert(parent: Node, child: Node, anchor?: Node): void;
-  remove(node: Node): void;
-  setText(node: Node, value: string): void;
-  setProp(node: Node, name: string, value: any): void;
-  addEvent(node: Node, name: string, handler: Function): void;
-  removeEvent(node: Node, name: string): void;
-}
-```
-
-Nebula Core is renderer‑agnostic.
-
----
-
-# 8. SSR API
-
-Nebula supports deterministic SSR.
-
----
-
-## 8.1 `renderToString(component)`
-
-Renders a component to an HTML string.
-
----
-
-## 8.2 `renderToStream(component)`
-
-Streams HTML chunks.
-
----
-
-## 8.3 Hydration Markers
-
-Nebula automatically inserts hydration markers for:
-
-- signals  
-- components  
-- portals  
-- async boundaries  
-
----
-
-# 9. Utility API
-
-Nebula includes small utilities.
-
----
-
-## 9.1 `mergeProps(a, b)`
-
-Merges props objects.
-
----
-
-## 9.2 `classList(obj)`
-
-Converts an object to a class string.
-
-```ts
-classList({ active: isActive.get(), disabled: isDisabled.get() });
-```
-
----
-
-## 9.3 `styleMap(obj)`
-
-Converts an object to inline styles.
-
----
-
-# 10. Philosophy Summary
-
-Nebula’s API is:
-
-- small  
-- predictable  
-- stable  
-- platform‑agnostic  
-- SSR‑safe  
-- fine‑grained  
-- easy to learn  
-
-Nebula Core stays minimal.  
-Nebula Kit adds structure.  
-Renderers handle output.
-
-```
+Terajs keeps the runtime small and explicit:
+- fine-grained reactivity
+- deterministic updates
+- direct rendering paths
+- modular packages with clear boundaries

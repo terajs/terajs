@@ -1,7 +1,7 @@
 /**
  * @file templateFn.ts
  * @description
- * Platform-agnostic template function contract for Nebula.
+ * Platform-agnostic template function contract for Terajs.
  *
  * A TemplateFn is a renderer-neutral function that produces a
  * platform-specific UI node. Renderers decide what “node” means:

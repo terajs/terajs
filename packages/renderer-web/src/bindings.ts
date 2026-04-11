@@ -1,17 +1,17 @@
 /**
  * @file bindings.ts
  * @description
- * Fine‑grained DOM bindings for Nebula’s reactive renderer.
+ * Fine-grained DOM bindings for Terajs's reactive renderer.
  *
  * These helpers connect reactive expressions (signals, memos, accessors)
  * to DOM updates. Each binding registers a reactive effect that updates
- * only the affected DOM node — no virtual DOM, no diffing.
+ * only the affected DOM node - no virtual DOM, no diffing.
  *
  * This is the same model used by SolidJS and Vue Vapor Mode.
  */
 
-import { effect } from "@nebula/reactivity";
-import { unwrap } from "./unwrap";
+import { effect } from "@terajs/reactivity";
+import { unwrap } from "./unwrap.js";
 import {
     setText,
     setProp,
@@ -19,8 +19,8 @@ import {
     setClass,
     addEvent,
     removeEvent,
-} from "./dom";
-import { Debug } from "@nebula/shared";
+} from "./dom.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * Bind a reactive expression to a Text node.
@@ -55,7 +55,7 @@ export function bindText(node: Text, compute: () => any): void {
  * @param compute - A function returning the latest value.
  */
 export function bindProp(
-    el: HTMLElement,
+    el: Element,
     name: string,
     compute: () => any
 ): void {
@@ -86,7 +86,7 @@ export function bindProp(
  * @param compute - A function returning the class string or class object.
  */
 export function bindClass(
-    el: HTMLElement,
+    el: Element,
     compute: () => any
 ): void {
     Debug.emit("binding:create", {
@@ -114,7 +114,7 @@ export function bindClass(
  * @param compute - A function returning a style object.
  */
 export function bindStyle(
-    el: HTMLElement,
+    el: Element,
     compute: () => Record<string, any>
 ): void {
     Debug.emit("binding:create", {
@@ -143,14 +143,14 @@ export function bindStyle(
 /**
  * Bind a static event listener to an element.
  *
- * Events are NOT reactive — the handler is attached once.
+ * Events are NOT reactive - the handler is attached once.
  *
  * @param el - The element to bind to.
  * @param name - Event name (e.g., "click").
  * @param handler - The event handler function.
  */
 export function bindEvent(
-    el: HTMLElement,
+    el: Element,
     name: string,
     handler: EventListener
 ): void {
@@ -172,7 +172,7 @@ export function bindEvent(
  * @param handler - The handler to remove.
  */
 export function unbindEvent(
-    el: HTMLElement,
+    el: Element,
     name: string,
     handler: EventListener
 ): void {

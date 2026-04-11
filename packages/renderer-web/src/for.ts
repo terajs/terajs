@@ -1,9 +1,9 @@
 /**
  * @file for.ts
  * @description
- * Nebula’s reactive keyed list component.
+ * Terajs's reactive keyed list component.
  *
- * This component is the idiomatic way to render arrays in Nebula.
+ * This component is the idiomatic way to render arrays in Terajs.
  * It performs:
  * - minimal DOM movement
  * - keyed identity preservation
@@ -13,10 +13,10 @@
  * It simply re-runs when the array changes and reconciles DOM nodes.
  */
 
-import { effect } from "@nebula/reactivity";
-import { createFragment, insert, remove } from "./dom";
-import { updateKeyedList, type KeyedItem } from "./updateKeyedList";
-import { Debug } from "@nebula/shared";
+import { effect } from "@terajs/reactivity";
+import { createFragment, insert, remove } from "./dom.js";
+import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
+import { Debug } from "@terajs/shared";
 
 export interface ForProps<T> {
     /** Reactive getter returning the array to iterate over */

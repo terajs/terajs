@@ -1,7 +1,7 @@
 /**
  * @file compileScript.ts
  * @description
- * Nebula SFC script compiler (dependency‑free).
+ * Terajs SFC script compiler (dependency‑free).
  *
  * Responsibilities:
  * - Strip a subset of TypeScript syntax
@@ -12,9 +12,9 @@
  * - Return the setup function code and exposed identifiers
  */
 
-import { stripTypes } from "./stripTypes";
-import { tokenizeScript } from "./tokenizeScript";
-import { scanTopLevel } from "./scanTopLevel";
+import { stripTypes } from "./stripTypes.js";
+import { tokenizeScript, type Token } from "./tokenizeScript.js";
+import { scanTopLevel } from "./scanTopLevel.js";
 
 export interface CompiledScript {
   /**
@@ -26,6 +26,23 @@ export interface CompiledScript {
    * Top‑level identifiers exposed to the template compiler.
    */
   exposed: string[];
+
+  /**
+   * Whether this script uses createResource and should be treated as async.
+   */
+  hasAsyncResource: boolean;
+}
+
+function hasCreateResourceCall(tokens: Token[]): boolean {
+  for (let i = 0; i < tokens.length - 1; i += 1) {
+    if (tokens[i].type === "identifier" && tokens[i].value === "createResource") {
+      const next = tokens[i + 1];
+      if (next && next.type === "punct" && next.value === "(") {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -44,9 +61,12 @@ export function compileScript(script: string): CompiledScript {
   // 3. Scan top‑level declarations
   const { identifiers } = scanTopLevel(tokens);
 
-  // 4. Wrap in setup(ctx)
+  // 4. Detect async resource usage for streaming suspension.
+  const hasAsyncResource = hasCreateResourceCall(tokens);
+
+  // 5. Wrap in a renderer-local setup function
   const setupCode = `
-function setup(ctx) {
+function __ssfc(ctx) {
   const { props, slots, emit } = ctx;
   ${jsLike}
   return { ${identifiers.join(", ")} };
@@ -55,6 +75,7 @@ function setup(ctx) {
 
   return {
     setupCode,
-    exposed: identifiers
+    exposed: identifiers,
+    hasAsyncResource
   };
 }

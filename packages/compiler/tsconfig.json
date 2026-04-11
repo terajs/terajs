@@ -8,7 +8,9 @@
     "declarationMap": true
   },
   "references": [
+    { "path": "../shared"},
     { "path": "../renderer"}
   ],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["dist"]
 }

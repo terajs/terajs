@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import { jsx } from "./jsx-runtime";
 import { template } from "./template";
 import { createText } from "./dom";
-import { reactive } from "@nebula/reactivity";
+import { reactive } from "@terajs/reactivity";
 
 describe("JSX nested reactive objects", () => {
     it("updates when nested reactive values change via template()", () => {
@@ -20,3 +20,4 @@ describe("JSX nested reactive objects", () => {
         expect(el.textContent).toBe("Portland");
     });
 });
+

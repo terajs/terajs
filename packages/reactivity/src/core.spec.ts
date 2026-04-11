@@ -2,7 +2,7 @@
  * @file reactivity-core.test.ts
  * @group Reactivity
  * @description
- * Comprehensive test suite validating Nebula’s fine‑grained reactivity engine.
+ * Comprehensive test suite validating Terajs’s fine‑grained reactivity engine.
  * Covers:
  *  - state primitives
  *  - effects and dependency tracking

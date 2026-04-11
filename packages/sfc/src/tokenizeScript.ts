@@ -1,7 +1,7 @@
 /**
  * @file tokenizeScript.ts
  * @description
- * Tiny tokenizer for Nebula script analysis.
+ * Tiny tokenizer for Terajs script analysis.
  *
  * We only care about:
  * - identifiers

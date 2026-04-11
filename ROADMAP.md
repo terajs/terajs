@@ -1,8 +1,10 @@
-#  Nebula Roadmap (Updated)
+#  Terajs Roadmap (Updated)
 
-Nebula is a fine‑grained, compiler‑powered UI framework designed for clarity, performance, and flexibility. This roadmap reflects Nebula’s current architecture and future direction.
+Terajs is a fine‑grained, compiler‑powered UI framework designed for clarity, performance, and flexibility. This roadmap reflects Terajs’s current architecture and future direction.
 
-Nebula’s philosophy:  
+Status note (April 2026): This roadmap mixes shipped and planned items. Canonical shipped API behavior is documented in API_REFERENCE.md and README.md.
+
+Terajs’s philosophy:  
 > **Provide structure without restricting creativity.  
 > Stay fast, predictable, and platform‑agnostic.  
 > TypeScript‑first, but TypeScript‑optional.**
@@ -11,7 +13,7 @@ Nebula’s philosophy:
 
 ## **1. Fine‑Grained Reactivity**
 
-Nebula uses explicit, dependency‑tracked signals:
+Terajs uses explicit, dependency‑tracked signals:
 
 - `signal()` for reactive values  
 - `computed()` for derived values  
@@ -26,15 +28,15 @@ Reactivity is predictable, fast, and SSR‑safe.
 
 ## **2. Component Model**
 
-Nebula components are **units of UI, logic, metadata, and routing**:
+Terajs components are **units of UI, logic, metadata, and routing**:
 
 - props → logic → template → styles → meta → route  
 - JSX templates  
-- optional SFC format (`.nbl`)  
+- optional SFC format (`.tera`)  
 - templates compile to IR → DOM  
 - components run once; templates update reactively  
 
-Nebula is **TypeScript‑first**, but every feature works in plain JavaScript.
+Terajs is **TypeScript‑first**, but every feature works in plain JavaScript.
 
 ---
 
@@ -50,7 +52,7 @@ Nebula is **TypeScript‑first**, but every feature works in plain JavaScript.
 
 ## **4. Styles (Fully Optional)**
 
-Nebula is **style‑agnostic**.
+Terajs is **style‑agnostic**.
 
 Use:
 
@@ -79,7 +81,7 @@ Scoped styles are optional and require no build step.
 
 ## **6. SSR & Hydration**
 
-Nebula’s SSR model:
+Terajs’s SSR model:
 
 - components run once  
 - effects do not run on the server  
@@ -88,13 +90,13 @@ Nebula’s SSR model:
 - no hydration mismatch traps  
 - hydration logs for debugging  
 
-Streaming SSR is planned.
+Streaming SSR is available via `@terajs/renderer-ssr` and will continue to be hardened.
 
 ---
 
 ## **7. Routing System**
 
-Nebula’s router is **component‑driven**:
+Terajs’s router is **component‑driven**:
 
 - routes defined inside components  
 - meta (SEO + AI) defined per component  
@@ -110,7 +112,7 @@ Routing is flexible, not prescriptive.
 
 ## **8. Meta System (SEO + AI)**
 
-Nebula treats metadata as first‑class:
+Terajs treats metadata as first‑class:
 
 - title, description, OpenGraph  
 - AI hints, semantic tags  
@@ -124,7 +126,7 @@ This enables AI‑aware tooling and consistent SEO.
 
 ## **9. State Management**
 
-Nebula expands reactivity into global state:
+Terajs expands reactivity into global state:
 
 - `createStore()` for structured global state  
 - `createContext()` / `useContext()`  
@@ -137,7 +139,7 @@ Nebula expands reactivity into global state:
 
 ## **10. Tooling & Build Integration**
 
-Nebula supports:
+Terajs supports:
 
 - Vite (first‑class)  
 - ESBuild / Rollup  
@@ -158,15 +160,15 @@ Debugging is a priority:
 
 ## **11. Multi‑Platform Rendering**
 
-Nebula Core is renderer‑agnostic.
+Terajs Core is renderer‑agnostic.
 
 Planned renderers:
 
-- **nebula-web** — DOM  
-- **nebula-native** — iOS/Android  
-- **nebula-canvas** — Canvas/WebGL/Skia  
-- **nebula-ssr** — server output  
-- **nebula-terminal** — terminal UIs  
+- **packages/renderer-web** — DOM  
+- **packages/renderer-ios** and **packages/renderer-android** — native renderers  
+- **packages/renderer-canvas** — Canvas/WebGL/Skia  
+- **packages/renderer-ssr** — server output  
+- **packages/renderer-terminal** — terminal UIs  
 
 Components remain the same; only the renderer changes.
 
@@ -174,7 +176,7 @@ Components remain the same; only the renderer changes.
 
 ## **12. Template Compiler**
 
-Nebula includes a full compiler:
+Terajs includes a full compiler:
 
 - tokenizer  
 - parser  
@@ -190,7 +192,7 @@ Templates compile into direct DOM operations bound to signals.
 
 ## **13. Slots & Composition**
 
-Nebula supports:
+Terajs supports:
 
 - default slots  
 - named slots  
@@ -203,7 +205,7 @@ Slots are fully reactive and SSR‑safe.
 
 ## **14. Portals (Teleporting Content)**
 
-Nebula includes a `<Portal>` primitive:
+Terajs includes a `<Portal>` primitive:
 
 - modals, popovers, tooltips  
 - works across web, native, canvas  
@@ -214,7 +216,7 @@ Nebula includes a `<Portal>` primitive:
 
 ## **15. Virtualized Lists & Infinite Feeds**
 
-Nebula will include high‑performance list primitives:
+Terajs will include high‑performance list primitives:
 
 - `<VirtualList />`  
 - `<InfiniteFeed />`  
@@ -229,7 +231,7 @@ Designed for dashboards, ecommerce, and social feeds.
 
 ## **16. Data Loading & Server Functions**
 
-Nebula Kit will include:
+Terajs Kit will include:
 
 - route‑level loaders  
 - `createResource()` for async data  
@@ -241,9 +243,9 @@ Nebula Kit will include:
 
 ---
 
-## **17. Nebula Kit (Application Framework Layer)**
+## **17. Terajs Kit (Application Framework Layer)**
 
-Nebula Kit is the batteries‑included meta‑framework:
+Terajs Kit is the batteries‑included meta‑framework:
 
 - file‑based routing  
 - data loaders  
@@ -254,14 +256,14 @@ Nebula Kit is the batteries‑included meta‑framework:
 - built‑in UI patterns  
 - ecommerce/CMS/API integrations  
 
-Nebula Core = rendering engine.  
-Nebula Kit = full application framework.
+Terajs Core = rendering engine.  
+Terajs Kit = full application framework.
 
 ---
 
 ## **18. Philosophy Summary**
 
-Nebula aims to be:
+Terajs aims to be:
 
 - simple  
 - fast  
@@ -272,7 +274,7 @@ Nebula aims to be:
 - TypeScript‑first, but JS‑friendly  
 - debuggable by design  
 
-Nebula Core stays minimal.  
-Nebula Kit provides structure when needed.
+Terajs Core stays minimal.  
+Terajs Kit provides structure when needed.
 
 ---

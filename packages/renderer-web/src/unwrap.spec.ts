@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import { unwrap } from "./unwrap";
-import { signal } from "../../reactivity/src/signal";
-import { ref, reactive } from "@nebula/reactivity";
+import { signal } from "@terajs/reactivity";
+import { ref, reactive } from "@terajs/reactivity";
 
 describe("unwrap()", () => {
     it("unwraps signals", () => {
@@ -29,3 +29,4 @@ describe("unwrap()", () => {
         expect(unwrap(fn)).toBe(42);
     });
 });
+

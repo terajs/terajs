@@ -1,19 +1,30 @@
 {
-  "name": "@nebula/renderer-web",
+  "name": "@terajs/renderer-web",
   "version": "0.0.1",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@nebula/shared": "*",
-    "@nebula/runtime": "*",
-    "@nebula/reactivity": "*",
-    "@nebula/renderer": "*"
+    "@terajs/router": "^0.0.1",
+    "@terajs/shared": "^0.0.1",
+    "@terajs/runtime": "^0.0.1",
+    "@terajs/reactivity": "^1.0.0",
+    "@terajs/renderer": "^0.0.1"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs",
+  "publishConfig": {
+    "access": "public"
   }
 }

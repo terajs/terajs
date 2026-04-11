@@ -9,7 +9,7 @@
     "declaration": true,
     "declarationMap": true,
 
-    "types": ["vitest/globals"]
+    "types": ["node", "vitest/globals"]
   },
 
   "include": ["src"],

@@ -1,21 +1,23 @@
 
-# 🌌 **Nebula Vision — Polished, Coherent, and Ready for Prime Time**
+# **Terajs Vision — Polished, Coherent, and Ready for Prime Time**
 
-Below is a refined version of your two drafts, merged into a single, tight, compelling vision that reads like something you’d put at the top of the Nebula docs or the README.
+Below is a refined version of your two drafts, merged into a single, tight, compelling vision that reads like something you’d put at the top of the Terajs docs or the README.
 
 It keeps your tone, your intent, and your direction — just sharpened.
 
 ---
 
-# **Nebula Vision**
+# **Terajs Vision**
 
-Nebula is a next‑generation UI framework built on three pillars:
+Status note (April 2026): This document is directional. For shipped web-first APIs and current behavior, use API_REFERENCE.md as the canonical source. Local-first foundations (resource persistence, mutation queue contracts, queue-aware actions/forms, and queue diagnostics) are shipped; advanced multi-device merge strategies remain planned.
+
+Terajs is a next‑generation UI framework built on three pillars:
 
 ---
 
 ## **1. Fine‑grained reactivity**
 
-Nebula’s reactivity system is:
+Terajs’s reactivity system is:
 
 - synchronous  
 - deterministic  
@@ -29,7 +31,7 @@ No component re‑renders.
 
 Signals update the DOM directly, and the compiler emits instructions that bind DOM nodes to reactive sources with minimal overhead.
 
-Nebula’s mental model is simple:
+Terajs’s mental model is simple:
 
 > **When data changes, only the affected DOM updates. Nothing else.**
 
@@ -37,7 +39,7 @@ Nebula’s mental model is simple:
 
 ## **2. Developer experience first**
 
-Nebula aims to be:
+Terajs aims to be:
 
 - intuitive for beginners  
 - powerful for experts  
@@ -45,7 +47,7 @@ Nebula aims to be:
 - minimal in boilerplate  
 - flexible in structure  
 
-Nebula provides **conventions**, not constraints.
+Terajs provides **conventions**, not constraints.
 
 You can:
 
@@ -54,13 +56,13 @@ You can:
 - structure projects however you like  
 - opt into or out of higher‑level features  
 
-Nebula stays out of the way.
+Terajs stays out of the way.
 
 ---
 
 ## **3. SSR without pain**
 
-Nebula’s SSR philosophy:
+Terajs’s SSR philosophy:
 
 > **SSR should be easy, predictable, and require no special mental model.**
 
@@ -78,7 +80,7 @@ The same component model works on both server and client.
 
 ## **4. Components that do more than render**
 
-Nebula components are not just UI units — they are **units of behavior, metadata, and routing**.
+Terajs components are not just UI units — they are **units of behavior, metadata, and routing**.
 
 A component can define:
 
@@ -95,13 +97,13 @@ Routing and meta are **component‑driven**:
 - layouts and nested routes emerge from composition  
 - lazy imports and code‑splitting follow component boundaries  
 
-Nebula treats components as the atomic unit of the application.
+Terajs treats components as the atomic unit of the application.
 
 ---
 
 ## **5. A real template compiler**
 
-Nebula includes a full template pipeline:
+Terajs includes a full template pipeline:
 
 - tokenizer  
 - parser  
@@ -121,7 +123,7 @@ Routing and meta can also be expressed in templates, with the ability to:
 
 ## **6. Escape hatches everywhere**
 
-Nebula is not a prison.
+Terajs is not a prison.
 
 Developers can:
 
@@ -133,13 +135,13 @@ Developers can:
 - drop down to low‑level DOM or runtime APIs  
 - bypass the router or meta system when needed  
 
-Nebula stays flexible.
+Terajs stays flexible.
 
 ---
 
 ## **7. Small, reusable, composable pieces**
 
-Nebula encourages:
+Terajs encourages:
 
 - small components  
 - clear boundaries  
@@ -152,7 +154,7 @@ This keeps codebases maintainable at scale.
 
 ## **8. Meta‑aware and AI‑ready**
 
-Nebula treats **meta information as a first‑class concern**:
+Terajs treats **meta information as a first‑class concern**:
 
 - components can declare SEO and AI metadata  
 - routes can derive meta from components  
@@ -168,7 +170,7 @@ This enables:
 
 ---
 
-# **Nebula’s promise**
+# **Terajs’s promise**
 
 > **A framework that feels familiar, performs like Solid, reads like Vue, stays as flexible as React, and treats routing, SEO, and AI metadata as first‑class citizens — without their complexity.**
 

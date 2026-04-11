@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
-import { Debug } from "@nebula/shared";
+﻿import { describe, it, expect, vi } from "vitest";
+import { Debug } from "@terajs/shared";
 import {
   applyHMRUpdate,
   registerHMRComponent
 } from "./hmr";
 
-vi.mock("@nebula/shared", () => ({
+vi.mock("@terajs/shared", () => ({
   Debug: { emit: vi.fn() }
 }));
 
@@ -77,3 +77,4 @@ describe("HMR Runtime (integration)", () => {
     });
   });
 });
+

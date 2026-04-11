@@ -1,19 +1,19 @@
 /**
  * @file unwrap.ts
  * @description
- * Central unwrapping logic for Nebula’s renderer.
+ * Central unwrapping logic for Terajs's renderer.
  *
  * This function normalizes any reactive value into a plain value:
- * - `ref()` → returns `.value`
- * - raw signals → calls the signal getter
- * - accessor functions → calls the function
- * - everything else → returned as-is
+ * - `ref()` -> returns `.value`
+ * - raw signals -> calls the signal getter
+ * - accessor functions -> calls the function
+ * - everything else -> returned as-is
  *
  * The renderer uses `unwrap()` to ensure DOM bindings always receive
  * concrete values, not reactive wrappers.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Normalizes a value by resolving signals, refs, or accessors.

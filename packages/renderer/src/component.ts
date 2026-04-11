@@ -1,7 +1,7 @@
 /**
  * @file component.ts
  * @description
- * Platform-agnostic component contract for Nebula.
+ * Platform-agnostic component contract for Terajs.
  *
  * A FrameworkComponent is a function that receives props and returns
  * either:
@@ -11,7 +11,7 @@
  * Renderers decide how to interpret the returned value.
  */
 
-import type { TemplateFn } from "./templateFn";
+import type { TemplateFn } from "./templateFn.js";
 
 export type FrameworkComponent<Props = any, Output = any> =
   (props?: Props) => Output | TemplateFn<Output>;

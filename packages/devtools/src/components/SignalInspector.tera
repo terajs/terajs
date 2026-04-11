@@ -1,0 +1,126 @@
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Signal and Effect Inspector</div>
+    <div class="panel-subtitle">Effects run: {{ effectCount() }}</div>
+
+    <div v-if="updateList().length === 0" class="empty-state">No signal updates yet.</div>
+
+    <ul v-if="updateList().length > 0" class="signal-list">
+      <li v-for="sig in updateList()" :key="sig.key" class="signal-item">
+        <span class="signal-key">
+          {{ sig.key }}
+          <span v-if="sig.persistent" class="signal-icon" title="Persisted signal">persisted</span>
+        </span>
+        <span :class="['signal-preview', sig.muted ? 'signal-preview--muted' : '']">= {{ sig.preview }}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { ref, shallowRef, watchEffect } from '@terajs/reactivity'
+
+const signalUpdatesRef = shallowRef({})
+const effectCountRef = ref(0)
+
+watchEffect(() => {
+  const events = props.events || []
+  const updates = {}
+  let runs = 0
+
+  events.forEach((event) => {
+    if (event.type === 'signal:update') {
+      const payload = event.payload || {}
+      const key = payload.key || 'unknown'
+      const metadata = payload.metadata || {}
+      updates[key] = {
+        key,
+        preview: JSON.stringify(payload.value).slice(0, 50),
+        persistent: metadata.persistent === true,
+        muted: metadata.persistent === true && metadata.source === 'persistence'
+      }
+    }
+    if (event.type === 'effect:run') runs += 1
+  })
+
+  signalUpdatesRef.value = updates
+  effectCountRef.value = runs
+})
+
+function updateList() {
+  return Object.values(signalUpdatesRef.value)
+}
+
+function effectCount() {
+  return effectCountRef.value
+}
+</script>
+
+<meta>
+title: Signal Inspector
+</meta>
+
+<ai>
+summary: Tracks signal updates and effect execution counts.
+</ai>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.5rem;
+  color: var(--tera-purple, #8A5CFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.panel-subtitle,
+.signal-preview {
+  color: var(--tera-cloud, #F5F5F5);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.signal-preview--muted {
+  color: var(--tera-mist, #B3B3B3);
+}
+
+.signal-icon {
+  margin-left: 0.35rem;
+}
+
+.empty-state {
+  color: rgba(179, 179, 179, 0.72);
+  font-size: 0.75rem;
+}
+
+.signal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.signal-item {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.signal-key {
+  color: var(--tera-cyan, #4FE3FF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.signal-preview {
+  margin-left: 0.5rem;
+}
+</style>
+

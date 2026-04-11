@@ -1,0 +1,169 @@
+﻿<template>
+  <div class="devtools-shell">
+    <div class="devtools-header">
+      <div class="devtools-title">Terajs DevTools</div>
+      <div class="devtools-count">Events: {{ eventCount() }}</div>
+      <ThemePanel />
+    </div>
+
+    <div class="devtools-body">
+      <div class="devtools-tabs">
+        <button
+          v-for="tab in tabs"
+          @click="setActiveTab(tab)"
+          :class="tabClass(tab)"
+        >
+          {{ tab }}
+        </button>
+      </div>
+
+      <div class="devtools-content">
+        <ComponentTree v-if="activeTab() === 'Components'" :events="events()" />
+        <SignalInspector v-if="activeTab() === 'Signals'" :events="events()" />
+        <MetaInspector v-if="activeTab() === 'Meta'" :events="events()" />
+        <IssuesPanel v-if="activeTab() === 'Issues'" :events="events()" />
+        <LogsPanel v-if="activeTab() === 'Logs'" :events="events()" />
+        <TimelinePanel v-if="activeTab() === 'Timeline'" :events="events()" />
+        <PerformancePanel v-if="activeTab() === 'Performance'" :events="events()" />
+        <SettingsPanel v-if="activeTab() === 'Settings'" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Debug } from '@terajs/shared'
+import { ref, shallowRef } from '@terajs/reactivity'
+import { onMounted, onCleanup } from '@terajs/runtime'
+// SFC components are auto-registered via Terajs auto-imports
+
+const tabs = ['Components', 'Signals', 'Meta', 'Issues', 'Logs', 'Timeline', 'Performance', 'Settings']
+const activeTabRef = ref('Components')
+const eventsRef = shallowRef([])
+const eventCountRef = ref(0)
+
+function activeTab() {
+  return activeTabRef.value
+}
+
+function setActiveTab(tab) {
+  activeTabRef.value = tab
+}
+
+function events() {
+  return eventsRef.value
+}
+
+function eventCount() {
+  return eventCountRef.value
+}
+
+function tabClass(tab) {
+  return activeTab() === tab
+    ? 'devtools-tab devtools-tab--active'
+    : 'devtools-tab'
+}
+
+onMounted(() => {
+  const unsub = Debug.on((event) => {
+    const prev = eventsRef.value
+    eventsRef.value = [...prev.slice(-249), event]
+    eventCountRef.value = eventCountRef.value + 1
+  })
+  onCleanup(unsub)
+})
+</script>
+
+<meta>
+title: Terajs DevTools
+</meta>
+
+<ai>
+summary: Devtools shell with tabs for runtime inspection and diagnostics.
+keywords:
+  - devtools
+  - diagnostics
+  - runtime
+</ai>
+
+<style scoped>
+.devtools-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--tera-black, #0D0D0D);
+  color: var(--tera-cloud, #F5F5F5);
+}
+
+.devtools-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--tera-graphite, #2E2E2E);
+  background: var(--tera-carbon, #1A1A1A);
+  padding: 0.75rem 1rem;
+}
+
+.devtools-title {
+  color: var(--tera-cloud, #F5F5F5);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.devtools-count {
+  color: var(--tera-mist, #B3B3B3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.devtools-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.devtools-tabs {
+  display: flex;
+  width: 8rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--tera-graphite, #2E2E2E);
+  background: var(--tera-carbon, #1A1A1A);
+  padding: 0.5rem;
+}
+
+.devtools-tab {
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: rgba(46, 46, 46, 0.72);
+  color: var(--tera-cloud, #F5F5F5);
+  cursor: pointer;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+}
+
+.devtools-tab:hover {
+  background: rgba(79, 227, 255, 0.12);
+  color: var(--tera-cyan, #4FE3FF);
+}
+
+.devtools-tab--active {
+  background: var(--tera-blue, #3A7BFF);
+  color: #ffffff;
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.devtools-content {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+}
+</style>
+

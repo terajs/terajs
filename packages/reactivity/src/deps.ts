@@ -1,14 +1,14 @@
 /**
  * @file deps.ts
  * @description
- * Dependency tracking core for Nebula Reactivity.
+ * Dependency tracking core for Terajs Reactivity.
  * 
  * Manages the global execution context for reactive effects. 
  * Using a stack-based approach with parent/child hierarchies allows 
  * for clean disposal and nested tracking.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Represents a reactive side-effect function.

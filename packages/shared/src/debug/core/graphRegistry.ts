@@ -1,4 +1,4 @@
-import type { DependencyNode } from "../types/graph";
+import type { DependencyNode } from "../types/graph.js";
 
 /**
  * In‑memory dependency graph registry.
@@ -80,4 +80,8 @@ export function getGraphSnapshot(): DependencyNode[] {
     dependsOn: new Set(node.dependsOn),
     dependents: new Set(node.dependents)
   }));
+}
+
+export function resetDebugGraphRegistry(): void {
+  nodes.clear();
 }

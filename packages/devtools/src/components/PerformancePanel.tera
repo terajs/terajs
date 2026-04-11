@@ -1,0 +1,134 @@
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Performance</div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Events (10s)</div>
+        <div class="metric-value">{{ metrics().totalEvents }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Events / sec</div>
+        <div class="metric-value">{{ metrics().updatesPerSecond }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Effect Runs</div>
+        <div class="metric-value">{{ metrics().effectRuns }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Render Events</div>
+        <div class="metric-value">{{ metrics().renderEvents }}</div>
+      </div>
+    </div>
+
+    <div class="panel-subtitle">
+      Hot event types: {{ hotTypesLabel() }}
+    </div>
+
+    <div v-if="metrics().byType.length === 0" class="empty-state">No performance data yet.</div>
+
+    <ul v-if="metrics().byType.length > 0" class="metric-list">
+      <li v-for="item in metrics().byType.slice(0, 20)" :key="item.type" class="metric-item">
+        <span class="metric-type">{{ item.type }}</span>
+        <span class="metric-inline">count={{ item.count }}</span>
+        <span class="metric-inline">avg={{ item.avgDeltaMs }}ms</span>
+        <span class="metric-inline">max={{ item.maxDeltaMs }}ms</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { shallowRef, watchEffect } from '@terajs/reactivity'
+import { computePerformanceMetrics } from '../analytics'
+
+const metricsRef = shallowRef(computePerformanceMetrics([]))
+
+function metrics() {
+  return metricsRef.value
+}
+
+function hotTypesLabel() {
+  return metrics().hotTypes.length === 0 ? 'none' : metrics().hotTypes.join(', ')
+}
+
+watchEffect(() => {
+  metricsRef.value = computePerformanceMetrics(props.events || [], 10000)
+})
+</script>
+
+<meta>
+title: Performance Panel
+</meta>
+
+<ai>
+summary: Summarizes recent event throughput and hot runtime activity.
+</ai>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.5rem;
+  color: var(--tera-purple, #8A5CFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.panel-subtitle,
+.metric-label,
+.metric-inline,
+.metric-value {
+  color: var(--tera-mist, #B3B3B3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric-card,
+.metric-item {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.625rem 0.75rem;
+}
+
+.metric-value,
+.metric-type {
+  color: var(--tera-cloud, #F5F5F5);
+  font-weight: 700;
+}
+
+.metric-type {
+  color: var(--tera-purple, #8A5CFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+}
+
+.empty-state {
+  color: rgba(179, 179, 179, 0.72);
+  font-size: 0.75rem;
+}
+
+.metric-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.metric-inline {
+  margin-left: 0.5rem;
+}
+</style>

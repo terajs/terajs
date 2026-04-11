@@ -1,7 +1,7 @@
 /**
  * @file renderFromIR.ts
  * @description
- * Reactive client-side DOM renderer for Nebula's IR.
+ * Reactive client-side DOM renderer for Terajs's IR.
  */
 
 import type {
@@ -10,10 +10,12 @@ import type {
   IRTextNode,
   IRInterpolationNode,
   IRElementNode,
+  IRPortalNode,
+  IRSlotNode,
   IRIfNode,
   IRForNode,
   IRPropNode,
-} from "@nebula/compiler";
+} from "@terajs/compiler";
 
 import {
   createElement,
@@ -21,7 +23,8 @@ import {
   createFragment,
   insert,
   remove,
-} from "./dom";
+  addNodeCleanup,
+} from "./dom.js";
 
 import {
   bindText,
@@ -29,10 +32,11 @@ import {
   bindClass,
   bindStyle,
   bindEvent,
-} from "./bindings";
+} from "./bindings.js";
 
-import { effect } from "@nebula/reactivity";
-import { Debug } from "@nebula/shared";
+import { dispose, effect } from "@terajs/reactivity";
+import { Debug } from "@terajs/shared";
+import { Portal as WebPortal } from "./portal.js";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -51,18 +55,22 @@ export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragme
   return frag;
 }
 
-export function renderIRNode(node: IRNode, ctx: any): Node | null {
+export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): Node | null {
   switch (node.type) {
     case "text":
       return renderIRText(node);
     case "interp":
       return renderIRInterpolation(node, ctx);
     case "element":
-      return renderIRElement(node, ctx);
+      return renderIRElement(node, ctx, isSvg);
+    case "portal":
+      return renderIRPortal(node, ctx, isSvg);
+    case "slot":
+      return renderIRSlot(node, ctx, isSvg);
     case "if":
-      return renderIRIf(node, ctx);
+      return renderIRIf(node, ctx, isSvg);
     case "for":
-      return renderIRFor(node, ctx);
+      return renderIRFor(node, ctx, isSvg);
     default:
       Debug.emit("error:renderer", { message: "Unknown IR node", node });
       return null;
@@ -96,22 +104,54 @@ function renderIRInterpolation(node: IRInterpolationNode, ctx: any): Text {
 /*                                  ELEMENT                                   */
 /* -------------------------------------------------------------------------- */
 
-function renderIRElement(node: IRElementNode, ctx: any): HTMLElement {
-  Debug.emit("ir:render:element", { tag: node.tag });
+function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element {
+  Debug.emit("ir:render:element", { tag: node.tag, svg: isSvg });
 
-  const el = createElement(node.tag);
+  const nextSvg = isSvg || node.tag === "svg";
+  const el = createElement(node.tag, nextSvg);
 
   applyIRProps(el, node.props, ctx);
 
   for (const child of node.children) {
-    const dom = renderIRNode(child, ctx);
+    const dom = renderIRNode(child, ctx, nextSvg);
     if (dom) insert(el, dom);
   }
 
   return el;
 }
 
-function applyIRProps(el: HTMLElement, props: IRPropNode[], ctx: any): void {
+function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
+  Debug.emit("ir:render:portal", {
+    hasTarget: node.target != null
+  });
+
+  return WebPortal({
+    to: resolvePortalTarget(node.target, ctx),
+    children: node.children.map((child) => renderIRNode(child, ctx, isSvg))
+  });
+}
+
+function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
+  Debug.emit("ir:render:slot", { name: node.name ?? "default" });
+
+  const slotName = node.name ?? "default";
+  const slotValue = ctx?.slots?.[slotName];
+
+  if (slotValue != null) {
+    return normalizeSlotValue(slotValue);
+  }
+
+  const frag = createFragment();
+  for (const child of node.fallback) {
+    const dom = renderIRNode(child, ctx, isSvg);
+    if (dom) {
+      insert(frag, dom);
+    }
+  }
+  return frag;
+}
+
+function applyIRProps(el: Element, props: IRPropNode[], ctx: any): void {
   for (const p of props) {
     switch (p.kind) {
       case "static":
@@ -132,20 +172,25 @@ function applyIRProps(el: HTMLElement, props: IRPropNode[], ctx: any): void {
   }
 }
 
-function applyStaticProp(el: HTMLElement, p: IRPropNode): void {
+function applyStaticProp(el: Element, p: IRPropNode): void {
   if (p.name === "class") {
-    el.className = String(p.value ?? "");
+    if (el instanceof HTMLElement) {
+      el.className = String(p.value ?? "");
+      return;
+    }
   } else if (p.name === "style" && typeof p.value === "object") {
     const styleObj = p.value as Record<string, any>;
+    const styleTarget = (el as HTMLElement | SVGElement).style;
     for (const key in styleObj) {
-      el.style[key as any] = String(styleObj[key]);
+      styleTarget[key as any] = String(styleObj[key]);
     }
-  } else {
-    if (p.value != null) el.setAttribute(p.name, String(p.value));
+    return;
   }
+
+  if (p.value != null) el.setAttribute(p.name, String(p.value));
 }
 
-function applyBindProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
+function applyBindProp(el: Element, p: IRPropNode, ctx: any): void {
   const expr = String(p.value);
 
   if (p.name === "class") {
@@ -167,7 +212,7 @@ function applyBindProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
   bindProp(el, p.name, () => resolveExpr(ctx, expr));
 }
 
-function applyEventProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
+function applyEventProp(el: Element, p: IRPropNode, ctx: any): void {
   const handler = resolveExpr(ctx, String(p.value));
 
   if (typeof handler === "function") {
@@ -184,14 +229,14 @@ function applyEventProp(el: HTMLElement, p: IRPropNode, ctx: any): void {
 /*                                    IF                                      */
 /* -------------------------------------------------------------------------- */
 
-function renderIRIf(node: IRIfNode, ctx: any): Node {
+function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
   Debug.emit("ir:render:if", { condition: node.condition });
 
   const anchor = document.createComment("if");
   const parent = createFragment();
   parent.appendChild(anchor);
 
-  effect(() => {
+  const effectFn = effect(() => {
     const condition = !!resolveExpr(ctx, node.condition);
     const branch = condition ? node.then : node.else ?? [];
 
@@ -206,13 +251,15 @@ function renderIRIf(node: IRIfNode, ctx: any): Node {
     // Insert new nodes in correct order
     let ref: ChildNode | null = anchor.nextSibling;
     for (const child of branch) {
-      const dom = renderIRNode(child, ctx);
+      const dom = renderIRNode(child, ctx, isSvg);
       if (dom) {
         insert(parent, dom, ref ?? null);
         ref = null;
       }
     }
   });
+
+  addNodeCleanup(anchor, () => dispose(effectFn));
 
   return parent;
 }
@@ -221,14 +268,14 @@ function renderIRIf(node: IRIfNode, ctx: any): Node {
 /*                                    FOR                                     */
 /* -------------------------------------------------------------------------- */
 
-function renderIRFor(node: IRForNode, ctx: any): Node {
+function renderIRFor(node: IRForNode, ctx: any, isSvg: boolean): Node {
   Debug.emit("ir:render:for", { each: node.each });
 
   const anchor = document.createComment("for");
   const parent = createFragment();
   parent.appendChild(anchor);
 
-  effect(() => {
+  const effectFn = effect(() => {
     const array = resolveExpr(ctx, node.each) || [];
     const nodes: Node[] = [];
 
@@ -241,7 +288,7 @@ function renderIRFor(node: IRForNode, ctx: any): Node {
 
       const frag = createFragment();
       for (const child of node.body) {
-        const dom = renderIRNode(child, childCtx);
+        const dom = renderIRNode(child, childCtx, isSvg);
         if (dom) frag.appendChild(dom);
       }
 
@@ -263,6 +310,8 @@ function renderIRFor(node: IRForNode, ctx: any): Node {
       ref = null;
     }
   });
+
+  addNodeCleanup(anchor, () => dispose(effectFn));
 
   return parent;
 }
@@ -290,3 +339,40 @@ function resolveExpr(ctx: any, expr: string): any {
 
   return current;
 }
+
+function resolvePortalTarget(target: IRPropNode | undefined, ctx: any): any {
+  if (!target) {
+    return undefined;
+  }
+
+  if (target.kind === "bind") {
+    return resolveExpr(ctx, String(target.value));
+  }
+
+  return target.value;
+}
+
+function normalizeSlotValue(value: any): Node {
+  if (typeof value === "function") {
+    return normalizeSlotValue(value());
+  }
+
+  if (value == null || value === false || value === true) {
+    return createFragment();
+  }
+
+  if (value instanceof Node) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const frag = createFragment();
+    for (const item of value) {
+      insert(frag, normalizeSlotValue(item));
+    }
+    return frag;
+  }
+
+  return createText(String(value));
+}
+

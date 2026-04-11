@@ -7,9 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vitest/globals"],
 
     "paths": {
-      "@nebula/*": ["./packages/*/dist/index.d.ts"]
+      "@terajs/*": ["./packages/*/src"]
     }
   },
   "files": [],
@@ -24,6 +25,16 @@
     { "path": "./packages/renderer-ssr"},
     { "path": "./packages/renderer-web" },
     { "path": "./packages/router" },
-    { "path": "./packages/ui" }
+    { "path": "./packages/router-manifest" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/terajs" },
+    { "path": "./packages/vite-plug-in" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/adapter-react" },
+    { "path": "./packages/adapter-vue" },
+    { "path": "./packages/adapter-ai" },
+    { "path": "./packages/hub-signalr" },
+    { "path": "./packages/hub-socketio" },
+    { "path": "./packages/hub-websockets" }
   ]
 }

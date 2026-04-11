@@ -1,7 +1,7 @@
 /**
  * @file watchEffect.ts
  * @description
- * High-level reactive side-effect primitive for Nebula’s DX layer.
+ * High-level reactive side-effect primitive for Terajs's DX layer.
  *
  * `watchEffect()` runs a function immediately and re-runs it whenever any
  * reactive dependency accessed inside the function changes.
@@ -26,10 +26,10 @@
  * - `watchEffect:stop`
  */
 
-import { type ReactiveEffect } from "../deps";
-import { effect } from "../effect";
-import { onEffectCleanup } from "./cleanup";
-import { Debug } from "@nebula/shared";
+import { type ReactiveEffect } from "../deps.js";
+import { effect } from "../effect.js";
+import { onEffectCleanup } from "./cleanup.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * Creates a reactive side-effect that automatically re-runs whenever any of its
@@ -47,7 +47,7 @@ export function watchEffect(fn: () => void): () => void {
     runner = effect(() => {
         Debug.emit("watchEffect:run", { effect: runner });
 
-        // Default cleanup hook — user may override via onEffectCleanup()
+        // Default cleanup hook - user may override via onEffectCleanup()
         onEffectCleanup(() => {
             Debug.emit("watchEffect:cleanup", {
                 effect: runner,

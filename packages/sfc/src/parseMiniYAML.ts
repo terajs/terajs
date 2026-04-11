@@ -1,14 +1,14 @@
 /**
  * @file parseMiniYAML.ts
  * @description
- * A tiny, zero-dependency YAML-like parser for Nebula SFC++ metadata and route blocks.
- * Emits debug events to the Nebula DevTools substrate for real-time error reporting.
+ * A tiny, zero-dependency YAML-like parser for Terajs SFC++ metadata and route blocks.
+ * Emits debug events to the Terajs DevTools substrate for real-time error reporting.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
- * A tiny YAML-like parser for Nebula SFC blocks.
+ * A tiny YAML-like parser for Terajs SFC blocks.
  * * Supports:
  * - `key: value` pairs
  * - Nested objects via indentation
@@ -103,7 +103,7 @@ export function parseMiniYAML(raw: string | null): any {
     return root;
   } catch (error: any) {
     /**
-     * Emit to the Nebula DevTools. 
+     * Emit to the Terajs DevTools. 
      * This allows the SFC Inspector to show exactly what went wrong.
      */
     Debug.emit("error:template", {

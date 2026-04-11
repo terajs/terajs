@@ -6,13 +6,13 @@
  * Contracts define a structured, reactive API shared between parent and child.
  */
 
-import { ref } from "../ref";
-import { Debug } from "@nebula/shared";
+import { ref } from "../ref.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * Creates an explicit contract object.
  *
- * This version does **not** auto‑wrap primitives.
+ * This version does **not** auto-wrap primitives.
  * Use this when you want full control over reactivity.
  *
  * @typeParam T - The shape of the contract.

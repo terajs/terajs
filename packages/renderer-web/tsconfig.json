@@ -15,7 +15,7 @@
     "paths": {
       "./src/jsx-runtime": ["./src/jsx-runtime.ts"]
     },
-    "types": ["vitest/globals"]
+    "types": ["node", "vitest/globals"]
   },
 
   "include": ["src/**/*"],
@@ -25,6 +25,7 @@
     { "path": "../shared" },
     { "path": "../runtime" },
     { "path": "../reactivity" },
-    { "path": "../renderer" }
+    { "path": "../renderer" },
+    { "path": "../router" }
   ]
 }

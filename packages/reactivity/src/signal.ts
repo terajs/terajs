@@ -1,17 +1,17 @@
 /**
  * @file signal.ts
- * Core fine‑grained reactive primitive for Nebula.
+ * Core fine-grained reactive primitive for Terajs.
  *
- * Fully integrated with the Nebula Debug Core:
+ * Fully integrated with the Terajs Debug Core:
  * - metadata creation
  * - reactive registry
  * - dependency graph
  * - typed debug events
  */
 
-import { currentEffect } from "./deps";
-import type { ReactiveEffect } from "./deps";
-import { scheduleEffect } from "./effect";
+import { currentEffect } from "./deps.js";
+import type { ReactiveEffect } from "./deps.js";
+import { scheduleEffect } from "./effect.js";
 
 import {
   createReactiveMetadata,
@@ -19,9 +19,35 @@ import {
   updateReactiveValue,
   emitDebug,
   addDependency
-} from "@nebula/shared";
+} from "@terajs/shared";
 
-import type { ReactiveMetadata } from "@nebula/shared";
+import type { ReactiveMetadata } from "@terajs/shared";
+
+const signalRegistry = new Set<WeakRef<Signal<unknown>>>();
+const signalFinalizer = new FinalizationRegistry<WeakRef<Signal<unknown>>>((ref) => {
+  signalRegistry.delete(ref);
+});
+
+function registerActiveSignal<T>(sig: Signal<T>): void {
+  const ref = new WeakRef(sig);
+  signalRegistry.add(ref);
+  signalFinalizer.register(sig, ref);
+}
+
+export function getActiveSignals(): Signal<unknown>[] {
+  const active: Signal<unknown>[] = [];
+
+  for (const ref of Array.from(signalRegistry)) {
+    const signal = ref.deref();
+    if (signal) {
+      active.push(signal);
+    } else {
+      signalRegistry.delete(ref);
+    }
+  }
+
+  return active;
+}
 
 /**
  * A reactive signal holding a value of type T.
@@ -87,7 +113,7 @@ export function signal<T>(
         currentEffect.deps.push(sig._dep);
       }
 
-      // Add to dependency graph: effect RID → signal RID
+      // Add to dependency graph: effect RID -> signal RID
       const from = (currentEffect as any)._meta?.rid as string | undefined;
       if (from) {
         addDependency(from, meta.rid);
@@ -106,6 +132,10 @@ export function signal<T>(
   sig._value = value;
   sig._dep = new Set<ReactiveEffect>();
   sig._meta = meta;
+
+  if (typeof options?.key === "string" && options.key.length > 0) {
+    registerActiveSignal(sig);
+  }
 
   // Track initial value
   updateReactiveValue(meta.rid, value);

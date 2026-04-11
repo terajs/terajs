@@ -3,3 +3,4 @@ dist/
 *.tsbuildinfo
 .vitest/
 folder_dump/
+.vscode/

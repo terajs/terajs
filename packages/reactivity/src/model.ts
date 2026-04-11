@@ -1,16 +1,16 @@
 /**
  * @file model.ts
  * @description
- * Implements Nebula’s two‑way binding primitive.
+ * Implements Terajs's two-way binding primitive.
  *
  * `model()` creates a `ref()` that stays synchronized with a parent
- * component’s prop. Updating the model updates the parent, and updating
+ * component's prop. Updating the model updates the parent, and updating
  * the parent updates the model.
  *
  * This is the foundation for:
  * - form inputs
  * - controlled components
- * - two‑way binding patterns
+ * - two-way binding patterns
  *
  * @example
  * ```ts
@@ -24,14 +24,14 @@
  * ```
  */
 
-import { ref, type Ref } from "./ref";
-import { Debug } from "@nebula/shared";
+import { ref, type Ref } from "./ref.js";
+import { Debug } from "@terajs/shared";
 
 /**
- * Creates a two‑way binding between a component prop and a local `ref()`.
+ * Creates a two-way binding between a component prop and a local `ref()`.
  *
  * @typeParam T - The type of the bound value.
- * @param props - The component’s props object.
+ * @param props - The component's props object.
  * @param key - The prop key to bind.
  * @returns A `Ref<T>` synchronized with the parent.
  */
@@ -45,7 +45,7 @@ export function model<T>(props: any, key: string): Ref<T> {
         ref: r
     });
 
-    // Sync → parent
+    // Sync -> parent
     const originalSet = r._sig.set;
     r._sig.set = (v: T) => {
         Debug.emit("model:update:child-to-parent", {
@@ -57,7 +57,7 @@ export function model<T>(props: any, key: string): Ref<T> {
         originalSet(v);
     };
 
-    // Sync ← parent
+    // Sync <- parent
     Object.defineProperty(props, key, {
         get() {
             return r.value;

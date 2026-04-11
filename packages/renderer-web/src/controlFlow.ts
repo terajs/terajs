@@ -1,5 +1,5 @@
-import type { TemplateFn } from "./template";
-import { Debug } from "@nebula/shared";
+import type { TemplateFn } from "./template.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * A value or a function that returns a value.
@@ -8,7 +8,7 @@ import { Debug } from "@nebula/shared";
 export type MaybeAccessor<T> = T | (() => T);
 
 /**
- * Props for the `Show` control‑flow component.
+ * Props for the `Show` control-flow component.
  *
  * @typeParam T - The type of the condition value.
  */
@@ -93,7 +93,7 @@ export function Match<T = any>(props: MatchProps<T>): MatchProps<T> {
 }
 
 /**
- * Props for the `Switch` control‑flow component.
+ * Props for the `Switch` control-flow component.
  */
 export interface SwitchProps<T = any> {
     /** Optional value to compare against each Match's `when`. */

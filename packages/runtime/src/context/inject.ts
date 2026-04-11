@@ -4,8 +4,8 @@
  * Retrieves a value from the nearest ancestor context frame.
  */
 
-import { emitDebug as emit } from "@nebula/shared";
-import { contextStack, type ContextKey } from "./contextStack";
+import { emitDebug as emit } from "@terajs/shared";
+import { contextStack, type ContextKey } from "./contextStack.js";
 
 /**
  * Inject a value previously provided by an ancestor component.
@@ -43,7 +43,7 @@ export function inject<T>(key: ContextKey, fallback?: T): T {
   }
 
   throw new Error(
-    `Nebula inject(): no provider found for key. ` +
+    `Terajs inject(): no provider found for key. ` +
       `Either supply a fallback or ensure a matching provide() exists.`
   );
 }

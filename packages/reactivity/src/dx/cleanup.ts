@@ -9,8 +9,8 @@
  * - when the owning component is disposed
  */
 
-import { getCurrentEffect } from "../deps";
-import { Debug } from "@nebula/shared";
+import { getCurrentEffect } from "../deps.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * Registers a cleanup function to be executed before the next run of the

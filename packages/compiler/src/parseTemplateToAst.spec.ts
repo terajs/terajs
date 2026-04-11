@@ -151,4 +151,39 @@ describe("parseTemplateToAst", () => {
       }
     ])
   })
+
+  it("parses slot outlets with fallback content", () => {
+    const ast = parseTemplateToAst(`<slot name="header">Fallback</slot>`)
+
+    expect(ast).toEqual([
+      {
+        type: "slot",
+        name: "header",
+        fallback: [
+          { type: "text", value: "Fallback" }
+        ]
+      }
+    ])
+  })
+
+  it("parses Portal primitives into portal nodes", () => {
+    const ast = parseTemplateToAst(`<Portal to="#overlay"><div>Hi</div></Portal>`)
+
+    expect(ast).toEqual([
+      {
+        type: "portal",
+        target: { name: "to", value: "#overlay", kind: "static" },
+        children: [
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [
+              { type: "text", value: "Hi" }
+            ]
+          }
+        ]
+      }
+    ])
+  })
 })

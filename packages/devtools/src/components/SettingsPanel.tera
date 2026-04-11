@@ -1,0 +1,166 @@
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Devtools Settings</div>
+
+    <div class="settings-stack">
+      <div class="setting-row">
+        <label class="setting-label">Pause on Error</label>
+        <input
+          type="checkbox"
+          :checked="pauseOnError()"
+          @change="togglePauseOnError()"
+          class="setting-checkbox"
+        />
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Show Source Maps</label>
+        <input
+          type="checkbox"
+          :checked="showSourceMaps()"
+          @change="toggleShowSourceMaps()"
+          class="setting-checkbox"
+        />
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">Debug Level</div>
+        <div class="level-row">
+          <button
+            v-for="level in levels"
+            :key="level"
+            @click="setDebugLevel(level)"
+            :class="levelClass(level)"
+          >
+            {{ level }}
+          </button>
+        </div>
+      </div>
+
+      <div class="setting-footer">
+        <button class="reset-button" @click="resetSettings()">Reset Settings</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref } from '@terajs/reactivity'
+
+const pauseOnErrorRef = ref(false)
+const showSourceMapsRef = ref(true)
+const debugLevelRef = ref('info')
+const levels = ['info', 'warn', 'error']
+
+function pauseOnError() {
+  return pauseOnErrorRef.value
+}
+
+function showSourceMaps() {
+  return showSourceMapsRef.value
+}
+
+function debugLevel() {
+  return debugLevelRef.value
+}
+
+function togglePauseOnError() {
+  pauseOnErrorRef.value = !pauseOnErrorRef.value
+}
+
+function toggleShowSourceMaps() {
+  showSourceMapsRef.value = !showSourceMapsRef.value
+}
+
+function setDebugLevel(next) {
+  debugLevelRef.value = next
+}
+
+function levelClass(level) {
+  return debugLevel() === level
+    ? 'level-button level-button--active'
+    : 'level-button'
+}
+
+function resetSettings() {
+  pauseOnErrorRef.value = false
+  showSourceMapsRef.value = true
+  debugLevelRef.value = 'info'
+}
+</script>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.75rem;
+  color: var(--tera-purple, #8A5CFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.setting-row,
+.setting-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.setting-label {
+  color: var(--tera-cloud, #F5F5F5);
+  font-size: 0.75rem;
+}
+
+.setting-checkbox {
+  height: 1rem;
+  width: 1rem;
+  accent-color: var(--tera-blue, #3A7BFF);
+}
+
+.level-row {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.level-button,
+.reset-button {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.625rem;
+  background: rgba(46, 46, 46, 0.8);
+  color: var(--tera-cloud, #F5F5F5);
+  cursor: pointer;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+.level-button:hover,
+.reset-button:hover {
+  background: rgba(79, 227, 255, 0.12);
+  color: var(--tera-cyan, #4FE3FF);
+}
+
+.level-button--active {
+  background: var(--tera-blue, #3A7BFF);
+  border-color: var(--tera-blue, #3A7BFF);
+  color: #ffffff;
+}
+
+.setting-footer {
+  border-top: 1px solid var(--tera-graphite, #2E2E2E);
+  padding-top: 0.75rem;
+}
+
+.reset-button {
+  background: linear-gradient(135deg, var(--tera-blue, #3A7BFF), var(--tera-cyan, #4FE3FF));
+  color: #ffffff;
+}
+</style>
+

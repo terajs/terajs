@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 
 describe("SFC <ai> block", () => {
   it("parses simple AI metadata", () => {
@@ -8,14 +8,14 @@ describe("SFC <ai> block", () => {
       <template>Hello</template>
       <ai>
         summary: This is a test
-        keywords: test, nebula
+        keywords: test, terajs
       </ai>
       `,
-      "/components/AiTest.nbl"
+      "/components/AiTest.tera"
     );
 
     expect(sfc.ai?.summary).toBe("This is a test");
-    expect(sfc.ai?.keywords).toEqual(["test", "nebula"]);
+    expect(sfc.ai?.keywords).toEqual(["test", "terajs"]);
   });
 
   it("handles empty <ai> block", () => {
@@ -24,10 +24,11 @@ describe("SFC <ai> block", () => {
       <template>Hello</template>
       <ai></ai>
       `,
-      "/components/EmptyAi.nbl"
+      "/components/EmptyAi.tera"
     );
 
     expect(sfc.ai?.summary).toBeUndefined();
     expect(sfc.ai?.keywords).toBeUndefined();
   });
 });
+

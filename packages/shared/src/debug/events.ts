@@ -1,11 +1,11 @@
 /**
  * @file events.ts
  * @description
- * Nebula's internal debugging substrate.
+ * Terajs's internal debugging substrate.
  */
 
 // Import the graph logic to satisfy the proxy method
-import { addDependency as addGraphEdge } from "./dependencyGraph";
+import { addDependency as addGraphEdge } from "./dependencyGraph.js";
 
 /* -------------------------------------------------------------------------- */
 /*                               Event Taxonomy                               */
@@ -26,6 +26,11 @@ export type DebugEventType =
     | "runtime:mode:set" | "runtime:mode:check"
     | "watch:create" | "watch:source" | "watch:callback" | "watch:cleanup" | "watch:stop"
     | "watchEffect:create" | "watch:dispose" | "watchEffect:run" | "watchEffect:cleanup" | "watchEffect:stop"
+    | "resource:load:start" | "resource:load:end" | "resource:error" | "resource:mutate" | "resource:invalidate"
+    | "queue:enqueue" | "queue:retry" | "queue:flush" | "queue:drained" | "queue:fail" | "queue:conflict"
+    | "queue:backoff" | "queue:skip:backoff" | "queue:skip:missing-handler"
+    | "server:function:invoke" | "server:function:transport" | "server:function:error"
+    | "hub:connect" | "hub:disconnect" | "hub:error" | "hub:push:received" | "hub:sync:start" | "hub:sync:complete"
 
     /* ------------------------------- Renderer ------------------------------- */
     | "component:context:get" | "component:context:set" | "component:context:create" | "component:context:cleanup"
@@ -42,6 +47,10 @@ export type DebugEventType =
     | "component:create" | "component:mount" | "component:update" | "component:unmount"
     | "component:props:update" | "component:state:update" | "component:dispose"
 
+    /* -------------------------------- Routing ------------------------------- */
+    | "route:changed" | "route:navigate:start" | "route:navigate:end" | "route:load:start" | "route:load:end"
+    | "route:redirect" | "route:blocked" | "route:warn" | "route:meta:resolved" | "error:router"
+
     /* ------------------------------- Templates ------------------------------ */
     | "template:branch" | "template:fallback" | "template:create" | "template:mount"
     | "template:update" | "template:unmount" | "template:replace" | "template:dispose" | "template:empty"
@@ -56,6 +65,8 @@ export type DebugEventType =
     | "template:ast:text"
     | "template:ast:interp"
     | "template:ast:element"
+    | "template:ast:portal"
+    | "template:ast:slot"
     | "template:ast:if"
     | "template:ast:for"
 
@@ -79,6 +90,8 @@ export type DebugEventType =
     | "ir:render:text"
     | "ir:render:interp"
     | "ir:render:element"
+    | "ir:render:portal"
+    | "ir:render:slot"
     | "ir:render:if"
     | "ir:render:for"
     | "ir:render:prop:skip"
@@ -107,11 +120,25 @@ export interface DebugEvent<TType extends DebugEventType = DebugEventType> {
 
 export type DebugHandler = (event: DebugEvent) => void;
 
+interface DevtoolsHook {
+    emit(event: DebugEvent): void;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                               Event Bus Core                               */
 /* -------------------------------------------------------------------------- */
 
 const handlers = new Set<DebugHandler>();
+
+function getGlobalDevtoolsHook(): DevtoolsHook | undefined {
+    if (typeof globalThis !== "object" || globalThis === null) {
+        return undefined;
+    }
+
+    return (globalThis as typeof globalThis & {
+        __TERAJS_DEVTOOLS_HOOK__?: DevtoolsHook;
+    }).__TERAJS_DEVTOOLS_HOOK__;
+}
 
 export const Debug = {
     on(handler: DebugHandler): () => void {
@@ -128,9 +155,9 @@ export const Debug = {
     },
 
     emit<TType extends DebugEventType>(type: TType, payload: any): void {
-        const hasGlobalHook = typeof window !== "undefined" && (window as any).__NEBULA_DEVTOOLS_HOOK__;
+        const hook = getGlobalDevtoolsHook();
         
-        if (handlers.size === 0 && !hasGlobalHook) return;
+        if (handlers.size === 0 && !hook) return;
 
         const event: DebugEvent<TType> = {
             type,
@@ -146,8 +173,12 @@ export const Debug = {
             }
         }
 
-        if (hasGlobalHook) {
-            (window as any).__NEBULA_DEVTOOLS_HOOK__.emit(event);
+        if (hook) {
+            hook.emit(event);
         }
     },
 };
+
+export function resetDebugHandlers(): void {
+    handlers.clear();
+}

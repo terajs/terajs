@@ -1,7 +1,7 @@
 /**
  * @file devtoolsBridge.ts
  * @description
- * Public interface between Nebula DevTools and the internal debug core.
+ * Public interface between Terajs DevTools and the internal debug core.
  *
  * This module exposes safe, read‑only access to:
  * - the dependency graph
@@ -13,13 +13,13 @@
 import {
   getDependencyGraphSnapshot,
   getDependencyNode
-} from "./dependencyGraph";
+} from "./dependencyGraph.js";
 
 import {
   getDependencies,
   getDependents,
   traceUpdate
-} from "./core/graph/queries";
+} from "./core/graph/queries.js";
 
 export const DevtoolsBridge = {
   /**

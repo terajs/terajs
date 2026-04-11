@@ -11,8 +11,8 @@
  * - avoiding memory leaks
  */
 
-import { type ReactiveEffect } from "../deps";
-import { Debug } from "@nebula/shared";
+import { type ReactiveEffect } from "../deps.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * Disposes of a reactive effect.

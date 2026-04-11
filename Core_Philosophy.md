@@ -1,19 +1,19 @@
-# Nebula Core Philosophy
+# Terajs Core Philosophy
 
-Nebula is built on a few non‑negotiable principles that guide every API, every feature, and every design decision.
+Terajs is built on a few non‑negotiable principles that guide every API, every feature, and every design decision.
 
 ---
 
 ## **1. TypeScript‑first, but never TypeScript‑required**
 
-Nebula is designed so that:
+Terajs is designed so that:
 
 - TypeScript users get **full inference**, **strict types**, and **zero‑config ergonomics**  
 - JavaScript users get **the exact same APIs**, with no warnings or penalties  
 - Every feature works in both TS and JS  
 - No decorators, no magical syntax, no TS‑only features  
 
-Nebula’s stance:
+Terajs’s stance:
 
 > **TypeScript should enhance your experience, not gatekeep it.**
 
@@ -21,7 +21,7 @@ Nebula’s stance:
 
 ## **2. Zero opinions on styling**
 
-Nebula does not enforce or prefer any styling approach.
+Terajs does not enforce or prefer any styling approach.
 
 You can use:
 
@@ -35,13 +35,13 @@ You can use:
 - Design systems  
 - No styles at all  
 
-Nebula’s renderer doesn’t care — it just updates the DOM.
+Terajs’s renderer doesn’t care — it just updates the DOM.
 
 ---
 
 ## **3. Zero opinions on platform**
 
-Nebula is renderer‑agnostic by design.
+Terajs is renderer‑agnostic by design.
 
 Supported and planned targets include:
 
@@ -55,7 +55,7 @@ Supported and planned targets include:
 
 The component model stays the same everywhere.
 
-Nebula’s stance:
+Terajs’s stance:
 
 > **Your code shouldn’t care where it runs.**
 
@@ -63,7 +63,7 @@ Nebula’s stance:
 
 ## **4. Developer Experience above everything**
 
-Nebula is built for humans:
+Terajs is built for humans:
 
 - predictable reactivity  
 - simple mental model  
@@ -80,7 +80,7 @@ DX isn’t an afterthought — it’s the product.
 
 ## **5. Debugging is a first‑class feature**
 
-Nebula is designed to be easy to debug:
+Terajs is designed to be easy to debug:
 
 - clear reactive graph  
 - traceable signal updates  
@@ -97,7 +97,7 @@ If something breaks, you should know **exactly why**.
 
 ## **6. Flexibility over dogma**
 
-Nebula avoids:
+Terajs avoids:
 
 - rigid file structures  
 - mandatory patterns  
@@ -114,7 +114,7 @@ Developers can:
 - build custom renderers  
 - drop down to low‑level APIs  
 
-Nebula’s stance:
+Terajs’s stance:
 
 > **Give developers power, not rules.**
 
@@ -122,7 +122,7 @@ Nebula’s stance:
 
 ## **7. Performance without complexity**
 
-Nebula delivers high performance through:
+Terajs delivers high performance through:
 
 - fine‑grained reactivity  
 - direct DOM updates  
@@ -137,7 +137,7 @@ But the mental model stays simple.
 
 ## **8. AI‑ready and meta‑aware**
 
-Nebula treats metadata as a first‑class concern:
+Terajs treats metadata as a first‑class concern:
 
 - SEO metadata  
 - AI hints  

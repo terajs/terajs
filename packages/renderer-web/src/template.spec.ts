@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file template.test.ts
  * @group Renderer
  * @description
@@ -9,9 +9,9 @@
 
 import { describe, it, expect } from "vitest";
 import { template } from "./template";
-import { state } from "@nebula/reactivity";
+import { state } from "@terajs/reactivity";
 import { mount, unmount } from "./mount";
-import { onCleanup } from "@nebula/runtime";
+import { onCleanup } from "@terajs/runtime";
 
 describe("template()", () => {
 
@@ -89,3 +89,4 @@ describe("template()", () => {
     });
 
 });
+

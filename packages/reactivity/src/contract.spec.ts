@@ -35,7 +35,7 @@ describe("contract()", () => {
 
         expect(runs).toBe(1);
 
-        ui.name.value = "Nebula";
+        ui.name.value = "Terajs";
         expect(runs).toBe(2);
     });
 });

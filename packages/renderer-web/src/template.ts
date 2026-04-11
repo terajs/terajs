@@ -1,20 +1,21 @@
 /**
  * @file template.ts
  * @description
- * Nebula’s reactive template wrapper.
+ * Terajs's reactive template wrapper.
  *
  * A TemplateFn is a function that returns a DOM Node.
  * It is wrapped in a reactive effect so that whenever any signal it reads
  * changes, the template re-runs and updates the DOM by replacing its root node.
  */
 
-import { effect } from "@nebula/reactivity";
-import { onCleanup } from "@nebula/runtime";
-import { Debug } from "@nebula/shared";
+import { dispose, effect, getCurrentEffect, type ReactiveEffect } from "@terajs/reactivity";
+import { getCurrentContext, onCleanup } from "@terajs/runtime";
+import { Debug } from "@terajs/shared";
+import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom.js";
 
 /**
  * A reactive template function.
- * It is re‑executed whenever any signal it reads changes.
+ * It is re-executed whenever any signal it reads changes.
  */
 export type TemplateFn = () => Node;
 
@@ -33,9 +34,35 @@ export function template(fn: TemplateFn): Node {
     });
 
     let current: Node | null = null;
+    const boundary = getCurrentContext()?.errorBoundary;
+    const ownerName = getCurrentContext()?.name;
+    const isNestedTemplate = !!getCurrentEffect();
 
-    const stop = effect(() => {
-        const next = fn();
+    let effectRef: ReactiveEffect | null = null;
+    const cleanup = () => {
+        if (effectRef) {
+            dispose(effectRef);
+            effectRef = null;
+        }
+    };
+
+    effectRef = effect(() => {
+        let next: Node;
+
+        try {
+            next = fn();
+        } catch (error) {
+            if (boundary) {
+                boundary({
+                    error,
+                    phase: "template",
+                    componentName: ownerName
+                });
+                return;
+            }
+
+            throw error;
+        }
 
         Debug.emit("template:update", {
             templateFn: fn,
@@ -50,22 +77,39 @@ export function template(fn: TemplateFn): Node {
                 node: next
             });
             current = next;
+            if (!isNestedTemplate) {
+                addNodeCleanup(current, cleanup);
+            }
         } else if (next !== current) {
             // Replace DOM node
             const parent = current.parentNode;
+            const oldNode = current;
 
             Debug.emit("template:replace", {
                 templateFn: fn,
-                oldNode: current,
+                oldNode,
                 newNode: next,
                 parent
             });
 
-            if (parent) {
-                parent.replaceChild(next, current);
+            if (!isNestedTemplate) {
+                removeNodeCleanup(oldNode, cleanup);
             }
-            
+
+            if (parent) {
+                parent.replaceChild(next, oldNode);
+            }
+
             current = next;
+            if (!isNestedTemplate) {
+                addNodeCleanup(current, cleanup);
+            }
+
+            if (!isNestedTemplate) {
+                queueMicrotask(() => {
+                    disposeNodeTree(oldNode);
+                });
+            }
         }
     });
 
@@ -74,7 +118,7 @@ export function template(fn: TemplateFn): Node {
             templateFn: fn,
             node: current
         });
-        stop();
+        cleanup();
     });
 
     return current!;

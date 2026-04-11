@@ -1,11 +1,11 @@
 ```md
-# Nebula Renderer Architecture
+# Terajs Renderer Architecture
 
-Nebula Core is intentionally renderer‑agnostic. It provides reactivity, component execution, and template evaluation — but it does not know anything about the DOM, native UI systems, or canvas drawing APIs.
+Terajs Core is intentionally renderer‑agnostic. It provides reactivity, component execution, and template evaluation — but it does not know anything about the DOM, native UI systems, or canvas drawing APIs.
 
 Renderers implement the platform‑specific details.
 
-This document defines the renderer interface, lifecycle, responsibilities, and design principles that allow Nebula to target:
+This document defines the renderer interface, lifecycle, responsibilities, and design principles that allow Terajs to target:
 
 - Web (DOM)
 - Native (iOS/Android)
@@ -18,7 +18,7 @@ This document defines the renderer interface, lifecycle, responsibilities, and d
 
 ## 1. Philosophy
 
-Nebula follows three renderer principles:
+Terajs follows three renderer principles:
 
 ### **1. Core is universal**
 Reactivity, components, and templates work identically across all platforms.
@@ -32,7 +32,7 @@ Renderers only implement:
 - layout/positioning (if applicable)
 
 ### **3. Templates are declarative**
-Nebula templates describe *what* to render; renderers decide *how*.
+Terajs templates describe *what* to render; renderers decide *how*.
 
 ---
 
@@ -83,13 +83,13 @@ Renderers may implement additional platform‑specific APIs.
 
 ## 3. Template Execution Flow
 
-Nebula components return a template function:
+Terajs components return a template function:
 
 ```ts
 return () => <div>Hello</div>;
 ```
 
-Nebula Core:
+Terajs Core:
 
 1. Executes the template  
 2. Produces a lightweight description of nodes  
@@ -103,11 +103,11 @@ Renderers never re‑run components — only update nodes.
 
 ## 4. Renderer Types
 
-Nebula supports multiple renderer implementations.
+Terajs supports multiple renderer implementations.
 
 ---
 
-### **4.1 nebula-dom (Web)**
+### **4.1 packages/renderer-web (Web)**
 
 Implements:
 
@@ -126,7 +126,7 @@ Used for:
 
 ---
 
-### **4.2 nebula-native (iOS/Android)**
+### **4.2 packages/renderer-ios / packages/renderer-android (iOS/Android)**
 
 Maps JSX tags to native UI elements:
 
@@ -149,11 +149,11 @@ Renderer handles:
 - native animations  
 - native accessibility  
 
-This enables React‑Native‑style apps with Nebula’s fine‑grained reactivity.
+This enables React‑Native‑style apps with Terajs’s fine‑grained reactivity.
 
 ---
 
-### **4.3 nebula-canvas (Canvas/WebGL/Skia)**
+### **4.3 packages/renderer-canvas (Canvas/WebGL/Skia)**
 
 Maps JSX to drawing instructions:
 
@@ -178,7 +178,7 @@ Used for:
 
 ---
 
-### **4.4 nebula-server (SSR)**
+### **4.4 packages/renderer-ssr (SSR)**
 
 Implements:
 
@@ -191,7 +191,7 @@ No DOM operations occur on the server.
 
 ---
 
-### **4.5 nebula-terminal (future)**
+### **4.5 packages/renderer-terminal (future)**
 
 Maps JSX to terminal UI:
 
@@ -237,7 +237,7 @@ Renderers must support hydration:
 - bind events  
 - resume reactive updates  
 
-Nebula Core ensures deterministic hydration.
+Terajs Core ensures deterministic hydration.
 
 ---
 
@@ -267,10 +267,10 @@ A renderer goes through:
 
 ## 8. Custom Renderers
 
-Nebula allows developers to create custom renderers:
+Terajs allows developers to create custom renderers:
 
 ```ts
-import { createRenderer } from "nebula-core";
+import { createRenderer } from "@terajs/renderer";
 
 export const myRenderer = createRenderer({
   createElement,
@@ -290,13 +290,13 @@ Use cases:
 - VR/AR interfaces  
 - custom UI systems  
 
-Nebula Core does not assume a DOM.
+Terajs Core does not assume a DOM.
 
 ---
 
 ## 9. Performance Guarantees
 
-Nebula’s fine‑grained reactivity ensures:
+Terajs’s fine‑grained reactivity ensures:
 
 - no VDOM  
 - no diffing  
@@ -305,7 +305,7 @@ Nebula’s fine‑grained reactivity ensures:
 - direct node mutations  
 - stable performance across renderers  
 
-This makes Nebula ideal for:
+This makes Terajs ideal for:
 
 - doom‑scroll feeds  
 - ecommerce product grids  
@@ -317,7 +317,7 @@ This makes Nebula ideal for:
 
 ## 10. Philosophy Summary
 
-Nebula’s renderer architecture is:
+Terajs’s renderer architecture is:
 
 - simple  
 - predictable  
@@ -326,9 +326,9 @@ Nebula’s renderer architecture is:
 - flexible  
 - future‑proof  
 
-Nebula Core handles reactivity and components.  
+Terajs Core handles reactivity and components.  
 Renderers handle output.  
-Nebula Kit provides structure.
+Terajs Kit provides structure.
 
 Together, they form a complete, scalable UI ecosystem.
 ```

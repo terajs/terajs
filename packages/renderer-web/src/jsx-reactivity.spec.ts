@@ -1,8 +1,24 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import { jsx } from "./jsx-runtime";
 import { template } from "./template";
 import { createText } from "./dom";
-import { signal } from "@nebula/reactivity";
+import { signal } from "@terajs/reactivity";
+
+function appendValue(parent: HTMLElement, value: any): void {
+    if (Array.isArray(value)) {
+        value.forEach((item) => appendValue(parent, item));
+        return;
+    }
+
+    if (value instanceof Node) {
+        parent.appendChild(value);
+        return;
+    }
+
+    if (value != null) {
+        parent.appendChild(document.createTextNode(String(value)));
+    }
+}
 
 describe("JSX reactivity", () => {
     it("reactive text children update via template()", () => {
@@ -56,4 +72,43 @@ describe("JSX reactivity", () => {
         active.set(true);
         expect(el.className).toBe("on");
     });
+
+    it("extracts named slot children for components", () => {
+        const Card = (props: any) => {
+            const el = document.createElement("section");
+            const header = document.createElement("header");
+            const body = document.createElement("div");
+            appendValue(header, props.slots?.header?.());
+            appendValue(body, props.children);
+            el.append(header, body);
+            return el;
+        };
+
+        const node = jsx(Card, {
+            children: [
+                jsx("h1", { slot: "header", children: "Title" }),
+                jsx("p", { children: "Body" })
+            ]
+        }) as HTMLElement;
+
+        expect(node.querySelector("header")?.textContent).toBe("Title");
+        expect(node.querySelector("div")?.textContent).toBe("Body");
+    });
+
+    it("preserves explicit scoped slot functions on props.slots", () => {
+        const List = (props: any) => {
+            const el = document.createElement("div");
+            appendValue(el, props.slots.item("Ada"));
+            return el;
+        };
+
+        const node = jsx(List, {
+            slots: {
+                item: (value: string) => jsx("span", { children: value.toUpperCase() })
+            }
+        }) as HTMLElement;
+
+        expect(node.textContent).toBe("ADA");
+    });
 });
+

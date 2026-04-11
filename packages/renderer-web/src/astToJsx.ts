@@ -1,21 +1,24 @@
 /**
  * @file astToJsx.ts
  * @description
- * Converts Nebula's platform-agnostic AST into JSX elements
+ * Converts Terajs's platform-agnostic AST into JSX elements
  * using the existing renderer-web JSX runtime.
  */
 
-import { jsx, jsxs, Fragment } from "./jsx-runtime";
-import { Debug } from "@nebula/shared";
+import { jsx, jsxs, Fragment } from "./jsx-runtime.js";
+import { Portal as WebPortal } from "./portal.js";
+import { Debug } from "@terajs/shared";
 
 import type {
   ASTNode,
   ElementNode,
+  PortalNode,
+  SlotNode,
   TextNode,
   InterpolationNode,
   IfNode,
   ForNode
-} from "@nebula/renderer";
+} from "@terajs/renderer";
 
 function assertNever(x: never): never {
   throw new Error("Unexpected AST node: " + JSON.stringify(x));
@@ -33,6 +36,12 @@ export function renderAst(node: ASTNode, ctx: any): any {
 
     case "element":
       return renderElement(node, ctx);
+
+    case "portal":
+      return renderPortal(node, ctx);
+
+    case "slot":
+      return renderSlot(node, ctx);
 
     case "if":
       return renderIf(node, ctx);
@@ -114,6 +123,39 @@ function renderElement(node: ElementNode, ctx: any) {
   return jsxs(node.tag, { ...props, children });
 }
 
+function renderPortal(node: PortalNode, ctx: any) {
+  const target = resolvePortalTarget(node.target, ctx);
+
+  Debug.emit("template:ast:portal", {
+    hasTarget: target != null
+  });
+
+  return jsx(WebPortal, {
+    to: target,
+    children: flatten(node.children.map((child) => renderAst(child, ctx)))
+  });
+}
+
+function renderSlot(node: SlotNode, ctx: any) {
+  const slotName = node.name ?? "default";
+  const slotValue = ctx?.slots?.[slotName];
+
+  Debug.emit("template:ast:slot", {
+    name: slotName,
+    hasSlot: slotValue != null
+  });
+
+  if (typeof slotValue === "function") {
+    return slotValue();
+  }
+
+  if (slotValue != null) {
+    return slotValue;
+  }
+
+  return flatten(node.fallback.map((child) => renderAst(child, ctx)));
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                    IF                                      */
 /* -------------------------------------------------------------------------- */
@@ -177,3 +219,16 @@ function capitalize(str: string) {
 function flatten(arr: any[]): any[] {
   return arr.flat(Infinity);
 }
+
+function resolvePortalTarget(target: any, ctx: any): any {
+  if (!target) {
+    return undefined;
+  }
+
+  if (target.kind === "bind") {
+    return ctx[target.value];
+  }
+
+  return target.value;
+}
+

@@ -1,4 +1,4 @@
-import type { ReactiveMetadata } from "./metadata";
+import type { ReactiveMetadata } from "./metadata.js";
 
 /**
  * Base shape for all debug events.
@@ -86,6 +86,114 @@ export interface RouteChangedEvent extends DebugEventBase {
   query?: Record<string, string | string[]>;
 }
 
+export interface RouterWarningEvent extends DebugEventBase {
+  type: "route:warn";
+  message: string;
+}
+
+export interface RouteMetaResolvedEvent extends DebugEventBase {
+  type: "route:meta:resolved";
+  to: string;
+  meta: Record<string, unknown>;
+  ai?: Record<string, unknown>;
+  route?: Record<string, unknown>;
+}
+
+export interface RouterErrorEvent extends DebugEventBase {
+  type: "error:router";
+  message: string;
+  to?: string;
+}
+
+export interface ResourceLoadStartEvent extends DebugEventBase {
+  type: "resource:load:start";
+  source?: unknown;
+  hasInitialValue?: boolean;
+}
+
+export interface ResourceLoadEndEvent extends DebugEventBase {
+  type: "resource:load:end";
+  source?: unknown;
+  state: "ready";
+}
+
+export interface ResourceErrorEvent extends DebugEventBase {
+  type: "resource:error";
+  source?: unknown;
+  error: unknown;
+}
+
+export interface ResourceMutateEvent extends DebugEventBase {
+  type: "resource:mutate";
+  state: "ready";
+}
+
+export interface ResourceInvalidateEvent extends DebugEventBase {
+  type: "resource:invalidate";
+  keys: string[];
+  handlerCount: number;
+}
+
+export interface ServerFunctionInvokeEvent extends DebugEventBase {
+  type: "server:function:invoke";
+  id: string;
+  argsCount: number;
+  transport: false;
+}
+
+export interface ServerFunctionTransportEvent extends DebugEventBase {
+  type: "server:function:transport";
+  id: string;
+  argsCount: number;
+  transport: true;
+}
+
+export interface ServerFunctionErrorEvent extends DebugEventBase {
+  type: "server:function:error";
+  id: string;
+  message: string;
+}
+
+export interface HubConnectEvent extends DebugEventBase {
+  type: "hub:connect";
+  transport: string;
+  url: string;
+  retryPolicy?: string;
+}
+
+export interface HubDisconnectEvent extends DebugEventBase {
+  type: "hub:disconnect";
+  transport: string;
+  url?: string;
+  reason?: string;
+}
+
+export interface HubErrorEvent extends DebugEventBase {
+  type: "hub:error";
+  transport: string;
+  message: string;
+  call?: string;
+}
+
+export interface HubPushReceivedEvent extends DebugEventBase {
+  type: "hub:push:received";
+  transport: string;
+  keys?: string[];
+}
+
+export interface HubSyncStartEvent extends DebugEventBase {
+  type: "hub:sync:start";
+  transport: string;
+  call: string;
+}
+
+export interface HubSyncCompleteEvent extends DebugEventBase {
+  type: "hub:sync:complete";
+  transport: string;
+  call: string;
+  invalidated?: number;
+}
+
 /**
  * Union of all debug events.
  * * Using these specific types in a switch(event.type) block 
@@ -100,4 +208,21 @@ export type DebugEvent =
   | ComponentMountedEvent
   | ComponentUnmountedEvent
   | DomUpdatedEvent
-  | RouteChangedEvent;
+  | RouteChangedEvent
+  | RouteMetaResolvedEvent
+  | RouterWarningEvent
+  | RouterErrorEvent
+  | ResourceLoadStartEvent
+  | ResourceLoadEndEvent
+  | ResourceErrorEvent
+  | ResourceMutateEvent
+  | ResourceInvalidateEvent
+  | ServerFunctionInvokeEvent
+  | ServerFunctionTransportEvent
+  | ServerFunctionErrorEvent
+  | HubConnectEvent
+  | HubDisconnectEvent
+  | HubErrorEvent
+  | HubPushReceivedEvent
+  | HubSyncStartEvent
+  | HubSyncCompleteEvent;

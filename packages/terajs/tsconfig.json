@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.json",
+
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    "types": ["node", "vitest/globals"]
+  },
+
+  "include": ["src"],
+  "exclude": ["dist"],
+
+  "references": [
+    { "path": "../reactivity" },
+    { "path": "../runtime" },
+    { "path": "../router" },
+    { "path": "../router-manifest" },
+    { "path": "../renderer-web" },
+    { "path": "../devtools" },
+    { "path": "../vite-plug-in" }
+  ]
+}

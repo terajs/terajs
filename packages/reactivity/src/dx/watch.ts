@@ -1,7 +1,7 @@
 /**
  * @file watch.ts
  * @description
- * High-level reactive watcher for Nebula’s DX layer.
+ * High-level reactive watcher for Terajs's DX layer.
  *
  * `watch()` observes the *value* returned by a source getter and invokes a
  * callback whenever that value changes.
@@ -18,16 +18,16 @@
  * - only one cleanup is active at a time
  *
  * ## Debug Events Emitted
- * - `watch:create` — when the watcher is created
- * - `watch:source` — when the source getter runs
- * - `watch:callback` — when the callback executes
- * - `watch:cleanup` — when the callback registers a cleanup
- * - `watch:stop` — when the watcher is disposed
+ * - `watch:create` - when the watcher is created
+ * - `watch:source` - when the source getter runs
+ * - `watch:callback` - when the callback executes
+ * - `watch:cleanup` - when the callback registers a cleanup
+ * - `watch:stop` - when the watcher is disposed
  */
 
-import { watchEffect } from "./watchEffect";
-import { onCleanup } from "@nebula/runtime";
-import { Debug } from "@nebula/shared";
+import { watchEffect } from "./watchEffect.js";
+import { onEffectCleanup } from "./cleanup.js";
+import { Debug } from "@terajs/shared";
 
 /**
  * Watches a reactive source and invokes a callback whenever its value changes.
@@ -82,7 +82,7 @@ export function watch<T>(
       Debug.emit("watch:cleanup", {
         cleanup: fn
       });
-      onCleanup(fn);
+      onEffectCleanup(fn);
     });
 
     oldValue = newValue;

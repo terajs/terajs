@@ -1,8 +1,8 @@
 /**
  * @file jsx-runtime.ts
  * @description
- * Nebula’s JSX runtime — the bridge between JSX syntax and Nebula’s
- * fine‑grained DOM renderer.
+ * Terajs's JSX runtime - the bridge between JSX syntax and Terajs's
+ * fine-grained DOM renderer.
  *
  * JSX compiles directly into:
  * - Native DOM nodes
@@ -12,14 +12,15 @@
  * No VDOM. No diffing. No re-renders.
  */
 
-import { unwrap } from "./unwrap";
+import { unwrap } from "./unwrap.js";
 import {
     createElement,
     createText,
     createFragment,
     insert,
     setStyle,
-} from "./dom";
+    withHydrationParent,
+} from "./dom.js";
 
 import {
     bindText,
@@ -27,14 +28,14 @@ import {
     bindClass,
     bindStyle,
     bindEvent,
-} from "./bindings";
+} from "./bindings.js";
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Special symbol used by JSX to represent a fragment.
  */
-export const Fragment = Symbol("Nebula.Fragment");
+export const Fragment = Symbol("Terajs.Fragment");
 
 /**
  * Normalize any JSX child into a concrete DOM Node.
@@ -65,10 +66,82 @@ function normalizeChild(child: any): Node {
     throw new Error("Unsupported JSX child: " + child);
 }
 
+function flattenChildren(children: any): any[] {
+    if (Array.isArray(children)) {
+        return children.flatMap((child) => flattenChildren(child));
+    }
+
+    return children == null ? [] : [children];
+}
+
+function toSlotFactory(value: any): () => any {
+    return typeof value === "function" ? value : () => value;
+}
+
+function normalizeDefaultChildren(children: any[]): any {
+    if (children.length === 0) {
+        return undefined;
+    }
+
+    if (children.length === 1) {
+        return children[0];
+    }
+
+    return children;
+}
+
+function prepareComponentProps(props: Record<string, any>): Record<string, any> {
+    const nextProps = { ...props };
+    const incomingSlots = nextProps.slots && typeof nextProps.slots === "object"
+        ? nextProps.slots
+        : undefined;
+    const slotEntries: Record<string, any[]> = {};
+    const defaultChildren: any[] = [];
+
+    if (incomingSlots) {
+        for (const key of Object.keys(incomingSlots)) {
+            slotEntries[key] = [incomingSlots[key]];
+        }
+    }
+
+    for (const child of flattenChildren(nextProps.children)) {
+        if (child instanceof Element) {
+            const slotName = child.getAttribute("slot");
+            if (slotName) {
+                child.removeAttribute("slot");
+                (slotEntries[slotName] ??= []).push(child);
+                continue;
+            }
+        }
+
+        defaultChildren.push(child);
+    }
+
+    if (defaultChildren.length > 0 && !slotEntries.default) {
+        slotEntries.default = [normalizeDefaultChildren(defaultChildren)];
+    }
+
+    const slots = Object.keys(slotEntries).length > 0
+        ? Object.fromEntries(
+            Object.entries(slotEntries).map(([key, values]) => {
+                const resolved = values.length === 1 ? values[0] : values;
+                return [key, toSlotFactory(resolved)];
+            })
+        )
+        : undefined;
+
+    nextProps.children = normalizeDefaultChildren(defaultChildren);
+    if (slots) {
+        nextProps.slots = slots;
+    }
+
+    return nextProps;
+}
+
 /**
  * Apply JSX props to a DOM element.
  */
-function applyProps(el: HTMLElement, props: Record<string, any>) {
+function applyProps(el: Element, props: Record<string, any>) {
     Debug.emit("jsx:props", {
         el,
         props
@@ -124,7 +197,7 @@ export function jsxs(type: any, props: any): Node {
 }
 
 /**
- * Core JSX → DOM conversion.
+ * Core JSX -> DOM conversion.
  */
 function createVNode(type: any, props: any): Node {
     props = props || {};
@@ -163,7 +236,7 @@ function createVNode(type: any, props: any): Node {
             props
         });
 
-        return type(props);
+        return type(prepareComponentProps(props));
     }
 
     // Native DOM element
@@ -183,13 +256,15 @@ function createVNode(type: any, props: any): Node {
         children
     });
 
-    if (Array.isArray(children)) {
-        for (const child of children) {
-            insert(el, normalizeChild(child));
+    withHydrationParent(el, () => {
+        if (Array.isArray(children)) {
+            for (const child of children) {
+                insert(el, normalizeChild(child));
+            }
+        } else if (children != null) {
+            insert(el, normalizeChild(children));
         }
-    } else if (children != null) {
-        insert(el, normalizeChild(children));
-    }
+    });
 
     return el;
 }
@@ -201,3 +276,4 @@ declare global {
     }
   }
 }
+

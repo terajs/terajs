@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file show.test.ts
  * @group Renderer
  * @description
@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import { Show } from "./controlFlow";
 import { mount } from "./mount";
-import { state } from "@nebula/reactivity";
+import { state } from "@terajs/reactivity";
 
 describe("<Show>", () => {
 
@@ -71,3 +71,4 @@ describe("<Show>", () => {
     });
 
 });
+

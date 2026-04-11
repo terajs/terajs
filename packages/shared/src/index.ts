@@ -1,34 +1,39 @@
 /**
  * @file index.ts
- * @description Entry point for the @nebula/shared package.
+ * @description Entry point for the @terajs/shared package.
  */
 
-// 1. Identity & Metadata
-export * from "./debug/utils/id";
-export * from "./debug/metadata"; 
+// Identity and metadata utilities
+export * from "./debug/utils/id.js";
+export * from "./debug/metadata.js"; 
 
-// 2. Core Registries & Logic
-export * from "./debug/core/registry";
-export * from "./debug/core/graphRegistry"; // This provides addDependency, getNode, etc.
+// Core registries and graph APIs
+export * from "./debug/core/registry.js";
+export * from "./debug/core/graphRegistry.js";
 
-// 3. The Public API Facade (THE TRUTH)
-export { addDependency, removeDependencyNode } from "./debug/dependencyGraph"; 
+// Dependency graph facade
+export { addDependency, removeDependencyNode } from "./debug/dependencyGraph.js"; 
 
-// 4. The Event System
-// IMPORTANT: We need both the Debug object AND the named functions
-export { Debug } from "./debug/events"; 
-export { emitDebug, subscribeDebug } from "./debug/eventBus"; 
+// Debug event system
+export { Debug, resetDebugHandlers } from "./debug/events.js"; 
+export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus.js"; 
+export { resetDebugListeners } from "./debug/eventBus.js";
 
-// 5. Context & Types
-export * from "./debug/context";
-export * from "./debug/devtoolsBridge";
-export * from "./debug/types/events"; 
-export * from "./debug/types/metadata";
-export * from "./debug/types/registry";
-export * from "./debug/types/graph";
+// Context and shared types
+export * from "./debug/context.js";
+export * from "./debug/devtoolsBridge.js";
+export * from "./debug/types/events.js"; 
+export * from "./debug/types/metadata.js";
+export * from "./debug/types/registry.js";
+export * from "./debug/types/graph.js";
+export * from "./hydration.js";
+export * from "./routeTypes.js";
+export * from "./server.js";
+export * from "./errorBoundary.js";
 
 export { 
   getCurrentContext, 
   setCurrentContext, 
   createComponentContext, 
-} from "./context";
+} from "./context.js";
+export type { ComponentContext, Disposer } from "./context.js";

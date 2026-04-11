@@ -1,26 +1,26 @@
 /**
  * @file component.ts
  * @description
- * High-level component wrapper for Nebula.
+ * High-level component wrapper for Terajs.
  * Now includes optional HMR integration (dev-only).
  */
 
-import { emitDebug as emit, Debug } from "@nebula/shared";
-import { getCurrentEffect } from "@nebula/reactivity";
+import { emitDebug as emit, Debug } from "@terajs/shared";
+import { getCurrentEffect } from "@terajs/reactivity";
 import {
   pushContextFrame,
   popContextFrame,
   contextStack
-} from "../context/contextStack";
+} from "../context/contextStack.js";
 import {
   type Disposer,
   type ComponentContext,
   getCurrentContext,
   setCurrentContext
-} from "./context";
+} from "./context.js";
 
-import type { HMRInstance } from "../hmr";
-import { registerHMRComponent } from "../hmr";
+import type { HMRInstance } from "../hmr.js";
+import { registerHMRComponent } from "../hmr.js";
 
 /** Global instance counter per component name */
 const instanceCounters = new Map<string, number>();
@@ -46,14 +46,14 @@ export function onCleanup(fn: Disposer): void {
 }
 
 /**
- * Create a Nebula component wrapper.
+ * Create a Terajs component wrapper.
  *
  * This is the primary runtime entry point for components.
- * It wires the setup function into Nebula's context system and,
+ * It wires the setup function into Terajs's context system and,
  * in development, registers the component for HMR.
  */
 export function component<P = any>(
-  options: { name?: string; meta?: any },
+  options: { name?: string; meta?: any; ai?: any; route?: any },
   setup: (props: P) => Node | (() => Node)
 ) {
   const name = options.name ?? "AnonymousComponent";
@@ -73,7 +73,7 @@ export function component<P = any>(
     instances
   });
 
-  return function ComponentWrapper(props?: P) {
+  function ComponentWrapper(props?: P) {
     const instance = (instanceCounters.get(name) ?? 0) + 1;
     instanceCounters.set(name, instance);
 
@@ -84,15 +84,28 @@ export function component<P = any>(
       timestamp: Date.now()
     });
 
+    const previousContext = getCurrentContext();
     pushContextFrame();
 
-    const ctx: ComponentContext = {
+    const ctx: ComponentContext = previousContext ?? {
       disposers: [],
       props,
       frame: contextStack[contextStack.length - 1],
       name,
-      instance
+      instance,
+      mounted: [],
+      updated: [],
+      unmounted: []
     };
+
+    ctx.disposers ??= [];
+    ctx.props = props;
+    ctx.frame = contextStack[contextStack.length - 1];
+    ctx.name = name;
+    ctx.instance = instance;
+    ctx.mounted ??= [];
+    ctx.updated ??= [];
+    ctx.unmounted ??= [];
 
     setCurrentContext(ctx);
 
@@ -100,23 +113,22 @@ export function component<P = any>(
     try {
       out = currentSetup(props as P);
     } catch (err) {
-      console.error(`[Nebula] Error in component <${name} />:`, err);
-      setCurrentContext(null);
-      popContextFrame();
+      console.error(`[Terajs] Error in component <${name} />:`, err);
       throw err;
+    } finally {
+      setCurrentContext(previousContext);
+      popContextFrame();
     }
-
-    setCurrentContext(null);
-    popContextFrame();
 
     // HMR instance wrapper
     const hmrInstance: HMRInstance = {
       ctx,
       remount: () => {
+        const previous = getCurrentContext();
         pushContextFrame();
         setCurrentContext(ctx);
         currentSetup(ctx.props);
-        setCurrentContext(null);
+        setCurrentContext(previous);
         popContextFrame();
       },
       dispose: () => {
@@ -131,5 +143,11 @@ export function component<P = any>(
     instances.add(hmrInstance);
 
     return out;
-  };
+  }
+  // Attach meta/ai/route to the wrapper for runtime/devtools access (agnostic, not web-specific)
+  Object.defineProperty(ComponentWrapper, "meta", { value: options.meta, enumerable: false });
+  Object.defineProperty(ComponentWrapper, "ai", { value: options.ai, enumerable: false });
+  Object.defineProperty(ComponentWrapper, "route", { value: options.route, enumerable: false });
+  return ComponentWrapper;
 }
+

@@ -1,11 +1,11 @@
-#  Nebula Style Guide (Updated)
+# Terajs Style Guide
 
-Nebula encourages clarity, predictability, and small composable pieces — without forcing a rigid structure. These conventions help teams write consistent, maintainable components while preserving full flexibility.
+Terajs encourages clarity, predictability, and small composable pieces — without forcing a rigid structure. These conventions help teams write consistent, maintainable components while preserving full flexibility.
 
-Nebula’s philosophy:  
+Terajs’s philosophy:  
 > **Provide structure without restricting creativity.**
 
-Nebula is:  
+Terajs is:  
 - **TypeScript‑first, but TypeScript‑optional**  
 - **style‑agnostic**  
 - **platform‑agnostic**  
@@ -32,13 +32,13 @@ formatDate.ts
 router.ts
 ```
 
-Nebula does not enforce a folder structure — choose what fits your team.
+Terajs does not enforce a folder structure — choose what fits your team.
 
 ---
 
 ## 2. Recommended Component Structure
 
-Nebula components can include logic, template, styles, metadata, and routing in one file.
+Terajs components can include logic, template, styles, metadata, and routing in one file.
 
 ```tsx
 // --- Props ---
@@ -95,7 +95,7 @@ UserCard/
   UserCard.styles.css
 ```
 
-Nebula does not enforce this — it’s just a helpful pattern.
+Terajs does not enforce this — it’s just a helpful pattern.
 
 ---
 
@@ -103,13 +103,13 @@ Nebula does not enforce this — it’s just a helpful pattern.
 
 Avoid recalculating expensive values inside templates.
 
-❌ Avoid:
+Avoid:
 
 ```tsx
 return () => <div>{expensiveCalculation()}</div>
 ```
 
-✔ Prefer:
+Prefer:
 
 ```ts
 const result = computed(expensiveCalculation)
@@ -144,7 +144,7 @@ return () => <div>{Math.random()}</div>
 
 ## 6. Styling: Use Anything You Want
 
-Nebula is **style‑agnostic**.
+Terajs is **style‑agnostic**.
 
 Use:
 
@@ -157,7 +157,70 @@ Use:
 - Inline styles  
 - Design systems  
 
-Nebula does not enforce or prefer any styling approach.
+Terajs does not enforce or prefer any styling approach.
+
+### Terajs Brand Tokens
+
+For the main website and future marketing surfaces, use this shared Terajs palette:
+
+```css
+:root {
+  --tera-black: #0D0D0D;
+  --tera-carbon: #1A1A1A;
+  --tera-graphite: #2E2E2E;
+  --tera-blue: #3A7BFF;
+  --tera-cyan: #4FE3FF;
+  --tera-purple: #8A5CFF;
+  --tera-mist: #B3B3B3;
+  --tera-cloud: #F5F5F5;
+}
+```
+
+Recommended font stacks:
+
+```css
+font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+font-family: "Space Grotesk", "Inter", sans-serif;
+font-family: "JetBrains Mono", "Fira Code", monospace;
+```
+
+Tailwind usage reference:
+
+```js
+theme: {
+  extend: {
+    colors: {
+      tera: {
+        black: '#0D0D0D',
+        carbon: '#1A1A1A',
+        graphite: '#2E2E2E',
+        blue: '#3A7BFF',
+        cyan: '#4FE3FF',
+        purple: '#8A5CFF',
+        mist: '#B3B3B3',
+        cloud: '#F5F5F5'
+      }
+    },
+    fontFamily: {
+      sans: ['Inter', 'sans-serif'],
+      heading: ['Space Grotesk', 'Inter', 'sans-serif'],
+      code: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      satoshi: ['Satoshi', 'Inter', 'sans-serif']
+    }
+  }
+}
+```
+
+Suggested usage:
+
+- `--tera-black` for dark backgrounds
+- `--tera-carbon` for cards and surfaces
+- `--tera-graphite` for borders and dividers
+- `--tera-blue` for primary actions
+- `--tera-cyan` for hover and interactive emphasis
+- `--tera-purple` for highlights and branded accents
+- `--tera-mist` for muted text
+- `--tera-cloud` for primary foreground text on dark UI
 
 Scoped styles are optional:
 
@@ -281,7 +344,7 @@ Avoid throwing errors inside templates.
 
 ## 14. Reactivity Best Practices
 
-Nebula uses fine‑grained, explicit dependency tracking.
+Terajs uses fine‑grained, explicit dependency tracking.
 
 - avoid deep reactive objects  
 - use nested signals for nested state  
@@ -293,7 +356,7 @@ Nebula uses fine‑grained, explicit dependency tracking.
 
 ## 15. Slots & Composition Patterns
 
-Nebula supports:
+Terajs supports:
 
 - default slots  
 - named slots  
@@ -324,7 +387,7 @@ Portals should contain UI, not business logic.
 
 ## 17. Debugging Best Practices
 
-Nebula is designed to be easy to debug:
+Terajs is designed to be easy to debug:
 
 - keep signal names meaningful  
 - avoid deeply nested reactive chains  
@@ -338,7 +401,7 @@ Readable code = debuggable code.
 
 ## 18. Philosophy Summary
 
-Nebula encourages components that are:
+Terajs encourages components that are:
 
 - small  
 - predictable  
@@ -348,6 +411,6 @@ Nebula encourages components that are:
 - cross‑platform  
 - easy to read and maintain  
 
-These guidelines help teams build consistent, scalable Nebula applications without sacrificing flexibility.
+These guidelines help teams build consistent, scalable Terajs applications without sacrificing flexibility.
 
 ---

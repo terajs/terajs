@@ -1,23 +1,63 @@
 {
-  "name": "@nebula/vite-plugin",
+  "name": "@terajs/vite-plugin",
   "version": "0.0.1",
+  "description": "Vite plugin for Terajs SFC compilation, route manifest generation, and dev integration.",
+  "author": "Terajs Labs",
   "type": "module",
-
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.d.ts.map"
+  ],
+  "keywords": [
+    "terajs",
+    "vite",
+    "plugin",
+    "sfc",
+    "routing",
+    "local-first"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
-
   "dependencies": {
-    "@nebula/shared": "*",
-    "@nebula/runtime": "*",
-    "@nebula/sfc": "*",
-    "@nebula/compiler": "*"
+    "@terajs/devtools": "^0.0.1",
+    "@terajs/shared": "^0.0.1",
+    "@terajs/runtime": "^0.0.1",
+    "@terajs/router-manifest": "^0.0.1",
+    "@terajs/router": "^0.0.1",
+    "@terajs/sfc": "^0.0.1",
+    "@terajs/compiler": "^0.0.1"
   },
-
   "peerDependencies": {
-    "vite": "^5.0.0"
-  }
+    "vite": "^8.0.0",
+    "@terajs/hub-signalr": "^0.0.1",
+    "@terajs/hub-socketio": "^0.0.1",
+    "@terajs/hub-websockets": "^0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@terajs/hub-signalr": {
+      "optional": true
+    },
+    "@terajs/hub-socketio": {
+      "optional": true
+    },
+    "@terajs/hub-websockets": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs"
 }

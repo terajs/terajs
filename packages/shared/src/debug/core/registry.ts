@@ -1,5 +1,5 @@
-import type { ComponentInstanceInfo, ReactiveInstanceInfo } from "../types/registry";
-import type { ReactiveMetadata } from "../types/metadata";
+import type { ComponentInstanceInfo, ReactiveInstanceInfo } from "../types/registry.js";
+import type { ReactiveMetadata } from "../types/metadata.js";
 
 /**
  * In-memory registry of all active component instances.
@@ -127,4 +127,9 @@ export function getReactiveByRid(rid: string): ReactiveInstanceInfo | undefined 
  */
 export function getComponentInstance(scope: string, instance: number): ComponentInstanceInfo | undefined {
   return components.get(componentKey(scope, instance));
+}
+
+export function resetDebugRegistry(): void {
+  components.clear();
+  reactives.clear();
 }

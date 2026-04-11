@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 
 describe("SFC <style> block", () => {
   it("captures raw CSS content", () => {
@@ -10,7 +10,7 @@ describe("SFC <style> block", () => {
         .btn { color: red; }
       </style>
       `,
-      "/components/StyleTest.nbl"
+      "/components/StyleTest.tera"
     );
 
     const styleText =
@@ -22,7 +22,8 @@ describe("SFC <style> block", () => {
   });
 
   it("handles missing style block", () => {
-    const sfc = parseSFC(`<template>Hello</template>`, "/x.nbl");
+    const sfc = parseSFC(`<template>Hello</template>`, "/x.tera");
     expect(sfc.style).toBeNull();
   });
 });
+

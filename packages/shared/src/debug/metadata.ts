@@ -1,5 +1,5 @@
-import type { ReactiveMetadata, ReactiveType } from "./types/metadata";
-import { buildRid, nextReactiveIndex } from "./utils/id";
+import type { ReactiveMetadata, ReactiveType } from "./types/metadata.js";
+import { buildRid, nextReactiveIndex } from "./utils/id.js";
 
 /**
  * Creates a metadata packet for a reactive primitive.

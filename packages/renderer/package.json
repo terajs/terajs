@@ -1,7 +1,7 @@
 {
-  "name": "@nebula/renderer",
+  "name": "@terajs/renderer",
   "version": "0.0.1",
-  "description": "Platform-agnostic rendering interfaces and types for the Nebula UI engine.",
+  "description": "Platform-agnostic rendering interfaces and types for the Terajs UI engine.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,6 +16,10 @@
     "clean": "rimraf dist"
   },
   "license": "MIT",
-  "author": "Nebula Labs",
-  "sideEffects": false
+  "author": "Terajs Labs",
+  "sideEffects": false,
+  "repository": "https://github.com/Thecodergabe/terajs",
+  "publishConfig": {
+    "access": "public"
+  }
 }

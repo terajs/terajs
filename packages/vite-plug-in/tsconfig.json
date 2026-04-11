@@ -9,15 +9,20 @@
     "declaration": true,
     "declarationMap": true,
 
-    "types": ["vitest/globals"]
+    "types": ["node", "vitest/globals"]
   },
 
   "include": ["src"],
-  "exclude": ["dist"],
+  "exclude": [
+    "dist",
+    "src/**/*.spec.ts"
+  ],
 
   "references": [
     { "path": "../shared" },
     { "path": "../runtime" },
+    { "path": "../router-manifest" },
+    { "path": "../router" },
     { "path": "../sfc" },
     { "path": "../compiler" }
   ]

@@ -1,14 +1,14 @@
 /**
  * @file hmr.ts
  * @description
- * Hot Module Replacement runtime for Nebula.
+ * Hot Module Replacement runtime for Terajs.
  *
  * Tracks live component instances and supports hot-swapping
  * setup functions and IR modules without full reload.
  */
 
-import { Debug } from "@nebula/shared";
-import type { ComponentContext } from "./component/context";
+import { Debug } from "@terajs/shared";
+import type { ComponentContext } from "./component/context.js";
 
 export interface HMRInstance {
   ctx: ComponentContext;
@@ -123,3 +123,4 @@ export function applyHMRUpdate(
     complete: true
   });
 }
+

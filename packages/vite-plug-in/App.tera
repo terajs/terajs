@@ -1,0 +1,23 @@
+<template>
+  <div class="terajs-app">
+    <RouterView />
+
+    <Portal target="#terajs-modals" />
+  </div>
+</template>
+
+<script>
+  import { routes } from 'virtual:terajs-routes';
+  import { createRouter } from '@terajs/router';
+
+  export const router = createRouter(routes);
+</script>
+
+<style>
+  #terajs-modals {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+</style>

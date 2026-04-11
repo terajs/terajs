@@ -9,17 +9,17 @@
  * - the value is recomputed on next access
  */
 
-import { effect } from "./effect";
-import { currentEffect, type ReactiveEffect } from "./deps";
-import { scheduleEffect } from "./effect";
+import { effect } from "./effect.js";
+import { currentEffect, type ReactiveEffect } from "./deps.js";
+import { scheduleEffect } from "./effect.js";
 
 import {
+  addDependency,
   createReactiveMetadata,
   registerReactiveInstance,
   updateReactiveValue,
-  Debug, // Replaces emitDebug/addDependency
-} from "@nebula/shared";
-import { addDependency } from "../../shared/src/debug/core/graphRegistry";
+  Debug,
+} from "@terajs/shared";
 
 /**
  * A lazily evaluated, cached derived reactive value.
@@ -141,7 +141,7 @@ export function computed<T>(fn: () => T): Computed<T> {
       deps.add(currentEffect);
       currentEffect.deps.push(deps);
 
-      // Graph edge: effect RID → computed RID
+      // Graph edge: effect RID -> computed RID
       const from = (currentEffect as any)._meta?.rid as string | undefined;
       if (from) {
         addDependency(from, meta.rid);

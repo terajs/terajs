@@ -1,7 +1,7 @@
 /**
  * @file errors.ts
  * @description
- * Shared error types for Nebula's renderer-agnostic layer.
+ * Shared error types for Terajs's renderer-agnostic layer.
  */
 
 export class RendererError extends Error {

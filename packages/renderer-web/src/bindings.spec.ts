@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { bindText, bindProp, bindClass, bindStyle } from "./bindings";
 import { createText, createElement } from "./dom";
-import { signal } from "../../reactivity/src/signal";
+import { signal } from "@terajs/reactivity";
 
 describe("bindings", () => {
     it("bindText updates when signal changes", () => {
@@ -34,10 +34,25 @@ describe("bindings", () => {
 
         bindClass(el, () => (active() ? "on" : "off"));
 
-        expect(el.className).toBe("off");
+        expect(el.getAttribute("class")).toBe("off");
 
         active.set(true);
-        expect(el.className).toBe("on");
+        expect(el.getAttribute("class")).toBe("on");
+    });
+
+    it("bindProp removes boolean attributes when false", () => {
+        const enabled = signal(false);
+        const el = createElement("button");
+
+        bindProp(el, "disabled", () => enabled());
+
+        expect(el.hasAttribute("disabled")).toBe(false);
+
+        enabled.set(true);
+        expect(el.hasAttribute("disabled")).toBe(true);
+
+        enabled.set(false);
+        expect(el.hasAttribute("disabled")).toBe(false);
     });
 
     it("bindStyle updates inline styles reactively", () => {

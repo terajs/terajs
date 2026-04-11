@@ -1,0 +1,149 @@
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Event Logs</div>
+    <div class="panel-subtitle">Total events: {{ eventCount() }}</div>
+
+    <div class="filter-row">
+      <button
+        v-for="filter in filters"
+        :key="filter"
+        @click="setFiltered(filter)"
+        :class="filterClass(filter)"
+      >
+        {{ filter }}
+      </button>
+    </div>
+
+    <div v-if="filteredLogs().length === 0" class="empty-state">No events.</div>
+
+    <ul v-if="filteredLogs().length > 0" class="log-list">
+      <li v-for="log in filteredLogs()" :key="String(log.timestamp)" class="log-item">
+        <span class="log-type">[{{ log.type }}]</span>
+        <span class="log-scope">{{ logScope(log) }}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { ref } from '@terajs/reactivity'
+
+const filteredRef = ref('all')
+const filters = ['all', 'component', 'signal', 'effect', 'error']
+
+function filtered() {
+  return filteredRef.value
+}
+
+function setFiltered(next) {
+  filteredRef.value = next
+}
+
+function eventCount() {
+  return (props.events || []).length
+}
+
+function filteredLogs() {
+  const logs = props.events || []
+  const eventList = logs.slice(-100)
+
+  if (filtered() === 'all') return eventList
+
+  return eventList.filter((event) => event.type.includes(filtered()))
+}
+
+function filterClass(filter) {
+  return filtered() === filter
+    ? 'filter-button filter-button--active'
+    : 'filter-button'
+}
+
+function logScope(log) {
+  if (log.payload?.scope) return log.payload.scope
+  if (log.scope) return log.scope
+  return ''
+}
+</script>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.5rem;
+  color: var(--tera-blue, #3A7BFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.panel-subtitle,
+.log-scope {
+  color: var(--tera-mist, #B3B3B3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.filter-button {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.625rem;
+  background: rgba(46, 46, 46, 0.8);
+  color: var(--tera-cloud, #F5F5F5);
+  cursor: pointer;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+.filter-button:hover {
+  background: rgba(79, 227, 255, 0.12);
+  color: var(--tera-cyan, #4FE3FF);
+}
+
+.filter-button--active {
+  background: var(--tera-blue, #3A7BFF);
+  border-color: var(--tera-blue, #3A7BFF);
+  color: #ffffff;
+}
+
+.empty-state {
+  color: rgba(179, 179, 179, 0.72);
+  font-size: 0.75rem;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.log-item {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.log-type {
+  color: var(--tera-cyan, #4FE3FF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.log-scope {
+  margin-left: 0.375rem;
+}
+</style>
+

@@ -1,4 +1,4 @@
-{
+﻿{
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",
@@ -9,8 +9,14 @@
     "target": "ESNext",
     "strict": true,
     "paths": {
-      "@nebula/compiler": ["../compiler"]
+      "@terajs/compiler": ["../compiler"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["dist"],
+  "references": [
+    { "path": "../compiler" },
+    { "path": "../router" }
+  ]
 }
+

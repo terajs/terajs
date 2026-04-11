@@ -3,13 +3,15 @@
 import type {
   ASTNode,
   ElementNode,
+  PortalNode,
+  SlotNode,
   TextNode,
   InterpolationNode,
   PropNode,
   IfNode,
   ForNode
-} from "@nebula/renderer";
-import { tokenizeTemplate, type Token } from "./templateTokenizer";
+} from "@terajs/renderer";
+import { tokenizeTemplate, type Token } from "./templateTokenizer.js";
 
 export function parseTemplateToAst(template: string): ASTNode[] {
   const tokens = tokenizeTemplate(template);
@@ -97,12 +99,7 @@ class ParserContext {
 
       if (t.type === "tagSelfClose") {
         this.next();
-        return {
-          type: "element",
-          tag,
-          props,
-          children: []
-        } as ElementNode;
+        return this.finalizeElement(tag, props, []);
       }
 
       if (t.type === "attrName") {
@@ -130,6 +127,34 @@ class ParserContext {
     // Directives: v-if / v-for
     const ifDir = props.find((p) => p.kind === "directive" && p.name === "v-if");
     const forDir = props.find((p) => p.kind === "directive" && p.name === "v-for");
+
+    return this.finalizeElement(tag, props, children, ifDir, forDir);
+  }
+
+  private finalizeElement(
+    tag: string,
+    props: PropNode[],
+    children: ASTNode[],
+    ifDir?: PropNode,
+    forDir?: PropNode
+  ): ASTNode {
+    if (tag === "Portal") {
+      const target = props.find((p) => p.name === "to");
+      return {
+        type: "portal",
+        target,
+        children
+      } as PortalNode;
+    }
+
+    if (tag === "slot") {
+      const nameProp = props.find((p) => p.kind === "static" && p.name === "name");
+      return {
+        type: "slot",
+        name: typeof nameProp?.value === "string" && nameProp.value.length > 0 ? nameProp.value : undefined,
+        fallback: children
+      } as SlotNode;
+    }
 
     if (ifDir) {
       return {
@@ -239,3 +264,4 @@ function parseForExpression(expr: string): { each: string; item: string; index?:
     item: lhs || "item"
   };
 }
+

@@ -1,7 +1,7 @@
 /**
  * @file effect.ts
  * @description
- * Core reactive effect implementation for Nebula’s fine‑grained reactivity system.
+ * Core reactive effect implementation for Terajs's fine-grained reactivity system.
  *
  * This version includes integration with the component execution context:
  * any effect created while a component is active will automatically register
@@ -14,13 +14,15 @@ import {
     popEffect,
     type ReactiveEffect,
     currentEffect
-} from "./deps";
-import { isServer } from "./dx/runtime";
-import { shouldBatch, queueEffect } from "./dx/batch";
-import { Debug, createReactiveMetadata, removeDependencyNode } from "@nebula/shared";
-
-// Note: This will be addressed when we move the renderer/context logic
-import { getCurrentContext } from "@nebula/runtime";
+} from "./deps.js";
+import { isServer } from "./dx/runtime.js";
+import { shouldBatch, queueEffect } from "./dx/batch.js";
+import {
+    Debug,
+    createReactiveMetadata,
+    getCurrentContext,
+    removeDependencyNode
+} from "@terajs/shared";
 
 /**
  * Creates a reactive effect that:
@@ -83,7 +85,7 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
         }
     };
 
-    // Initialize metadata — ensure arrays ALWAYS exist
+    // Initialize metadata - ensure arrays ALWAYS exist
     effectFn.deps = [];
     effectFn.cleanups = [];
     effectFn.children = [];

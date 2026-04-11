@@ -1,0 +1,184 @@
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Meta / AI / Route Inspector</div>
+    <div class="panel-subtitle">Components with metadata: {{ metaEntries().length }}</div>
+
+    <div v-if="metaEntries().length === 0" class="empty-state">No meta data found.</div>
+
+    <div v-if="metaEntries().length > 0" class="panel-stack">
+      <ul class="entry-list">
+        <li
+          v-for="item in metaEntries()"
+          :key="item.key"
+          @click="selectComponent(item)"
+          :class="entryClass(item)"
+        >
+          <span class="entry-scope">{{ item.scope }}</span>
+          <span class="entry-instance">#{{ item.instance }}</span>
+        </li>
+      </ul>
+
+      <div v-if="selectedComponent()" class="detail-card">
+        <div><span class="detail-label">Meta:</span> <span class="detail-value">{{ shortJson(selectedComponent().meta) }}</span></div>
+        <div><span class="detail-label">AI:</span> <span class="detail-value">{{ shortJson(selectedComponent().ai) }}</span></div>
+        <div><span class="detail-label">Route:</span> <span class="detail-value">{{ shortJson(selectedComponent().route) }}</span></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref, shallowRef, watchEffect } from '@terajs/reactivity'
+
+const metaEntriesRef = shallowRef([])
+const selectedComponentRef = ref(null)
+
+watchEffect(() => {
+  const events = props.events || []
+  const metaMap = {}
+
+  events.forEach((event) => {
+    if (event.type === 'component:mounted') {
+      const payload = event.payload || {}
+      const scope = payload.scope || payload.name || 'unknown'
+      const instance = payload.instance || payload.id || event.timestamp
+      const key = `${scope}#${instance}`
+
+      if (!metaMap[key]) {
+        metaMap[key] = {
+          key,
+          scope,
+          instance,
+          meta: payload.meta || {},
+          ai: payload.ai || {},
+          route: payload.route || {}
+        }
+      }
+    }
+  })
+
+  metaEntriesRef.value = Object.values(metaMap)
+
+  if (selectedComponentRef.value) {
+    const selectedKey = selectedComponentRef.value.key
+    selectedComponentRef.value = metaMap[selectedKey] || null
+  }
+})
+
+function metaEntries() {
+  return metaEntriesRef.value
+}
+
+function selectedComponent() {
+  return selectedComponentRef.value
+}
+
+function selectComponent(item) {
+  selectedComponentRef.value = item
+}
+
+function entryClass(item) {
+  if (selectedComponentRef.value && selectedComponentRef.value.key === item.key) {
+    return 'entry-item entry-item--selected'
+  }
+  return 'entry-item'
+}
+
+function shortJson(value) {
+  try {
+    return JSON.stringify(value).slice(0, 100)
+  } catch {
+    return 'unserializable'
+  }
+}
+</script>
+
+<meta>
+title: Meta Inspector
+</meta>
+
+<ai>
+summary: Displays per-component meta, ai, and route metadata.
+</ai>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.5rem;
+  color: var(--tera-cyan, #4FE3FF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.panel-subtitle,
+.entry-instance,
+.detail-value {
+  color: var(--tera-mist, #B3B3B3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.empty-state {
+  color: rgba(179, 179, 179, 0.72);
+  font-size: 0.75rem;
+}
+
+.panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.entry-list {
+  display: flex;
+  max-height: 10rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry-item {
+  cursor: pointer;
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.entry-item:hover {
+  background: rgba(79, 227, 255, 0.08);
+}
+
+.entry-item--selected {
+  border-color: var(--tera-blue, #3A7BFF);
+  background: rgba(58, 123, 255, 0.16);
+}
+
+.entry-scope,
+.detail-label {
+  color: var(--tera-purple, #8A5CFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.entry-instance {
+  margin-left: 0.375rem;
+}
+
+.detail-card {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.75rem;
+  font-size: 0.75rem;
+}
+</style>
+

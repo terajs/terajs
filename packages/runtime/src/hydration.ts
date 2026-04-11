@@ -1,4 +1,28 @@
-import { HydrationMode } from "../../sfc/src/types";
+import type { HydrationMode } from "@terajs/shared";
+
+export interface RuntimeHydrationState {
+  resources?: Record<string, unknown>;
+}
+
+let hydrationState: RuntimeHydrationState = {};
+
+export function setHydrationState(next: RuntimeHydrationState): void {
+  hydrationState = {
+    resources: next.resources ? { ...next.resources } : undefined
+  };
+}
+
+export function getHydratedResource<TValue = unknown>(key: string): TValue | undefined {
+  return hydrationState.resources?.[key] as TValue | undefined;
+}
+
+export function consumeHydratedResource<TValue = unknown>(key: string): TValue | undefined {
+  const value = getHydratedResource<TValue>(key);
+  if (hydrationState.resources && key in hydrationState.resources) {
+    delete hydrationState.resources[key];
+  }
+  return value;
+}
 
 /**
  * Schedules hydration of a server-rendered component according to the given mode.

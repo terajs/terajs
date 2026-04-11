@@ -1,23 +1,23 @@
 /**
  * @file irTypes.ts
  * @description
- * Core Intermediate Representation (IR) types for Nebula's compiler.
+ * Core Intermediate Representation (IR) types for Terajs's compiler.
  *
- * Nebula's IR is intentionally renderer‑agnostic. It represents:
+ * Terajs's IR is intentionally renderer-agnostic. It represents:
  * - normalized template structure
  * - metadata extracted from <meta> blocks
  * - route overrides extracted from <route> blocks
- * - file‑level context for SSR, hydration, routing, and devtools
+ * - file-level context for SSR, hydration, routing, and devtools
  *
  * This IR is the foundation for:
  * - SSR codegen
- * - client‑side DOM codegen
+ * - client-side DOM codegen
  * - routing + meta transforms
- * - AI‑assisted analysis
+ * - AI-assisted analysis
  * - static optimization passes
  */
 
-import type { MetaConfig, RouteOverride } from "@nebula/sfc"
+import type { MetaConfig, RouteOverride } from "./sfcTypes.js"
 
 /**
  * IR flags used for static analysis and optimization.
@@ -74,6 +74,24 @@ export interface IRElementNode extends IRNodeBase {
 }
 
 /**
+ * Portal node in IR.
+ */
+export interface IRPortalNode extends IRNodeBase {
+  type: "portal"
+  target?: IRPropNode
+  children: IRNode[]
+}
+
+/**
+ * Slot outlet node in IR.
+ */
+export interface IRSlotNode extends IRNodeBase {
+  type: "slot"
+  name?: string
+  fallback: IRNode[]
+}
+
+/**
  * v-if node in IR.
  */
 export interface IRIfNode extends IRNodeBase {
@@ -111,11 +129,13 @@ export type IRNode =
   | IRTextNode
   | IRInterpolationNode
   | IRElementNode
+  | IRPortalNode
+  | IRSlotNode
   | IRIfNode
   | IRForNode
 
 /**
- * The full IR module produced from a Nebula SFC++ file.
+ * The full IR module produced from a Terajs SFC++ file.
  *
  * This is the compiler's primary output and the input to:
  * - SSR renderer
@@ -126,7 +146,7 @@ export type IRNode =
  * - devtools
  */
 export interface IRModule {
-  /** Absolute or project‑relative file path of the SFC. */
+  /** Absolute or project-relative file path of the SFC. */
   filePath: string;
 
   /** Normalized template IR nodes. */
@@ -135,12 +155,16 @@ export interface IRModule {
   /** Parsed metadata from the <meta> block. */
   meta: MetaConfig;
 
-  /** Parsed AI metadata from the <ai> block, if present. */
+  /** Parsed AI metadata from the <ai> block, if present. Instructional-only metadata only. */
   ai?: Record<string, any>;
 
   /** Parsed route overrides from the <route> block, if present. */
   route: RouteOverride | null;
 
+  /** Whether this IR module contains async resource loading. */
+  hasAsyncResource?: boolean;
+
   scopeId?: string; // For scoped styles, if needed
 }
+
 

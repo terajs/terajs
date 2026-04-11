@@ -14,7 +14,7 @@ describe("reactive()", () => {
 
         expect(calls).toBe(1);
 
-        user.name = "Nebula";
+        user.name = "Terajs";
         expect(calls).toBe(2);
     });
 

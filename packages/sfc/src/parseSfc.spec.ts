@@ -25,7 +25,7 @@ const sample = `
 
 describe("parseSFC", () => {
   it("extracts all blocks correctly", () => {
-    const sfc = parseSFC(sample, "/pages/test.nbl");
+    const sfc = parseSFC(sample, "/pages/test.tera");
 
     const templateText =
       typeof sfc.template === "string"
@@ -51,11 +51,23 @@ describe("parseSFC", () => {
   });
 
   it("handles missing blocks", () => {
-    const sfc = parseSFC("<template>hi</template>", "/pages/x.nbl");
+    const sfc = parseSFC("<template>hi</template>", "/pages/x.tera");
 
     expect(sfc.script).toBe("");
     expect(sfc.style).toBeNull();
     expect(sfc.meta).toEqual({});
     expect(sfc.routeOverride).toBeNull();
+  });
+});
+
+describe("SFC Diagnostics", () => {
+  it("should throw an error for empty reactive expressions", () => {
+    const code = `<template><div>{{  }}</div></template>`;
+    expect(() => parseSFC(code, "error.tera")).toThrow("Empty reactive expression");
+  });
+
+  it("should throw an error for mismatched tags", () => {
+    const code = `<template><div></span></template>`;
+    expect(() => parseSFC(code, "error.tera")).toThrow("Mismatched or unclosed tag");
   });
 });

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file irJsxParity.spec.tsx
  * @description
  * Ensures JSX rendering and IR rendering behave identically over time.
@@ -13,9 +13,9 @@ import type {
   IRIfNode,
   IRTextNode,
   IRForNode,
-} from "@nebula/compiler";
+} from "@terajs/compiler";
 
-import { signal } from "@nebula/reactivity";
+import { signal } from "@terajs/reactivity";
 
 const tick = () => Promise.resolve();
 
@@ -23,7 +23,13 @@ function text(node: Node): string {
   return node.textContent || "";
 }
 
-describe("JSX ↔ IR Parity", () => {
+function mountInHost(node: Node): HTMLDivElement {
+  const host = document.createElement("div");
+  host.appendChild(node);
+  return host;
+}
+
+describe("JSX <-> IR Parity", () => {
   /* ---------------------------------------------------------------------- */
   /* INTERPOLATION                                                          */
   /* ---------------------------------------------------------------------- */
@@ -52,15 +58,17 @@ describe("JSX ↔ IR Parity", () => {
     };
 
     const irDom = renderIRNode(ir, { count })!;
+    const jsxHost = mountInHost(jsxDom);
+    const irHost = mountInHost(irDom);
 
-    expect(text(jsxDom)).toBe("1");
-    expect(text(irDom)).toBe("1");
+    expect(text(jsxHost)).toBe("1");
+    expect(text(irHost)).toBe("1");
 
     count.set(2);
     await tick();
 
-    expect(text(jsxDom)).toBe("2");
-    expect(text(irDom)).toBe("2");
+    expect(text(jsxHost)).toBe("2");
+    expect(text(irHost)).toBe("2");
   });
 
   /* ---------------------------------------------------------------------- */
@@ -118,15 +126,17 @@ describe("JSX ↔ IR Parity", () => {
     };
 
     const irDom = renderIRNode(ir, { show })!;
+    const jsxHost = mountInHost(jsxDom);
+    const irHost = mountInHost(irDom);
 
-    expect(text(jsxDom)).toBe("YES");
-    expect(text(irDom)).toBe("YES");
+    expect(text(jsxHost)).toBe("YES");
+    expect(text(irHost)).toBe("YES");
 
     show.set(false);
     await tick();
 
-    expect(text(jsxDom)).toBe("NO");
-    expect(text(irDom)).toBe("NO");
+    expect(text(jsxHost)).toBe("NO");
+    expect(text(irHost)).toBe("NO");
   });
 
   /* ---------------------------------------------------------------------- */
@@ -173,14 +183,17 @@ describe("JSX ↔ IR Parity", () => {
     };
 
     const irDom = renderIRNode(ir, { items })!;
+    const jsxHost = mountInHost(jsxDom);
+    const irHost = mountInHost(irDom);
 
-    expect(text(jsxDom)).toBe("12");
-    expect(text(irDom)).toBe("12");
+    expect(text(jsxHost)).toBe("12");
+    expect(text(irHost)).toBe("12");
 
     items.set([3, 4, 5]);
     await tick();
 
-    expect(text(jsxDom)).toBe("345");
-    expect(text(irDom)).toBe("345");
+    expect(text(jsxHost)).toBe("345");
+    expect(text(irHost)).toBe("345");
   });
 });
+

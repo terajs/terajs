@@ -1,10 +1,13 @@
 /**
  * @file types.ts
  * @description
- * Shared SSR types for Nebula's server-side renderer.
+ * Shared SSR types for Terajs's server-side renderer.
  * These types define the shape of the SSR context, hydration hints,
  * and the final SSR output returned by `renderToString`.
  */
+
+import type { RouteHydrationSnapshot } from "@terajs/router";
+import type { ResourcePayload } from "@terajs/runtime";
 
 /**
  * Context object passed into SSR.
@@ -18,15 +21,33 @@ export interface SSRContext {
 
   /** Additional or overriding route fields. */
   route?: Record<string, any>;
+
+  /** Whether the current render includes async resources. */
+  hasAsyncResource?: boolean;
   
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;
+
+  /** Data scope used to evaluate dynamic IR on the server. */
+  scope?: Record<string, unknown>;
+
+  /** Serialized assets for build manifest preloading. */
+  assets?: string[];
+
+  /** Serialized resources reused by client-side createResource hydration. */
+  resources?: Record<string, unknown>;
+
+  /** Serialized route payload used to resume route state on the client. */
+  routeSnapshot?: RouteHydrationSnapshot<unknown>;
+
+  /** Serialized hydration payloads for keyed resources. */
+  data?: Record<string, unknown>;
 }
 
 /**
  * Hydration hint derived from meta, route, or SSR context.
  *
- * Nebula uses hydration modes to determine how the client should
+ * Terajs uses hydration modes to determine how the client should
  * re-activate the server-rendered HTML.
  */
 export interface SSRHydrationHint {
@@ -43,7 +64,7 @@ export interface SSRHydrationHint {
 }
 
 /**
- * Result of Nebula's server-side rendering.
+ * Result of Terajs's server-side rendering.
  *
  * Returned by `renderToString`, this object contains:
  * - the rendered HTML body
@@ -62,4 +83,13 @@ export interface SSRResult {
 
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;
+
+  /** Serialized resources reused by client-side createResource hydration. */
+  resources?: Record<string, unknown>;
+
+  /** Serialized route payload used to resume route state on the client. */
+  routeSnapshot?: RouteHydrationSnapshot<unknown>;
+
+  /** Serialized loader data for client hydration. */
+  data?: Record<string, any>;
 }

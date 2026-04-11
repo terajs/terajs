@@ -1,0 +1,36 @@
+<template>
+  <div v-if="visible" class="overlay-shell">
+    <DevtoolsApp />
+  </div>
+</template>
+
+<script>
+// SFC components are auto-registered via Terajs auto-imports
+export let visible = true
+</script>
+
+<meta>
+title: Devtools Overlay
+</meta>
+
+<ai>
+summary: Wraps the devtools shell in a fixed-position overlay container.
+</ai>
+
+<style scoped>
+.overlay-shell {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 999999;
+  display: flex;
+  height: 70vh;
+  width: 480px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 1rem;
+  background: var(--tera-black, #0D0D0D);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.42);
+}
+</style>

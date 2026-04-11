@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import { Switch, Match } from "./controlFlow";
 import { mount } from "./mount";
-import { state } from "../../reactivity/src/state";
+import { state } from "@terajs/reactivity";
 
 describe("<Switch> / <Match>", () => {
 

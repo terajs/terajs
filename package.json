@@ -1,12 +1,27 @@
 {
-  "name": "nebula",
+  "name": "terajs",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "test": "vitest"
+    "build": "npm run clean && tsc -b",
+    "clean": "tsc -b --clean",
+    "test": "vitest",
+    "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
+    "test:docs": "vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
+    "test:local-first": "vitest --run packages/runtime/src/queue/mutationQueue.spec.ts packages/runtime/src/action.spec.ts packages/runtime/src/resource.spec.ts packages/renderer-web/src/form.spec.ts packages/devtools/src/analytics.spec.ts",
+    "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts",
+    "typecheck": "npm run clean && tsc -b --pretty false",
+    "smoke:external": "node scripts/external-smoke.mjs",
+    "guard:publish-metadata": "node scripts/guard-publish-metadata.mjs",
+    "prepublishOnly": "npm run guard:publish-metadata",
+    "audit:exports": "node scripts/audit-exports.mjs",
+    "audit:exports:strict": "node scripts/audit-exports.mjs --strict",
+    "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
     "jsdom": "^29.0.1",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"

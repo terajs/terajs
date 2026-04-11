@@ -1,10 +1,10 @@
-import type { DependencyNode } from "./types/graph";
+import type { DependencyNode } from "./types/graph.js";
 import {
   addDependency as addEdge,
   getNode,
   getGraphSnapshot,
   removeNode
-} from "./core/graphRegistry";
+} from "./core/graphRegistry.js";
 
 /**
  * Public API for the dependency graph used by the rest of debug/core.

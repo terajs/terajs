@@ -1,0 +1,18 @@
+{
+  "framework": "Terajs",
+  "version": "1.0.0-alpha",
+  "pillars": {
+    "reactivity": "Fine-grained, Signal-based, VDOM-less",
+    "routing": "Component-driven, File-system scanned, Virtual Manifest",
+    "rendering": "Streaming SSR, Out-of-order Hydration, Local-First Persistence"
+  },
+  "conventions": {
+    "extension": ".tera",
+    "autoImports": ["ref", "shallowRef", "watchEffect", "createResource", "onMounted"],
+    "reservedTags": ["template", "script", "style", "meta", "ai", "route"]
+  },
+  "build_pipeline": {
+    "plugin": "terajs/vite",
+    "virtual_modules": ["virtual:terajs-routes", "virtual:terajs-auto-imports", "virtual:terajs-app"]
+  }
+}

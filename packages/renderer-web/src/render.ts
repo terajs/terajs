@@ -1,7 +1,7 @@
 /**
  * @file render.ts
  * @description
- * Core component execution pipeline for Nebula.
+ * Core component execution pipeline for Terajs.
  *
  * Components run inside a ComponentContext, which tracks disposers.
  * Components may return:
@@ -13,19 +13,19 @@
  * that updates automatically when dependencies change.
  */
 
-import { insert } from "./dom";
+import { insert, clear } from "./dom.js";
 import {
     createComponentContext,
     setCurrentContext,
     getCurrentContext,
-} from "@nebula/runtime";
-import type { ComponentContext } from "@nebula/runtime";
-import { template, type TemplateFn } from "./template";
-import { Debug } from "@nebula/shared";
+} from "@terajs/runtime";
+import type { ComponentContext } from "@terajs/runtime";
+import { template, type TemplateFn } from "./template.js";
+import { Debug } from "@terajs/shared";
 
-// ⭐ AST → JSX adapter
-import { renderAst } from "./astToJsx";
-import type { ASTNode } from "@nebula/renderer";
+// AST to JSX adapter
+import { renderAst } from "./astToJsx.js";
+import type { ASTNode } from "@terajs/renderer";
 
 /**
  * A framework component.
@@ -60,6 +60,7 @@ export function renderComponent(
 ): RenderResult {
     const ctx = createComponentContext();
     const prev = getCurrentContext();
+    ctx.errorBoundary = prev?.errorBoundary;
 
     Debug.emit("component:render:start", {
         component,
@@ -73,7 +74,7 @@ export function renderComponent(
 
     let node: Node;
 
-    // ⭐ AST support
+    // AST support
     if (isAst(out)) {
         Debug.emit("component:render:template", {
             component,
@@ -83,8 +84,8 @@ export function renderComponent(
         // TemplateFn MUST be () => Node
         // So we close over ctx instead of passing it
         const fn: TemplateFn = () => {
-            const jsx = renderAst(out, ctx); // AST → JSX
-            return jsx;                      // JSX → DOM happens in template()
+            const jsx = renderAst(out, ctx); // AST -> JSX
+            return jsx;                      // JSX -> DOM happens in template()
         };
 
         node = template(fn);
@@ -142,7 +143,7 @@ export function renderIntoRoot(
 
     // Clear root and notify debug
     Debug.emit("dom:clear", { el: root });
-    root.innerHTML = "";
+    clear(root);
 
     const { node, ctx } = renderComponent(component, props);
 
@@ -155,5 +156,16 @@ export function renderIntoRoot(
 
 /** Type guard for AST nodes */
 function isAst(value: any): value is ASTNode {
-    return value && typeof value === "object" && typeof value.type === "string";
+    if (!value || typeof value !== "object" || value instanceof Node) {
+        return false;
+    }
+
+    return value.type === "element"
+        || value.type === "text"
+        || value.type === "interp"
+        || value.type === "if"
+        || value.type === "for"
+        || value.type === "portal"
+        || value.type === "slot";
 }
+

@@ -1,0 +1,63 @@
+{
+  "name": "terajs",
+  "version": "0.0.1",
+  "description": "Default app-facing entry package for Terajs.",
+  "author": "Terajs Labs",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.d.ts.map"
+  ],
+  "keywords": [
+    "terajs",
+    "framework",
+    "reactivity",
+    "routing",
+    "vite"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./vite": {
+      "import": "./dist/vite.js",
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./devtools": {
+      "import": "./dist/devtools.js",
+      "types": "./dist/devtools.d.ts",
+      "default": "./dist/devtools.js"
+    }
+  },
+  "dependencies": {
+    "@terajs/devtools": "^0.0.1",
+    "@terajs/reactivity": "^1.0.0",
+    "@terajs/renderer-web": "^0.0.1",
+    "@terajs/router-manifest": "^0.0.1",
+    "@terajs/router": "^0.0.1",
+    "@terajs/runtime": "^0.0.1",
+    "@terajs/vite-plugin": "^0.0.1"
+  },
+  "peerDependencies": {
+    "vite": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs"
+}

@@ -1,0 +1,109 @@
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Component Tree</div>
+    <div class="panel-subtitle">Live Tera component instances</div>
+
+    <div v-if="componentList().length === 0" class="empty-state">
+      No components mounted.
+    </div>
+
+    <ul v-if="componentList().length > 0" class="component-list">
+      <li
+        v-for="c in componentList()"
+        :key="c.key"
+        class="component-item"
+      >
+        <span class="component-scope">{{ c.scope }}</span>
+        <span class="component-instance">#{{ c.instance }}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { shallowRef, watchEffect } from '@terajs/reactivity'
+
+const componentsRef = shallowRef({})
+
+watchEffect(() => {
+  const events = props.events || []
+  const componentMap = {}
+
+  events.forEach((event) => {
+    if (event.type === 'component:mounted') {
+      const payload = event.payload || {}
+      const scope = payload.scope || payload.name || 'unknown'
+      const instance = payload.instance || payload.id || event.timestamp
+      const key = `${scope}#${instance}`
+      componentMap[key] = { key, scope, instance, timestamp: event.timestamp }
+    }
+  })
+
+  componentsRef.value = componentMap
+})
+
+function componentList() {
+  return Object.values(componentsRef.value)
+}
+</script>
+
+<meta>
+title: Component Tree
+</meta>
+
+<ai>
+summary: Shows component mount events and current component instances.
+</ai>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.5rem;
+  color: var(--tera-blue, #3A7BFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.panel-subtitle,
+.component-instance {
+  color: var(--tera-mist, #B3B3B3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.empty-state {
+  color: rgba(179, 179, 179, 0.72);
+  font-size: 0.75rem;
+}
+
+.component-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.component-item {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.component-scope {
+  color: var(--tera-cyan, #4FE3FF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.component-instance {
+  margin-left: 0.5rem;
+}
+</style>
+

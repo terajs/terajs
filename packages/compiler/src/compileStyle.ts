@@ -5,8 +5,8 @@
  * applying scoped rewriting when needed.
  */
 
-import type { ParsedSFC } from "@nebula/sfc";
-import { rewriteScopedCss } from "./rewriteScopedCss";
+import { rewriteScopedCss } from "./rewriteScopedCss.js";
+import type { ParsedSFC } from "./sfcTypes.js";
 
 /**
  * Result of compiling an SFC style block.
@@ -62,3 +62,4 @@ export function compileStyle(
     scopeId
   };
 }
+

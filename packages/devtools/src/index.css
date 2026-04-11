@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: theme('colors.primary');
+  --color-accent: theme('colors.accent');
+  --color-highlight: theme('colors.highlight');
+  --color-background: theme('colors.background');
+  --color-surface: theme('colors.surface');
+  --color-surface-elevated: theme('colors.surfaceElevated');
+  --color-border: theme('colors.border');
+  --color-text: theme('colors.text');
+  --color-muted: theme('colors.muted');
+  --color-success: theme('colors.success');
+  --color-warning: theme('colors.warning');
+  --color-danger: theme('colors.danger');
+}

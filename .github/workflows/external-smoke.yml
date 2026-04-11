@@ -1,0 +1,34 @@
+name: External Smoke
+
+on:
+  push:
+    branches:
+      - core
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: external-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scaffold-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run External Scaffold Smoke
+        run: npm run smoke:external

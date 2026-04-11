@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file batch.spec.ts
  * @group Renderer
  * @description
@@ -13,9 +13,8 @@
 
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
-import { state } from "../../reactivity/src/state";
-import { onCleanup } from "@nebula/runtime";
-import { effect, dispose } from "@nebula/reactivity";
+import { onCleanup } from "@terajs/runtime";
+import { dispose, effect, state } from "@terajs/reactivity";
 
 describe("Component Lifecycle", () => {
 
@@ -93,3 +92,4 @@ describe("Component Lifecycle", () => {
     });
 
 });
+

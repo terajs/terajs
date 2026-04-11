@@ -9,13 +9,14 @@
     "declaration": true,
     "declarationMap": true,
 
-    "types": ["vitest/globals"]
+    "types": ["node", "vitest/globals"]
   },
 
   "include": ["src"],
   "exclude": ["dist"],
 
   "references": [
-    { "path": "../shared" }
+    { "path": "../shared" },
+    { "path": "../compiler" }
   ]
 }

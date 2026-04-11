@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file component-lifecycle.test.ts
  * @group Renderer
  * @description
@@ -8,8 +8,8 @@
 
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
-import { onCleanup } from "@nebula/runtime";;
-import { effect, state, dispose } from "@nebula/reactivity";
+import { onCleanup } from "@terajs/runtime";;
+import { effect, state, dispose } from "@terajs/reactivity";
 
 describe("Component Lifecycle", () => {
 
@@ -90,3 +90,4 @@ describe("Component Lifecycle", () => {
 
 
 });
+

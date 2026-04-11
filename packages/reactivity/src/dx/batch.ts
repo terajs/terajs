@@ -1,7 +1,7 @@
 /**
  * @file batch.ts
  * @description
- * Nebula’s batching system for fine‑grained reactivity.
+ * Terajs's batching system for fine-grained reactivity.
  *
  * Batching groups multiple signal updates together so that effects
  * run only once after all updates complete.
@@ -9,9 +9,9 @@
  * This is similar to SolidJS batching and Vue's flush mechanism.
  */
 
-import type { ReactiveEffect } from "../deps";
-import { scheduleEffect } from "../effect";
-import { Debug } from "@nebula/shared";
+import type { ReactiveEffect } from "../deps.js";
+import { scheduleEffect } from "../effect.js";
+import { Debug } from "@terajs/shared";
 
 let batchDepth = 0;
 const batchQueue = new Set<ReactiveEffect>();

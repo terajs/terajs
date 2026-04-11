@@ -49,3 +49,8 @@ export function buildRid(
   }
   return `${scope}#${instance}.${type}#${index}`;
 }
+
+export function resetDebugIdCounters(): void {
+  instanceCounters.clear();
+  reactiveCounters.clear();
+}
