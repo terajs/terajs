@@ -7,6 +7,7 @@ Status: internal package (`private: true`) used for Terajs development and exter
 ## Commands
 
 - `tera init <name>`: scaffold a new Terajs project
+- `tera init <name> --hub <signalr|socket.io|websockets> [--hub-url <url>]`: scaffold a project preconfigured for realtime hub transport
 - `tera dev --port <number>`: start Vite dev server with Terajs plugin
 - `tera build`: build production output with Terajs plugin
 

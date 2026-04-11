@@ -1,12 +1,43 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export async function scaffoldProject(name: string): Promise<void> {
+export type ScaffoldHubType = "signalr" | "socket.io" | "websockets";
+
+export interface ScaffoldProjectOptions {
+  hub?: ScaffoldHubType;
+  hubUrl?: string;
+}
+
+const HUB_DEFAULT_URLS: Record<ScaffoldHubType, string> = {
+  signalr: "https://api.example.com/terajs/hub",
+  "socket.io": "https://api.example.com/realtime",
+  websockets: "wss://api.example.com/realtime"
+};
+
+const HUB_DEPENDENCIES: Record<ScaffoldHubType, Record<string, string>> = {
+  signalr: {
+    "@terajs/hub-signalr": "^0.0.1",
+    "@microsoft/signalr": "^8.0.0"
+  },
+  "socket.io": {
+    "@terajs/hub-socketio": "^0.0.1",
+    "socket.io-client": "^4.8.1"
+  },
+  websockets: {
+    "@terajs/hub-websockets": "^0.0.1"
+  }
+};
+
+export async function scaffoldProject(name: string, options: ScaffoldProjectOptions = {}): Promise<void> {
   const root = join(process.cwd(), name);
   const src = join(root, "src");
   const pages = join(src, "pages");
   const components = join(src, "components");
   const terajs = join(root, ".terajs");
+  const hubType = options.hub;
+  const hubUrl = hubType
+    ? (options.hubUrl?.trim() || HUB_DEFAULT_URLS[hubType])
+    : "";
 
   await mkdir(pages, { recursive: true });
   await mkdir(components, { recursive: true });
@@ -25,7 +56,8 @@ export async function scaffoldProject(name: string): Promise<void> {
         preview: "vite preview"
       },
       dependencies: {
-        "terajs": "^0.0.1"
+        "terajs": "^0.0.1",
+        ...(hubType ? HUB_DEPENDENCIES[hubType] : {})
       },
       devDependencies: {
         "vite": "^8.0.0"
@@ -33,18 +65,30 @@ export async function scaffoldProject(name: string): Promise<void> {
     }, null, 2)
   );
 
+  const syncSection = hubType
+    ? `
+  sync: {
+    hub: {
+      type: ${JSON.stringify(hubType)},
+      url: ${JSON.stringify(hubUrl)},
+      autoConnect: true,
+      retryPolicy: "exponential"
+    }
+  },`
+    : "";
+
   await writeFile(
     join(root, "terajs.config.cjs"),
     `module.exports = {
   autoImportDirs: ["src/components"],
   routeDirs: ["src/pages"],
-      devtools: {
-        enabled: true,
-        startOpen: false,
-        position: "bottom-right",
-        panelShortcut: "Ctrl+Shift+D",
-        visibilityShortcut: "Ctrl+Shift+H"
-      },
+  devtools: {
+    enabled: true,
+    startOpen: false,
+    position: "bottom-right",
+    panelShortcut: "Ctrl+Shift+D",
+    visibilityShortcut: "Ctrl+Shift+H"
+  },${syncSection}
   router: {
     rootTarget: "app",
     middlewareDir: "src/middleware",

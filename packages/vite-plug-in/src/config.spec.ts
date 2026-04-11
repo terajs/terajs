@@ -74,6 +74,55 @@ describe("vite plugin config", () => {
     });
   });
 
+  it("parses socket.io sync hub config", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "terajs-config-"));
+    process.chdir(tempDir);
+
+    await writeFile(
+      path.join(tempDir, "terajs.config.cjs"),
+      `module.exports = {
+  sync: {
+    hub: {
+      type: "socket.io",
+      url: "https://api.example.com/realtime"
+    }
+  }
+};`
+    );
+
+    expect(getSyncHubConfig()).toEqual({
+      type: "socket.io",
+      url: "https://api.example.com/realtime",
+      autoConnect: true,
+      retryPolicy: "exponential"
+    });
+  });
+
+  it("parses websockets sync hub config", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "terajs-config-"));
+    process.chdir(tempDir);
+
+    await writeFile(
+      path.join(tempDir, "terajs.config.cjs"),
+      `module.exports = {
+  sync: {
+    hub: {
+      type: "websockets",
+      url: "wss://api.example.com/realtime",
+      autoConnect: false
+    }
+  }
+};`
+    );
+
+    expect(getSyncHubConfig()).toEqual({
+      type: "websockets",
+      url: "wss://api.example.com/realtime",
+      autoConnect: false,
+      retryPolicy: "exponential"
+    });
+  });
+
   it("throws for unsupported retry policy", async () => {
     tempDir = await mkdtemp(path.join(tmpdir(), "terajs-config-"));
     process.chdir(tempDir);

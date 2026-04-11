@@ -5,7 +5,7 @@ SignalR transport adapter for Terajs sync hub workflows.
 ## Status
 
 - This is the first-party realtime adapter shipped for the current RC slice.
-- `socket.io` and `websockets` adapter paths use the same runtime transport contract and are planned as separate adapters.
+- First-party `socket.io` and `websockets` adapters are also available and use the same runtime transport contract.
 
 ## Install
 

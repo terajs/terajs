@@ -399,6 +399,52 @@ describe("Terajs Vite Plugin (integration)", () => {
     syncSpy.mockRestore();
   });
 
+  it("generates socket.io hub bootstrap code when sync.hub is configured", async () => {
+    const configModule = await import("./config");
+    const syncSpy = vi.spyOn(configModule, "getSyncHubConfig").mockReturnValue({
+      type: "socket.io",
+      url: "https://api.myapp.com/socket-hub",
+      autoConnect: true,
+      retryPolicy: "exponential"
+    });
+
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("createSocketIoHubTransport");
+    expect(code).toContain("@terajs/hub-socketio");
+    expect(code).toContain('const HUB_CONFIG = {"type":"socket.io","url":"https://api.myapp.com/socket-hub","autoConnect":true,"retryPolicy":"exponential"}');
+    expect(code).toContain("setServerFunctionTransport(hubTransport)");
+    expect(code).toContain("invalidateResources(message.keys)");
+
+    syncSpy.mockRestore();
+  });
+
+  it("generates websockets hub bootstrap code when sync.hub is configured", async () => {
+    const configModule = await import("./config");
+    const syncSpy = vi.spyOn(configModule, "getSyncHubConfig").mockReturnValue({
+      type: "websockets",
+      url: "wss://api.myapp.com/realtime",
+      autoConnect: true,
+      retryPolicy: "exponential"
+    });
+
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("createWebSocketHubTransport");
+    expect(code).toContain("@terajs/hub-websockets");
+    expect(code).toContain('const HUB_CONFIG = {"type":"websockets","url":"wss://api.myapp.com/realtime","autoConnect":true,"retryPolicy":"exponential"}');
+    expect(code).toContain("setServerFunctionTransport(hubTransport)");
+    expect(code).toContain("invalidateResources(message.keys)");
+
+    syncSpy.mockRestore();
+  });
+
   it("generates a virtual app module with router defaults", () => {
     const plugin = terajsPlugin();
     const resolveId = requireHook<[string], unknown>(plugin.resolveId);

@@ -33,6 +33,8 @@
     { "path": "./packages/adapter-react" },
     { "path": "./packages/adapter-vue" },
     { "path": "./packages/adapter-ai" },
-    { "path": "./packages/hub-signalr" }
+    { "path": "./packages/hub-signalr" },
+    { "path": "./packages/hub-socketio" },
+    { "path": "./packages/hub-websockets" }
   ]
 }

@@ -61,6 +61,9 @@ const allowedPackageExternalDependencies = new Map<string, Set<string>>([
   ["runtime", new Set<string>()],
   ["sfc", new Set<string>()],
   ["shared", new Set<string>()],
+  ["hub-signalr", new Set<string>()],
+  ["hub-socketio", new Set<string>()],
+  ["hub-websockets", new Set<string>()],
   ["terajs", new Set<string>()],
   ["ui", new Set<string>()]
 ]);
@@ -69,6 +72,8 @@ const allowedPackageExternalPeerDependencies = new Map<string, Set<string>>([
   ["vite-plug-in", new Set(["vite"])],
   ["terajs", new Set(["vite"])],
   ["hub-signalr", new Set(["@microsoft/signalr"])],
+  ["hub-socketio", new Set(["socket.io-client"])],
+  ["hub-websockets", new Set<string>()],
   ["adapter-react", new Set(["react", "react-dom"])],
   ["adapter-vue", new Set(["vue"])],
   ["adapter-ai", new Set<string>()]
@@ -202,6 +207,10 @@ describe("architecture guardrails", () => {
           continue;
         }
 
+        if (packageName === "vite-plug-in" && (importPath === "terajs" || importPath === "terajs/vite" || importPath === "terajs/devtools")) {
+          continue;
+        }
+
         if (packageName === "cli" && importPath === "terajs/vite") {
           continue;
         }
@@ -215,6 +224,10 @@ describe("architecture guardrails", () => {
         }
 
         if (packageName === "adapter-vue" && importPath === "vue") {
+          continue;
+        }
+
+        if (packageName === "hub-socketio" && importPath === "socket.io-client") {
           continue;
         }
 

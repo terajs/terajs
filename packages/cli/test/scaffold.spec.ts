@@ -68,4 +68,28 @@ describe("cli scaffoldProject", () => {
     const route = await readText(join(appRoot, "src", "pages", "index.tera"));
     expect(route).toContain("Welcome to demo-app");
   });
+
+  it("can preconfigure socket.io hub scaffolding", async () => {
+    tempRoot = await mkdtemp(join(tmpdir(), "terajs-cli-scaffold-"));
+    process.chdir(tempRoot);
+
+    await scaffoldProject("socket-app", {
+      hub: "socket.io",
+      hubUrl: "https://api.example.com/socket-hub"
+    });
+
+    const appRoot = join(tempRoot, "socket-app");
+    const packageJson = JSON.parse(await readText(join(appRoot, "package.json"))) as {
+      dependencies: Record<string, string>;
+    };
+
+    expect(packageJson.dependencies["terajs"]).toBe("^0.0.1");
+    expect(packageJson.dependencies["@terajs/hub-socketio"]).toBe("^0.0.1");
+    expect(packageJson.dependencies["socket.io-client"]).toBe("^4.8.1");
+
+    const config = await readText(join(appRoot, "terajs.config.cjs"));
+    expect(config).toContain("sync:");
+    expect(config).toContain('type: "socket.io"');
+    expect(config).toContain('url: "https://api.example.com/socket-hub"');
+  });
 });

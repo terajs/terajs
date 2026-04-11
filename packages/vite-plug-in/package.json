@@ -40,10 +40,18 @@
   },
   "peerDependencies": {
     "vite": "^8.0.0",
-    "@terajs/hub-signalr": "^0.0.1"
+    "@terajs/hub-signalr": "^0.0.1",
+    "@terajs/hub-socketio": "^0.0.1",
+    "@terajs/hub-websockets": "^0.0.1"
   },
   "peerDependenciesMeta": {
     "@terajs/hub-signalr": {
+      "optional": true
+    },
+    "@terajs/hub-socketio": {
+      "optional": true
+    },
+    "@terajs/hub-websockets": {
       "optional": true
     }
   },

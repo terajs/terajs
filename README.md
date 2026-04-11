@@ -263,9 +263,9 @@ This is a foundation layer. Advanced sync conflict strategies and multi-device m
 
 ### Realtime sync hub status (RC)
 
-- `signalr` is the current first-party realtime adapter path.
-- `socket.io` and `websockets` are reserved in config and share the same runtime transport contract.
-- Until first-party adapters ship, apps can integrate custom transports through `setServerFunctionTransport(...)` and still surface realtime health in DevTools by emitting `hub:*` debug events.
+- First-party adapters are available for `signalr`, `socket.io`, and `websockets`.
+- All adapters share the same runtime transport contract and emit `hub:*` events for devtools.
+- Custom transports remain supported through `setServerFunctionTransport(...)` when apps need bespoke protocols.
 
 ---
 

@@ -268,12 +268,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     ? false
     : options.serverFunctions ?? {};
 
-  if (syncHubConfig && syncHubConfig.type !== "signalr") {
-    throw new Error(
-      `sync.hub.type \"${syncHubConfig.type}\" is not implemented yet. Use \"signalr\" for this release slice.`
-    );
-  }
-
   let config: any;
   let manifest: Record<string, any> | undefined;
 
@@ -387,16 +381,38 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     const middlewareEntries = middlewareModules.modules.map(
       (entry, index) => `  ${JSON.stringify(entry.key)}: resolveMiddlewareGuard(${JSON.stringify(entry.key)}, middlewareModule${index})`
     );
-    const hubImports = syncHubConfig?.type === "signalr"
-      ? [`import { createSignalRHubTransport } from '@terajs/hub-signalr';`]
+    const hubFactoryMap: Record<string, { importName: string; moduleName: string }> = {
+      signalr: {
+        importName: "createSignalRHubTransport",
+        moduleName: "@terajs/hub-signalr"
+      },
+      "socket.io": {
+        importName: "createSocketIoHubTransport",
+        moduleName: "@terajs/hub-socketio"
+      },
+      websockets: {
+        importName: "createWebSocketHubTransport",
+        moduleName: "@terajs/hub-websockets"
+      }
+    };
+    const selectedHubFactory = syncHubConfig
+      ? hubFactoryMap[syncHubConfig.type]
+      : null;
+
+    if (syncHubConfig && !selectedHubFactory) {
+      throw new Error(`Unsupported sync.hub.type: ${syncHubConfig.type}`);
+    }
+
+    const hubImports = selectedHubFactory
+      ? [`import { ${selectedHubFactory.importName} } from '${selectedHubFactory.moduleName}';`]
       : [];
-    const hubBootstrap = syncHubConfig?.type === "signalr"
+    const hubBootstrap = selectedHubFactory
       ? [
         `async function initializeHubTransport() {`,
         `  if (!HUB_CONFIG) {`,
         `    return;`,
         `  }`,
-        `  hubTransport = await createSignalRHubTransport({`,
+        `  hubTransport = await ${selectedHubFactory.importName}({`,
         `    url: HUB_CONFIG.url,`,
         `    autoConnect: HUB_CONFIG.autoConnect,`,
         `    retryPolicy: HUB_CONFIG.retryPolicy`,

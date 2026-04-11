@@ -2,10 +2,23 @@
 import { Command } from "commander";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { scaffoldProject } from "./scaffold.js";
+import { scaffoldProject, type ScaffoldHubType } from "./scaffold.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 
 const program = new Command();
+
+function parseHubType(value?: string): ScaffoldHubType | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "signalr" || normalized === "socket.io" || normalized === "websockets") {
+    return normalized;
+  }
+
+  throw new Error(`Invalid --hub value \"${value}\". Expected one of: signalr, socket.io, websockets.`);
+}
 
 program
   .name("tera")
@@ -15,9 +28,15 @@ program
 program
   .command("init <name>")
   .description("Scaffold a new Terajs project")
-  .action(async (name: string) => {
+  .option("--hub <type>", "preconfigure sync hub type (signalr | socket.io | websockets)")
+  .option("--hub-url <url>", "override sync hub URL used in scaffolded terajs.config.cjs")
+  .action(async (name: string, options: { hub?: string; hubUrl?: string }) => {
     console.log("Initializing Terajs project...");
-    await scaffoldProject(name);
+    const hub = parseHubType(options.hub);
+    await scaffoldProject(name, {
+      hub,
+      hubUrl: options.hubUrl
+    });
 
     const vscodeDir = join(process.cwd(), name, ".vscode");
     await mkdir(vscodeDir, { recursive: true });
@@ -25,6 +44,11 @@ program
       join(vscodeDir, "settings.json"),
       JSON.stringify({ files: { associations: { "*.tera": "html" } } }, null, 2)
     );
+
+    if (hub) {
+      const hubUrl = options.hubUrl?.trim();
+      console.log(`Realtime hub scaffolded: ${hub}${hubUrl ? ` (${hubUrl})` : ""}`);
+    }
 
     console.log(`Project ready. Run 'cd ${name} && npm install && npm run dev' to start.`);
   });

@@ -121,7 +121,7 @@ Middleware files in `router.middlewareDir` are auto-registered:
 
 When route navigation resolves a `mountTarget` (from route config or `<route>` block), the app view mounts into that target id. If the target element is missing, Terajs auto-creates it.
 
-### 5. Realtime sync hub (SignalR-first)
+### 5. Realtime sync hub
 
 You can enable realtime server push and transport-backed server actions through `sync.hub`.
 
@@ -138,34 +138,21 @@ module.exports = {
 };
 ```
 
-Install the SignalR adapter in your app:
+Install the adapter(s) for your selected `sync.hub.type`:
 
 ```bash
 npm install @terajs/hub-signalr @microsoft/signalr
+npm install @terajs/hub-socketio socket.io-client
+npm install @terajs/hub-websockets
 ```
 
 RC status:
 
-- `signalr`: implemented and auto-wired by the plugin when `sync.hub` is configured.
-- `socket.io`: config value reserved, first-party adapter not shipped yet.
-- `websockets`: config value reserved, first-party adapter not shipped yet.
+- `signalr`: implemented and auto-wired by the plugin when `sync.hub.type` is `signalr`.
+- `socket.io`: implemented and auto-wired by the plugin when `sync.hub.type` is `socket.io`.
+- `websockets`: implemented and auto-wired by the plugin when `sync.hub.type` is `websockets`.
 
-For `socket.io` and raw WebSocket projects today, use the runtime transport contract directly and wire your adapter in a helper script:
-
-```html
-<script type="module" data-terajs-ignore-bootstrap="true">
-  import { setServerFunctionTransport } from "terajs";
-  import { createSocketIoHubTransport } from "/src/realtime/socketIoTransport.ts";
-
-  const transport = await createSocketIoHubTransport({
-    url: "https://api.example.com/realtime"
-  });
-
-  setServerFunctionTransport(transport);
-</script>
-```
-
-Your custom adapter should implement `ServerFunctionTransport` (`invoke(call)`) and emit `hub:*` debug events so DevTools can show realtime health and diagnostics.
+Custom adapters are still supported. Implement `ServerFunctionTransport` (`invoke(call)`) and emit `hub:*` debug events so DevTools can show realtime health and diagnostics.
 
 ### 6. Canonical App Shell
 
