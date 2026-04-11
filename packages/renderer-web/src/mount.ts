@@ -158,7 +158,13 @@ export function mount(
   props?: any
 ): HTMLElement {
   const options = isMountOptions(targetOrOptions) ? targetOrOptions : undefined;
-  const target = options ? options.target : targetOrOptions;
+  const target: HTMLElement | string | undefined = options
+    ? options.target
+    : isHTMLElement(targetOrOptions)
+    ? targetOrOptions
+    : typeof targetOrOptions === "string" || typeof targetOrOptions === "undefined"
+    ? targetOrOptions
+    : undefined;
   const componentProps = options?.props ?? props;
 
   const root = resolveRoot(target, {

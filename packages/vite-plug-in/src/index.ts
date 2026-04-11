@@ -7,7 +7,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
-import { getConfiguredRoutes, getRouteDirs, getRouterConfig, getSyncHubConfig } from "./config.js";
+import {
+  getConfiguredRoutes,
+  getDevtoolsConfig,
+  getRouteDirs,
+  getRouterConfig,
+  getSyncHubConfig
+} from "./config.js";
 import { compileSfcToComponent } from "./compileSfcToComponent.js";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
@@ -23,12 +29,26 @@ const ROUTES_VIRTUAL_ID = "virtual:terajs-routes";
 const RESOLVED_ROUTES_VIRTUAL_ID = `\0${ROUTES_VIRTUAL_ID}`;
 const APP_VIRTUAL_ID = "virtual:terajs-app";
 const RESOLVED_APP_VIRTUAL_ID = `\0${APP_VIRTUAL_ID}`;
+const DEV_APP_MODULE_PATH = `/@id/__x00__${APP_VIRTUAL_ID}`;
 const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
 
 export interface TerajsVitePluginOptions {
   serverFunctions?: false | {
     endpoint?: string;
     context?: ServerFunctionRequestHandlerOptions["context"];
+  };
+  devtools?: false | {
+    enabled?: boolean;
+    startOpen?: boolean;
+    position?: "bottom-left" | "bottom-right" | "bottom-center";
+    panelShortcut?: string;
+    visibilityShortcut?: string;
+    ai?: {
+      enabled?: boolean;
+      endpoint?: string;
+      model?: string;
+      timeoutMs?: number;
+    };
   };
 }
 
@@ -235,6 +255,14 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   const routeDirs = getRouteDirs();
   const configuredRoutes = getConfiguredRoutes();
   const routerConfig = getRouterConfig();
+  const configuredDevtools = getDevtoolsConfig();
+  const devtoolsOptions = options.devtools;
+  const devtoolsConfig = devtoolsOptions === false
+    ? { ...configuredDevtools, enabled: false }
+    : {
+      ...configuredDevtools,
+      ...(devtoolsOptions ?? {})
+    };
   const syncHubConfig = getSyncHubConfig();
   const serverFunctionOptions = options.serverFunctions === false
     ? false
@@ -298,7 +326,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   }`);
 
     return [
-      `import { buildRouteManifest } from '@terajs/router-manifest';`,
+      `import { buildRouteManifest } from 'terajs';`,
       `const routeSources = [`,
       routeSources.join(",\n"),
       `];`,
@@ -387,18 +415,65 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         `}`
       ];
 
+    const resolvedDevtoolsConfig = {
+      enabled: (config?.command ?? "serve") !== "build" && devtoolsConfig.enabled,
+      startOpen: devtoolsConfig.startOpen,
+      position: devtoolsConfig.position,
+      panelShortcut: devtoolsConfig.panelShortcut,
+      visibilityShortcut: devtoolsConfig.visibilityShortcut,
+      ai: {
+        enabled: devtoolsConfig.ai.enabled,
+        endpoint: devtoolsConfig.ai.endpoint,
+        model: devtoolsConfig.ai.model,
+        timeoutMs: devtoolsConfig.ai.timeoutMs
+      }
+    };
+
+    const devtoolsBootstrap = [
+      `async function initializeDevtoolsOverlay() {`,
+      `  if (!DEVTOOLS_CONFIG.enabled || typeof document === 'undefined') {`,
+      `    return;`,
+      `  }`,
+      `  if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__) {`,
+      `    return;`,
+      `  }`,
+      `  try {`,
+      `    const { mountDevtoolsOverlay } = await import('terajs/devtools');`,
+      `    if (typeof mountDevtoolsOverlay === 'function') {`,
+      `      mountDevtoolsOverlay({`,
+      `        startOpen: DEVTOOLS_CONFIG.startOpen,`,
+      `        position: DEVTOOLS_CONFIG.position,`,
+      `        panelShortcut: DEVTOOLS_CONFIG.panelShortcut,`,
+      `        visibilityShortcut: DEVTOOLS_CONFIG.visibilityShortcut,`,
+      `        ai: {`,
+      `          enabled: DEVTOOLS_CONFIG.ai?.enabled,`,
+      `          endpoint: DEVTOOLS_CONFIG.ai?.endpoint,`,
+      `          model: DEVTOOLS_CONFIG.ai?.model,`,
+      `          timeoutMs: DEVTOOLS_CONFIG.ai?.timeoutMs`,
+      `        }`,
+      `      });`,
+      `      globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = true;`,
+      `    }`,
+      `  } catch (error) {`,
+      `    console.warn('[terajs] Devtools overlay unavailable in this environment.', error);`,
+      `  }`,
+      `}`
+    ];
+
     return [
-      `import { createBrowserHistory, createRouter } from '@terajs/router';`,
-      `import { createRouteView } from '@terajs/renderer-web';`,
-      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '@terajs/runtime';`,
+      `import { createBrowserHistory, createRouter } from 'terajs';`,
+      `import { createRouteView, mount } from 'terajs';`,
+      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from 'terajs';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
       ...middlewareImports,
       ...hubImports,
       `const ROOT_TARGET_ID = ${JSON.stringify(routerConfig.rootTarget)};`,
       `const GLOBAL_MIDDLEWARE = ${JSON.stringify(middlewareModules.globalKeys)};`,
       `const HUB_CONFIG = ${JSON.stringify(syncHubConfig)};`,
+      `const DEVTOOLS_CONFIG = ${JSON.stringify(resolvedDevtoolsConfig)};`,
       `const MOUNT_TARGET_PATTERN = /^[A-Za-z][\\w:-]*$/;`,
       `let hubTransport = null;`,
+      `let appMounted = false;`,
       `function resolveMiddlewareGuard(name, moduleRecord) {`,
       `  const candidate = moduleRecord.default ?? moduleRecord.middleware;`,
       `  if (typeof candidate !== 'function') {`,
@@ -450,6 +525,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  return normalizeMountTargetId(routeTarget);`,
       `}`,
       ...hubBootstrap,
+      ...devtoolsBootstrap,
       `const routed = applyGlobalMiddleware(routes);`,
       `export const router = createRouter(routed, { history: createBrowserHistory(), middleware });`,
       `const routeView = createRouteView(router, {`,
@@ -501,6 +577,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `    void initializeHubTransport().catch((error) => {`,
       `      console.error('[terajs] sync.hub initialization failed', error);`,
       `    });`,
+      `    void initializeDevtoolsOverlay();`,
       `    const unsubscribe = router.subscribe((match) => {`,
       `      moveRouteView(match);`,
       `    });`,
@@ -519,6 +596,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  });`,
       `  return () => routeViewNode;`,
       `});`,
+      `export function bootstrapTerajsApp() {`,
+      `  if (typeof document === 'undefined' || appMounted) {`,
+      `    return;`,
+      `  }`,
+      `  mount(App, { defaultId: ROOT_TARGET_ID });`,
+      `  appMounted = true;`,
+      `}`,
       `export default App;`
     ].join("\n");
   }
@@ -554,6 +638,59 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }
 
       server.middlewares.use(createServerFunctionMiddleware(serverFunctionOptions));
+    },
+
+    transformIndexHtml(html) {
+      const moduleScriptPattern = /<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
+      let hasAppEntry = false;
+      let match: RegExpExecArray | null = null;
+
+      while ((match = moduleScriptPattern.exec(html)) !== null) {
+        const tag = match[0] ?? "";
+        const body = (match[1] ?? "").trim();
+        const srcMatch = tag.match(/\bsrc=["']([^"']+)["']/i);
+        const ignoreBootstrap = /\bdata-terajs-ignore-bootstrap(?:=["']?(?:true|1|yes)?["']?)?/i.test(tag);
+
+        if (ignoreBootstrap) {
+          continue;
+        }
+
+        if (srcMatch) {
+          const src = srcMatch[1].trim();
+          if (src === "/@vite/client" || src === "@vite/client") {
+            continue;
+          }
+
+          hasAppEntry = true;
+          break;
+        }
+
+        if (body.length > 0) {
+          hasAppEntry = true;
+          break;
+        }
+      }
+
+      if (hasAppEntry) {
+        return html;
+      }
+
+      const appEntrySpecifier = config?.command === "build"
+        ? APP_VIRTUAL_ID
+        : DEV_APP_MODULE_PATH;
+
+      const bootstrapTag = [
+        "    <script type=\"module\">",
+        `      import { bootstrapTerajsApp } from \"${appEntrySpecifier}\";`,
+        "      bootstrapTerajsApp();",
+        "    </script>"
+      ].join("\n");
+
+      if (html.includes("</body>")) {
+        return html.replace("</body>", `${bootstrapTag}\n  </body>`);
+      }
+
+      return `${html}\n${bootstrapTag}`;
     },
 
     resolveId(id) {

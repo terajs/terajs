@@ -55,6 +55,46 @@ setCurrentContext(ctx);
 
 ---
 
+## Realtime Transport Adapters
+
+`@terajs/runtime` exposes a transport contract so apps can integrate any realtime stack (SignalR, Socket.IO, raw WebSockets, custom RPC).
+
+```ts
+import { setServerFunctionTransport, type ServerFunctionCall, type ServerFunctionTransport } from "@terajs/runtime";
+import { Debug } from "@terajs/shared";
+
+const transport: ServerFunctionTransport = {
+	async invoke(call: ServerFunctionCall) {
+		Debug.emit("hub:sync:start", {
+			transport: "socket.io",
+			call: call.id
+		});
+
+		const result = await invokeOverSocket(call);
+
+		Debug.emit("hub:sync:complete", {
+			transport: "socket.io",
+			call: call.id
+		});
+
+		return result;
+	}
+};
+
+setServerFunctionTransport(transport);
+```
+
+Recommended debug events for first-class DevTools visibility:
+
+- `hub:connect`
+- `hub:disconnect`
+- `hub:error`
+- `hub:push:received`
+- `hub:sync:start`
+- `hub:sync:complete`
+
+---
+
 ## API Reference
 - Components: `component`, `onCleanup`, lifecycle hooks
 - Context: `provide`, `inject`, `createComponentContext`

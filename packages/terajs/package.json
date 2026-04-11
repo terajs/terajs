@@ -1,7 +1,7 @@
 {
-  "name": "@terajs/vite-plugin",
+  "name": "terajs",
   "version": "0.0.1",
-  "description": "Vite plugin for Terajs SFC compilation, route manifest generation, and dev integration.",
+  "description": "Default app-facing entry package for Terajs.",
   "author": "Terajs Labs",
   "type": "module",
   "sideEffects": false,
@@ -14,11 +14,10 @@
   ],
   "keywords": [
     "terajs",
-    "vite",
-    "plugin",
-    "sfc",
+    "framework",
+    "reactivity",
     "routing",
-    "local-first"
+    "vite"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,23 +26,32 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./vite": {
+      "import": "./dist/vite.js",
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./devtools": {
+      "import": "./dist/devtools.js",
+      "types": "./dist/devtools.d.ts",
+      "default": "./dist/devtools.js"
     }
   },
   "dependencies": {
     "@terajs/devtools": "^0.0.1",
-    "@terajs/shared": "^0.0.1",
-    "@terajs/runtime": "^0.0.1",
+    "@terajs/reactivity": "^1.0.0",
+    "@terajs/renderer-web": "^0.0.1",
     "@terajs/router-manifest": "^0.0.1",
     "@terajs/router": "^0.0.1",
-    "@terajs/sfc": "^0.0.1",
-    "@terajs/compiler": "^0.0.1"
+    "@terajs/runtime": "^0.0.1",
+    "@terajs/vite-plugin": "^0.0.1"
   },
   "peerDependencies": {
-    "vite": "^8.0.0",
-    "@terajs/hub-signalr": "^0.0.1"
+    "vite": "^8.0.0"
   },
   "peerDependenciesMeta": {
-    "@terajs/hub-signalr": {
+    "vite": {
       "optional": true
     }
   },

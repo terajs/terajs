@@ -16,8 +16,7 @@ export function compileSfcToComponent(sfc: ParsedSFC): string {
   const name = inferComponentName(sfc.filePath);
 
   return `
-import { component, applyHMRUpdate } from "@terajs/runtime";
-import { renderIRModuleToFragment } from "@terajs/renderer-web";
+import { component, applyHMRUpdate, renderIRModuleToFragment } from "terajs";
 
 ${script.setupCode}
 

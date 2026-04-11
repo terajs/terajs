@@ -27,7 +27,7 @@ describe("compileSfcToComponent", () => {
     const out = compileSfcToComponent(sfc as any);
 
     expect(compileScript).toHaveBeenCalledWith("export function setup() {}");
-    expect(out).toContain('import { renderIRModuleToFragment } from "@terajs/renderer-web";');
+    expect(out).toContain('import { component, applyHMRUpdate, renderIRModuleToFragment } from "terajs";');
     expect(out).toContain("const slots = normalizeSlots(props);");
     expect(out).toContain("__ssfc({ props: componentProps, slots, emit })");
     expect(out).toContain("import.meta.hot.accept");

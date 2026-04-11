@@ -14,6 +14,39 @@ export interface DevtoolsEvent {
   column?: number;
 }
 
+export interface DevtoolsAIAssistantOptions {
+  enabled?: boolean;
+  endpoint?: string;
+  model?: string;
+  timeoutMs?: number;
+}
+
+export interface DevtoolsAppOptions {
+  ai?: DevtoolsAIAssistantOptions;
+}
+
+interface NormalizedAIAssistantOptions {
+  enabled: boolean;
+  endpoint: string | null;
+  model: string;
+  timeoutMs: number;
+}
+
+interface AIAssistantRequest {
+  prompt: string;
+  snapshot: ReturnType<typeof captureStateSnapshot>;
+  sanity: ReturnType<typeof computeSanityMetrics>;
+  events: DevtoolsEvent[];
+}
+
+type AIAssistantHook = (request: AIAssistantRequest) => Promise<unknown> | unknown;
+
+declare global {
+  interface Window {
+    __TERAJS_AI_ASSISTANT__?: AIAssistantHook;
+  }
+}
+
 type TabName =
   | "Components"
   | "AI Diagnostics"
@@ -37,6 +70,9 @@ interface DevtoolsState {
   theme: "dark" | "light";
   aiPrompt: string | null;
   aiLikelyCause: string | null;
+  aiStatus: "idle" | "loading" | "ready" | "error";
+  aiResponse: string | null;
+  aiError: string | null;
 }
 
 const TABS: TabName[] = [
@@ -53,7 +89,8 @@ const TABS: TabName[] = [
   "Settings"
 ];
 
-export function mountDevtoolsApp(root: HTMLElement): () => void {
+export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions = {}): () => void {
+  const aiOptions = normalizeAIAssistantOptions(options.ai);
   const state: DevtoolsState = {
     activeTab: "Components",
     events: [],
@@ -63,14 +100,18 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
     timelineCursor: -1,
     theme: "dark",
     aiPrompt: null,
-    aiLikelyCause: null
+    aiLikelyCause: null,
+    aiStatus: "idle",
+    aiResponse: null,
+    aiError: null
   };
+  let aiRequestToken = 0;
 
   const appendEvent = (rawEvent: unknown) => {
     const event = normalizeEvent(rawEvent);
     if (!event) return;
 
-    if (event.type === "reactive:error") {
+    if (event.type === "reactive:error" || event.type === "error:reactivity") {
       const likelyCause = generateLikelyCause(event.payload);
       if (likelyCause) {
         event.payload = { ...event.payload, likelyCause };
@@ -85,7 +126,7 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
   };
 
   const unsubDebug = Debug.on(appendEvent);
-  const unsubEventBus = subscribeDebug(appendEvent);
+  const unsubEventBus = subscribeDebug(appendEvent, { replay: true });
 
   const handleClick = (domEvent: Event) => {
     const target = domEvent.target;
@@ -113,15 +154,69 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
     }
 
     if (target.closest("[data-action='ask-ai']")) {
+      const snapshot = captureStateSnapshot();
+      const sanity = computeSanityMetrics(state.events, {
+        ...DEFAULT_SANITY_THRESHOLDS,
+        debugListenerCount: getDebugListenerCount()
+      });
+
       state.aiPrompt = buildAIPrompt({
-        snapshot: captureStateSnapshot(),
-        sanity: computeSanityMetrics(state.events, {
-          ...DEFAULT_SANITY_THRESHOLDS,
-          debugListenerCount: getDebugListenerCount()
-        }),
+        snapshot,
+        sanity,
         events: state.events
       });
+      state.aiError = null;
+      state.aiResponse = null;
+
+      const prompt = state.aiPrompt;
+      if (!prompt) {
+        state.aiStatus = "error";
+        state.aiError = "Unable to generate an AI prompt for the current state.";
+        render();
+        return;
+      }
+
+      if (!aiOptions.enabled) {
+        state.aiStatus = "idle";
+        render();
+        return;
+      }
+
+      const hasGlobalHook = getGlobalAIAssistantHook() !== null;
+      if (!hasGlobalHook && !aiOptions.endpoint) {
+        state.aiStatus = "idle";
+        render();
+        return;
+      }
+
+      const token = ++aiRequestToken;
+      state.aiStatus = "loading";
       render();
+
+      void resolveAIAssistantResponse({
+        prompt,
+        snapshot,
+        sanity,
+        events: state.events.slice(-120)
+      }, aiOptions).then((response) => {
+        if (token !== aiRequestToken) {
+          return;
+        }
+
+        state.aiStatus = "ready";
+        state.aiResponse = response;
+        state.aiError = null;
+        render();
+      }).catch((error) => {
+        if (token !== aiRequestToken) {
+          return;
+        }
+
+        state.aiStatus = "error";
+        state.aiError = error instanceof Error ? error.message : "AI request failed.";
+        state.aiResponse = null;
+        render();
+      });
       return;
     }
 
@@ -145,6 +240,10 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
       state.selectedMetaKey = null;
       state.aiPrompt = null;
       state.aiLikelyCause = null;
+      state.aiStatus = "idle";
+      state.aiResponse = null;
+      state.aiError = null;
+      aiRequestToken += 1;
       render();
     }
   };
@@ -577,6 +676,14 @@ function renderSettingsPanel(): string {
 }
 
 function renderAIDiagnosticsPanel(state: DevtoolsState): string {
+  const aiStatusLabel = state.aiStatus === "loading"
+    ? "Querying assistant..."
+    : state.aiStatus === "ready"
+    ? "Response ready"
+    : state.aiStatus === "error"
+    ? "Assistant unavailable"
+    : "Prompt-only mode";
+
   return `
     <div class="ai-panel">
       <div class="panel-title is-purple">AI Diagnostics</div>
@@ -586,8 +693,23 @@ function renderAIDiagnosticsPanel(state: DevtoolsState): string {
         <button class="toolbar-button" data-action="copy-ai-prompt">Copy Prompt</button>
       </div>
       <div class="detail-card">
+        <div><span class="accent-text is-purple">Assistant Status:</span> ${escapeHtml(aiStatusLabel)}</div>
         <div><span class="accent-text is-purple">Current AI Insight:</span> ${escapeHtml(state.aiLikelyCause ?? "No reactive error detected yet.")}</div>
       </div>
+      ${state.aiStatus === "loading" ? `
+        <div class="empty-state">Consulting configured assistant provider...</div>
+      ` : ""}
+      ${state.aiError ? `
+        <div class="detail-card issue-error">
+          <div class="accent-text is-red">${escapeHtml(state.aiError)}</div>
+        </div>
+      ` : ""}
+      ${state.aiResponse ? `
+        <div class="detail-card">
+          <div class="panel-subtitle">Assistant Response</div>
+          <pre class="ai-response">${escapeHtml(state.aiResponse)}</pre>
+        </div>
+      ` : ""}
       ${state.aiPrompt ? `
         <div class="detail-card">
           <div class="panel-subtitle">AI Prompt</div>
@@ -744,6 +866,133 @@ function generateLikelyCause(payload: Record<string, unknown> | undefined): stri
   const message = readString(payload, "message") ?? "reactive error detected";
 
   return `Detected reactive error (${message}) from ${origin}. Current keyed state: ${topEntries || "no keyed signals available"}.`;
+}
+
+function normalizeAIAssistantOptions(options?: DevtoolsAIAssistantOptions): NormalizedAIAssistantOptions {
+  const endpoint = typeof options?.endpoint === "string" && options.endpoint.trim().length > 0
+    ? options.endpoint.trim()
+    : null;
+
+  const model = typeof options?.model === "string" && options.model.trim().length > 0
+    ? options.model.trim()
+    : "terajs-assistant";
+
+  const timeoutMs = typeof options?.timeoutMs === "number" && Number.isFinite(options.timeoutMs)
+    ? Math.min(60000, Math.max(1500, Math.round(options.timeoutMs)))
+    : 12000;
+
+  return {
+    enabled: options?.enabled !== false,
+    endpoint,
+    model,
+    timeoutMs
+  };
+}
+
+function getGlobalAIAssistantHook(): AIAssistantHook | null {
+  if (typeof globalThis !== "object" || globalThis === null) {
+    return null;
+  }
+
+  const maybeHook = (globalThis as typeof globalThis & {
+    __TERAJS_AI_ASSISTANT__?: unknown;
+  }).__TERAJS_AI_ASSISTANT__;
+
+  return typeof maybeHook === "function" ? maybeHook as AIAssistantHook : null;
+}
+
+async function resolveAIAssistantResponse(
+  request: AIAssistantRequest,
+  options: NormalizedAIAssistantOptions
+): Promise<string> {
+  const globalHook = getGlobalAIAssistantHook();
+  if (globalHook) {
+    const response = await globalHook(request);
+    return extractAIAssistantResponseText(response);
+  }
+
+  if (!options.endpoint) {
+    throw new Error("No AI assistant provider is configured. Set devtools.ai.endpoint or provide window.__TERAJS_AI_ASSISTANT__. ");
+  }
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    controller.abort();
+  }, options.timeoutMs);
+
+  try {
+    const response = await fetch(options.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: options.model,
+        prompt: request.prompt,
+        snapshot: request.snapshot,
+        sanity: request.sanity,
+        events: request.events
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI endpoint returned ${response.status}.`);
+    }
+
+    const rawText = await response.text();
+    if (!rawText.trim()) {
+      return "AI endpoint returned an empty response body.";
+    }
+
+    try {
+      const parsed = JSON.parse(rawText) as unknown;
+      return extractAIAssistantResponseText(parsed);
+    } catch {
+      return rawText;
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`AI request timed out after ${options.timeoutMs}ms.`);
+    }
+
+    throw error instanceof Error ? error : new Error("AI request failed.");
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+function extractAIAssistantResponseText(value: unknown): string {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : "AI assistant returned an empty string.";
+  }
+
+  if (value && typeof value === "object") {
+    const payload = value as Record<string, unknown>;
+
+    const direct = payload.response ?? payload.content ?? payload.answer ?? payload.output_text;
+    if (typeof direct === "string" && direct.trim().length > 0) {
+      return direct;
+    }
+
+    const choices = payload.choices;
+    if (Array.isArray(choices) && choices.length > 0) {
+      const first = choices[0] as Record<string, unknown>;
+      const message = first?.message as Record<string, unknown> | undefined;
+      const content = message?.content;
+      if (typeof content === "string" && content.trim().length > 0) {
+        return content;
+      }
+
+      const text = first?.text;
+      if (typeof text === "string" && text.trim().length > 0) {
+        return text;
+      }
+    }
+  }
+
+  return shortJson(value);
 }
 
 function isSignalLikeUpdate(type: string): boolean {

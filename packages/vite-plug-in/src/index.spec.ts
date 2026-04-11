@@ -11,6 +11,19 @@ vi.mock("./config", () => ({
   getAutoImportDirs: () => [path.resolve(process.cwd(), "packages/devtools/src/components")],
   getRouteDirs: () => [path.resolve(process.cwd(), "src/routes")],
   getConfiguredRoutes: () => [],
+  getDevtoolsConfig: () => ({
+    enabled: true,
+    startOpen: false,
+    position: "bottom-right",
+    panelShortcut: "Ctrl+Shift+D",
+    visibilityShortcut: "Ctrl+Shift+H",
+    ai: {
+      enabled: true,
+      endpoint: "",
+      model: "terajs-assistant",
+      timeoutMs: 12000
+    }
+  }),
   getSyncHubConfig: () => null,
   getRouterConfig: () => ({
     rootTarget: "app",
@@ -402,5 +415,119 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("autoStart: false");
     expect(code).toContain("keepPreviousDuringLoading: true");
     expect(code).toContain("document.addEventListener('click'");
+    expect(code).toContain("initializeDevtoolsOverlay");
+    expect(code).toContain("export function bootstrapTerajsApp()");
+  });
+
+  it("injects a bootstrap module when index.html has no module script", () => {
+    const plugin = terajsPlugin();
+    const transform = plugin.transformIndexHtml;
+
+    if (typeof transform !== "function") {
+      throw new Error("Expected transformIndexHtml hook to be defined.");
+    }
+
+    const html = transform(`<!doctype html>
+<html lang="en">
+  <head></head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`);
+
+    expect(typeof html).toBe("string");
+    expect(html).toContain("bootstrapTerajsApp");
+    expect(html).toContain("/@id/__x00__virtual:terajs-app");
+  });
+
+  it("injects bootstrap when only the Vite client module script exists", () => {
+    const plugin = terajsPlugin();
+    const transform = plugin.transformIndexHtml;
+
+    if (typeof transform !== "function") {
+      throw new Error("Expected transformIndexHtml hook to be defined.");
+    }
+
+    const html = transform(`<!doctype html>
+<html lang="en">
+  <head>
+    <script type="module" src="/@vite/client"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`);
+
+    expect(typeof html).toBe("string");
+    expect(html).toContain("bootstrapTerajsApp");
+    expect(html).toContain("/@id/__x00__virtual:terajs-app");
+  });
+
+  it("injects bootstrap when helper module scripts are marked as bootstrap-ignored", () => {
+    const plugin = terajsPlugin();
+    const transform = plugin.transformIndexHtml;
+
+    if (typeof transform !== "function") {
+      throw new Error("Expected transformIndexHtml hook to be defined.");
+    }
+
+    const html = transform(`<!doctype html>
+<html lang="en">
+  <head>
+    <script type="module" src="/@vite/client"></script>
+    <script type="module" src="/src/devtools-ai-hook.ts" data-terajs-ignore-bootstrap="true"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`);
+
+    expect(typeof html).toBe("string");
+    expect(html).toContain("bootstrapTerajsApp");
+    expect(html).toContain("/@id/__x00__virtual:terajs-app");
+  });
+
+  it("injects virtual app id in build mode", () => {
+    const plugin = terajsPlugin();
+    const configResolved = plugin.configResolved as ((config: any) => void);
+    const transform = plugin.transformIndexHtml;
+
+    if (typeof transform !== "function") {
+      throw new Error("Expected transformIndexHtml hook to be defined.");
+    }
+
+    configResolved({ command: "build" });
+    const html = transform(`<!doctype html>
+<html lang="en">
+  <head></head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`);
+
+    expect(typeof html).toBe("string");
+    expect(html).toContain("bootstrapTerajsApp");
+    expect(html).toContain('from "virtual:terajs-app"');
+  });
+
+  it("does not inject bootstrap when a module script already exists", () => {
+    const plugin = terajsPlugin();
+    const transform = plugin.transformIndexHtml;
+
+    if (typeof transform !== "function") {
+      throw new Error("Expected transformIndexHtml hook to be defined.");
+    }
+
+    const html = transform(`<!doctype html>
+<html lang="en">
+  <head></head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>`);
+
+    expect(typeof html).toBe("string");
+    expect(html).not.toContain("bootstrapTerajsApp");
   });
 });

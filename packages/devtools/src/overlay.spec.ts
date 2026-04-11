@@ -1,10 +1,17 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { Debug, emitDebug } from "@terajs/shared";
-import { mountDevtoolsOverlay, toggleDevtoolsOverlay, unmountDevtoolsOverlay } from "./overlay";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Debug, emitDebug, resetDebugListeners } from "@terajs/shared";
+import {
+  mountDevtoolsOverlay,
+  toggleDevtoolsOverlay,
+  toggleDevtoolsVisibility,
+  unmountDevtoolsOverlay
+} from "./overlay";
 
 describe("devtools overlay public entry", () => {
   afterEach(() => {
     unmountDevtoolsOverlay();
+    resetDebugListeners();
+    delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
     document.body.innerHTML = "";
   });
 
@@ -35,20 +42,76 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("Counter");
   });
 
-  it("toggles overlay visibility without remounting a second host", () => {
+  it("replays component events emitted before overlay mount", () => {
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "LandingPage",
+      instance: 1
+    });
+
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(shadowRoot?.textContent).toContain("LandingPage");
+  });
+
+  it("toggles panel visibility from the fab without remounting a second host", () => {
+    mountDevtoolsOverlay();
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
+
+    toggleDevtoolsOverlay();
+    expect(panel?.classList.contains("is-hidden")).toBe(false);
+
+    toggleDevtoolsOverlay();
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
+
+    mountDevtoolsOverlay();
+    expect(document.querySelectorAll("#terajs-overlay-container")).toHaveLength(1);
+  });
+
+  it("supports hiding and showing the full overlay shell", () => {
     mountDevtoolsOverlay();
 
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     expect(host?.style.display).toBe("block");
 
-    toggleDevtoolsOverlay();
+    toggleDevtoolsVisibility();
     expect(host?.style.display).toBe("none");
 
-    toggleDevtoolsOverlay();
+    toggleDevtoolsVisibility();
     expect(host?.style.display).toBe("block");
+  });
 
+  it("supports centered bottom positioning", () => {
+    mountDevtoolsOverlay({ position: "bottom-center" });
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const shell = host?.shadowRoot?.querySelector(".fab-shell") as HTMLDivElement | null;
+
+    expect(host?.style.left).toBe("50%");
+    expect(host?.style.transform).toBe("translateX(-50%)");
+    expect(shell?.classList.contains("is-center")).toBe(true);
+  });
+
+  it("supports keyboard shortcuts for panel and visibility controls", () => {
     mountDevtoolsOverlay();
-    expect(document.querySelectorAll("#terajs-overlay-container")).toHaveLength(1);
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "d", ctrlKey: true, shiftKey: true }));
+    expect(panel?.classList.contains("is-hidden")).toBe(false);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", ctrlKey: true, shiftKey: true }));
+    expect(host?.style.display).toBe("none");
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", ctrlKey: true, shiftKey: true }));
+    expect(host?.style.display).toBe("block");
   });
 
   it("supports toolbar interactions for theme toggle and event reset", () => {
@@ -77,6 +140,32 @@ describe("devtools overlay public entry", () => {
     clearButton?.click();
 
     expect(shadowRoot?.textContent).toContain("Events: 0");
+  });
+
+  it("uses global AI assistant hook when available", async () => {
+    const hook = vi.fn(async () => "Use keyed route metadata to trace render timing.");
+    (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__ = hook;
+
+    mountDevtoolsOverlay();
+
+    Debug.emit("error:reactivity", {
+      message: "Sample reactive failure",
+      rid: "signal:counter"
+    } as any);
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
+    askButton?.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(hook).toHaveBeenCalledTimes(1);
+    expect(shadowRoot?.textContent).toContain("Response ready");
+    expect(shadowRoot?.textContent).toContain("Use keyed route metadata to trace render timing.");
   });
 
   it("shows router issues in the issues panel", () => {

@@ -6,18 +6,42 @@ import type { DebugEvent } from "./types/events.js";
  */
 export type DebugEventListener = (event: DebugEvent) => void;
 
+export interface SubscribeDebugOptions {
+  replay?: boolean;
+}
+
 const listeners = new Set<DebugEventListener>();
+const eventHistory: DebugEvent[] = [];
+const MAX_EVENT_HISTORY = 300;
+
+function pushEventHistory(event: DebugEvent): void {
+  eventHistory.push(event);
+  if (eventHistory.length > MAX_EVENT_HISTORY) {
+    eventHistory.splice(0, eventHistory.length - MAX_EVENT_HISTORY);
+  }
+}
 
 /**
  * Subscribes a listener to all debug events.
  * Returns an unsubscribe function.
  */
-export function subscribeDebug(listener: DebugEventListener): () => void {
+export function subscribeDebug(listener: DebugEventListener, options?: SubscribeDebugOptions): () => void {
   if (process.env.NODE_ENV === "production") {
     return () => {};
   }
 
   listeners.add(listener);
+
+  if (options?.replay) {
+    for (const event of eventHistory) {
+      try {
+        listener(event);
+      } catch {
+        // Swallow replay listener errors to keep debug tools non-fatal.
+      }
+    }
+  }
+
   return () => listeners.delete(listener);
 }
 
@@ -27,6 +51,7 @@ export function subscribeDebug(listener: DebugEventListener): () => void {
  */
 export function emitDebug(event: DebugEvent): void {
   if (process.env.NODE_ENV === "production") return;
+  pushEventHistory(event);
   if (listeners.size === 0) return;
   for (const listener of listeners) {
     try {
@@ -43,4 +68,5 @@ export function getDebugListenerCount(): number {
 
 export function resetDebugListeners(): void {
   listeners.clear();
+  eventHistory.length = 0;
 }

@@ -84,15 +84,28 @@ export function component<P = any>(
       timestamp: Date.now()
     });
 
+    const previousContext = getCurrentContext();
     pushContextFrame();
 
-    const ctx: ComponentContext = {
+    const ctx: ComponentContext = previousContext ?? {
       disposers: [],
       props,
       frame: contextStack[contextStack.length - 1],
       name,
-      instance
+      instance,
+      mounted: [],
+      updated: [],
+      unmounted: []
     };
+
+    ctx.disposers ??= [];
+    ctx.props = props;
+    ctx.frame = contextStack[contextStack.length - 1];
+    ctx.name = name;
+    ctx.instance = instance;
+    ctx.mounted ??= [];
+    ctx.updated ??= [];
+    ctx.unmounted ??= [];
 
     setCurrentContext(ctx);
 
@@ -101,22 +114,21 @@ export function component<P = any>(
       out = currentSetup(props as P);
     } catch (err) {
       console.error(`[Terajs] Error in component <${name} />:`, err);
-      setCurrentContext(null);
-      popContextFrame();
       throw err;
+    } finally {
+      setCurrentContext(previousContext);
+      popContextFrame();
     }
-
-    setCurrentContext(null);
-    popContextFrame();
 
     // HMR instance wrapper
     const hmrInstance: HMRInstance = {
       ctx,
       remount: () => {
+        const previous = getCurrentContext();
         pushContextFrame();
         setCurrentContext(ctx);
         currentSetup(ctx.props);
-        setCurrentContext(null);
+        setCurrentContext(previous);
         popContextFrame();
       },
       dispose: () => {

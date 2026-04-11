@@ -42,9 +42,29 @@ export async function inspectTerajsProject(root: string): Promise<DoctorReport> 
   let manifest: PackageManifest | null = null;
   if (packageExists) {
     manifest = await readPackageManifest(packagePath);
-    checks.push(checkDependency(manifest, "@terajs/runtime", "error"));
-    checks.push(checkDependency(manifest, "@terajs/renderer-web", "error"));
-    checks.push(checkDependency(manifest, "@terajs/vite-plugin", "error"));
+
+    const hasFacade = dependencyValue(manifest, "terajs") !== undefined;
+    if (hasFacade) {
+      checks.push({
+        id: "dep:terajs",
+        label: "terajs dependency declared",
+        ok: true,
+        level: "error",
+        details: `terajs@${dependencyValue(manifest, "terajs")}`
+      });
+    } else {
+      checks.push(checkDependency(manifest, "@terajs/runtime", "error"));
+      checks.push(checkDependency(manifest, "@terajs/renderer-web", "error"));
+      checks.push(checkDependency(manifest, "@terajs/vite-plugin", "error"));
+      checks.push({
+        id: "dep:terajs",
+        label: "terajs dependency declared",
+        ok: false,
+        level: "warn",
+        details: "Recommended: add terajs as the default app package for simplified setup."
+      });
+    }
+
     checks.push(checkScript(manifest, "dev", "warn"));
     checks.push(checkScript(manifest, "build", "warn"));
   }
@@ -120,7 +140,7 @@ function checkDependency(
   depName: string,
   level: DoctorCheckLevel
 ): DoctorCheck {
-  const value = manifest.dependencies?.[depName] ?? manifest.devDependencies?.[depName];
+  const value = dependencyValue(manifest, depName);
   return {
     id: `dep:${depName}`,
     label: `${depName} dependency declared`,
@@ -128,6 +148,10 @@ function checkDependency(
     level,
     details: value ? `${depName}@${value}` : `Add ${depName} to dependencies or devDependencies.`
   };
+}
+
+function dependencyValue(manifest: PackageManifest, depName: string): string | undefined {
+  return manifest.dependencies?.[depName] ?? manifest.devDependencies?.[depName];
 }
 
 function checkScript(

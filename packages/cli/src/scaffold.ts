@@ -25,11 +25,9 @@ export async function scaffoldProject(name: string): Promise<void> {
         preview: "vite preview"
       },
       dependencies: {
-        "@terajs/runtime": "^0.0.1",
-        "@terajs/renderer-web": "^0.0.1"
+        "terajs": "^0.0.1"
       },
       devDependencies: {
-        "@terajs/vite-plugin": "^0.0.1",
         "vite": "^8.0.0"
       }
     }, null, 2)
@@ -40,6 +38,13 @@ export async function scaffoldProject(name: string): Promise<void> {
     `module.exports = {
   autoImportDirs: ["src/components"],
   routeDirs: ["src/pages"],
+      devtools: {
+        enabled: true,
+        startOpen: false,
+        position: "bottom-right",
+        panelShortcut: "Ctrl+Shift+D",
+        visibilityShortcut: "Ctrl+Shift+H"
+      },
   router: {
     rootTarget: "app",
     middlewareDir: "src/middleware",
@@ -53,7 +58,7 @@ export async function scaffoldProject(name: string): Promise<void> {
   await writeFile(
     join(root, "vite.config.ts"),
     `import { defineConfig } from "vite";
-import terajsPlugin from "@terajs/vite-plugin";
+import terajsPlugin from "terajs/vite";
 
 export default defineConfig({
   plugins: [terajsPlugin()],
@@ -75,18 +80,8 @@ export default defineConfig({
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
-`
-  );
-
-  await writeFile(
-    join(src, "main.ts"),
-    `import { mount } from "@terajs/renderer-web";
-import App from "virtual:terajs-app";
-
-mount(App);
 `
   );
 
@@ -95,6 +90,17 @@ mount(App);
     `declare module "*.tera" {
   const component: (props?: any) => Node;
   export default component;
+}
+
+declare module "virtual:terajs-routes" {
+  const routes: any[];
+  export { routes };
+}
+
+declare module "virtual:terajs-app" {
+  const app: (props?: any) => Node;
+  export default app;
+  export function bootstrapTerajsApp(): void;
 }
 `
   );

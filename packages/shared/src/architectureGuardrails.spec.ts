@@ -22,6 +22,7 @@ const guardedPackages = [
 ];
 
 const adapterImports = [
+  "terajs",
   "@terajs/renderer-web",
   "@terajs/renderer-ssr",
   "@terajs/vite-plugin",
@@ -60,11 +61,14 @@ const allowedPackageExternalDependencies = new Map<string, Set<string>>([
   ["runtime", new Set<string>()],
   ["sfc", new Set<string>()],
   ["shared", new Set<string>()],
+  ["terajs", new Set<string>()],
   ["ui", new Set<string>()]
 ]);
 
 const allowedPackageExternalPeerDependencies = new Map<string, Set<string>>([
   ["vite-plug-in", new Set(["vite"])],
+  ["terajs", new Set(["vite"])],
+  ["hub-signalr", new Set(["@microsoft/signalr"])],
   ["adapter-react", new Set(["react", "react-dom"])],
   ["adapter-vue", new Set(["vue"])],
   ["adapter-ai", new Set<string>()]
@@ -195,6 +199,10 @@ describe("architecture guardrails", () => {
         }
 
         if ((packageName === "vite-plug-in" || packageName === "cli") && importPath === "vite") {
+          continue;
+        }
+
+        if (packageName === "cli" && importPath === "terajs/vite") {
           continue;
         }
 

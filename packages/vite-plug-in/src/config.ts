@@ -8,6 +8,19 @@ const require = createRequire(import.meta.url);
 interface TerajsUserConfig {
   autoImportDirs?: string[];
   routeDirs?: string[];
+  devtools?: {
+    enabled?: boolean;
+    startOpen?: boolean;
+    position?: string;
+    panelShortcut?: string;
+    visibilityShortcut?: string;
+    ai?: {
+      enabled?: boolean;
+      endpoint?: string;
+      model?: string;
+      timeoutMs?: number;
+    };
+  };
   sync?: {
     hub?: {
       type?: string;
@@ -165,6 +178,22 @@ export interface TerajsRouterConfig {
   applyMeta: boolean;
 }
 
+export type TerajsDevtoolsPosition = "bottom-left" | "bottom-right" | "bottom-center";
+
+export interface TerajsDevtoolsConfig {
+  enabled: boolean;
+  startOpen: boolean;
+  position: TerajsDevtoolsPosition;
+  panelShortcut: string;
+  visibilityShortcut: string;
+  ai: {
+    enabled: boolean;
+    endpoint: string;
+    model: string;
+    timeoutMs: number;
+  };
+}
+
 export type TerajsHubType = "signalr" | "socket.io" | "websockets";
 export type TerajsHubRetryPolicy = "none" | "exponential";
 
@@ -185,6 +214,51 @@ function isHubType(value: string): value is TerajsHubType {
 
 function isHubRetryPolicy(value: string): value is TerajsHubRetryPolicy {
   return value === "none" || value === "exponential";
+}
+
+function isDevtoolsPosition(value: string): value is TerajsDevtoolsPosition {
+  return value === "bottom-left" || value === "bottom-right" || value === "bottom-center";
+}
+
+function normalizeShortcut(value: unknown, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+export function getDevtoolsConfig(): TerajsDevtoolsConfig {
+  const config = readTerajsConfig();
+  const devtools = config.devtools;
+  const ai = devtools?.ai;
+
+  const position = typeof devtools?.position === "string"
+    ? devtools.position.trim()
+    : "";
+
+  const endpoint = typeof ai?.endpoint === "string" ? ai.endpoint.trim() : "";
+  const model = typeof ai?.model === "string" && ai.model.trim().length > 0
+    ? ai.model.trim()
+    : "terajs-assistant";
+  const timeoutMs = typeof ai?.timeoutMs === "number" && Number.isFinite(ai.timeoutMs)
+    ? Math.min(60000, Math.max(1500, Math.round(ai.timeoutMs)))
+    : 12000;
+
+  return {
+    enabled: typeof devtools?.enabled === "boolean" ? devtools.enabled : true,
+    startOpen: typeof devtools?.startOpen === "boolean" ? devtools.startOpen : false,
+    position: isDevtoolsPosition(position) ? position : "bottom-right",
+    panelShortcut: normalizeShortcut(devtools?.panelShortcut, "Ctrl+Shift+D"),
+    visibilityShortcut: normalizeShortcut(devtools?.visibilityShortcut, "Ctrl+Shift+H"),
+    ai: {
+      enabled: typeof ai?.enabled === "boolean" ? ai.enabled : true,
+      endpoint,
+      model,
+      timeoutMs
+    }
+  };
 }
 
 export function getSyncHubConfig(): TerajsHubConfig | null {

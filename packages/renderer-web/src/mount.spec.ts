@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
-import { onCleanup } from "@terajs/runtime";
+import { component, onCleanup, onMounted } from "@terajs/runtime";
 import { jsx } from "./jsx-runtime";
 import { Portal } from "./portal";
 import { signal } from "@terajs/reactivity";
@@ -149,6 +149,28 @@ describe("mount() / unmount()", () => {
 
         expect(calls).toBe(1);
         expect(root.textContent).toBe("");
+    });
+
+    it("runs onMounted hooks for runtime-wrapped components", () => {
+        let mountedCalls = 0;
+
+        const App = component({ name: "WrappedApp" }, () => {
+            onMounted(() => {
+                mountedCalls += 1;
+            });
+
+            return () => {
+                const div = document.createElement("div");
+                div.textContent = "wrapped";
+                return div;
+            };
+        });
+
+        const root = document.createElement("div");
+        mount(App, root);
+
+        expect(root.textContent).toBe("wrapped");
+        expect(mountedCalls).toBe(1);
     });
 
     it("mounts portal children into the document body by default", () => {

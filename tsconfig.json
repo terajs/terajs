@@ -27,6 +27,7 @@
     { "path": "./packages/router" },
     { "path": "./packages/router-manifest" },
     { "path": "./packages/ui" },
+    { "path": "./packages/terajs" },
     { "path": "./packages/vite-plug-in" },
     { "path": "./packages/cli" },
     { "path": "./packages/adapter-react" },

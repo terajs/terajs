@@ -12,7 +12,7 @@
     "reservedTags": ["template", "script", "style", "meta", "ai", "route"]
   },
   "build_pipeline": {
-    "plugin": "@terajs/vite-plugin",
-    "virtual_modules": ["virtual:terajs-routes", "virtual:terajs-auto-imports"]
+    "plugin": "terajs/vite",
+    "virtual_modules": ["virtual:terajs-routes", "virtual:terajs-auto-imports", "virtual:terajs-app"]
   }
 }

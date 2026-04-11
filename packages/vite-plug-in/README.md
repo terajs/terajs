@@ -14,12 +14,14 @@ This plugin enables Terajs SFC compilation, HMR, and auto-imports for your proje
 
 ```js
 // vite.config.js or vite.config.ts
-import terajsPlugin from '@terajs/vite-plugin';
+import terajsPlugin from 'terajs/vite';
 
 export default {
   plugins: [terajsPlugin()]
 };
 ```
+
+If you prefer leaf-node packages, you can still import from `@terajs/vite-plugin` directly.
 
 ### 2. Auto-imports
 
@@ -83,13 +85,15 @@ This produces a manifest that already includes:
 
 ### 4. Zero-config app bootstrap
 
-For the easiest app entry, mount the virtual app module:
+For the easiest app entry, you can skip creating `src/main.ts`.
+If `index.html` has no module script entry, the plugin auto-injects app bootstrap and mounts to `#app`.
+
+You can still bootstrap manually when desired:
 
 ```ts
-import { mount } from "@terajs/renderer-web";
-import App from "virtual:terajs-app";
+import { bootstrapTerajsApp } from "virtual:terajs-app";
 
-mount(App);
+bootstrapTerajsApp();
 ```
 
 The plugin builds this app module from:
@@ -140,7 +144,28 @@ Install the SignalR adapter in your app:
 npm install @terajs/hub-signalr @microsoft/signalr
 ```
 
-Current release slice supports `signalr` hub type. `socket.io` and `websockets` are planned on the same config contract.
+RC status:
+
+- `signalr`: implemented and auto-wired by the plugin when `sync.hub` is configured.
+- `socket.io`: config value reserved, first-party adapter not shipped yet.
+- `websockets`: config value reserved, first-party adapter not shipped yet.
+
+For `socket.io` and raw WebSocket projects today, use the runtime transport contract directly and wire your adapter in a helper script:
+
+```html
+<script type="module" data-terajs-ignore-bootstrap="true">
+  import { setServerFunctionTransport } from "terajs";
+  import { createSocketIoHubTransport } from "/src/realtime/socketIoTransport.ts";
+
+  const transport = await createSocketIoHubTransport({
+    url: "https://api.example.com/realtime"
+  });
+
+  setServerFunctionTransport(transport);
+</script>
+```
+
+Your custom adapter should implement `ServerFunctionTransport` (`invoke(call)`) and emit `hub:*` debug events so DevTools can show realtime health and diagnostics.
 
 ### 6. Canonical App Shell
 
@@ -176,14 +201,33 @@ This shell keeps the route graph, nested layouts, and portal layer aligned acros
 
 ### 7. Devtools Overlay
 
-To enable the Terajs DevTools overlay, import and call:
+In development, Terajs DevTools is available by default and mounts as a floating FAB overlay.
+Default interactions:
+
+- `Ctrl+Shift+D`: open/close the DevTools panel
+- `Ctrl+Shift+H`: hide/show the overlay shell
+
+You can customize behavior in `terajs.config.cjs`:
 
 ```js
-import { mountDevtoolsOverlay } from '@terajs/devtools';
-mountDevtoolsOverlay();
+module.exports = {
+  devtools: {
+    enabled: true,
+    startOpen: false,
+    position: "bottom-center", // bottom-left | bottom-right | bottom-center
+    panelShortcut: "Ctrl+Shift+D",
+    visibilityShortcut: "Ctrl+Shift+H",
+    ai: {
+      enabled: true,
+      endpoint: "", // optional HTTP endpoint for assistant responses
+      model: "terajs-assistant",
+      timeoutMs: 12000
+    }
+  }
+};
 ```
 
-This will show the overlay in your app for live inspection.
+When no `devtools.ai.endpoint` is set, DevTools still generates prompt context and can use a global assistant hook (`window.__TERAJS_AI_ASSISTANT__`) if present.
 
 ---
 

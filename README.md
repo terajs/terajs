@@ -56,6 +56,16 @@ Everything a component needs lives in one place.
 
 - All `.tera` files in `src/components` (or configured dirs) are globally available in SFCs - no manual imports needed.
 - DevTools overlay: live inspection of components, signals, effects, logs, issues, performance, and sanity checks.
+- In development, DevTools is available by default as a floating FAB overlay with keyboard toggles.
+
+## **Single entry + leaf packages**
+
+Terajs supports two complementary usage modes:
+
+- **Default app path:** install `terajs` and use `terajs/vite` in your Vite config.
+- **Advanced path:** import leaf packages directly under `@terajs/*` when you need tighter control.
+
+This keeps first-time setup simple while preserving modular architecture boundaries.
 
 ### Example: Using auto-imported components
 
@@ -67,13 +77,21 @@ src/components/FancyButton.tera
 
 You can use `<FancyButton />` in any SFC without importing it.
 
-### Enabling DevTools overlay
+### DevTools defaults and overrides
 
-In your app entry point:
+By default, DevTools is enabled in development and starts collapsed as a FAB in the bottom-right corner.
+You can override this in `terajs.config.cjs`:
 
 ```js
-import { mountDevtoolsOverlay } from '@terajs/devtools';
-mountDevtoolsOverlay();
+module.exports = {
+  devtools: {
+    enabled: true,
+    startOpen: false,
+    position: "bottom-right",
+    panelShortcut: "Ctrl+Shift+D",
+    visibilityShortcut: "Ctrl+Shift+H"
+  }
+};
 ```
 
 ### Customizing auto-imports
@@ -243,6 +261,12 @@ The current release includes a local-first baseline:
 
 This is a foundation layer. Advanced sync conflict strategies and multi-device merge policies are still planned.
 
+### Realtime sync hub status (RC)
+
+- `signalr` is the current first-party realtime adapter path.
+- `socket.io` and `websockets` are reserved in config and share the same runtime transport contract.
+- Until first-party adapters ship, apps can integrate custom transports through `setServerFunctionTransport(...)` and still surface realtime health in DevTools by emitting `hub:*` debug events.
+
 ---
 
 ## **Style-agnostic**
@@ -358,6 +382,7 @@ Debugging is a first-class feature.
 
 ```
 packages/
+  terajs/          -> single app-facing entry package
   compiler/        -> template compiler (AST -> IR -> codegen)
   reactivity/      -> fine-grained reactive system
   renderer/        -> platform-agnostic renderer core
@@ -371,7 +396,7 @@ packages/
 ```
 
 Terajs Core stays minimal.
-Terajs Kit (future) provides structure when needed.
+The `terajs` package provides convention-first defaults while leaf packages stay available for advanced use.
 
 ---
 

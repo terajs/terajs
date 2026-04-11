@@ -95,7 +95,10 @@ async function collectTerajsPackages() {
     }
 
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    if (typeof manifest.name === "string" && manifest.name.startsWith("@terajs/")) {
+    if (
+      typeof manifest.name === "string"
+      && (manifest.name === "terajs" || manifest.name.startsWith("@terajs/"))
+    ) {
       packages.push({
         name: manifest.name,
         directory
@@ -138,24 +141,26 @@ async function rewriteScaffoldPackage(appRoot, tarballs) {
   const packagePath = join(appRoot, "package.json");
   const manifest = JSON.parse(await readFile(packagePath, "utf8"));
 
-  const runtimeTarball = tarballs.get("@terajs/runtime");
-  const rendererTarball = tarballs.get("@terajs/renderer-web");
-  const pluginTarball = tarballs.get("@terajs/vite-plugin");
+  const terajsTarball = tarballs.get("terajs");
 
-  if (!runtimeTarball || !rendererTarball || !pluginTarball) {
-    throw new Error("Required tarballs for runtime, renderer-web, and vite-plugin are missing.");
+  if (!terajsTarball) {
+    throw new Error("Required tarball for terajs is missing.");
   }
 
   manifest.dependencies = {
     ...(manifest.dependencies ?? {}),
-    "@terajs/runtime": toFileSpecifier(appRoot, runtimeTarball),
-    "@terajs/renderer-web": toFileSpecifier(appRoot, rendererTarball)
+    terajs: toFileSpecifier(appRoot, terajsTarball)
   };
 
-  manifest.devDependencies = {
-    ...(manifest.devDependencies ?? {}),
-    "@terajs/vite-plugin": toFileSpecifier(appRoot, pluginTarball)
-  };
+  if (manifest.dependencies && typeof manifest.dependencies === "object") {
+    delete manifest.dependencies["@terajs/runtime"];
+    delete manifest.dependencies["@terajs/renderer-web"];
+    delete manifest.dependencies["@terajs/vite-plugin"];
+  }
+
+  if (manifest.devDependencies && typeof manifest.devDependencies === "object") {
+    delete manifest.devDependencies["@terajs/vite-plugin"];
+  }
 
   const existingOverrides = manifest.overrides && typeof manifest.overrides === "object"
     ? manifest.overrides
@@ -197,7 +202,7 @@ async function main() {
   try {
     await mkdir(tarballsRoot, { recursive: true });
 
-    console.log("[external-smoke] Packing @terajs packages...");
+    console.log("[external-smoke] Packing Terajs packages...");
     const tarballs = await packTerajsPackages(tarballsRoot);
 
     console.log("[external-smoke] Scaffolding app with CLI...");
