@@ -2,6 +2,7 @@ export interface DevtoolsEventLike {
   type: string;
   timestamp: number;
   payload?: any;
+  level?: "info" | "warn" | "error";
 }
 
 export interface TimelineEntry {
@@ -64,6 +65,44 @@ export interface RouterMetrics {
   currentRoute: string | null;
   mostActiveRoute: string | null;
   byRoute: RouterRouteMetric[];
+}
+
+export interface IssueBucketMetric {
+  index: number;
+  label: string;
+  count: number;
+  errors: number;
+  warns: number;
+}
+
+export interface IssueTypeMetric {
+  type: string;
+  count: number;
+  errors: number;
+  warns: number;
+}
+
+export interface IssueFingerprintMetric {
+  fingerprint: string;
+  type: string;
+  message: string;
+  count: number;
+  severity: "error" | "warn";
+  lastSeenAt: number;
+}
+
+export interface IssueMetrics {
+  windowMs: number;
+  totalIssues: number;
+  errorCount: number;
+  warnCount: number;
+  uniqueIssueFingerprints: number;
+  issueRatePerMinute: number;
+  lastIssueAt: number | null;
+  spikeDetected: boolean;
+  byType: IssueTypeMetric[];
+  byFingerprint: IssueFingerprintMetric[];
+  buckets: IssueBucketMetric[];
 }
 
 function safeString(value: unknown): string {
@@ -465,5 +504,211 @@ export function computeRouterMetrics(events: DevtoolsEventLike[], windowMs = 300
     currentRoute,
     mostActiveRoute,
     byRoute
+  };
+}
+
+type IssueSeverity = "error" | "warn";
+
+function isIssueEvent(event: DevtoolsEventLike): boolean {
+  const level = (event as DevtoolsEventLike & { level?: unknown }).level;
+
+  return event.type.startsWith("error:")
+    || event.type.includes("warn")
+    || event.type.includes("hydration")
+    || event.type === "route:blocked"
+    || level === "error"
+    || level === "warn";
+}
+
+function resolveIssueSeverity(event: DevtoolsEventLike): IssueSeverity {
+  const level = (event as DevtoolsEventLike & { level?: unknown }).level;
+  if (level === "error" || event.type.startsWith("error:")) {
+    return "error";
+  }
+
+  return "warn";
+}
+
+function readIssueMessage(payload: unknown): string {
+  if (!payload || typeof payload !== "object") {
+    return safeString(payload);
+  }
+
+  const record = payload as Record<string, unknown>;
+  const message = record.message;
+  if (typeof message === "string" && message.trim().length > 0) {
+    return message.trim();
+  }
+
+  const likelyCause = record.likelyCause;
+  if (typeof likelyCause === "string" && likelyCause.trim().length > 0) {
+    return likelyCause.trim();
+  }
+
+  const reason = record.reason;
+  if (typeof reason === "string" && reason.trim().length > 0) {
+    return reason.trim();
+  }
+
+  return safeString(payload);
+}
+
+function normalizeMessageForFingerprint(message: string): string {
+  return message
+    .replaceAll(/\b\d+\b/g, "#")
+    .replaceAll(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+}
+
+function createIssueBucketLabel(index: number, bucketCount: number, windowMs: number): string {
+  if (index >= bucketCount - 1) {
+    return "now";
+  }
+
+  const bucketDuration = windowMs / bucketCount;
+  const seconds = Math.max(1, Math.round((windowMs - ((index + 1) * bucketDuration)) / 1000));
+  return `-${seconds}s`;
+}
+
+export function computeIssueMetrics(
+  events: DevtoolsEventLike[],
+  windowMs = 60000,
+  bucketCount = 8
+): IssueMetrics {
+  const safeWindowMs = Number.isFinite(windowMs) && windowMs > 0 ? Math.round(windowMs) : 60000;
+  const safeBucketCount = Number.isFinite(bucketCount) && bucketCount > 0 ? Math.round(bucketCount) : 8;
+  const latestTimestamp = events.length > 0 ? events[events.length - 1].timestamp : Date.now();
+  const windowStart = latestTimestamp - safeWindowMs;
+  const bucketDuration = safeWindowMs / safeBucketCount;
+
+  const buckets: IssueBucketMetric[] = Array.from({ length: safeBucketCount }, (_, index) => ({
+    index,
+    label: createIssueBucketLabel(index, safeBucketCount, safeWindowMs),
+    count: 0,
+    errors: 0,
+    warns: 0
+  }));
+
+  const issueEvents = events.filter((event) => isIssueEvent(event) && event.timestamp >= windowStart);
+
+  if (issueEvents.length === 0) {
+    return {
+      windowMs: safeWindowMs,
+      totalIssues: 0,
+      errorCount: 0,
+      warnCount: 0,
+      uniqueIssueFingerprints: 0,
+      issueRatePerMinute: 0,
+      lastIssueAt: null,
+      spikeDetected: false,
+      byType: [],
+      byFingerprint: [],
+      buckets
+    };
+  }
+
+  const byType = new Map<string, IssueTypeMetric>();
+  const byFingerprint = new Map<string, IssueFingerprintMetric>();
+  let errorCount = 0;
+  let warnCount = 0;
+
+  for (const event of issueEvents) {
+    const severity = resolveIssueSeverity(event);
+    const message = readIssueMessage(event.payload).slice(0, 220);
+    const normalizedMessage = normalizeMessageForFingerprint(message);
+    const fingerprint = `${event.type}|${normalizedMessage}`;
+
+    if (severity === "error") {
+      errorCount += 1;
+    } else {
+      warnCount += 1;
+    }
+
+    const typeMetric = byType.get(event.type) ?? {
+      type: event.type,
+      count: 0,
+      errors: 0,
+      warns: 0
+    };
+    typeMetric.count += 1;
+    if (severity === "error") {
+      typeMetric.errors += 1;
+    } else {
+      typeMetric.warns += 1;
+    }
+    byType.set(event.type, typeMetric);
+
+    const fingerprintMetric = byFingerprint.get(fingerprint) ?? {
+      fingerprint,
+      type: event.type,
+      message,
+      count: 0,
+      severity,
+      lastSeenAt: event.timestamp
+    };
+
+    fingerprintMetric.count += 1;
+    fingerprintMetric.lastSeenAt = Math.max(fingerprintMetric.lastSeenAt, event.timestamp);
+    if (fingerprintMetric.severity !== "error" && severity === "error") {
+      fingerprintMetric.severity = "error";
+    }
+    if (message.length > 0) {
+      fingerprintMetric.message = message;
+    }
+    byFingerprint.set(fingerprint, fingerprintMetric);
+
+    const elapsed = Math.max(0, event.timestamp - windowStart);
+    const bucketIndex = Math.min(
+      safeBucketCount - 1,
+      Math.floor(elapsed / bucketDuration)
+    );
+
+    const bucket = buckets[bucketIndex];
+    bucket.count += 1;
+    if (severity === "error") {
+      bucket.errors += 1;
+    } else {
+      bucket.warns += 1;
+    }
+  }
+
+  const typeMetrics = Array.from(byType.values()).sort((left, right) => {
+    if (right.count !== left.count) return right.count - left.count;
+    if (right.errors !== left.errors) return right.errors - left.errors;
+    return left.type.localeCompare(right.type);
+  });
+
+  const fingerprintMetrics = Array.from(byFingerprint.values()).sort((left, right) => {
+    if (right.count !== left.count) return right.count - left.count;
+    if (right.lastSeenAt !== left.lastSeenAt) return right.lastSeenAt - left.lastSeenAt;
+    return left.fingerprint.localeCompare(right.fingerprint);
+  });
+
+  const issueRatePerMinute = Number((issueEvents.length / (safeWindowMs / 60000)).toFixed(2));
+  const lastBucketCount = buckets[buckets.length - 1]?.count ?? 0;
+  const baselineValues = buckets.slice(0, -1).map((bucket) => bucket.count);
+  const baselineAverage = baselineValues.length > 0
+    ? baselineValues.reduce((total, value) => total + value, 0) / baselineValues.length
+    : 0;
+
+  const spikeDetected = lastBucketCount >= 3
+    && (
+      (baselineAverage > 0 && lastBucketCount >= baselineAverage * 1.8 && (lastBucketCount - baselineAverage) >= 2)
+      || (baselineAverage === 0 && lastBucketCount >= 4)
+    );
+
+  return {
+    windowMs: safeWindowMs,
+    totalIssues: issueEvents.length,
+    errorCount,
+    warnCount,
+    uniqueIssueFingerprints: fingerprintMetrics.length,
+    issueRatePerMinute,
+    lastIssueAt: issueEvents[issueEvents.length - 1]?.timestamp ?? null,
+    spikeDetected,
+    byType: typeMetrics,
+    byFingerprint: fingerprintMetrics,
+    buckets
   };
 }

@@ -1,5 +1,5 @@
-import { buildTimeline, computePerformanceMetrics, computeRouterMetrics, replayEventsAtIndex } from "./analytics.js";
-import { Debug, getAllReactives, getDebugListenerCount, getReactiveByRid, setReactiveValue, subscribeDebug } from "@terajs/shared";
+import { buildTimeline, computeIssueMetrics, computePerformanceMetrics, computeRouterMetrics, replayEventsAtIndex } from "./analytics.js";
+import { getAllReactives, getDebugListenerCount, getReactiveByRid, setReactiveValue, subscribeDebug } from "@terajs/shared";
 import { captureStateSnapshot } from "@terajs/adapter-ai";
 import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "./sanity.js";
 import { buildAIPrompt } from "./aiPrompt.js";
@@ -57,6 +57,10 @@ interface AIAssistantRequest {
 
 type AIAssistantHook = (request: AIAssistantRequest) => Promise<unknown> | unknown;
 
+interface GlobalDevtoolsHook {
+  emit(event: unknown): void;
+}
+
 declare global {
   interface Window {
     __TERAJS_AI_ASSISTANT__?: AIAssistantHook;
@@ -77,9 +81,32 @@ type TabName =
   | "Sanity Check"
   | "Settings";
 
+type TimelineFilter = "important" | "all" | "route" | "queue" | "signal" | "effect" | "error";
+type ComponentExplorerMode = "tree" | "dom";
+type MetaDetailTab = "meta" | "ai" | "route";
+
+interface DevtoolsMetaEntry {
+  key: string;
+  source: "component" | "route";
+  scope: string;
+  instance: number;
+  meta: unknown;
+  ai: unknown;
+  route: unknown;
+}
+
+interface DevtoolsCommandEntry {
+  id: string;
+  label: string;
+  detail: string;
+}
+
 interface DevtoolsState {
   activeTab: TabName;
   events: DevtoolsEvent[];
+  routeEvents: DevtoolsEvent[];
+  metaEntries: Map<string, DevtoolsMetaEntry>;
+  metaEntryOrder: string[];
   mountedComponents: Map<string, { key: string; scope: string; instance: number; aiPreview?: string; lastSeenAt: number }>;
   expandedComponentNodeKeys: Set<string>;
   componentTreeInitialized: boolean;
@@ -88,8 +115,16 @@ interface DevtoolsState {
   eventCount: number;
   selectedMetaKey: string | null;
   selectedComponentKey: string | null;
+  componentExplorerMode: ComponentExplorerMode;
+  componentSearchQuery: string;
+  metaFilterQuery: string;
+  metaDetailTab: MetaDetailTab;
   logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
   timelineCursor: number;
+  timelineFollowLive: boolean;
+  timelineFilter: TimelineFilter;
+  commandPaletteOpen: boolean;
+  commandPaletteQuery: string;
   theme: "dark" | "light";
   aiPrompt: string | null;
   aiLikelyCause: string | null;
@@ -148,6 +183,13 @@ const DEVTOOLS_COMPONENT_SELECT_EVENT = "terajs:devtools:component-select";
 const DEVTOOLS_COMPONENT_PICKED_EVENT = "terajs:devtools:component-picked";
 const DEVTOOLS_COMPONENT_HOVER_EVENT = "terajs:devtools:component-hover";
 const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
+const EVENT_BUFFER_CAP = 2000;
+const ROUTE_EVENT_BUFFER_CAP = 1000;
+const META_ENTRY_BUFFER_CAP = 300;
+const LOG_RENDER_CAP = 100;
+const ISSUE_FEED_RENDER_CAP = 120;
+const TIMELINE_RENDER_CAP = 500;
+const TIMELINE_FILTERS: TimelineFilter[] = ["important", "all", "route", "queue", "signal", "effect", "error"];
 
 export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions = {}): () => void {
   const aiOptions = normalizeAIAssistantOptions(options.ai);
@@ -155,6 +197,9 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   const state: DevtoolsState = {
     activeTab: "Components",
     events: [],
+    routeEvents: [],
+    metaEntries: new Map(),
+    metaEntryOrder: [],
     mountedComponents: new Map(),
     expandedComponentNodeKeys: new Set(),
     componentTreeInitialized: false,
@@ -163,8 +208,16 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     eventCount: 0,
     selectedMetaKey: null,
     selectedComponentKey: null,
+    componentExplorerMode: "tree",
+    componentSearchQuery: "",
+    metaFilterQuery: "",
+    metaDetailTab: "meta",
     logFilter: "all",
     timelineCursor: -1,
+    timelineFollowLive: true,
+    timelineFilter: "important",
+    commandPaletteOpen: false,
+    commandPaletteQuery: "",
     theme: "dark",
     aiPrompt: null,
     aiLikelyCause: null,
@@ -176,6 +229,72 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     persistOverlayPreferences: layoutOptions.persistPreferences
   };
   let aiRequestToken = 0;
+
+  const clearSessionState = () => {
+    state.events = [];
+    state.routeEvents = [];
+    state.metaEntries.clear();
+    state.metaEntryOrder = [];
+    state.eventCount = 0;
+    state.timelineCursor = -1;
+    state.timelineFollowLive = true;
+    state.timelineFilter = "important";
+    state.selectedMetaKey = null;
+    state.selectedComponentKey = null;
+    state.componentExplorerMode = "tree";
+    state.componentSearchQuery = "";
+    state.metaFilterQuery = "";
+    state.metaDetailTab = "meta";
+    state.mountedComponents.clear();
+    state.expandedComponentNodeKeys.clear();
+    state.componentTreeInitialized = false;
+    state.aiPrompt = null;
+    state.aiLikelyCause = null;
+    state.aiStatus = "idle";
+    state.aiResponse = null;
+    state.aiError = null;
+    aiRequestToken += 1;
+    notifyInspectMode(state.activeTab === "Components");
+    notifyComponentSelection(null, null, "clear");
+  };
+
+  const runCommandPaletteAction = (commandId: string): boolean => {
+    if (commandId.startsWith("tab:")) {
+      const tabLabel = commandId.slice(4);
+      if (!TABS.includes(tabLabel as TabName)) {
+        return false;
+      }
+
+      const nextTab = tabLabel as TabName;
+      state.activeTab = nextTab;
+      notifyInspectMode(nextTab === "Components");
+      if (nextTab !== "Components") {
+        notifyComponentSelection(null, null, "clear");
+      }
+      return true;
+    }
+
+    if (commandId === "action:toggle-theme") {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      return true;
+    }
+
+    if (commandId === "action:clear-events") {
+      clearSessionState();
+      return true;
+    }
+
+    if (commandId === "action:toggle-live-follow") {
+      state.activeTab = "Timeline";
+      state.timelineFollowLive = !state.timelineFollowLive;
+      if (state.timelineFollowLive) {
+        state.timelineCursor = -1;
+      }
+      return true;
+    }
+
+    return false;
+  };
 
   const appendEvent = (rawEvent: unknown) => {
     const event = normalizeEvent(rawEvent);
@@ -197,13 +316,24 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       }
     }
 
-    state.events = [...state.events.slice(-249), event];
+    appendToBoundedBuffer(state.events, event, EVENT_BUFFER_CAP);
+    if (event.type.startsWith("route:") || event.type === "error:router") {
+      appendToBoundedBuffer(state.routeEvents, event, ROUTE_EVENT_BUFFER_CAP);
+    }
+
+    const metaEntry = readMetaEntry(event);
+    if (metaEntry) {
+      upsertMetaEntry(state, metaEntry, META_ENTRY_BUFFER_CAP);
+    }
+
     state.eventCount += 1;
-    state.timelineCursor = state.events.length - 1;
+    if (state.timelineFollowLive) {
+      state.timelineCursor = -1;
+    }
     render();
   };
 
-  const unsubDebug = Debug.on(appendEvent);
+  const removeGlobalDebugHook = installGlobalDebugHook(appendEvent);
   const unsubEventBus = subscribeDebug(appendEvent, { replay: true });
 
   const dispatchWindowEvent = (name: string, detail: Record<string, unknown>) => {
@@ -270,6 +400,32 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     const target = domEvent.target;
     if (!(target instanceof HTMLElement)) return;
 
+    if (target.closest("[data-command-palette-toggle]")) {
+      state.commandPaletteOpen = !state.commandPaletteOpen;
+      if (!state.commandPaletteOpen) {
+        state.commandPaletteQuery = "";
+      }
+      render();
+      return;
+    }
+
+    if (target.closest("[data-command-close]")) {
+      state.commandPaletteOpen = false;
+      state.commandPaletteQuery = "";
+      render();
+      return;
+    }
+
+    const commandId = target.closest<HTMLElement>("[data-command-id]")?.dataset.commandId;
+    if (commandId) {
+      if (runCommandPaletteAction(commandId)) {
+        state.commandPaletteOpen = false;
+        state.commandPaletteQuery = "";
+        render();
+      }
+      return;
+    }
+
     const tab = target.closest<HTMLElement>("[data-tab]")?.dataset.tab as TabName | undefined;
     if (tab) {
       state.activeTab = tab;
@@ -284,6 +440,38 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     const logFilter = target.closest<HTMLElement>("[data-log-filter]")?.dataset.logFilter as DevtoolsState["logFilter"] | undefined;
     if (logFilter) {
       state.logFilter = logFilter;
+      render();
+      return;
+    }
+
+    const timelineFilter = target.closest<HTMLElement>("[data-timeline-filter]")?.dataset.timelineFilter;
+    if (isTimelineFilter(timelineFilter)) {
+      state.timelineFilter = timelineFilter;
+      state.timelineFollowLive = true;
+      state.timelineCursor = -1;
+      render();
+      return;
+    }
+
+    if (target.closest("[data-timeline-follow-toggle]")) {
+      state.timelineFollowLive = !state.timelineFollowLive;
+      if (state.timelineFollowLive) {
+        state.timelineCursor = -1;
+      }
+      render();
+      return;
+    }
+
+    const componentExplorerMode = target.closest<HTMLElement>("[data-component-explorer-mode]")?.dataset.componentExplorerMode;
+    if (isComponentExplorerMode(componentExplorerMode) && componentExplorerMode !== state.componentExplorerMode) {
+      state.componentExplorerMode = componentExplorerMode;
+      render();
+      return;
+    }
+
+    const metaDetailTab = target.closest<HTMLElement>("[data-meta-detail-tab]")?.dataset.metaDetailTab;
+    if (isMetaDetailTab(metaDetailTab) && metaDetailTab !== state.metaDetailTab) {
+      state.metaDetailTab = metaDetailTab;
       render();
       return;
     }
@@ -475,33 +663,59 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     }
 
     if (target.closest("[data-clear-events]")) {
-      state.events = [];
-      state.eventCount = 0;
-      state.timelineCursor = -1;
-      state.selectedMetaKey = null;
-      state.selectedComponentKey = null;
-      state.mountedComponents.clear();
-      state.expandedComponentNodeKeys.clear();
-      state.componentTreeInitialized = false;
-      state.aiPrompt = null;
-      state.aiLikelyCause = null;
-      state.aiStatus = "idle";
-      state.aiResponse = null;
-      state.aiError = null;
-      aiRequestToken += 1;
-      notifyInspectMode(state.activeTab === "Components");
-      notifyComponentSelection(null, null, "clear");
+      clearSessionState();
       render();
+      return;
     }
   };
 
   const handleInput = (domEvent: Event) => {
     const target = domEvent.target;
     if (!(target instanceof HTMLInputElement)) return;
+
+    if (target.dataset.commandQuery === "true") {
+      state.commandPaletteQuery = target.value;
+      render();
+      return;
+    }
+
+    if (target.dataset.componentSearchQuery === "true") {
+      state.componentSearchQuery = target.value;
+      render();
+      return;
+    }
+
+    if (target.dataset.metaFilterQuery === "true") {
+      state.metaFilterQuery = target.value;
+      render();
+      return;
+    }
+
     if (target.dataset.timelineCursor !== "true") return;
 
+    state.timelineFollowLive = false;
     state.timelineCursor = Number(target.value);
     render();
+  };
+
+  const handleKeyDown = (domEvent: KeyboardEvent) => {
+    const key = domEvent.key.toLowerCase();
+    if ((domEvent.ctrlKey || domEvent.metaKey) && key === "k") {
+      domEvent.preventDefault();
+      state.commandPaletteOpen = !state.commandPaletteOpen;
+      if (!state.commandPaletteOpen) {
+        state.commandPaletteQuery = "";
+      }
+      render();
+      return;
+    }
+
+    if (state.commandPaletteOpen && key === "escape") {
+      domEvent.preventDefault();
+      state.commandPaletteOpen = false;
+      state.commandPaletteQuery = "";
+      render();
+    }
   };
 
   const handleChange = (domEvent: Event) => {
@@ -574,11 +788,14 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   root.addEventListener("change", handleChange);
   root.addEventListener("mouseover", handleMouseOver);
   root.addEventListener("mouseout", handleMouseOut);
+  if (typeof document !== "undefined") {
+    document.addEventListener("keydown", handleKeyDown);
+  }
 
   render();
 
   return () => {
-    unsubDebug();
+    removeGlobalDebugHook();
     unsubEventBus();
     if (typeof window !== "undefined") {
       window.removeEventListener(DEVTOOLS_COMPONENT_PICKED_EVENT, handleComponentPicked as EventListener);
@@ -591,6 +808,9 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     root.removeEventListener("change", handleChange);
     root.removeEventListener("mouseover", handleMouseOver);
     root.removeEventListener("mouseout", handleMouseOut);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("keydown", handleKeyDown);
+    }
     root.innerHTML = "";
   };
 
@@ -599,6 +819,48 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     root.innerHTML = renderApp(state);
     notifyInspectMode(state.activeTab === "Components");
   }
+}
+
+function installGlobalDebugHook(appendEvent: (event: unknown) => void): () => void {
+  if (typeof globalThis !== "object" || globalThis === null) {
+    return () => {};
+  }
+
+  const scopedGlobal = globalThis as typeof globalThis & {
+    __TERAJS_DEVTOOLS_HOOK__?: GlobalDevtoolsHook;
+  };
+
+  const previousHook = scopedGlobal.__TERAJS_DEVTOOLS_HOOK__;
+  const currentHook: GlobalDevtoolsHook = {
+    emit(event: unknown): void {
+      appendEvent(event);
+
+      if (!previousHook || previousHook === currentHook) {
+        return;
+      }
+
+      try {
+        previousHook.emit(event);
+      } catch {
+        // Keep devtools non-fatal when upstream hooks fail.
+      }
+    }
+  };
+
+  scopedGlobal.__TERAJS_DEVTOOLS_HOOK__ = currentHook;
+
+  return () => {
+    if (scopedGlobal.__TERAJS_DEVTOOLS_HOOK__ !== currentHook) {
+      return;
+    }
+
+    if (previousHook) {
+      scopedGlobal.__TERAJS_DEVTOOLS_HOOK__ = previousHook;
+      return;
+    }
+
+    delete scopedGlobal.__TERAJS_DEVTOOLS_HOOK__;
+  };
 }
 
 function normalizeEvent(rawEvent: unknown): DevtoolsEvent | null {
@@ -646,7 +908,10 @@ function renderApp(state: DevtoolsState): string {
           <div class="devtools-title">Terajs DevTools</div>
           <div class="devtools-subtitle">Events: ${state.eventCount}</div>
         </div>
-        <button class="toolbar-button" data-theme-toggle="true">${state.theme === "dark" ? "Light Theme" : "Dark Theme"}</button>
+        <div class="header-actions">
+          <button class="toolbar-button command-palette-button" data-command-palette-toggle="true">Command Palette</button>
+          <button class="toolbar-button" data-theme-toggle="true">${state.theme === "dark" ? "Light Theme" : "Dark Theme"}</button>
+        </div>
       </div>
       <div class="devtools-body">
         <div class="devtools-tabs">
@@ -658,8 +923,80 @@ function renderApp(state: DevtoolsState): string {
           ${renderPanel(state)}
         </div>
       </div>
+      ${state.commandPaletteOpen ? renderCommandPalette(state) : ""}
     </div>
   `;
+}
+
+function renderCommandPalette(state: DevtoolsState): string {
+  const entries = filterCommandPaletteEntries(buildCommandPaletteEntries(state), state.commandPaletteQuery);
+
+  return `
+    <button class="command-palette-backdrop" data-command-close="true" aria-label="Close command palette"></button>
+    <section class="command-palette" role="dialog" aria-modal="true" aria-label="Devtools command palette">
+      <div class="command-palette-head">
+        <input
+          class="command-palette-input"
+          data-command-query="true"
+          type="text"
+          placeholder="Type to filter commands..."
+          value="${escapeHtml(state.commandPaletteQuery)}"
+          autofocus
+        />
+        <button class="toolbar-button" data-command-close="true">Close</button>
+      </div>
+      <ul class="stack-list compact-list command-list">
+        ${entries.length === 0 ? `<li><div class="empty-state">No commands match the current filter.</div></li>` : entries.map((entry) => `
+          <li>
+            <button class="command-item" data-command-id="${escapeHtml(entry.id)}" type="button">
+              <span class="command-item-label">${escapeHtml(entry.label)}</span>
+              <span class="command-item-detail">${escapeHtml(entry.detail)}</span>
+            </button>
+          </li>
+        `).join("")}
+      </ul>
+    </section>
+  `;
+}
+
+function buildCommandPaletteEntries(state: DevtoolsState): DevtoolsCommandEntry[] {
+  const tabEntries: DevtoolsCommandEntry[] = TABS.map((tab) => ({
+    id: `tab:${tab}`,
+    label: `Open ${tab}`,
+    detail: state.activeTab === tab ? "Currently active" : "Switch tab"
+  }));
+
+  const actionEntries: DevtoolsCommandEntry[] = [
+    {
+      id: "action:toggle-theme",
+      label: state.theme === "dark" ? "Switch to Light Theme" : "Switch to Dark Theme",
+      detail: "Toggle panel theme"
+    },
+    {
+      id: "action:toggle-live-follow",
+      label: state.timelineFollowLive ? "Pause Timeline Live Follow" : "Resume Timeline Live Follow",
+      detail: "Open Timeline and toggle live replay"
+    },
+    {
+      id: "action:clear-events",
+      label: "Clear All Events",
+      detail: "Reset buffered events, selections, and diagnostics"
+    }
+  ];
+
+  return [...tabEntries, ...actionEntries];
+}
+
+function filterCommandPaletteEntries(entries: DevtoolsCommandEntry[], query: string): DevtoolsCommandEntry[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (normalizedQuery.length === 0) {
+    return entries;
+  }
+
+  return entries.filter((entry) => {
+    const haystack = `${entry.label} ${entry.detail} ${entry.id}`.toLowerCase();
+    return haystack.includes(normalizedQuery);
+  });
 }
 
 function renderPanel(state: DevtoolsState): string {
@@ -679,7 +1016,7 @@ function renderPanel(state: DevtoolsState): string {
     case "Timeline":
       return renderTimelinePanel(state);
     case "Router":
-      return renderRouterPanel(state.events);
+      return renderRouterPanel(getRouteEventFeed(state));
     case "Queue":
       return renderQueuePanel(state.events);
     case "Performance":
@@ -693,7 +1030,16 @@ function renderPanel(state: DevtoolsState): string {
 
 function renderComponentsPanel(state: DevtoolsState): string {
   const components = collectMountedComponents(state);
-  const tree = buildComponentTree(components);
+  const searchQuery = state.componentSearchQuery.trim().toLowerCase();
+  const visibleComponents = searchQuery.length === 0
+    ? components
+    : components.filter((component) => {
+      return component.scope.toLowerCase().includes(searchQuery)
+        || component.key.toLowerCase().includes(searchQuery)
+        || String(component.instance).includes(searchQuery);
+    });
+
+  const tree = buildComponentTree(visibleComponents);
 
   if (components.length === 0) {
     state.componentTreeInitialized = false;
@@ -707,7 +1053,12 @@ function renderComponentsPanel(state: DevtoolsState): string {
     state.componentTreeInitialized = true;
   }
 
-  const selected = resolveSelectedComponent(components, state.selectedComponentKey);
+  let selected = resolveSelectedComponent(visibleComponents, state.selectedComponentKey);
+  if (!selected && visibleComponents.length > 0) {
+    selected = visibleComponents[0];
+    state.selectedComponentKey = selected.key;
+  }
+
   const selectedKey = selected?.key ?? null;
 
   expandSelectedTreePath(state.expandedComponentNodeKeys, selectedKey, tree.parentByKey);
@@ -716,8 +1067,12 @@ function renderComponentsPanel(state: DevtoolsState): string {
     ? collectComponentDrilldown(state.events, selected.scope, selected.instance)
     : null;
 
-  const treeMarkup = tree.roots.length === 0
-    ? `<div class="empty-state">No components mounted.</div>`
+  const treeMarkup = visibleComponents.length === 0
+    ? `<div class="empty-state">${components.length === 0 ? "No components mounted." : "No components match the current filter."}</div>`
+    : state.componentExplorerMode === "dom"
+    ? renderComponentDomNavigator(visibleComponents, selectedKey)
+    : tree.roots.length === 0
+    ? `<div class="empty-state">No component hierarchy available.</div>`
     : `
       <ul class="component-tree-list">
         ${renderComponentTree(tree.roots, selectedKey, state.expandedComponentNodeKeys)}
@@ -725,15 +1080,15 @@ function renderComponentsPanel(state: DevtoolsState): string {
     `;
 
   const inspectorMarkup = !selected || !drilldown
-    ? `<div class="empty-state">Select a component to inspect Props, Reactive State, and Context.</div>`
+    ? `<div class="empty-state">${visibleComponents.length === 0 ? "Filter results are empty." : "Select a component to inspect Props, Reactive State, and Context."}</div>`
     : `
       <div class="component-inspector-header detail-card">
         <div class="inspector-selected-row">
           <div class="inspector-selected-summary">
             <span class="inspector-selected-chip">Selected</span>
-            <div>
+            <div class="inspector-selected-copy">
               <div><span class="accent-text is-cyan">${escapeHtml(selected.scope)}</span> <span class="component-tree-instance">#${selected.instance}</span></div>
-              ${selected.aiPreview ? `<div class="muted-text">AI Context: ${escapeHtml(selected.aiPreview)}</div>` : `<div class="muted-text">Nuxt-style drill-down for props, reactive state, DOM preview, and activity.</div>`}
+              ${selected.aiPreview ? `<div class="muted-text">AI Context: ${escapeHtml(selected.aiPreview)}</div>` : `<div class="muted-text">Terajs-native drill-down for props, reactive state, DOM preview, and activity.</div>`}
             </div>
           </div>
           <div class="inspector-stats-row">
@@ -751,12 +1106,30 @@ function renderComponentsPanel(state: DevtoolsState): string {
 
   return `
     <div class="components-layout">
-      <div class="panel-title is-blue">Component Tree</div>
-      <div class="panel-subtitle">Live component instances: ${components.length}</div>
+      <div class="detail-card components-stage-card">
+        <div class="components-stage-head">
+          <div>
+            <div class="panel-title is-blue">Component Workspace</div>
+            <div class="panel-subtitle">Live component instances: ${components.length} | Showing: ${visibleComponents.length}</div>
+          </div>
+          <div class="panel-subtitle">Tree drill-down drives the inspector in real time.</div>
+        </div>
+      </div>
       <div class="components-split-pane">
         <section class="components-tree-pane">
-          <div class="button-row component-tree-toolbar">
-            <button class="toolbar-button" data-action="clear-component-selection">Clear Selection</button>
+          <div class="component-panel-tools">
+            <div class="button-row component-tree-toolbar">
+              <button class="toolbar-button ${state.componentExplorerMode === "tree" ? "is-active" : ""}" data-component-explorer-mode="tree">Component Tree</button>
+              <button class="toolbar-button ${state.componentExplorerMode === "dom" ? "is-active" : ""}" data-component-explorer-mode="dom">DOM View</button>
+              <button class="toolbar-button" data-action="clear-component-selection">Clear Selection</button>
+            </div>
+            <input
+              class="component-search-input"
+              data-component-search-query="true"
+              type="text"
+              placeholder="Filter components by name or id"
+              value="${escapeHtml(state.componentSearchQuery)}"
+            />
           </div>
           ${treeMarkup}
         </section>
@@ -768,6 +1141,110 @@ function renderComponentsPanel(state: DevtoolsState): string {
       </div>
     </div>
   `;
+}
+
+function renderComponentDomNavigator(
+  components: MountedComponentEntry[],
+  selectedComponentKey: string | null
+): string {
+  const rows = collectComponentDomNavigatorRows(components);
+  if (rows.length === 0) {
+    return `<div class="empty-state">No DOM-linked component roots detected.</div>`;
+  }
+
+  return `
+    <ul class="component-dom-list">
+      ${rows.map((row) => {
+        const isSelected = selectedComponentKey === row.component.key;
+        return `
+          <li class="component-dom-item">
+            <button
+              class="component-dom-row ${isSelected ? "is-active" : ""}"
+              style="--dom-depth:${row.depth};"
+              data-component-key="${escapeHtml(row.component.key)}"
+              data-component-scope="${escapeHtml(row.component.scope)}"
+              data-component-instance="${row.component.instance}"
+            >
+              <span class="component-dom-branch" aria-hidden="true"></span>
+              <span class="component-dom-tag">${escapeHtml(row.domLabel)}</span>
+              <span class="component-dom-scope">${escapeHtml(row.component.scope)}</span>
+              <span class="component-tree-instance">#${row.component.instance}</span>
+            </button>
+          </li>
+        `;
+      }).join("")}
+    </ul>
+  `;
+}
+
+function collectComponentDomNavigatorRows(
+  components: MountedComponentEntry[]
+): Array<{ component: MountedComponentEntry; depth: number; domLabel: string }> {
+  if (components.length === 0 || typeof document === "undefined") {
+    return components.map((component) => ({
+      component,
+      depth: 0,
+      domLabel: "<component>"
+    }));
+  }
+
+  const resolved: Array<{ component: MountedComponentEntry; element: HTMLElement }> = [];
+  const unresolved: Array<{ component: MountedComponentEntry; depth: number; domLabel: string }> = [];
+
+  for (const component of components) {
+    const selector = `[data-terajs-component-scope="${escapeAttributeSelector(component.scope)}"][data-terajs-component-instance="${component.instance}"]`;
+    const element = document.querySelector(selector);
+    if (element instanceof HTMLElement) {
+      resolved.push({
+        component,
+        element
+      });
+      continue;
+    }
+
+    unresolved.push({
+      component,
+      depth: 0,
+      domLabel: "<unresolved>"
+    });
+  }
+
+  resolved.sort((left, right) => {
+    if (left.element === right.element) {
+      return 0;
+    }
+
+    const relation = left.element.compareDocumentPosition(right.element);
+    if (relation & Node.DOCUMENT_POSITION_FOLLOWING) {
+      return -1;
+    }
+    if (relation & Node.DOCUMENT_POSITION_PRECEDING) {
+      return 1;
+    }
+    return 0;
+  });
+
+  const rows = resolved.map(({ component, element }) => {
+    let depth = 0;
+    let parent = element.parentElement?.closest<HTMLElement>("[data-terajs-component-scope][data-terajs-component-instance]");
+    while (parent) {
+      depth += 1;
+      parent = parent.parentElement?.closest<HTMLElement>("[data-terajs-component-scope][data-terajs-component-instance]");
+    }
+
+    const idPart = element.id ? `#${element.id}` : "";
+    const classPart = element.classList.length > 0
+      ? `.${Array.from(element.classList).slice(0, 1).join(".")}`
+      : "";
+
+    return {
+      component,
+      depth,
+      domLabel: `<${element.tagName.toLowerCase()}${idPart}${classPart}>`
+    };
+  });
+
+  return [...rows, ...unresolved];
 }
 
 function renderComponentTree(
@@ -825,6 +1302,34 @@ function isInspectorPanelTab(value: unknown): value is InspectorPanelTab {
     || value === "reactive"
     || value === "dom"
     || value === "activity";
+}
+
+function isComponentExplorerMode(value: unknown): value is ComponentExplorerMode {
+  return value === "tree" || value === "dom";
+}
+
+function isMetaDetailTab(value: unknown): value is MetaDetailTab {
+  return value === "meta" || value === "ai" || value === "route";
+}
+
+function hasInspectableData(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>).length > 0;
+  }
+
+  return true;
 }
 
 function renderInspectorStatPill(label: string, value: string): string {
@@ -1286,56 +1791,157 @@ function renderSignalsPanel(state: DevtoolsState): string {
 }
 
 function renderMetaPanel(state: DevtoolsState): string {
-  const entries = collectMetaEntries(state.events);
-  const selected = entries.find((entry) => entry.key === state.selectedMetaKey) ?? entries[0] ?? null;
+  const entries = getMetaEntries(state);
+  const componentEntries = entries.filter((entry) => entry.source === "component");
+  const routeEntries = entries.filter((entry) => entry.source === "route");
+  const filterQuery = state.metaFilterQuery.trim().toLowerCase();
+  const filteredEntries = filterQuery.length === 0
+    ? entries
+    : entries.filter((entry) => {
+      const haystack = `${entry.scope} ${entry.key} ${entry.source}`.toLowerCase();
+      return haystack.includes(filterQuery);
+    });
+  const selected = filteredEntries.find((entry) => entry.key === state.selectedMetaKey) ?? filteredEntries[0] ?? null;
+  const selectedLabel = selected
+    ? selected.source === "route"
+      ? `${selected.scope} selected`
+      : `${selected.scope}#${selected.instance} selected`
+    : "No selection";
 
   if (entries.length === 0) {
     return renderPageShell({
       title: "Meta / AI / Route Inspector",
       accentClass: "is-green",
       subtitle: "Metadata currently available on the debug stream",
-      body: renderPageSection("Observed metadata", `<div class="empty-state">No component metadata has been observed yet.</div>`, "is-full")
+      pills: ["Waiting for component or route metadata"],
+      body: renderPageSection("Observed metadata", `<div class="empty-state">No component metadata or route metadata has been observed yet.</div>`, "is-full")
     });
   }
 
-  const selectionMarkup = `
-    <ul class="stack-list compact-list">
-      ${entries.map((entry) => `
-        <li>
-          <button class="select-button ${selected?.key === entry.key ? "is-selected" : ""}" data-meta-key="${escapeHtml(entry.key)}">
-            <span class="accent-text is-green">${escapeHtml(entry.scope)}</span>
-            <span class="muted-text">#${entry.instance}</span>
-          </button>
-        </li>
-      `).join("")}
-    </ul>
-  `;
+  const componentSelectionMarkup = componentEntries.length === 0
+    ? `<div class="empty-state">No component metadata captured yet.</div>`
+    : `
+      <ul class="stack-list compact-list meta-quick-list">
+        ${componentEntries.map((entry) => `
+          <li>
+            <button class="meta-quick-button ${selected?.key === entry.key ? "is-selected" : ""}" data-meta-key="${escapeHtml(entry.key)}">
+              <span class="meta-source-badge is-component">component</span>
+              <span class="accent-text is-green">${escapeHtml(entry.scope)}</span>
+              <span class="muted-text">#${entry.instance}</span>
+            </button>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+
+  const routeSelectionMarkup = routeEntries.length === 0
+    ? `<div class="empty-state">No route metadata captured yet.</div>`
+    : `
+      <ul class="stack-list compact-list meta-quick-list">
+        ${routeEntries.map((entry) => `
+          <li>
+            <button class="meta-quick-button ${selected?.key === entry.key ? "is-selected" : ""}" data-meta-key="${escapeHtml(entry.key)}">
+              <span class="meta-source-badge is-route">route</span>
+              <span class="accent-text is-green">${escapeHtml(entry.scope)}</span>
+            </button>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+
+  const activeDetailTab = state.metaDetailTab;
+  const detailTitle = activeDetailTab === "meta"
+    ? "Meta snapshot"
+    : activeDetailTab === "ai"
+    ? "AI snapshot"
+    : "Route snapshot";
+  const detailValue = activeDetailTab === "meta"
+    ? selected?.meta
+    : activeDetailTab === "ai"
+    ? selected?.ai
+    : selected?.route;
+
+  const entryListMarkup = filteredEntries.length === 0
+    ? `<div class="empty-state">No metadata entries match the current filter.</div>`
+    : `
+      <ul class="stack-list meta-entry-list">
+        ${filteredEntries.map((entry) => {
+          const hasMeta = hasInspectableData(entry.meta);
+          const hasAI = hasInspectableData(entry.ai);
+          const hasRoute = hasInspectableData(entry.route);
+          return `
+            <li>
+              <button class="meta-entry-button ${selected?.key === entry.key ? "is-selected" : ""}" data-meta-key="${escapeHtml(entry.key)}">
+                <span class="meta-entry-top">
+                  <span class="meta-source-badge ${entry.source === "route" ? "is-route" : "is-component"}">${entry.source}</span>
+                  <span class="meta-entry-scope">${escapeHtml(entry.scope)}</span>
+                  ${entry.source === "component" ? `<span class="component-tree-instance">#${entry.instance}</span>` : ""}
+                </span>
+                <span class="meta-entry-bottom">
+                  <span class="meta-presence-chip ${hasMeta ? "is-on" : ""}">meta</span>
+                  <span class="meta-presence-chip ${hasAI ? "is-on" : ""}">ai</span>
+                  <span class="meta-presence-chip ${hasRoute ? "is-on" : ""}">route</span>
+                </span>
+              </button>
+            </li>
+          `;
+        }).join("")}
+      </ul>
+    `;
+
+  const inspectorMarkup = !selected
+    ? `<div class="empty-state">Select a metadata entry to inspect details.</div>`
+    : `
+      <div class="meta-inspector-summary">
+        <div><span class="accent-text is-green">Source:</span> ${escapeHtml(selected.source)}</div>
+        <div><span class="accent-text is-green">Scope:</span> ${escapeHtml(selected.scope)}</div>
+        <div><span class="accent-text is-green">Key:</span> ${escapeHtml(selected.key)}</div>
+      </div>
+      <div class="meta-detail-tabs">
+        <button class="inspector-tab-button ${activeDetailTab === "meta" ? "is-selected" : ""}" data-meta-detail-tab="meta" type="button">Meta</button>
+        <button class="inspector-tab-button ${activeDetailTab === "ai" ? "is-selected" : ""}" data-meta-detail-tab="ai" type="button">AI</button>
+        <button class="inspector-tab-button ${activeDetailTab === "route" ? "is-selected" : ""}" data-meta-detail-tab="route" type="button">Route</button>
+      </div>
+      <div class="meta-detail-surface">
+        <div class="panel-subtitle">${escapeHtml(detailTitle)}</div>
+        ${renderValueExplorer(detailValue ?? {}, `meta-panel.${activeDetailTab}`, state.expandedValuePaths)}
+      </div>
+    `;
 
   return renderPageShell({
     title: "Meta / AI / Route Inspector",
     accentClass: "is-green",
-    subtitle: `Components with metadata: ${entries.length}`,
-    pills: [selected ? `${selected.scope}#${selected.instance} selected` : "No selection"],
+    subtitle: `Component snapshots: ${componentEntries.length} | Route snapshots: ${routeEntries.length}`,
+    pills: [selectedLabel, `${filteredEntries.length} visible entries`],
     body: [
-      renderPageSection("Observed metadata", selectionMarkup),
-      renderPageSection("Meta snapshot", renderValueExplorer(selected?.meta ?? {}, "meta-panel.meta", state.expandedValuePaths)),
-      renderPageSection("AI snapshot", renderValueExplorer(selected?.ai ?? {}, "meta-panel.ai", state.expandedValuePaths)),
-      renderPageSection("Route snapshot", renderValueExplorer(selected?.route ?? {}, "meta-panel.route", state.expandedValuePaths))
+      renderPageSection("Metadata overview", `
+        <div class="metrics-grid">
+          ${renderMetricCard("Component metadata", String(componentEntries.length))}
+          ${renderMetricCard("Route metadata", String(routeEntries.length))}
+          ${renderMetricCard("Total entries", String(entries.length))}
+          ${renderMetricCard("Filtered", String(filteredEntries.length))}
+        </div>
+        <input
+          class="meta-filter-input"
+          data-meta-filter-query="true"
+          type="text"
+          placeholder="Filter metadata by scope, key, or source"
+          value="${escapeHtml(state.metaFilterQuery)}"
+        />
+      `, "is-full"),
+      renderPageSection("Component metadata", componentSelectionMarkup),
+      renderPageSection("Route metadata", routeSelectionMarkup),
+      renderPageSection("Metadata entries", entryListMarkup, "is-full"),
+      renderPageSection("Snapshot inspector", inspectorMarkup, "is-full")
     ].join("")
   });
 }
 
 function renderIssuesPanel(events: DevtoolsEvent[]): string {
-  const issues = events.filter((event) =>
-    event.type.startsWith("error:") ||
-    event.type.includes("warn") ||
-    event.type.includes("hydration") ||
-    event.level === "error" ||
-    event.level === "warn"
-  );
-
-  const errorCount = issues.filter((event) => event.level === "error" || event.type.startsWith("error:")).length;
-  const warnCount = issues.filter((event) => event.level === "warn" || event.type.includes("warn")).length;
+  const issues = events.filter((event) => isIssueEvent(event));
+  const metrics = computeIssueMetrics(events, 60000, 8);
+  const recentIssues = issues.slice(-ISSUE_FEED_RENDER_CAP).reverse();
+  const maxBucketCount = Math.max(1, ...metrics.buckets.map((bucket) => bucket.count));
 
   if (issues.length === 0) {
     return renderPageShell({
@@ -1349,32 +1955,96 @@ function renderIssuesPanel(events: DevtoolsEvent[]): string {
   return renderPageShell({
     title: "Issues and Warnings",
     accentClass: "is-red",
-    subtitle: `Errors: ${errorCount} | Warnings: ${warnCount}`,
-    pills: [`${issues.length} surfaced events`],
-    body: renderPageSection("Issue feed", `
-      <ul class="stack-list">
-        ${issues.slice(-50).map((issue) => `
-          <li class="stack-item ${issue.level === "error" || issue.type.startsWith("error:") ? "issue-error" : "issue-warn"}">
-            <span class="item-label">[${escapeHtml(issue.type)}]</span>
-            <span>${escapeHtml(issueMessage(issue))}</span>
-          </li>
-        `).join("")}
-      </ul>
-    `, "is-full")
+    subtitle: `Errors: ${metrics.errorCount} | Warnings: ${metrics.warnCount}`,
+    pills: [
+      `${metrics.totalIssues} issues / 60s`,
+      `${metrics.uniqueIssueFingerprints} recurring fingerprints`,
+      metrics.spikeDetected ? "spike detected" : "trend stable"
+    ],
+    body: [
+      renderPageSection("Issue pressure (last 60s)", `
+        <div class="issues-overview-grid">
+          <div class="issues-summary-card">
+            <div class="issue-kpi-grid">
+              <div class="issue-kpi is-error">
+                <span class="issue-kpi-label">Errors</span>
+                <span class="issue-kpi-value">${metrics.errorCount}</span>
+              </div>
+              <div class="issue-kpi is-warn">
+                <span class="issue-kpi-label">Warnings</span>
+                <span class="issue-kpi-value">${metrics.warnCount}</span>
+              </div>
+              <div class="issue-kpi">
+                <span class="issue-kpi-label">Unique</span>
+                <span class="issue-kpi-value">${metrics.uniqueIssueFingerprints}</span>
+              </div>
+              <div class="issue-kpi">
+                <span class="issue-kpi-label">Rate / min</span>
+                <span class="issue-kpi-value">${metrics.issueRatePerMinute}</span>
+              </div>
+            </div>
+            <div class="tiny-muted issue-meta-row">${metrics.spikeDetected ? "Latest bucket is spiking above baseline." : "Latest bucket is within normal variance."}</div>
+          </div>
+          <div class="issues-summary-card">
+            <div class="panel-subtitle">Trend buckets</div>
+            <div class="issue-trend-bars">
+              ${metrics.buckets.map((bucket) => renderIssueTrendBucket(bucket, maxBucketCount)).join("")}
+            </div>
+          </div>
+        </div>
+      `, "is-full"),
+      renderPageSection("Top issue types", metrics.byType.length === 0 ? `<div class="empty-state">No issue type aggregates yet.</div>` : `
+        <ul class="stack-list compact-list">
+          ${metrics.byType.slice(0, 8).map((entry) => `
+            <li class="stack-item ${entry.errors > entry.warns ? "issue-error" : "issue-warn"}">
+              <span class="accent-text ${entry.errors > entry.warns ? "is-red" : "is-amber"}">${escapeHtml(entry.type)}</span>
+              <span class="muted-text">count=${entry.count}</span>
+              <span class="muted-text">errors=${entry.errors}</span>
+              <span class="muted-text">warns=${entry.warns}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `),
+      renderPageSection("Top recurring fingerprints", metrics.byFingerprint.length === 0 ? `<div class="empty-state">No recurring issues detected yet.</div>` : `
+        <ul class="stack-list compact-list">
+          ${metrics.byFingerprint.slice(0, 8).map((entry) => `
+            <li class="stack-item issue-fingerprint-item ${entry.severity === "error" ? "issue-error" : "issue-warn"}">
+              <span class="item-label">[${escapeHtml(entry.type)}]</span>
+              <span class="issue-fingerprint-message">${escapeHtml(entry.message)}</span>
+              <span class="issue-count-pill">x${entry.count}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `),
+      renderPageSection("Issue feed", recentIssues.length === 0 ? `<div class="empty-state">No issues detected.</div>` : `
+        <ul class="stack-list log-list">
+          ${recentIssues.map((issue) => `
+            <li class="stack-item ${issueSeverity(issue) === "error" ? "issue-error" : "issue-warn"}">
+              <span class="item-label">[${escapeHtml(issue.type)}]</span>
+              <span>${escapeHtml(issueMessage(issue))}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `, "is-full")
+    ].join("")
   });
 }
 
 function renderLogsPanel(state: DevtoolsState): string {
-  const logs = state.events.slice(-100).filter((event) => {
+  const sourceEvents = state.logFilter === "route"
+    ? getRouteEventFeed(state)
+    : state.events;
+
+  const logs = sourceEvents.filter((event) => {
     if (state.logFilter === "all") return true;
     return event.type.includes(state.logFilter);
-  });
+  }).slice(-LOG_RENDER_CAP);
 
   return renderPageShell({
     title: "Event Logs",
     accentClass: "is-blue",
-    subtitle: `Total events: ${state.events.length}`,
-    pills: [`filter: ${state.logFilter}`],
+    subtitle: `Session events: ${state.eventCount}`,
+    pills: [`filter: ${state.logFilter}`, `buffered: ${sourceEvents.length}`],
     body: [
       renderPageSection("Filters", `
         <div class="button-row">
@@ -1398,20 +2068,34 @@ function renderLogsPanel(state: DevtoolsState): string {
 }
 
 function renderTimelinePanel(state: DevtoolsState): string {
-  const timeline = buildTimeline(state.events, 250);
-  const cursor = timeline.length === 0 ? -1 : Math.max(0, Math.min(state.timelineCursor, timeline.length - 1));
+  const sourceEvents = getTimelineEventFeed(state);
+  const timeline = buildTimeline(sourceEvents, TIMELINE_RENDER_CAP);
+  const cursor = resolveTimelineCursor(state, timeline.length);
   const replayedCount = timeline.length === 0 ? 0 : replayEventsAtIndex(timeline, cursor).length;
 
   return renderPageShell({
     title: "Timeline and Replay",
     accentClass: "is-green",
     subtitle: `Replaying ${replayedCount} / ${timeline.length} events`,
-    pills: [timeline.length === 0 ? "timeline empty" : `cursor ${cursor}`],
+    pills: [
+      `filter: ${state.timelineFilter}`,
+      state.timelineFollowLive ? "live follow" : "paused"
+    ],
     body: [
+      renderPageSection("Timeline filters", `
+        <div class="button-row">
+          ${TIMELINE_FILTERS.map((filter) => `
+            <button class="filter-button ${state.timelineFilter === filter ? "is-active" : ""}" data-timeline-filter="${filter}">${filter}</button>
+          `).join("")}
+          <button class="toolbar-button ${state.timelineFollowLive ? "is-active" : ""}" data-timeline-follow-toggle="true">
+            ${state.timelineFollowLive ? "Following Live" : "Resume Live"}
+          </button>
+        </div>
+      `, "is-full"),
       renderPageSection("Replay cursor", timeline.length > 0 ? `
         <div class="range-wrap">
           <input class="timeline-slider" type="range" min="0" max="${Math.max(0, timeline.length - 1)}" value="${Math.max(0, cursor)}" data-timeline-cursor="true" />
-          <div class="tiny-muted">Cursor: ${cursor}</div>
+          <div class="tiny-muted">Cursor: ${cursor} (${state.timelineFollowLive ? "live" : "manual"})</div>
         </div>
       ` : `<div class="empty-state">No events in timeline.</div>`, "is-full"),
       renderPageSection("Replay feed", timeline.length === 0 ? `<div class="empty-state">No events in timeline.</div>` : `
@@ -1555,6 +2239,72 @@ function renderPerformancePanel(events: DevtoolsEvent[]): string {
       `)
     ].join("")
   });
+}
+
+function getRouteEventFeed(state: DevtoolsState): DevtoolsEvent[] {
+  if (state.routeEvents.length > 0) {
+    return state.routeEvents;
+  }
+
+  return state.events;
+}
+
+function isTimelineFilter(value: unknown): value is TimelineFilter {
+  return value === "important"
+    || value === "all"
+    || value === "route"
+    || value === "queue"
+    || value === "signal"
+    || value === "effect"
+    || value === "error";
+}
+
+function isImportantTimelineEvent(event: DevtoolsEvent): boolean {
+  if (event.type.startsWith("route:")) return true;
+  if (event.type.startsWith("queue:")) return true;
+  if (event.type.startsWith("error:")) return true;
+  if (event.type.includes("warn")) return true;
+  if (isComponentMountEvent(event.type) || isComponentUnmountEvent(event.type)) return true;
+  return event.type === "reactive:updated" || event.type === "computed:recomputed";
+}
+
+function matchesTimelineFilter(event: DevtoolsEvent, filter: TimelineFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "important") return isImportantTimelineEvent(event);
+  if (filter === "route") return event.type.startsWith("route:") || event.type === "error:router";
+  if (filter === "queue") return event.type.startsWith("queue:");
+  if (filter === "signal") {
+    return event.type.includes("signal")
+      || event.type.includes("reactive")
+      || event.type.includes("computed")
+      || event.type === "state:update";
+  }
+  if (filter === "effect") return event.type.startsWith("effect:");
+  return isIssueEvent(event);
+}
+
+function getTimelineEventFeed(state: DevtoolsState): DevtoolsEvent[] {
+  const base = state.timelineFilter === "route"
+    ? getRouteEventFeed(state)
+    : state.events;
+
+  if (state.timelineFilter === "all") {
+    return base;
+  }
+
+  return base.filter((event) => matchesTimelineFilter(event, state.timelineFilter));
+}
+
+function resolveTimelineCursor(state: DevtoolsState, timelineLength: number): number {
+  if (timelineLength === 0) {
+    return -1;
+  }
+
+  if (state.timelineFollowLive) {
+    return timelineLength - 1;
+  }
+
+  return Math.max(0, Math.min(state.timelineCursor, timelineLength - 1));
 }
 
 function renderQueuePanel(events: DevtoolsEvent[]): string {
@@ -1777,6 +2527,33 @@ function renderMetricCard(label: string, value: string): string {
     <div class="metric-card">
       <div class="metric-label">${escapeHtml(label)}</div>
       <div class="metric-value">${escapeHtml(value)}</div>
+    </div>
+  `;
+}
+
+function renderIssueTrendBucket(
+  bucket: { label: string; count: number; errors: number; warns: number },
+  maxBucketCount: number
+): string {
+  const safeMax = Math.max(1, maxBucketCount);
+  const totalHeight = bucket.count > 0
+    ? Math.max(8, Math.round((bucket.count / safeMax) * 100))
+    : 6;
+  const errorHeight = bucket.count > 0
+    ? Number(((bucket.errors / bucket.count) * totalHeight).toFixed(2))
+    : 0;
+  const warnHeight = bucket.count > 0
+    ? Number((totalHeight - errorHeight).toFixed(2))
+    : 0;
+
+  return `
+    <div class="issue-trend-column" title="${escapeHtml(`${bucket.label}: ${bucket.count} issues`)}">
+      <div class="issue-trend-bar">
+        ${warnHeight > 0 ? `<span class="issue-trend-segment is-warn" style="height: ${warnHeight}%;"></span>` : ""}
+        ${errorHeight > 0 ? `<span class="issue-trend-segment is-error" style="height: ${errorHeight}%;"></span>` : ""}
+      </div>
+      <span class="issue-trend-count">${bucket.count}</span>
+      <span class="issue-trend-label">${escapeHtml(bucket.label)}</span>
     </div>
   `;
 }
@@ -2453,50 +3230,80 @@ function collectOwnedReactiveEntries(scope: string, instance: number): LiveReact
   return Array.from(deduped.values()).sort((left, right) => left.label.localeCompare(right.label));
 }
 
-function collectMetaEntries(events: DevtoolsEvent[]) {
-  const metaMap = new Map<string, {
-    key: string;
-    scope: string;
-    instance: number;
-    meta: unknown;
-    ai: unknown;
-    route: unknown;
-  }>();
+function appendToBoundedBuffer<T>(buffer: T[], value: T, cap: number): void {
+  buffer.push(value);
+  if (buffer.length > cap) {
+    buffer.splice(0, buffer.length - cap);
+  }
+}
 
-  for (const event of events) {
-    if (isComponentMountEvent(event.type)) {
-      const identity = readComponentIdentity(event);
-      if (!identity) continue;
+function getMetaEntries(state: DevtoolsState): DevtoolsMetaEntry[] {
+  return state.metaEntryOrder
+    .map((key) => state.metaEntries.get(key))
+    .filter((entry): entry is DevtoolsMetaEntry => entry !== undefined);
+}
 
-      const scope = identity.scope;
-      const instance = identity.instance;
-      const meta = readUnknown(event.payload, "meta");
-      const ai = readUnknown(event.payload, "ai");
-      const route = readUnknown(event.payload, "route");
-      if (meta === undefined && ai === undefined && route === undefined) continue;
-      const key = `${scope}#${instance}`;
-      metaMap.set(key, { key, scope, instance, meta, ai, route });
-      continue;
-    }
-
-    if (event.type === "route:meta:resolved") {
-      const target = readString(event.payload, "to") ?? "current-route";
-      const meta = readUnknown(event.payload, "meta");
-      const ai = readUnknown(event.payload, "ai");
-      const route = readUnknown(event.payload, "route");
-      const key = `route:${target}`;
-      metaMap.set(key, {
-        key,
-        scope: `Route ${target}`,
-        instance: event.timestamp,
-        meta,
-        ai,
-        route
-      });
-    }
+function upsertMetaEntry(state: DevtoolsState, entry: DevtoolsMetaEntry, cap: number): void {
+  const existingIndex = state.metaEntryOrder.indexOf(entry.key);
+  if (existingIndex !== -1) {
+    state.metaEntryOrder.splice(existingIndex, 1);
   }
 
-  return Array.from(metaMap.values());
+  state.metaEntryOrder.push(entry.key);
+  state.metaEntries.set(entry.key, entry);
+
+  if (state.metaEntryOrder.length > cap) {
+    const removedKey = state.metaEntryOrder.shift();
+    if (removedKey) {
+      state.metaEntries.delete(removedKey);
+    }
+  }
+}
+
+function readMetaEntry(event: DevtoolsEvent): DevtoolsMetaEntry | null {
+  if (isComponentMountEvent(event.type)) {
+    const identity = readComponentIdentity(event);
+    if (!identity) {
+      return null;
+    }
+
+    const meta = readUnknown(event.payload, "meta");
+    const ai = readUnknown(event.payload, "ai");
+    const route = readUnknown(event.payload, "route");
+    if (meta === undefined && ai === undefined && route === undefined) {
+      return null;
+    }
+
+    const key = `${identity.scope}#${identity.instance}`;
+    return {
+      key,
+      source: "component",
+      scope: identity.scope,
+      instance: identity.instance,
+      meta,
+      ai,
+      route
+    };
+  }
+
+  if (event.type === "route:meta:resolved") {
+    const target = readString(event.payload, "to") ?? "current-route";
+    const meta = readUnknown(event.payload, "meta");
+    const ai = readUnknown(event.payload, "ai");
+    const route = readUnknown(event.payload, "route");
+
+    return {
+      key: `route:${target}`,
+      source: "route",
+      scope: `Route ${target}`,
+      instance: event.timestamp,
+      meta,
+      ai,
+      route
+    };
+  }
+
+  return null;
 }
 
 function collectRouteSnapshot(events: DevtoolsEvent[]) {
@@ -2609,6 +3416,23 @@ function issueMessage(event: DevtoolsEvent): string {
   const likelyCause = readString(event.payload, "likelyCause");
   if (likelyCause) return `Likely Cause: ${likelyCause}`;
   return shortJson(event.payload ?? {});
+}
+
+function isIssueEvent(event: DevtoolsEvent): boolean {
+  return event.type.startsWith("error:")
+    || event.type.includes("warn")
+    || event.type.includes("hydration")
+    || event.type === "route:blocked"
+    || event.level === "error"
+    || event.level === "warn";
+}
+
+function issueSeverity(event: DevtoolsEvent): "error" | "warn" {
+  if (event.level === "error" || event.type.startsWith("error:")) {
+    return "error";
+  }
+
+  return "warn";
 }
 
 function queueEventSummary(event: DevtoolsEvent): string {

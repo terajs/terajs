@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTimeline,
+  computeIssueMetrics,
   computeRouterMetrics,
   computePerformanceMetrics,
   replayEventsAtIndex,
@@ -188,5 +189,46 @@ describe("devtools analytics", () => {
     expect(metrics.byRoute.find((entry) => entry.route === "/")?.hits).toBe(1);
     expect(metrics.byRoute.find((entry) => entry.route === "/rc")?.blocked).toBe(1);
     expect(metrics.byRoute.find((entry) => entry.route === "/rc")?.errors).toBe(1);
+  });
+
+  it("computes issue metrics with severity and fingerprint aggregation", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "effect:run", timestamp: 1000, payload: {} },
+      { type: "error:router", timestamp: 1200, payload: { message: "No route matched /docs/1" }, level: "error" },
+      { type: "route:warn", timestamp: 1400, payload: { message: "Navigation fallback" }, level: "warn" },
+      { type: "error:router", timestamp: 1600, payload: { message: "No route matched /docs/2" }, level: "error" },
+      { type: "route:blocked", timestamp: 1900, payload: { message: "Blocked by auth" } }
+    ];
+
+    const metrics = computeIssueMetrics(events, 2000, 4);
+
+    expect(metrics.totalIssues).toBe(4);
+    expect(metrics.errorCount).toBe(2);
+    expect(metrics.warnCount).toBe(2);
+    expect(metrics.byType[0].type).toBe("error:router");
+    expect(metrics.byType[0].count).toBe(2);
+    expect(metrics.uniqueIssueFingerprints).toBe(3);
+    expect(metrics.byFingerprint[0].count).toBe(2);
+    expect(metrics.byFingerprint[0].fingerprint.startsWith("error:router|")).toBe(true);
+    expect(metrics.issueRatePerMinute).toBe(120);
+    expect(metrics.buckets).toHaveLength(4);
+    expect(metrics.buckets.reduce((total, bucket) => total + bucket.count, 0)).toBe(4);
+  });
+
+  it("detects issue spikes in the latest bucket", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "error:router", timestamp: 1100, payload: { message: "initial error" }, level: "error" },
+      { type: "error:router", timestamp: 1200, payload: { message: "initial error" }, level: "error" },
+      { type: "route:warn", timestamp: 4500, payload: { message: "late warning" }, level: "warn" },
+      { type: "route:warn", timestamp: 4600, payload: { message: "late warning" }, level: "warn" },
+      { type: "route:warn", timestamp: 4700, payload: { message: "late warning" }, level: "warn" },
+      { type: "route:warn", timestamp: 4800, payload: { message: "late warning" }, level: "warn" }
+    ];
+
+    const metrics = computeIssueMetrics(events, 4000, 4);
+
+    expect(metrics.totalIssues).toBe(6);
+    expect(metrics.spikeDetected).toBe(true);
+    expect(metrics.buckets[metrics.buckets.length - 1].count).toBe(4);
   });
 });

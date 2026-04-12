@@ -60,6 +60,7 @@ describe("devtools overlay public entry", () => {
     unmountDevtoolsOverlay();
     resetDebugListeners();
     delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
+    delete (globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_HOOK__?: unknown }).__TERAJS_DEVTOOLS_HOOK__;
     ensureTestStorage().removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
     document.body.innerHTML = "";
   });
@@ -91,6 +92,68 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("Counter");
   });
 
+  it("bridges route telemetry through the global debug hook", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const scopedGlobal = globalThis as typeof globalThis & {
+      __TERAJS_DEVTOOLS_HOOK__?: { emit(event: unknown): void };
+    };
+    const hook = scopedGlobal.__TERAJS_DEVTOOLS_HOOK__;
+    expect(hook).toBeTruthy();
+
+    const now = Date.now();
+    hook?.emit({
+      type: "route:navigate:start",
+      timestamp: now,
+      payload: { from: "/", to: "/?branch=redirect&routeCase=redirect", source: "push" }
+    });
+    hook?.emit({
+      type: "route:redirect",
+      timestamp: now + 1,
+      payload: {
+        from: "/",
+        to: "/?branch=redirect&routeCase=redirect",
+        redirectTo: "/?branch=redirect&routeCase=redirected"
+      }
+    });
+    hook?.emit({
+      type: "route:changed",
+      timestamp: now + 2,
+      payload: {
+        from: "/",
+        to: "/?branch=redirect&routeCase=redirected",
+        route: "/"
+      }
+    });
+    hook?.emit({
+      type: "route:navigate:end",
+      timestamp: now + 3,
+      payload: {
+        from: "/",
+        to: "/?branch=redirect&routeCase=redirected",
+        source: "replace"
+      }
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const routerTab = shadowRoot?.querySelector('[data-tab="Router"]') as HTMLButtonElement | null;
+    routerTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("Current route: /?branch=redirect&routeCase=redirected");
+    expect(shadowRoot?.textContent).toContain("route:redirect");
+    expect(shadowRoot?.textContent).toContain("Route Events (30s)");
+  });
+
+  it("restores a previous global debug hook on unmount", () => {
+    const previousHook = { emit: vi.fn() };
+    (globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_HOOK__?: { emit(event: unknown): void } }).__TERAJS_DEVTOOLS_HOOK__ = previousHook;
+
+    mountDevtoolsOverlay();
+    unmountDevtoolsOverlay();
+
+    expect((globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_HOOK__?: unknown }).__TERAJS_DEVTOOLS_HOOK__).toBe(previousHook);
+  });
+
   it("replays component events emitted before overlay mount", () => {
     emitDebug({
       type: "component:mounted",
@@ -103,6 +166,39 @@ describe("devtools overlay public entry", () => {
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     expect(shadowRoot?.textContent).toContain("LandingPage");
+  });
+
+  it("shows component and route metadata in the meta tab", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "DocsPage",
+      instance: 1,
+      meta: { title: "Docs", description: "Docs page" },
+      ai: { summary: "Explain the docs route" },
+      route: { layout: "docs", path: "/docs" }
+    });
+
+    emitDebug({
+      type: "route:meta:resolved",
+      timestamp: Date.now(),
+      to: "/docs",
+      meta: { title: "Docs Route", description: "Route metadata" },
+      ai: { summary: "Route summary" },
+      route: { path: "/docs", params: {} }
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const metaTab = shadowRoot?.querySelector('[data-tab="Meta"]') as HTMLButtonElement | null;
+    metaTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("Component metadata");
+    expect(shadowRoot?.textContent).toContain("Route metadata");
+    expect(shadowRoot?.textContent).toContain("DocsPage");
+    expect(shadowRoot?.textContent).toContain("Route /docs");
+    expect(shadowRoot?.textContent).toContain("Docs page");
   });
 
   it("toggles panel visibility from the fab without remounting a second host", () => {
@@ -171,7 +267,7 @@ describe("devtools overlay public entry", () => {
 
     expect(host?.style.left).toBe("20px");
     expect(host?.style.bottom).toBe("16px");
-    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("980px");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1120px");
     expect(shell?.classList.contains("is-left")).toBe(true);
   });
 
@@ -191,7 +287,7 @@ describe("devtools overlay public entry", () => {
 
     const largeButton = shadowRoot?.querySelector('[data-layout-size="large"]') as HTMLButtonElement | null;
     largeButton?.click();
-    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("980px");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1120px");
 
     const persisted = JSON.parse(ensureTestStorage().getItem(OVERLAY_PREFERENCES_STORAGE_KEY) ?? "{}");
     expect(persisted.position).toBe("center");
@@ -320,6 +416,60 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("Events: 0");
   });
 
+  it("navigates and runs actions through the command palette", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "CommandPaletteDemo",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const openPaletteButton = shadowRoot?.querySelector('[data-command-palette-toggle="true"]') as HTMLButtonElement | null;
+    openPaletteButton?.click();
+
+    const queryInput = shadowRoot?.querySelector('[data-command-query="true"]') as HTMLInputElement | null;
+    expect(queryInput).toBeTruthy();
+    if (queryInput) {
+      queryInput.value = "issues";
+      queryInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    const issuesCommand = shadowRoot?.querySelector('[data-command-id="tab:Issues"]') as HTMLButtonElement | null;
+    expect(issuesCommand).toBeTruthy();
+    issuesCommand?.click();
+
+    expect(shadowRoot?.textContent).toContain("Issues and Warnings");
+
+    const reopenPaletteButton = shadowRoot?.querySelector('[data-command-palette-toggle="true"]') as HTMLButtonElement | null;
+    reopenPaletteButton?.click();
+    const queryInputAfter = shadowRoot?.querySelector('[data-command-query="true"]') as HTMLInputElement | null;
+    if (queryInputAfter) {
+      queryInputAfter.value = "clear";
+      queryInputAfter.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    const clearCommand = shadowRoot?.querySelector('[data-command-id="action:clear-events"]') as HTMLButtonElement | null;
+    expect(clearCommand).toBeTruthy();
+    clearCommand?.click();
+
+    expect(shadowRoot?.textContent).toContain("Events: 0");
+  });
+
+  it("toggles the command palette with ctrl+k", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    expect(shadowRoot?.querySelector('[data-command-query="true"]')).toBeTruthy();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    expect(shadowRoot?.querySelector('[data-command-query="true"]')).toBeNull();
+  });
+
   it("uses global AI assistant hook when available", async () => {
     const hook = vi.fn(async () => "Use keyed route metadata to trace render timing.");
     (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__ = hook;
@@ -346,6 +496,51 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("Use keyed route metadata to trace render timing.");
   });
 
+  it("uses configured AI endpoint when no global assistant hook is present", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ response: "Endpoint response: check queue retries and route warnings." })
+    } as unknown as Response);
+
+    try {
+      mountDevtoolsOverlay({
+        ai: {
+          endpoint: "https://assistant.local/diagnostics",
+          model: "terajs-test-model",
+          timeoutMs: 5000
+        }
+      });
+
+      Debug.emit("error:reactivity", {
+        message: "Signal loop regression",
+        rid: "signal:loop"
+      } as any);
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+
+      const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
+      askButton?.click();
+
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://assistant.local/diagnostics",
+        expect.objectContaining({
+          method: "POST"
+        })
+      );
+      expect(shadowRoot?.textContent).toContain("Response ready");
+      expect(shadowRoot?.textContent).toContain("Endpoint response: check queue retries and route warnings.");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("shows router issues in the issues panel", () => {
     mountDevtoolsOverlay();
 
@@ -359,6 +554,104 @@ describe("devtools overlay public entry", () => {
     issuesTab?.click();
 
     expect(shadowRoot?.textContent).toContain("No route matched /missing");
+  });
+
+  it("surfaces issue aggregation trend and recurring fingerprints", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const now = Date.now();
+    emitDebug({
+      type: "error:router",
+      timestamp: now - 1600,
+      message: "No route matched /docs/1"
+    } as any);
+    emitDebug({
+      type: "error:router",
+      timestamp: now - 1200,
+      message: "No route matched /docs/2"
+    } as any);
+    emitDebug({
+      type: "route:warn",
+      timestamp: now - 600,
+      message: "Navigation fallback 1"
+    } as any);
+    emitDebug({
+      type: "route:warn",
+      timestamp: now - 500,
+      message: "Navigation fallback 2"
+    } as any);
+    emitDebug({
+      type: "route:blocked",
+      timestamp: now - 400,
+      to: "/secure",
+      message: "blocked by middleware"
+    } as any);
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const issuesTab = shadowRoot?.querySelector('[data-tab="Issues"]') as HTMLButtonElement | null;
+    issuesTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("Issue pressure (last 60s)");
+    expect(shadowRoot?.textContent).toContain("Top recurring fingerprints");
+    expect(shadowRoot?.textContent).toContain("error:router");
+    expect(shadowRoot?.textContent).toContain("route:blocked");
+    expect(shadowRoot?.textContent).toContain("x2");
+  });
+
+  it("shows blocked and redirected flows in the router diagnostics panel", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "route:navigate:start",
+      timestamp: Date.now(),
+      to: "/secure"
+    } as any);
+
+    emitDebug({
+      type: "route:blocked",
+      timestamp: Date.now(),
+      to: "/secure",
+      middleware: ["auth"],
+      message: "blocked by middleware"
+    } as any);
+
+    emitDebug({
+      type: "route:redirect",
+      timestamp: Date.now(),
+      to: "/secure",
+      redirectTo: "/signin"
+    } as any);
+
+    emitDebug({
+      type: "route:load:start",
+      timestamp: Date.now(),
+      to: "/signin",
+      route: "/signin"
+    } as any);
+
+    emitDebug({
+      type: "route:load:end",
+      timestamp: Date.now(),
+      to: "/signin",
+      route: "/signin",
+      durationMs: 42
+    } as any);
+
+    emitDebug({
+      type: "route:changed",
+      timestamp: Date.now(),
+      from: "/",
+      to: "/signin"
+    } as any);
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const routerTab = shadowRoot?.querySelector('[data-tab="Router"]') as HTMLButtonElement | null;
+    routerTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("Router Diagnostics");
+    expect(shadowRoot?.textContent).toContain("Current route: /signin");
+    expect(shadowRoot?.textContent).toContain("middleware=auth");
+    expect(shadowRoot?.textContent).toContain("redirect=/signin");
   });
 
   it("shows queue events in the queue monitor tab", () => {
@@ -510,6 +803,120 @@ describe("devtools overlay public entry", () => {
     expect(selectedDomTabAfterBodyClick).toBeTruthy();
   });
 
+  it("supports switching the component navigator to dom view", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const domModeButton = shadowRoot?.querySelector('[data-component-explorer-mode="dom"]') as HTMLButtonElement | null;
+    domModeButton?.click();
+
+    const domRow = shadowRoot?.querySelector('.component-dom-row[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    expect(domRow).toBeTruthy();
+    expect(shadowRoot?.textContent).toContain("<div>");
+  });
+
+  it("keeps dual panes visible and syncs inspector from tree drill-down", () => {
+    const counterRoot = document.createElement("div");
+    counterRoot.setAttribute("data-terajs-component-scope", "Counter");
+    counterRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(counterRoot);
+
+    const homeRoot = document.createElement("section");
+    homeRoot.setAttribute("data-terajs-component-scope", "Home");
+    homeRoot.setAttribute("data-terajs-component-instance", "2");
+    document.body.appendChild(homeRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Home",
+      instance: 2
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+
+    expect(shadowRoot?.querySelector('.components-tree-pane')).toBeTruthy();
+    expect(shadowRoot?.querySelector('.components-inspector-pane')).toBeTruthy();
+    expect(shadowRoot?.querySelector('[data-component-pane-mode="split"]')).toBeNull();
+
+    const homeRow = shadowRoot?.querySelector('[data-component-key="Home#2"]') as HTMLButtonElement | null;
+    homeRow?.click();
+
+    const selectedChip = shadowRoot?.querySelector('.inspector-selected-chip');
+    expect(selectedChip).toBeTruthy();
+    expect(shadowRoot?.textContent).toContain("Home");
+  });
+
+  it("filters metadata entries and supports meta detail tabs", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "DocsPage",
+      instance: 1,
+      meta: { title: "Docs", description: "Docs page" },
+      ai: { summary: "Explain docs" },
+      route: { layout: "docs", path: "/docs" }
+    });
+
+    emitDebug({
+      type: "route:meta:resolved",
+      timestamp: Date.now(),
+      to: "/docs",
+      meta: { title: "Docs Route" },
+      ai: { summary: "Route summary" },
+      route: { path: "/docs", params: {} }
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const metaTab = shadowRoot?.querySelector('[data-tab="Meta"]') as HTMLButtonElement | null;
+    metaTab?.click();
+
+    const filterInput = shadowRoot?.querySelector('[data-meta-filter-query="true"]') as HTMLInputElement | null;
+    expect(filterInput).toBeTruthy();
+    if (filterInput) {
+      filterInput.value = "route";
+      filterInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    expect(shadowRoot?.textContent).toContain("1 visible entries");
+
+    const routeEntry = shadowRoot?.querySelector('[data-meta-key="route:/docs"]') as HTMLButtonElement | null;
+    expect(routeEntry).toBeTruthy();
+    routeEntry?.click();
+
+    const routeDetailTab = shadowRoot?.querySelector('[data-meta-detail-tab="route"]') as HTMLButtonElement | null;
+    routeDetailTab?.click();
+
+    const selectedRouteDetailTab = shadowRoot?.querySelector('[data-meta-detail-tab="route"].is-selected') as HTMLButtonElement | null;
+    expect(selectedRouteDetailTab).toBeTruthy();
+    expect(shadowRoot?.textContent).toContain("Route snapshot");
+  });
+
   it("enables inspect mode immediately when startOpen is true", () => {
     const componentRoot = document.createElement("div");
     componentRoot.setAttribute("data-terajs-component-scope", "Counter");
@@ -565,6 +972,91 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("Counter");
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
     expect(componentButton).toBeTruthy();
+  });
+
+  it("retains meta snapshots after large event churn", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "DocsPage",
+      instance: 1,
+      meta: { title: "Durable Meta", description: "must survive churn" },
+      ai: { summary: "meta test" },
+      route: { path: "/docs" }
+    });
+
+    for (let index = 0; index < 2600; index += 1) {
+      Debug.emit("effect:run", { key: `meta-churn-${index}` });
+    }
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const metaTab = shadowRoot?.querySelector('[data-tab="Meta"]') as HTMLButtonElement | null;
+    metaTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("DocsPage");
+    expect(shadowRoot?.textContent).toContain("Durable Meta");
+  }, 10000);
+
+  it("keeps route log entries visible after heavy non-route churn", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    Debug.emit("route:navigate:start", {
+      from: "/",
+      to: "/docs",
+      source: "push"
+    });
+
+    for (let index = 0; index < 2400; index += 1) {
+      Debug.emit("effect:run", { key: `route-churn-${index}` });
+    }
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const logsTab = shadowRoot?.querySelector('[data-tab="Logs"]') as HTMLButtonElement | null;
+    logsTab?.click();
+
+    const routeFilter = shadowRoot?.querySelector('[data-log-filter="route"]') as HTMLButtonElement | null;
+    routeFilter?.click();
+
+    expect(shadowRoot?.textContent).toContain("route:navigate:start");
+  });
+
+  it("keeps replay cursor stable while live events continue", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const timelineTab = shadowRoot?.querySelector('[data-tab="Timeline"]') as HTMLButtonElement | null;
+    timelineTab?.click();
+
+    for (let index = 0; index < 12; index += 1) {
+      Debug.emit("queue:enqueue", {
+        id: `q-${index}`,
+        type: "job:sync",
+        pending: index + 1
+      });
+    }
+
+    const cursorInput = shadowRoot?.querySelector('[data-timeline-cursor="true"]') as HTMLInputElement | null;
+    expect(cursorInput).toBeTruthy();
+
+    if (cursorInput) {
+      cursorInput.value = "2";
+      cursorInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      Debug.emit("queue:enqueue", {
+        id: `q-next-${index}`,
+        type: "job:sync",
+        pending: index + 20
+      });
+    }
+
+    const cursorInputAfter = shadowRoot?.querySelector('[data-timeline-cursor="true"]') as HTMLInputElement | null;
+    expect(cursorInputAfter).toBeTruthy();
+    expect(Number(cursorInputAfter?.value ?? "-1")).toBe(2);
+    expect(shadowRoot?.textContent).toContain("manual");
   });
 
   it("clears selected highlight when leaving the components tab", () => {
