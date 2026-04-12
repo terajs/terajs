@@ -1,5 +1,6 @@
 /// <reference types="node" />
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -79,6 +80,17 @@ const allowedPackageExternalPeerDependencies = new Map<string, Set<string>>([
 
 const frameworkImportPattern = /from\s+["'](?:react|react\/[^"']*|vue|vue\/[^"']*)["']/i;
 const vitestImportPattern = /from\s+["']vitest["']/i;
+const approvedRootCodeFiles = new Set([
+  "terajs.config.js",
+  "vite.config.js",
+  "vite.config.ts",
+  "vitest.config.ts",
+  "vitest.setup.ts"
+]);
+const approvedPackageRootCodeFiles = new Map<string, Set<string>>([
+  ["devtools", new Set(["postcss.config.js", "tailwind.config.js"])],
+  ["vite-plug-in", new Set(["App.tera", "index.js", "index.ts"])]
+]);
 
 describe("architecture guardrails", () => {
   it("prevents React or Vue imports in package source files", () => {
@@ -127,10 +139,10 @@ describe("architecture guardrails", () => {
     expect(violations).toEqual([]);
   });
 
-  it("prevents tracked temporary diagnostic files in the workspace", () => {
-    const violations = collectFiles(workspaceRoot, (filePath) => isTrackedWorkspaceFile(filePath))
-      .filter((filePath) => isTemporaryDiagnosticFile(filePath))
-      .map((filePath) => path.relative(workspaceRoot, filePath).replace(/\\/g, "/"));
+  it("prevents tracked code artifacts outside approved repo surfaces", () => {
+    const violations = getTrackedWorkspaceFiles()
+      .filter((filePath) => isCodeBearingFile(filePath))
+      .filter((filePath) => !isApprovedTrackedCodeSurface(filePath));
 
     expect(violations).toEqual([]);
   });
@@ -243,6 +255,17 @@ describe("architecture guardrails", () => {
 
     expect(violations).toEqual([]);
   });
+
+  it("classifies approved code surfaces structurally instead of by temp-file names", () => {
+    expect(isApprovedTrackedCodeSurface("packages/shared/src/index.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("packages/cli/test/doctor.spec.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("packages/vite-plug-in/index.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("scripts/audit-exports.mjs")).toBe(true);
+
+    expect(isApprovedTrackedCodeSurface("debug-check.ts")).toBe(false);
+    expect(isApprovedTrackedCodeSurface("packages/shared/debug-check.ts")).toBe(false);
+    expect(isApprovedTrackedCodeSurface("packages/router/notes.tera")).toBe(false);
+  });
 });
 
 function collectFiles(root: string, predicate: (filePath: string) => boolean): string[] {
@@ -280,28 +303,57 @@ function isProductionSourceFile(filePath: string): boolean {
   return isSourceFile(filePath) && !/\.spec\.tsx?$/.test(filePath) && !/\.test\.tsx?$/.test(filePath);
 }
 
-function isTrackedWorkspaceFile(filePath: string): boolean {
-  const relativePath = path.relative(workspaceRoot, filePath).replace(/\\/g, "/");
-  if (!relativePath || relativePath.startsWith("..")) {
-    return false;
-  }
+function getTrackedWorkspaceFiles(): string[] {
+  const output = execFileSync("git", ["ls-files", "-z"], {
+    cwd: workspaceRoot,
+    encoding: "utf8"
+  });
 
-  if (relativePath.startsWith(".git/") || relativePath.startsWith("node_modules/") || relativePath.includes("/node_modules/") || relativePath.includes("/dist/")) {
-    return false;
-  }
-
-  return true;
+  return output
+    .split("\0")
+    .map((filePath) => filePath.trim())
+    .filter(Boolean)
+    .map((filePath) => filePath.replace(/\\/g, "/"));
 }
 
-function isTemporaryDiagnosticFile(filePath: string): boolean {
-  const relativePath = path.relative(workspaceRoot, filePath).replace(/\\/g, "/");
-  const fileName = path.basename(relativePath).toLowerCase();
+function isCodeBearingFile(filePath: string): boolean {
+  return /\.(?:[cm]?[jt]sx?|tera)$/.test(filePath);
+}
 
-  return /^\.?tmp[-_.]/.test(fileName)
-    || fileName.includes("scratch")
-    || fileName.includes("probe")
-    || relativePath.startsWith("tmp/")
-    || relativePath.includes("/tmp/");
+function isApprovedTrackedCodeSurface(filePath: string): boolean {
+  if (!filePath || filePath.startsWith(".git/") || filePath.startsWith("node_modules/") || filePath.includes("/node_modules/") || filePath.includes("/dist/")) {
+    return false;
+  }
+
+  if (approvedRootCodeFiles.has(filePath)) {
+    return true;
+  }
+
+  if (filePath.startsWith("scripts/")) {
+    return true;
+  }
+
+  const packageMatch = /^packages\/([^/]+)\/(.+)$/.exec(filePath);
+  if (!packageMatch) {
+    return false;
+  }
+
+  const [, packageName, packageRelativePath] = packageMatch;
+
+  if (packageRelativePath.startsWith("src/") || packageRelativePath.startsWith("test/")) {
+    return true;
+  }
+
+  if (/^[^/]+\.config\.[cm]?[jt]s$/.test(packageRelativePath)) {
+    return true;
+  }
+
+  const approvedPackageFiles = approvedPackageRootCodeFiles.get(packageName);
+  if (approvedPackageFiles?.has(packageRelativePath)) {
+    return true;
+  }
+
+  return false;
 }
 
 function read(filePath: string): string {
