@@ -1,34 +1,67 @@
 <template>
   <div class="panel component-tree" role="region" aria-label="Component Tree">
-    <header class="panel-header">
-      <h3 class="panel-title">Component Tree</h3>
+    <div class="panel-header">
+      <div class="panel-title">Component Tree</div>
       <div class="panel-actions">
-        <input data-component-search-query="true" class="search-input" type="search" placeholder="Find components (Ctrl/Cmd+F)" />
-        <button class="btn btn-ghost" data-action="open-examples">Open Examples</button>
+        <input
+          data-component-search-query="true"
+          class="search-input"
+          type="search"
+          placeholder="Find components (Ctrl/Cmd+F)"
+          :value="searchQuery()"
+          @input="onSearchInput"
+          aria-label="Find components"
+        />
+        <button class="btn btn-ghost" data-action="open-examples" @click="openExamples">Open Examples</button>
       </div>
-    </header>
+    </div>
 
     <div v-if="componentList().length === 0" class="empty-state">
       No components mounted.
-      <div><button class="btn btn-primary" data-action="open-examples">Try an example</button></div>
+      <div><button class="btn btn-primary" data-action="open-examples" @click="openExamples">Try an example</button></div>
     </div>
 
-    <ul v-if="componentList().length > 0" class="component-list" role="tree" aria-label="Component Tree" tabindex="0">
-      <!-- TODO: Copilot implement rendering of filtered nodes.
-           Each node must be a <button> with attributes:
-           data-component-key, data-component-scope, data-component-instance.
-           Node click must dispatch:
-             window.dispatchEvent(new CustomEvent('terajs:devtools:component-select', { detail: { scope, instance, source: 'panel' } }))
-           Node contextmenu must open a small context menu with:
-             Copy path (copies "<scope>#<instance>"),
-             Reveal in DOM (dispatches 'terajs:devtools:component-picked' with source 'panel-context'),
-             Focus (same as Reveal).
-           Keyboard: Arrow Up/Down navigate, Enter selects, Space toggles expand.
-           Keep implementation minimal and clearly commented for review.
-      -->
+    <ul
+      v-if="componentList().length > 0"
+      class="component-list"
+      role="tree"
+      aria-label="Component Tree"
+      tabindex="0"
+      @keydown="onTreeKeydown"
+      ref="treeRoot"
+    >
+      <li
+        v-for="(node, idx) in filteredList()"
+        :key="node.key"
+        class="component-item"
+        role="treeitem"
+        :aria-selected="selectedKey() === node.key ? 'true' : 'false'"
+        :data-index="idx"
+      >
+        <button
+          class="component-button"
+          :class="{ 'is-selected': selectedKey() === node.key }"
+          :data-component-key="node.key"
+          :data-component-scope="node.scope"
+          :data-component-instance="String(node.instance)"
+          @click="select(node)"
+          @contextmenu.prevent="openContext($event, node)"
+          @focus="focusedIndex = idx"
+          tabindex="-1"
+        >
+          <span class="component-scope">{{ node.scope }}</span>
+          <span class="component-instance">#{{ node.instance }}</span>
+          <span class="count-pill" v-if="node.count">· {{ node.count }}</span>
+        </button>
+      </li>
     </ul>
 
-    <!-- TODO: Copilot add context menu markup and small helper stubs (copyPath, revealInDOM, pickComponent) -->
+    <div v-if="context.visible" class="context-menu" :style="{ top: context.y + 'px', left: context.x + 'px' }" role="menu" @keydown.esc="closeContext">
+      <button class="context-item" @click="copyPath(context.node)">Copy path</button>
+      <button class="context-item" @click="revealInDOM(context.node)">Reveal in DOM</button>
+      <button class="context-item" @click="pickComponent(context.node)">Focus</button>
+      <button class="context-item" @click="closeContext">Close</button>
+    </div>
   </div>
 </template>
 
@@ -38,36 +71,215 @@ import { onMounted, onUnmounted } from '@terajs/runtime'
 
 export let events = []
 
-// TODO: Copilot implement:
-// - componentsRef (shallowRef map)
-// - searchRef (ref string) bound to data-component-search-query input
-// - componentList() returns sorted array of mounted components
-// - filteredList() applies searchRef filter
-// - select(node) dispatches terajs:devtools:component-select
-// - openContext(e,node), copyPath(node), revealInDOM(node), pickComponent(node)
-// - keyboard handlers for Ctrl/Cmd+F focus and Arrow navigation
-// Keep functions small and add inline comments for reviewers.
+const componentsRef = shallowRef({})
+const searchRef = ref('')
+const selectedKeyRef = ref(null)
+const focusedIndexRef = ref(-1)
+const treeRoot = ref(null)
 
-onMounted(() => {
-  // TODO: attach global key handler for Ctrl/Cmd+F to focus search input
+const context = ref({ visible: false, x: 0, y: 0, node: null })
+
+// Debounce helper
+function debounce(fn, wait = 150) {
+  let t = null
+  return (...args) => {
+    clearTimeout(t)
+    t = setTimeout(() => fn(...args), wait)
+  }
+}
+
+// Build component map from events
+watchEffect(() => {
+  const evts = props.events || []
+  const map = {}
+
+  for (const e of evts) {
+    const type = e.type || ''
+    const p = e.payload || {}
+    if (type === 'component:mounted' || type === 'component:render' || type.startsWith('component:')) {
+      const scope = typeof p.scope === 'string' ? p.scope : (p.name || 'unknown')
+      const instance = p.instance ?? p.id ?? e.timestamp
+      const key = `${scope}#${instance}`
+      const entry = map[key] || { key, scope, instance, count: 0, lastSeen: 0, removed: false }
+      if (type === 'component:unmounted') {
+        entry.removed = true
+      } else {
+        entry.count = (entry.count || 0) + 1
+        entry.lastSeen = Math.max(entry.lastSeen || 0, e.timestamp || Date.now())
+      }
+      map[key] = entry
+    }
+  }
+
+  // Preserve selection if still present
+  componentsRef.value = map
 })
 
-onUnmounted(() => {
-  // TODO: cleanup handlers
+// Derived helpers
+function componentList() {
+  return Object.values(componentsRef.value).filter(n => !n.removed).sort((a, b) => b.lastSeen - a.lastSeen)
+}
+
+function searchQuery() {
+  return searchRef.value
+}
+
+const setSearch = debounce((val) => {
+  searchRef.value = val
+  // reset focus index when filtering
+  focusedIndexRef.value = -1
+})
+
+function onSearchInput(e) {
+  setSearch(e.target.value)
+}
+
+function filteredList() {
+  const q = (searchRef.value || '').toLowerCase().trim()
+  if (!q) return componentList()
+  return componentList().filter(n => n.scope.toLowerCase().includes(q) || String(n.instance).includes(q))
+}
+
+function selectedKey() {
+  return selectedKeyRef.value
+}
+
+function select(node) {
+  selectedKeyRef.value = node.key
+  // dispatch selection event used by the rest of the app
+  const scope = node.scope
+  const instance = Number(node.instance)
+  window.dispatchEvent(new CustomEvent('terajs:devtools:component-select', { detail: { scope, instance, source: 'panel' } }))
+  // ensure focused index matches selection
+  const idx = filteredList().findIndex(n => n.key === node.key)
+  focusedIndexRef.value = idx
+}
+
+function openContext(e, node) {
+  context.value = { visible: true, x: e.clientX, y: e.clientY, node }
+  // focus first context item for keyboard users
+  setTimeout(() => {
+    const menu = document.querySelector('.context-menu')
+    if (menu) menu.focus()
+  }, 0)
+}
+
+function closeContext() {
+  context.value = { visible: false, x: 0, y: 0, node: null }
+}
+
+function copyPath(node) {
+  const path = `${node.scope}#${node.instance}`
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(path).catch(() => {})
+  }
+  closeContext()
+}
+
+function revealInDOM(node) {
+  const scope = node.scope
+  const instance = Number(node.instance)
+  window.dispatchEvent(new CustomEvent('terajs:devtools:component-picked', { detail: { scope, instance, source: 'panel-context' } }))
+  closeContext()
+}
+
+function pickComponent(node) {
+  revealInDOM(node)
+}
+
+function openExamples() {
+  if (typeof window !== 'undefined') {
+    window.location.href = '/examples/index'
+  }
+}
+
+// Keyboard navigation inside the tree
+function onTreeKeydown(e) {
+  const list = filteredList()
+  if (list.length === 0) return
+
+  const key = e.key
+  if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'f') {
+    e.preventDefault()
+    const el = document.querySelector('[data-component-search-query="true"]')
+    if (el) el.focus()
+    return
+  }
+
+  if (key === 'ArrowDown') {
+    e.preventDefault()
+    focusedIndexRef.value = Math.min(list.length - 1, (focusedIndexRef.value === -1 ? 0 : focusedIndexRef.value + 1))
+    focusItem(focusedIndexRef.value)
+    return
+  }
+
+  if (key === 'ArrowUp') {
+    e.preventDefault()
+    focusedIndexRef.value = Math.max(0, (focusedIndexRef.value === -1 ? 0 : focusedIndexRef.value - 1))
+    focusItem(focusedIndexRef.value)
+    return
+  }
+
+  if (key === 'Enter') {
+    e.preventDefault()
+    const node = list[focusedIndexRef.value] || list[0]
+    if (node) select(node)
+    return
+  }
+
+  if (key === ' ') {
+    e.preventDefault()
+    // toggle expand if nested (not implemented here — placeholder for nested support)
+    return
+  }
+
+  if (key === 'Escape') {
+    // clear selection
+    selectedKeyRef.value = null
+  }
+}
+
+function focusItem(idx) {
+  const root = treeRoot.value
+  if (!root) return
+  const btn = root.querySelector(`[data-index="${idx}"] .component-button`)
+  if (btn) {
+    btn.focus()
+  }
+}
+
+onMounted(() => {
+  // global key handler for Ctrl/Cmd+F to focus search
+  const handler = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault()
+      const el = document.querySelector('[data-component-search-query="true"]')
+      if (el) el.focus()
+    }
+  }
+  document.addEventListener('keydown', handler)
+  // cleanup
+  onUnmounted(() => document.removeEventListener('keydown', handler))
 })
 </script>
 
 <style scoped>
-.panel { padding: 12px; display:flex; flex-direction:column; gap:8px; }
+.panel { padding: 12px; display:flex; flex-direction:column; gap:8px; min-height:0; }
 .panel-header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .panel-title { font-weight:700; font-size:0.9rem; text-transform:uppercase; color:var(--text,#e6eef6); }
+.panel-actions { display:flex; gap:8px; align-items:center; }
 .search-input { min-width:180px; padding:6px 8px; border-radius:8px; background:var(--panel,#121417); color:var(--text,#e6eef6); border:1px solid rgba(255,255,255,0.04); }
-.component-list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
-.component-button { width:100%; text-align:left; padding:8px; border-radius:8px; background:var(--panel,#121417); border:1px solid rgba(255,255,255,0.02); color:var(--text,#e6eef6); cursor:pointer; }
+.component-list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; max-height:60vh; overflow:auto; }
+.component-item { }
+.component-button { width:100%; text-align:left; display:flex; gap:8px; align-items:center; padding:8px; border-radius:8px; background:var(--panel,#121417); border:1px solid rgba(255,255,255,0.02); color:var(--text,#e6eef6); cursor:pointer; transition: box-shadow 120ms ease, transform 120ms ease; }
+.component-button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
+.component-button.is-selected { border-left: 4px solid var(--accent,#2ea3ff); background: rgba(46,163,255,0.04); }
 .component-button:focus { outline:2px solid rgba(46,163,255,0.9); outline-offset:2px; }
-.empty-state { color:var(--muted,#9aa4b2); font-size:0.85rem; }
+.component-scope { font-weight:700; color:var(--accent,#2ea3ff); }
+.component-instance { font-family:var(--font-mono, monospace); color:var(--muted,#9aa4b2); margin-left:6px; }
 .count-pill { margin-left:auto; font-size:0.75rem; color:var(--muted,#9aa4b2); }
-.context-menu { position:fixed; background:var(--panel,#121417); border:1px solid rgba(255,255,255,0.04); border-radius:8px; padding:6px; z-index:999999; box-shadow:0 8px 24px rgba(0,0,0,0.6); }
-.context-item { display:block; width:100%; text-align:left; padding:6px 10px; background:transparent; border:none; color:var(--text,#e6eef6); cursor:pointer; }
+.empty-state { color:var(--muted,#9aa4b2); font-size:0.85rem; }
+.context-menu { position:fixed; background:var(--panel,#121417); border:1px solid rgba(255,255,255,0.04); border-radius:8px; padding:6px; z-index:999999; box-shadow:0 8px 24px rgba(0,0,0,0.6); min-width:160px; }
+.context-item { display:block; width:100%; text-align:left; padding:8px 10px; background:transparent; border:none; color:var(--text,#e6eef6); cursor:pointer; }
 .context-item:hover { background:rgba(255,255,255,0.02); }
 </style>
