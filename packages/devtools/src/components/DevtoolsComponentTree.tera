@@ -8,33 +8,45 @@
       </div>
     </header>
 
-    <div class="empty-state" v-if="componentList().length === 0">
+    <div v-if="componentList().length === 0" class="empty-state">
       No components mounted.
       <div><button class="btn btn-primary" data-action="open-examples">Try an example</button></div>
     </div>
 
-        <ul v-if="componentList().length > 0" class="component-list" role="tree" aria-label="Component Tree" tabindex="0">
-      <!-- TODO: Copilot: render filtered component nodes here. Each node must be a button with attributes:
+    <ul v-if="componentList().length > 0" class="component-list" role="tree" aria-label="Component Tree" tabindex="0">
+      <!-- TODO: Copilot implement rendering of filtered nodes.
+           Each node must be a <button> with attributes:
            data-component-key, data-component-scope, data-component-instance.
-           Node click must dispatch terajs:devtools:component-select with { scope, instance, source: 'panel' }.
-          Each rendered node should include role="treeitem" and set aria-selected="true" on the selected node.
-           Node contextmenu must open a small context menu with Copy path / Reveal in DOM / Focus actions.
-           Implement keyboard navigation (Arrow Up/Down, Enter selects, Space toggles expand). -->
+           Node click must dispatch:
+             window.dispatchEvent(new CustomEvent('terajs:devtools:component-select', { detail: { scope, instance, source: 'panel' } }))
+           Node contextmenu must open a small context menu with:
+             Copy path (copies "<scope>#<instance>"),
+             Reveal in DOM (dispatches 'terajs:devtools:component-picked' with source 'panel-context'),
+             Focus (same as Reveal).
+           Keyboard: Arrow Up/Down navigate, Enter selects, Space toggles expand.
+           Keep implementation minimal and clearly commented for review.
+      -->
     </ul>
 
-    <!-- TODO: Copilot: add context menu markup and small helper buttons (copy, reveal, focus) -->
+    <!-- TODO: Copilot add context menu markup and small helper stubs (copyPath, revealInDOM, pickComponent) -->
   </div>
 </template>
 
 <script>
-// Scaffold: import runtime helpers and expose props
 import { ref, shallowRef, watchEffect } from '@terajs/reactivity'
 import { onMounted, onUnmounted } from '@terajs/runtime'
 
 export let events = []
 
-// TODO: Copilot: implement componentsRef, searchRef, filteredList(), componentList(), select(), openContext(), copyPath(), revealInDOM(), pickComponent(), keyboard handlers
-// Keep functions small and well-commented so we can iterate.
+// TODO: Copilot implement:
+// - componentsRef (shallowRef map)
+// - searchRef (ref string) bound to data-component-search-query input
+// - componentList() returns sorted array of mounted components
+// - filteredList() applies searchRef filter
+// - select(node) dispatches terajs:devtools:component-select
+// - openContext(e,node), copyPath(node), revealInDOM(node), pickComponent(node)
+// - keyboard handlers for Ctrl/Cmd+F focus and Arrow navigation
+// Keep functions small and add inline comments for reviewers.
 
 onMounted(() => {
   // TODO: attach global key handler for Ctrl/Cmd+F to focus search input
@@ -46,7 +58,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Minimal tokens and layout so the panel looks polished; Copilot can expand styles later */
 .panel { padding: 12px; display:flex; flex-direction:column; gap:8px; }
 .panel-header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .panel-title { font-weight:700; font-size:0.9rem; text-transform:uppercase; color:var(--text,#e6eef6); }
@@ -56,4 +67,7 @@ onUnmounted(() => {
 .component-button:focus { outline:2px solid rgba(46,163,255,0.9); outline-offset:2px; }
 .empty-state { color:var(--muted,#9aa4b2); font-size:0.85rem; }
 .count-pill { margin-left:auto; font-size:0.75rem; color:var(--muted,#9aa4b2); }
+.context-menu { position:fixed; background:var(--panel,#121417); border:1px solid rgba(255,255,255,0.04); border-radius:8px; padding:6px; z-index:999999; box-shadow:0 8px 24px rgba(0,0,0,0.6); }
+.context-item { display:block; width:100%; text-align:left; padding:6px 10px; background:transparent; border:none; color:var(--text,#e6eef6); cursor:pointer; }
+.context-item:hover { background:rgba(255,255,255,0.02); }
 </style>
