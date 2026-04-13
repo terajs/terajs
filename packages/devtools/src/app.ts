@@ -19,6 +19,7 @@ import {
 } from "./inspector/shared.js";
 import { formatPrimitiveValue, isExpandableValue, renderValueExplorer } from "./inspector/valueExplorer.js";
 import {
+  renderInspectorAiPanel,
   renderInspectorActivityPanel,
   renderInspectorDomPanel,
   renderInspectorMetaPanel,
@@ -261,6 +262,9 @@ const inspectorSectionRenderers: InspectorSectionRenderers = {
   },
   meta: (state, drilldown, query) => {
     return renderInspectorMetaPanel(drilldown, query, state.expandedValuePaths);
+  },
+  ai: (state, drilldown, query) => {
+    return renderInspectorAiPanel(drilldown, query, state.expandedValuePaths);
   },
   activity: renderInspectorActivityPanel
 };

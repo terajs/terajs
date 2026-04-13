@@ -190,6 +190,7 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
   let errors = 0;
   let propsSnapshot: unknown = undefined;
   let metaSnapshot: unknown = undefined;
+  let aiSnapshot: unknown = undefined;
   let routeSnapshot: unknown = undefined;
   const reactiveKeys = new Set<string>();
   const reactiveStateMap = new Map<string, string>();
@@ -233,15 +234,31 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
     if (event.type === "error:component") errors += 1;
 
     if (propsSnapshot === undefined) {
-      propsSnapshot = readUnknown(event.payload, "props") ?? readUnknown(event.payload, "componentProps") ?? {};
+      const nextPropsSnapshot = readUnknown(event.payload, "props") ?? readUnknown(event.payload, "componentProps");
+      if (nextPropsSnapshot !== undefined) {
+        propsSnapshot = nextPropsSnapshot;
+      }
     }
 
     if (metaSnapshot === undefined) {
-      metaSnapshot = readUnknown(event.payload, "meta") ?? {};
+      const nextMetaSnapshot = readUnknown(event.payload, "meta");
+      if (nextMetaSnapshot !== undefined) {
+        metaSnapshot = nextMetaSnapshot;
+      }
+    }
+
+    if (aiSnapshot === undefined) {
+      const nextAiSnapshot = readUnknown(event.payload, "ai");
+      if (nextAiSnapshot !== undefined) {
+        aiSnapshot = nextAiSnapshot;
+      }
     }
 
     if (routeSnapshot === undefined) {
-      routeSnapshot = readUnknown(event.payload, "route") ?? {};
+      const nextRouteSnapshot = readUnknown(event.payload, "route");
+      if (nextRouteSnapshot !== undefined) {
+        routeSnapshot = nextRouteSnapshot;
+      }
     }
 
     if (recent.length < 8) {
@@ -257,8 +274,9 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
     unmounts,
     updates,
     errors,
-    propsSnapshot,
+    propsSnapshot: propsSnapshot ?? {},
     metaSnapshot,
+    aiSnapshot,
     routeSnapshot,
     reactiveState: Array.from(reactiveStateMap.entries()).map(([key, preview]) => ({ key, preview })).slice(0, 16),
     reactiveKeys: Array.from(reactiveKeys).slice(0, 8),

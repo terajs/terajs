@@ -47,21 +47,58 @@ export interface ComputedRecomputedEvent extends DebugEventBase {
 }
 
 /**
- * Emitted when a component instance mounts.
+ * Shared fields for component-scoped debug events.
  */
-export interface ComponentMountedEvent extends DebugEventBase {
-  type: "component:mounted";
+export interface ComponentDebugEventBase extends DebugEventBase {
   scope: string;
   instance: number;
 }
 
 /**
+ * Optional component snapshots captured alongside lifecycle or update events.
+ */
+export interface ComponentSnapshotEventBase extends ComponentDebugEventBase {
+  props?: unknown;
+  componentProps?: unknown;
+  meta?: Record<string, unknown>;
+  ai?: Record<string, unknown>;
+  route?: Record<string, unknown>;
+  state?: unknown;
+}
+
+/**
+ * Emitted when a component instance mounts.
+ */
+export interface ComponentMountedEvent extends ComponentDebugEventBase {
+  type: "component:mounted";
+}
+
+/**
  * Emitted when a component instance unmounts.
  */
-export interface ComponentUnmountedEvent extends DebugEventBase {
+export interface ComponentUnmountedEvent extends ComponentDebugEventBase {
   type: "component:unmounted";
-  scope: string;
-  instance: number;
+}
+
+/**
+ * Emitted when a component instance refreshes its rendered or derived state.
+ */
+export interface ComponentUpdatedEvent extends ComponentSnapshotEventBase {
+  type: "component:update";
+}
+
+/**
+ * Emitted when a component receives new props.
+ */
+export interface ComponentPropsUpdatedEvent extends ComponentSnapshotEventBase {
+  type: "component:props:update";
+}
+
+/**
+ * Emitted when a component-owned state snapshot changes.
+ */
+export interface ComponentStateUpdatedEvent extends ComponentSnapshotEventBase {
+  type: "component:state:update";
 }
 
 /**
@@ -207,6 +244,9 @@ export type DebugEvent =
   | ComputedRecomputedEvent
   | ComponentMountedEvent
   | ComponentUnmountedEvent
+  | ComponentUpdatedEvent
+  | ComponentPropsUpdatedEvent
+  | ComponentStateUpdatedEvent
   | DomUpdatedEvent
   | RouteChangedEvent
   | RouteMetaResolvedEvent

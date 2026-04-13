@@ -1,7 +1,7 @@
 import { escapeHtml, normalizeInspectorQuery } from "./shared.js";
 import type { MountedComponentEntry } from "./componentData.js";
 
-export type InspectorSectionKey = "overview" | "props" | "reactive" | "route" | "meta" | "dom" | "activity";
+export type InspectorSectionKey = "overview" | "props" | "reactive" | "route" | "meta" | "ai" | "dom" | "activity";
 
 export interface InspectorDrilldownState {
   events: Array<{ type: string; payload?: Record<string, unknown> }>;
@@ -17,6 +17,7 @@ export interface InspectorDrilldownSnapshot {
   errors: number;
   propsSnapshot: unknown;
   metaSnapshot: unknown;
+  aiSnapshot: unknown;
   routeSnapshot: unknown;
   reactiveState: Array<{ key: string; preview: string }>;
   domPreview: string[];
@@ -30,6 +31,7 @@ export interface InspectorSectionRenderers {
   reactive(state: InspectorDrilldownState, selected: MountedComponentEntry, drilldown: InspectorDrilldownSnapshot, query: string): string;
   route(state: InspectorDrilldownState, drilldown: InspectorDrilldownSnapshot, query: string): string;
   meta(state: InspectorDrilldownState, drilldown: InspectorDrilldownSnapshot, query: string): string;
+  ai(state: InspectorDrilldownState, drilldown: InspectorDrilldownSnapshot, query: string): string;
   activity(drilldown: InspectorDrilldownSnapshot, query: string): string;
 }
 
@@ -39,6 +41,7 @@ export function isInspectorSectionKey(value: unknown): value is InspectorSection
     || value === "reactive"
     || value === "route"
     || value === "meta"
+    || value === "ai"
     || value === "dom"
     || value === "activity";
 }
@@ -83,6 +86,11 @@ export function renderComponentDrilldownInspector(
       key: "meta",
       label: "meta",
       body: renderers.meta(state, drilldown, query)
+    },
+    {
+      key: "ai",
+      label: "ai",
+      body: renderers.ai(state, drilldown, query)
     },
     {
       key: "activity",

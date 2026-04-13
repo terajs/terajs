@@ -1045,6 +1045,44 @@
     overflow-wrap: anywhere;
   }
 
+  .inspector-ai-panel {
+    display: grid;
+    gap: 12px;
+  }
+
+  .inspector-ai-block {
+    display: grid;
+    gap: 8px;
+  }
+
+  .inspector-ai-title {
+    color: var(--tera-mist);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .inspector-ai-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .inspector-ai-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(50, 215, 255, 0.24);
+    background: rgba(50, 215, 255, 0.1);
+    color: var(--tera-cloud);
+    font-family: var(--tera-code-font);
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
   .runtime-history-panel {
     display: grid;
     gap: 10px;
@@ -1679,6 +1717,12 @@
 
   #terajs-devtools-root[data-theme="light"] .empty-state {
     color: rgba(46, 46, 46, 0.56);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-ai-tag {
+    border-color: rgba(0, 125, 168, 0.2);
+    background: rgba(0, 125, 168, 0.1);
+    color: #164a5c;
   }
 
   .stack-list {

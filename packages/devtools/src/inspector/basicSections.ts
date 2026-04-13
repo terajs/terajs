@@ -14,6 +14,7 @@ export interface InspectorDrilldownSnapshot {
   reactiveState: Array<{ key: string; preview: string }>;
   routeSnapshot?: unknown;
   metaSnapshot?: unknown;
+  aiSnapshot?: unknown;
   domPreview: string[];
   recent: Array<{ type: string; summary: string }>;
 }
@@ -55,7 +56,11 @@ export function renderInspectorRoutePanel(
   query: string,
   expandedValuePaths: Set<string>
 ): string {
-  const routeSnapshot = drilldown.routeSnapshot ?? {};
+  const routeSnapshot = drilldown.routeSnapshot;
+  if (!hasInspectorSnapshotData(routeSnapshot)) {
+    return query.length > 0 ? "" : `<div class="empty-state">No routing snapshot captured for this component yet.</div>`;
+  }
+
   if (query.length > 0 && !matchesInspectorQuery(query, "routing", routeSnapshot)) {
     return "";
   }
@@ -68,12 +73,124 @@ export function renderInspectorMetaPanel(
   query: string,
   expandedValuePaths: Set<string>
 ): string {
-  const metaSnapshot = drilldown.metaSnapshot ?? {};
+  const metaSnapshot = drilldown.metaSnapshot;
+  if (!hasInspectorSnapshotData(metaSnapshot)) {
+    return query.length > 0 ? "" : `<div class="empty-state">No meta snapshot captured for this component yet.</div>`;
+  }
+
   if (query.length > 0 && !matchesInspectorQuery(query, "meta", metaSnapshot)) {
     return "";
   }
 
   return renderValueExplorer(metaSnapshot, "meta", expandedValuePaths);
+}
+
+export function renderInspectorAiPanel(
+  drilldown: InspectorDrilldownSnapshot,
+  query: string,
+  expandedValuePaths: Set<string>
+): string {
+  const aiSnapshot = drilldown.aiSnapshot;
+  if (!hasInspectorSnapshotData(aiSnapshot)) {
+    return query.length > 0 ? "" : `<div class="empty-state">No AI snapshot captured for this component yet.</div>`;
+  }
+
+  const aiTags = collectInspectorAiTags(aiSnapshot);
+  const aiSummary = readInspectorStringField(aiSnapshot, "summary");
+  const aiIntent = readInspectorStringField(aiSnapshot, "intent");
+  const aiAudience = readInspectorStringField(aiSnapshot, "audience");
+
+  if (query.length > 0 && !matchesInspectorQuery(query, "ai", aiSnapshot, aiTags, aiSummary, aiIntent, aiAudience)) {
+    return "";
+  }
+
+  return `
+    <div class="inspector-ai-panel">
+      ${aiTags.length > 0 ? `
+        <div class="inspector-ai-block">
+          <div class="inspector-ai-title">tags</div>
+          <div class="inspector-ai-tags">
+            ${aiTags.map((tag) => `<span class="inspector-ai-tag">${escapeHtml(tag)}</span>`).join("")}
+          </div>
+        </div>
+      ` : ""}
+      ${(aiSummary || aiIntent || aiAudience) ? `
+        <div class="inspector-keyvalue-list">
+          ${aiSummary ? `<div class="inspector-keyvalue-row"><span class="inspector-keyvalue-key">summary</span><span class="inspector-keyvalue-value">${escapeHtml(aiSummary)}</span></div>` : ""}
+          ${aiIntent ? `<div class="inspector-keyvalue-row"><span class="inspector-keyvalue-key">intent</span><span class="inspector-keyvalue-value">${escapeHtml(aiIntent)}</span></div>` : ""}
+          ${aiAudience ? `<div class="inspector-keyvalue-row"><span class="inspector-keyvalue-key">audience</span><span class="inspector-keyvalue-value">${escapeHtml(aiAudience)}</span></div>` : ""}
+        </div>
+      ` : ""}
+      ${renderValueExplorer(aiSnapshot, "ai", expandedValuePaths)}
+    </div>
+  `;
+}
+
+function collectInspectorAiTags(aiSnapshot: unknown): string[] {
+  const record = asInspectorRecord(aiSnapshot);
+  if (!record) {
+    return [];
+  }
+
+  const tags = [
+    ...readInspectorStringList(record.tags),
+    ...readInspectorStringList(record.keywords),
+    ...readInspectorStringList(record.entities)
+  ];
+
+  return Array.from(new Set(tags));
+}
+
+function readInspectorStringField(value: unknown, key: string): string | undefined {
+  const record = asInspectorRecord(value);
+  const field = record?.[key];
+  return typeof field === "string" && field.trim().length > 0 ? field : undefined;
+}
+
+function readInspectorStringList(value: unknown): string[] {
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function asInspectorRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function hasInspectorSnapshotData(value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>).length > 0;
+  }
+
+  return true;
 }
 
 export function renderInspectorDomPanel(drilldown: InspectorDrilldownSnapshot, query: string): string {
