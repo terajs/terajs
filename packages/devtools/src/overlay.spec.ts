@@ -447,6 +447,73 @@ describe("devtools overlay public entry", () => {
     expect(aiText).toContain("Explain the component state.");
   });
 
+  it("falls back to live component context for route, meta, and ai snapshots", () => {
+    const componentRoot = document.createElement("div") as HTMLDivElement & {
+      __terajsComponentContext?: {
+        props?: Record<string, unknown>;
+        meta?: Record<string, unknown>;
+        ai?: Record<string, unknown>;
+        route?: Record<string, unknown>;
+      };
+    };
+    componentRoot.setAttribute("data-terajs-component-scope", "DocsPage");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    componentRoot.__terajsComponentContext = {
+      meta: {
+        title: "Docs route",
+        keywords: ["terajs", "docs"]
+      },
+      ai: {
+        summary: "Docs page for Terajs runtime guidance.",
+        keywords: ["runtime", "guides"],
+        audience: "developers"
+      },
+      route: {
+        path: "/docs",
+        layout: "default"
+      }
+    };
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "DocsPage",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="DocsPage#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const routeSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="route"]') as HTMLButtonElement | null;
+    routeSectionToggle?.click();
+
+    const metaSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="meta"]') as HTMLButtonElement | null;
+    metaSectionToggle?.click();
+
+    const aiSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="ai"]') as HTMLButtonElement | null;
+    aiSectionToggle?.click();
+
+    const expandedRouteSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="route"]') as HTMLButtonElement | null;
+    const expandedMetaSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="meta"]') as HTMLButtonElement | null;
+    const expandedAiSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="ai"]') as HTMLButtonElement | null;
+    const routeText = expandedRouteSectionToggle?.closest(".inspector-section")?.textContent ?? "";
+    const metaText = expandedMetaSectionToggle?.closest(".inspector-section")?.textContent ?? "";
+    const aiText = expandedAiSectionToggle?.closest(".inspector-section")?.textContent ?? "";
+
+    expect(routeText).toContain("/docs");
+    expect(routeText).toContain("default");
+    expect(metaText).toContain("Docs route");
+    expect(metaText).toContain("terajs");
+    expect(aiText).toContain("runtime");
+    expect(aiText).toContain("guides");
+    expect(aiText).toContain("developers");
+  });
+
   it("edits live reactive booleans from the reactive inspector", () => {
     const enabled = ref(true, {
       scope: "Counter",

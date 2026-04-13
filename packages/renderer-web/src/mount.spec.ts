@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
+import { renderComponent } from "./render";
 import { component, onCleanup, onMounted } from "@terajs/runtime";
 import { jsx } from "./jsx-runtime";
 import { Portal } from "./portal";
@@ -189,6 +190,53 @@ describe("mount() / unmount()", () => {
         expect(article?.getAttribute("data-terajs-component-scope")).toBe("InspectableCard");
         expect(article?.getAttribute("data-terajs-component-instance")).toBe("1");
         expect(article?.__terajsComponentContext?.props).toEqual({ enabled: true });
+    });
+
+    it("preserves inner fragment component identity when an outer fragment component mounts around it", () => {
+        const Page = component({
+            name: "Page",
+            meta: { title: "Docs route" },
+            ai: { summary: "Docs summary" }
+        }, () => {
+            return () => {
+                const fragment = document.createDocumentFragment();
+                const hero = document.createElement("section");
+                hero.id = "page-hero";
+                hero.textContent = "hero";
+                const body = document.createElement("section");
+                body.id = "page-body";
+                body.textContent = "body";
+                fragment.append(hero, body);
+                return fragment;
+            };
+        });
+
+        const Layout = component({ name: "Layout" }, () => {
+            return () => {
+                const fragment = document.createDocumentFragment();
+                fragment.appendChild(renderComponent(Page, {}).node);
+                const footer = document.createElement("footer");
+                footer.id = "layout-footer";
+                footer.textContent = "footer";
+                fragment.appendChild(footer);
+                return fragment;
+            };
+        });
+
+        const root = document.createElement("div");
+        mount(Layout, root);
+
+        const hero = root.querySelector("#page-hero") as (Element & { __terajsComponentContext?: { name?: string; meta?: unknown; ai?: unknown } }) | null;
+        const body = root.querySelector("#page-body") as (Element & { __terajsComponentContext?: { name?: string } }) | null;
+        const footer = root.querySelector("#layout-footer") as (Element & { __terajsComponentContext?: { name?: string } }) | null;
+
+        expect(hero?.getAttribute("data-terajs-component-scope")).toBe("Page");
+        expect(body?.getAttribute("data-terajs-component-scope")).toBe("Page");
+        expect(hero?.__terajsComponentContext?.name).toBe("Page");
+        expect(hero?.__terajsComponentContext?.meta).toEqual({ title: "Docs route" });
+        expect(hero?.__terajsComponentContext?.ai).toEqual({ summary: "Docs summary" });
+        expect(footer?.getAttribute("data-terajs-component-scope")).toBe("Layout");
+        expect(footer?.__terajsComponentContext?.name).toBe("Layout");
     });
 
     it("mounts portal children into the document body by default", () => {

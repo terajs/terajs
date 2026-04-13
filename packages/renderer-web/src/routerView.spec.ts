@@ -6,7 +6,7 @@ import {
   getRouteDataResourceKey,
   type RouteDefinition
 } from "@terajs/router";
-import { invalidateResources } from "@terajs/runtime";
+import { component, invalidateResources } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 import { Link } from "./link";
 import { mount, unmount } from "./mount";
@@ -264,6 +264,64 @@ describe("createRouteView", () => {
 
     expect(root.querySelector('[data-layout="root"]')?.textContent).toContain("page");
     expect(root.querySelector('[data-layout="docs"]')?.textContent).toContain("page");
+
+    unmount(root);
+  });
+
+  it("preserves page component metadata through route layout composition", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    const Page = component({
+      name: "DocsPage",
+      meta: { title: "Docs route" },
+      ai: { summary: "Docs summary", tags: ["docs", "guide"] }
+    }, () => {
+      return () => {
+        const main = document.createElement("main");
+        main.id = "docs-page-root";
+        main.textContent = "page";
+        return main;
+      };
+    });
+
+    const Layout = component({ name: "DocsLayout" }, ({ children }: { children: Node }) => {
+      return () => {
+        const section = document.createElement("section");
+        section.setAttribute("data-layout", "docs");
+        section.appendChild(children);
+        return section;
+      };
+    });
+
+    const router = createRouter(
+      [
+        route({
+          path: "/docs",
+          component: async () => ({ default: Page }),
+          layouts: [
+            {
+              id: "docs",
+              filePath: "/pages/layout.tera",
+              component: async () => ({ default: Layout })
+            }
+          ]
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    const pageRoot = root.querySelector("#docs-page-root") as (Element & {
+      __terajsComponentContext?: { name?: string; meta?: unknown; ai?: unknown };
+    }) | null;
+
+    expect(pageRoot?.getAttribute("data-terajs-component-scope")).toBe("DocsPage");
+    expect(pageRoot?.__terajsComponentContext?.name).toBe("DocsPage");
+    expect(pageRoot?.__terajsComponentContext?.meta).toEqual({ title: "Docs route" });
+    expect(pageRoot?.__terajsComponentContext?.ai).toEqual({ summary: "Docs summary", tags: ["docs", "guide"] });
 
     unmount(root);
   });

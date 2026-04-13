@@ -93,6 +93,9 @@ export function component<P = any>(
       frame: contextStack[contextStack.length - 1],
       name,
       instance,
+      meta: options.meta,
+      ai: options.ai,
+      route: options.route,
       mounted: [],
       updated: [],
       unmounted: []
@@ -103,6 +106,9 @@ export function component<P = any>(
     ctx.frame = contextStack[contextStack.length - 1];
     ctx.name = name;
     ctx.instance = instance;
+    ctx.meta = options.meta;
+    ctx.ai = options.ai;
+    ctx.route = options.route;
     ctx.mounted ??= [];
     ctx.updated ??= [];
     ctx.unmounted ??= [];

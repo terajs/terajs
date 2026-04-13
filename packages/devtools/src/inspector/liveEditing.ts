@@ -9,10 +9,24 @@ import {
 
 type InspectableComponentContext = {
   props?: unknown;
+  meta?: unknown;
+  ai?: unknown;
+  route?: unknown;
 };
+
+export interface LiveComponentSnapshots {
+  props?: unknown;
+  meta?: unknown;
+  ai?: unknown;
+  route?: unknown;
+}
 
 export function resolveLivePropsSnapshot(scope: string, instance: number, fallback: unknown): unknown {
   return resolveLiveComponentContext(scope, instance)?.props ?? fallback;
+}
+
+export function resolveLiveComponentSnapshots(scope: string, instance: number): LiveComponentSnapshots | null {
+  return resolveLiveComponentContext(scope, instance);
 }
 
 export function toggleLivePropValue(scope: string, instance: number, key: string): boolean {

@@ -187,9 +187,7 @@ function attachComponentIdentity(node: Node, ctx: ComponentContext): void {
     const instance = String(ctx.instance);
 
     if (node instanceof Element) {
-        node.setAttribute(COMPONENT_SCOPE_ATTR, scope);
-        node.setAttribute(COMPONENT_INSTANCE_ATTR, instance);
-        (node as InspectableComponentElement).__terajsComponentContext = ctx;
+        applyComponentIdentity(node, scope, instance, ctx);
         return;
     }
 
@@ -199,11 +197,21 @@ function attachComponentIdentity(node: Node, ctx: ComponentContext): void {
                 continue;
             }
 
-            child.setAttribute(COMPONENT_SCOPE_ATTR, scope);
-            child.setAttribute(COMPONENT_INSTANCE_ATTR, instance);
-            (child as InspectableComponentElement).__terajsComponentContext = ctx;
+            applyComponentIdentity(child, scope, instance, ctx);
         }
     }
+}
+
+function applyComponentIdentity(node: Element, scope: string, instance: string, ctx: ComponentContext): void {
+    const element = node as InspectableComponentElement;
+
+    if (element.hasAttribute(COMPONENT_SCOPE_ATTR) || element.hasAttribute(COMPONENT_INSTANCE_ATTR) || element.__terajsComponentContext) {
+        return;
+    }
+
+    element.setAttribute(COMPONENT_SCOPE_ATTR, scope);
+    element.setAttribute(COMPONENT_INSTANCE_ATTR, instance);
+    element.__terajsComponentContext = ctx;
 }
 
 /**

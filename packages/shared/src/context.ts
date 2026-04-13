@@ -14,6 +14,9 @@ export interface ComponentContext {
   frame: any;
   name: string;
   instance: number;
+  meta?: unknown;
+  ai?: unknown;
+  route?: unknown;
   errorBoundary?: ComponentErrorBoundaryHandler;
 
   mounted?: Array<() => void>;
@@ -40,6 +43,9 @@ export function createComponentContext(): ComponentContext {
     frame: null,
     name: "Unknown",
     instance: 0,
+    meta: undefined,
+    ai: undefined,
+    route: undefined,
     errorBoundary: undefined,
     mounted: [],
     updated: [],

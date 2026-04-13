@@ -8,6 +8,7 @@ import {
   safeString,
   shortJson
 } from "./shared.js";
+import { resolveLiveComponentSnapshots } from "./liveEditing.js";
 import { isSignalLikeUpdate, summarizeLog, type DevtoolsEventLike } from "./dataCollectors.js";
 
 export interface MountedComponentEntry {
@@ -267,6 +268,20 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
         summary: summarizeLog(event)
       });
     }
+  }
+
+  const liveSnapshots = resolveLiveComponentSnapshots(scope, instance);
+  if (propsSnapshot === undefined && liveSnapshots?.props !== undefined) {
+    propsSnapshot = liveSnapshots.props;
+  }
+  if (metaSnapshot === undefined && liveSnapshots?.meta !== undefined) {
+    metaSnapshot = liveSnapshots.meta;
+  }
+  if (aiSnapshot === undefined && liveSnapshots?.ai !== undefined) {
+    aiSnapshot = liveSnapshots.ai;
+  }
+  if (routeSnapshot === undefined && liveSnapshots?.route !== undefined) {
+    routeSnapshot = liveSnapshots.route;
   }
 
   return {
