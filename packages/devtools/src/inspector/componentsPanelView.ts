@@ -30,6 +30,7 @@ export interface ComponentsPanelView {
   componentsCount: number;
   visibleCount: number;
   rootCount: number;
+  hasSelection: boolean;
   selectedLabel: string;
   treeMarkup: string;
   inspectorMarkup: string;
@@ -119,6 +120,7 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
   }
 
   const selected = cache.selected;
+  const hasSelection = state.selectedComponentKey !== null;
   const selectedKey = selected?.key ?? null;
 
   expandSelectedTreePath(state.expandedComponentNodeKeys, selectedKey, tree.parentByKey);
@@ -155,7 +157,8 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
     componentsCount: components.length,
     visibleCount: visibleComponents.length,
     rootCount: tree.roots.length,
-    selectedLabel: selected ? `<${selected.scope}>` : "No component selected",
+    hasSelection,
+    selectedLabel: selected ? `<${selected.scope}>` : hasSelection ? "Selection unavailable" : "",
     treeMarkup,
     inspectorMarkup
   };

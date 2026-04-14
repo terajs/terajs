@@ -812,6 +812,33 @@ describe("devtools overlay public entry", () => {
     expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
   });
 
+  it("keeps the components header search-only and hides the inspector until selection", () => {
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const treeHeader = shadowRoot?.querySelector(".components-screen-tree .components-screen-header") as HTMLDivElement | null;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+
+    expect(treeHeader?.querySelector(".components-screen-search")).toBeTruthy();
+    expect(treeHeader?.querySelector(".panel-title")).toBeNull();
+    expect(treeHeader?.querySelector(".panel-subtitle")).toBeNull();
+    expect(treeHeader?.querySelector(".components-screen-pill")).toBeNull();
+    expect(shadowRoot?.querySelector('[data-action="clear-component-selection"]')).toBeNull();
+    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeNull();
+
+    componentButton?.click();
+
+    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeTruthy();
+  });
+
   it("highlights component roots when hovering tree rows", () => {
     const componentRoot = document.createElement("div");
     componentRoot.setAttribute("data-terajs-component-scope", "Counter");
@@ -871,18 +898,48 @@ describe("devtools overlay public entry", () => {
     const parentButton = shadowRoot?.querySelector('[data-component-key="Layout#1"]') as HTMLButtonElement | null;
     const childRow = shadowRoot?.querySelector('[data-component-key="DevtoolsEmbed#1"]')?.closest(".component-tree-row") as HTMLDivElement | null;
     const childPlaceholder = childRow?.querySelector(".component-tree-toggle.is-placeholder") as HTMLSpanElement | null;
-    const topLevelPill = Array.from(shadowRoot?.querySelectorAll(".components-screen-pill") ?? []).find((node) => {
-      return node.textContent?.includes("top level");
-    }) as HTMLSpanElement | undefined;
     const childMeta = shadowRoot?.querySelector('[data-component-key="Layout#1"] .component-tree-meta') as HTMLSpanElement | null;
 
     expect(parentButton?.textContent).toContain("Layout");
     expect(parentButton?.textContent).not.toContain("root");
-    expect(topLevelPill?.textContent).toContain("top level 1");
     expect(childMeta?.textContent).toContain("1 child");
     expect(parentButton?.textContent).not.toContain("#1");
     expect(childRow?.querySelector(".component-tree-branch")?.classList.contains("is-terminal")).toBe(true);
     expect(childPlaceholder?.textContent?.trim() ?? "").toBe("");
+  });
+
+  it("toggles component selection off when the selected row is clicked again", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+
+    let componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    expect(componentButton?.classList.contains("is-active")).toBe(true);
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
+    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeTruthy();
+
+    componentButton?.click();
+
+    componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    expect(componentButton?.classList.contains("is-active")).toBe(false);
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(false);
+    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeNull();
   });
 
   it("uses collapsible component drill-down sections", () => {

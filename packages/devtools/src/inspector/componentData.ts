@@ -165,23 +165,25 @@ export function resolveSelectedComponent(
   components: MountedComponentEntry[],
   selectedComponentKey: string | null
 ) {
-  if (selectedComponentKey) {
-    const selected = components.find((component) => component.key === selectedComponentKey);
-    if (selected) {
-      return selected;
-    }
-
-    const parsed = parseComponentKey(selectedComponentKey);
-    if (parsed) {
-      return {
-        key: selectedComponentKey,
-        scope: parsed.scope,
-        instance: parsed.instance
-      };
-    }
+  if (!selectedComponentKey) {
+    return null;
   }
 
-  return components[0] ?? null;
+  const selected = components.find((component) => component.key === selectedComponentKey);
+  if (selected) {
+    return selected;
+  }
+
+  const parsed = parseComponentKey(selectedComponentKey);
+  if (parsed) {
+    return {
+      key: selectedComponentKey,
+      scope: parsed.scope,
+      instance: parsed.instance
+    };
+  }
+
+  return null;
 }
 
 export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: string, instance: number) {

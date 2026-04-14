@@ -436,18 +436,13 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     const view = buildComponentsPanelView(state, renderComponentDrilldownInspector);
     updateHeaderEventCount();
 
-    const treeSubtitle = root.querySelector<HTMLElement>(".components-screen-tree .panel-subtitle");
-    if (treeSubtitle) {
-      treeSubtitle.textContent = `Live instances: ${view.componentsCount} | Showing: ${view.visibleCount}`;
+    const inspectorPanel = root.querySelector<HTMLElement>(".components-screen-inspector");
+    if (view.hasSelection !== Boolean(inspectorPanel)) {
+      render();
+      return;
     }
 
-    const treePills = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-pills");
-    if (treePills) {
-      treePills.innerHTML = `
-        <span class="components-screen-pill">top level ${view.rootCount}</span>
-        <span class="components-screen-pill">live ${view.componentsCount}</span>
-      `;
-    }
+    componentsScreen.classList.toggle("is-inspector-hidden", !view.hasSelection);
 
     const inspectorSubtitle = root.querySelector<HTMLElement>(".components-screen-inspector .panel-subtitle");
     if (inspectorSubtitle) {

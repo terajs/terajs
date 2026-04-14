@@ -220,6 +220,10 @@
     background: linear-gradient(180deg, rgba(7, 13, 26, 0.94), rgba(4, 8, 18, 0.9));
   }
 
+  .components-screen.is-inspector-hidden {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
   .components-screen-sidebar {
     min-width: 0;
     min-height: 0;
@@ -251,6 +255,11 @@
   .components-screen-inspector {
     grid-column: 1;
     grid-row: 3;
+  }
+
+  .components-screen.is-inspector-hidden .components-screen-tree {
+    border-right: 0;
+    border-bottom: 0;
   }
 
   .components-screen-header {
@@ -315,6 +324,10 @@
 
   .components-screen-header .component-tree-toolbar {
     margin-bottom: 0;
+  }
+
+  .components-screen-tree .components-screen-search {
+    width: 100%;
   }
 
   .components-screen-body {
@@ -1635,6 +1648,10 @@
       grid-template-rows: minmax(0, 1fr);
     }
 
+    .components-screen.is-inspector-hidden {
+      grid-template-columns: var(--tera-sidebar-width) minmax(0, 1fr);
+    }
+
     .components-screen-sidebar {
       grid-column: 1;
       grid-row: 1;
@@ -1666,6 +1683,10 @@
     .components-screen-search,
     .components-screen-filter {
       width: min(270px, 52%);
+    }
+
+    .components-screen-tree .components-screen-search {
+      width: 100%;
     }
 
     .devtools-tabs {

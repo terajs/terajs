@@ -224,17 +224,16 @@ export function createClickHandler({
       const instanceRaw = componentButton.dataset.componentInstance;
       const instance = instanceRaw ? Number(instanceRaw) : Number.NaN;
       if (scope && Number.isFinite(instance)) {
-        state.selectedComponentKey = buildComponentKey(scope, instance);
-        notifyComponentSelection(scope, instance, "panel");
+        const selectedComponentKey = buildComponentKey(scope, instance);
+        if (state.selectedComponentKey === selectedComponentKey) {
+          state.selectedComponentKey = null;
+          notifyComponentSelection(null, null, "clear");
+        } else {
+          state.selectedComponentKey = selectedComponentKey;
+          notifyComponentSelection(scope, instance, "panel");
+        }
         render();
       }
-      return;
-    }
-
-    if (target.closest("[data-action='clear-component-selection']")) {
-      state.selectedComponentKey = null;
-      notifyComponentSelection(null, null, "clear");
-      render();
       return;
     }
 
