@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Debug, emitDebug, resetDebugListeners } from "@terajs/shared";
-import { computed, ref, watch } from "@terajs/reactivity";
+import { createComponentContext, Debug, emitDebug, resetDebugListeners, setCurrentContext } from "@terajs/shared";
+import { computed, ref, watch, watchEffect } from "@terajs/reactivity";
 import {
   mountDevtoolsOverlay,
   toggleDevtoolsOverlay,
@@ -59,6 +59,7 @@ describe("devtools overlay public entry", () => {
   afterEach(() => {
     unmountDevtoolsOverlay();
     resetDebugListeners();
+    setCurrentContext(null);
     delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
     ensureTestStorage().removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
     document.body.innerHTML = "";
@@ -575,10 +576,10 @@ describe("devtools overlay public entry", () => {
       instance: 1,
       key: "panel"
     });
-    const mode = computed(() => gate.value ? `${panel.value}:live` : `${panel.value}:idle`);
+    const mode = computed(() => gate.value ? `${panel.value}:live` : `${panel.value}:idle`, { key: "mode" });
     const stopWatch = watch(() => gate.value, () => {
       void mode.get();
-    });
+    }, { debugName: "gate" });
 
     mountDevtoolsOverlay();
     toggleDevtoolsOverlay();
@@ -617,6 +618,9 @@ describe("devtools overlay public entry", () => {
     expect(scriptText).toContain("computed");
     expect(scriptText).toContain("watch");
     expect(scriptText).toContain("effect");
+    expect(scriptText).toContain("mode");
+    expect(scriptText).toContain("gate");
+    expect(scriptText).not.toContain("watch effect");
     expect(scriptText).not.toContain("const newValue = source()");
     expect(scriptText).not.toContain("effect#");
     expect(scriptText).toContain("history");
@@ -627,6 +631,164 @@ describe("devtools overlay public entry", () => {
     expect(historyPanel?.textContent).toContain("Most recent first.");
     expect(historyScroll).toBeTruthy();
 
+    stopWatch();
+  });
+
+  it("shows registered computed, watch, and watch effects before later triggers", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    const gate = ref(false, {
+      scope: "Counter",
+      instance: 1,
+      key: "gate"
+    });
+    const panel = ref("Router", {
+      scope: "Counter",
+      instance: 1,
+      key: "panel"
+    });
+
+    const ctx = createComponentContext();
+    ctx.name = "Counter";
+    ctx.instance = 1;
+
+    let stopWatch = () => {};
+    let stopWatchEffect = () => {};
+
+    try {
+      setCurrentContext(ctx);
+      computed(() => gate.value ? `${panel.value}:live` : `${panel.value}:idle`, { key: "mode" });
+      stopWatch = watch(() => gate.value, () => {}, { debugName: "gate" });
+      stopWatchEffect = watchEffect(() => {
+        void panel.value;
+      }, { debugName: "stopWatchEffect" });
+    } finally {
+      setCurrentContext(null);
+    }
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const scriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    expect(scriptSectionToggle).toBeTruthy();
+    if (scriptSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      scriptSectionToggle?.click();
+    }
+
+    const expandedScriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    const scriptSection = expandedScriptSectionToggle?.closest(".inspector-section") as HTMLDivElement | null;
+    const origins = Array.from(scriptSection?.querySelectorAll(".inspector-dropdown-origin") ?? []).map((node) => {
+      return node.textContent?.trim() ?? "";
+    });
+    const labels = Array.from(scriptSection?.querySelectorAll(".inspector-dropdown-key") ?? []).map((node) => {
+      return node.textContent?.trim() ?? "";
+    });
+    const scriptText = scriptSection?.textContent ?? "";
+
+    expect(scriptText).toContain("computed, watch, and effect activity");
+    expect(origins).toContain("computed");
+    expect(origins).toContain("watch");
+    expect(origins).toContain("watch effect");
+    expect(labels).toContain("mode");
+    expect(labels).toContain("gate");
+    expect(labels).toContain("stopWatchEffect");
+    expect(scriptText).toContain("created");
+    expect(scriptText).toContain("(not reported)");
+
+    stopWatchEffect();
+    stopWatch();
+  });
+
+  it("preserves runtime monitor registrations under heavy DOM noise", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    const gate = ref(false, {
+      scope: "Counter",
+      instance: 1,
+      key: "gate"
+    });
+    const panel = ref("Router", {
+      scope: "Counter",
+      instance: 1,
+      key: "panel"
+    });
+
+    const ctx = createComponentContext();
+    ctx.name = "Counter";
+    ctx.instance = 1;
+
+    let stopWatch = () => {};
+    let stopWatchEffect = () => {};
+
+    try {
+      setCurrentContext(ctx);
+      computed(() => gate.value ? `${panel.value}:live` : `${panel.value}:idle`, { key: "mode" });
+      stopWatch = watch(() => gate.value, () => {}, { debugName: "gate" });
+      stopWatchEffect = watchEffect(() => {
+        void panel.value;
+      }, { debugName: "stopWatchEffect" });
+    } finally {
+      setCurrentContext(null);
+    }
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    for (let index = 0; index < 4500; index += 1) {
+      emitDebug({
+        type: "dom:updated",
+        timestamp: Date.now(),
+        nodeId: `noise-${index}`
+      });
+    }
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const scriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    expect(scriptSectionToggle).toBeTruthy();
+    if (scriptSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      scriptSectionToggle?.click();
+    }
+
+    const expandedScriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    const scriptSection = expandedScriptSectionToggle?.closest(".inspector-section") as HTMLDivElement | null;
+    const labels = Array.from(scriptSection?.querySelectorAll(".inspector-dropdown-key") ?? []).map((node) => {
+      return node.textContent?.trim() ?? "";
+    });
+    const scriptText = scriptSection?.textContent ?? "";
+
+    expect(labels).toContain("mode");
+    expect(labels).toContain("gate");
+    expect(labels).toContain("stopWatchEffect");
+    expect(scriptText).toContain("computed, watch, and effect activity");
+
+    stopWatchEffect();
     stopWatch();
   });
 
@@ -906,6 +1068,76 @@ describe("devtools overlay public entry", () => {
     expect(parentButton?.textContent).not.toContain("#1");
     expect(childRow?.querySelector(".component-tree-branch")?.classList.contains("is-terminal")).toBe(true);
     expect(childPlaceholder?.textContent?.trim() ?? "").toBe("");
+  });
+
+  it("uses nested DOM matches and DOM order when a component key appears on multiple roots", () => {
+    const orphanIndexRoot = document.createElement("section");
+    orphanIndexRoot.setAttribute("data-terajs-component-scope", "index");
+    orphanIndexRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(orphanIndexRoot);
+
+    const appShellRoot = document.createElement("div");
+    appShellRoot.setAttribute("data-terajs-component-scope", "TerajsAppShell");
+    appShellRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const layoutRoot = document.createElement("div");
+    layoutRoot.setAttribute("data-terajs-component-scope", "layout");
+    layoutRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const nestedIndexRoot = document.createElement("main");
+    nestedIndexRoot.setAttribute("data-terajs-component-scope", "index");
+    nestedIndexRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const siteCodeWindowRoot = document.createElement("div");
+    siteCodeWindowRoot.setAttribute("data-terajs-component-scope", "SiteCodeWindow");
+    siteCodeWindowRoot.setAttribute("data-terajs-component-instance", "1");
+
+    nestedIndexRoot.appendChild(siteCodeWindowRoot);
+    layoutRoot.appendChild(nestedIndexRoot);
+    appShellRoot.appendChild(layoutRoot);
+    document.body.appendChild(appShellRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "SiteCodeWindow",
+      instance: 1
+    });
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "index",
+      instance: 1
+    });
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "layout",
+      instance: 1
+    });
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "TerajsAppShell",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const labels = Array.from(shadowRoot?.querySelectorAll(".component-tree-label") ?? []).map((node) => {
+      return node.textContent?.trim() ?? "";
+    }).filter(Boolean);
+
+    const layoutRow = shadowRoot?.querySelector('[data-component-key="layout#1"]')?.closest(".component-tree-row") as HTMLDivElement | null;
+    const indexRow = shadowRoot?.querySelector('[data-component-key="index#1"]')?.closest(".component-tree-row") as HTMLDivElement | null;
+    const siteCodeWindowRow = shadowRoot?.querySelector('[data-component-key="SiteCodeWindow#1"]')?.closest(".component-tree-row") as HTMLDivElement | null;
+
+    expect(labels.slice(0, 4)).toEqual(["<TerajsAppShell />", "<layout />", "<index />", "<SiteCodeWindow />"]);
+    expect(layoutRow?.dataset.treeDepth).toBe("1");
+    expect(indexRow?.dataset.treeDepth).toBe("2");
+    expect(siteCodeWindowRow?.dataset.treeDepth).toBe("3");
   });
 
   it("toggles component selection off when the selected row is clicked again", () => {

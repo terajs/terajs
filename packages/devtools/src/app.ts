@@ -70,6 +70,7 @@ import {
   renderSettingsPanel
 } from "./panels/diagnosticsPanels.js";
 import { normalizeEvent } from "./eventNormalization.js";
+import { appendPrioritizedDevtoolsEvent, retainPrioritizedDevtoolsEvents } from "./eventRetention.js";
 import {
   normalizeAIAssistantOptions,
 } from "./aiHelpers.js";
@@ -316,7 +317,9 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 
       return hydratedEvent;
     })
-    .slice(-MAX_DEVTOOLS_EVENTS);
+    .reduce<DevtoolsEvent[]>((events, event) => {
+      return appendPrioritizedDevtoolsEvent(events, event, MAX_DEVTOOLS_EVENTS);
+    }, []);
 
   const state: DevtoolsState = {
     activeTab: "Components",
@@ -501,7 +504,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 
     const aiLikelyCauseChanged = previousLikelyCause !== state.aiLikelyCause;
 
-    state.events = [...state.events.slice(-(MAX_DEVTOOLS_EVENTS - 1)), hydratedEvent];
+    state.events = appendPrioritizedDevtoolsEvent(state.events, hydratedEvent, MAX_DEVTOOLS_EVENTS);
     state.eventCount += 1;
     state.timelineCursor = state.events.length - 1;
 

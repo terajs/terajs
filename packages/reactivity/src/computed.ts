@@ -19,6 +19,7 @@ import {
   registerReactiveInstance,
   updateReactiveValue,
   Debug,
+  getCurrentContext,
 } from "@terajs/shared";
 
 /**
@@ -42,26 +43,63 @@ export interface Computed<T> {
 }
 
 /**
+ * Optional metadata for derived values used by diagnostics and tooling.
+ */
+export interface ComputedOptions {
+  /**
+   * Stable label attached to the computed metadata when available.
+   */
+  key?: string;
+}
+
+/**
  * Creates a derived reactive value that is lazily evaluated and cached.
  *
  * @typeParam T - The type of the value returned by the computed function.
  * @param fn - The "getter" function that calculates the derived state.
  * @returns A `Computed<T>` object with a `get()` method to access the value.
  */
-export function computed<T>(fn: () => T): Computed<T> {
+export function computed<T>(fn: () => T, options: ComputedOptions = {}): Computed<T> {
   let value: T;
 
-  const scope = "Computed";
-  const instance = 0;
+  const ctx = getCurrentContext();
+  const owner = ctx
+    ? {
+        scope: ctx.name,
+        instance: ctx.instance
+      }
+    : undefined;
+  const context = ctx
+    ? {
+        name: ctx.name,
+        instance: ctx.instance
+      }
+    : undefined;
+  const key = typeof options.key === "string" && options.key.trim().length > 0
+    ? options.key.trim()
+    : undefined;
+  const scope = owner?.scope ?? "Computed";
+  const instance = owner?.instance ?? 0;
 
   // Metadata + registry entry for this computed
   const meta = createReactiveMetadata({
     type: "computed",
     scope,
-    instance
+    instance,
+    key
   });
 
-  registerReactiveInstance(meta, { scope, instance });
+  registerReactiveInstance(meta, owner);
+
+  Debug.emit("computed:create", {
+    type: "computed:create",
+    timestamp: Date.now(),
+    rid: meta.rid,
+    meta,
+    owner,
+    context,
+    key
+  });
 
   Debug.emit("reactive:created", {
     type: "reactive:created",
@@ -119,7 +157,9 @@ export function computed<T>(fn: () => T): Computed<T> {
       Debug.emit("computed:recomputed", {
         type: "computed:recomputed",
         timestamp: Date.now(),
-        rid: meta.rid
+        rid: meta.rid,
+        owner,
+        context
       });
     },
     scheduler

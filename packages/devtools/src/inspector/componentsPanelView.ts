@@ -248,7 +248,7 @@ function renderComponentTree(
     `).join("");
 
     return `
-      <li class="${nodeClasses.join(" ")}">
+      <li class="${nodeClasses.join(" ")}" style="--component-tree-depth:${ancestorHasNext.length};">
         <div class="component-tree-row" data-tree-depth="${ancestorHasNext.length}">
           <span class="component-tree-guides">${guides}</span>
           <span class="component-tree-branch ${branchClass}" aria-hidden="true"></span>
@@ -268,7 +268,7 @@ function renderComponentTree(
           >
             <span class="component-tree-content">
               <span class="component-tree-label-row">
-                <span class="component-tree-label">${escapeHtml(node.component.scope)}</span>
+                <span class="component-tree-label"><span class="component-tree-label-bracket">&lt;</span><span class="component-tree-label-name">${escapeHtml(node.component.scope)}</span><span class="component-tree-label-bracket"> /&gt;</span></span>
               </span>
               ${hasChildren ? `<span class="component-tree-meta">${node.children.length} child${node.children.length === 1 ? "" : "ren"}</span>` : ""}
             </span>

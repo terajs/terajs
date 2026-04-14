@@ -1,4 +1,6 @@
-﻿export const overlayStyles = `
+﻿import { componentTreeStyles } from "./componentTreeStyles.js";
+
+export const overlayStyles = `
   :host {
     all: initial;
   }
@@ -128,7 +130,42 @@
   }
 
   #terajs-devtools-root[data-theme="light"] {
-    color: #181818;
+    --tera-light-text-strong: var(--tera-light-cyan-ink);
+    --tera-light-text-soft: #5f5ed9;
+    --tera-light-text-muted: #746fe8;
+    --tera-light-accent: #2f6dff;
+    --tera-light-accent-strong: #1f58d6;
+    --tera-light-accent-violet: #5a4fd4;
+    --tera-light-accent-soft: rgba(47, 109, 255, 0.14);
+    --tera-light-accent-soft-strong: rgba(47, 109, 255, 0.22);
+    --tera-light-border: rgba(79, 140, 255, 0.28);
+    --tera-light-border-strong: rgba(88, 201, 255, 0.34);
+    --tera-light-shell-bg:
+      radial-gradient(circle at 0% 0%, rgba(47, 109, 255, 0.24), transparent 30%),
+      radial-gradient(circle at 92% 8%, rgba(90, 79, 212, 0.2), transparent 26%),
+      radial-gradient(circle at 70% 32%, rgba(50, 215, 255, 0.16), transparent 24%),
+      linear-gradient(180deg, rgba(251, 254, 255, 0.99), rgba(230, 242, 255, 0.98));
+    --tera-light-panel-bg:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.12), transparent 34%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.11), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.98));
+    --tera-light-panel-alt:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.14), transparent 32%),
+      radial-gradient(circle at top right, rgba(50, 215, 255, 0.1), transparent 28%),
+      linear-gradient(180deg, rgba(247, 252, 255, 0.99), rgba(226, 238, 255, 0.97));
+    --tera-light-panel-emphasis:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.18), transparent 38%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.14), transparent 30%),
+      linear-gradient(180deg, rgba(238, 246, 255, 0.99), rgba(216, 225, 255, 0.97));
+    --tera-light-panel-raised: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 246, 255, 0.96));
+    --tera-light-panel-raised-soft: linear-gradient(180deg, rgba(248, 252, 255, 0.98), rgba(231, 241, 255, 0.97));
+    --tera-light-shadow: 0 18px 38px rgba(47, 109, 255, 0.16), 0 0 26px rgba(90, 79, 212, 0.12);
+    --tera-light-cyan-ink: #0b7ea6;
+    --tera-light-purple-ink: #5647c8;
+    --tera-light-red-ink: #b2204f;
+    --tera-light-amber-ink: #8a5100;
+    --tera-light-mint-ink: #0f8d77;
+    color: var(--tera-light-text-strong);
   }
 
   .devtools-shell {
@@ -146,7 +183,7 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-shell {
-    --panel-bg: linear-gradient(180deg, #ffffff, var(--tera-cloud));
+    --panel-bg: var(--tera-light-shell-bg);
   }
 
   .devtools-header {
@@ -163,9 +200,11 @@
 
   #terajs-devtools-root[data-theme="light"] .devtools-header {
     background:
-      linear-gradient(120deg, rgba(47, 109, 255, 0.1), rgba(50, 215, 255, 0.09) 60%, transparent),
-      rgba(255, 255, 255, 0.92);
-    border-bottom-color: rgba(46, 46, 46, 0.12);
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.18), transparent 36%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.16), transparent 30%),
+      radial-gradient(circle at center, rgba(50, 215, 255, 0.08), transparent 46%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(235, 245, 255, 0.93));
+    border-bottom-color: var(--tera-light-border);
   }
 
   .devtools-title {
@@ -178,7 +217,7 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-title {
-    color: #0d2a57;
+    color: var(--tera-light-text-strong);
   }
 
   .devtools-subtitle,
@@ -195,7 +234,7 @@
   #terajs-devtools-root[data-theme="light"] .muted-text,
   #terajs-devtools-root[data-theme="light"] .tiny-muted,
   #terajs-devtools-root[data-theme="light"] .metric-label {
-    color: #626262;
+    color: var(--tera-light-text-muted);
   }
 
   .devtools-body {
@@ -317,9 +356,15 @@
 
   #terajs-devtools-root[data-theme="light"] .components-screen-search,
   #terajs-devtools-root[data-theme="light"] .components-screen-filter {
-    background: rgba(255, 255, 255, 0.96);
-    color: #10213f;
-    border-color: rgba(55, 103, 183, 0.2);
+    background: var(--tera-light-panel-raised);
+    color: var(--tera-light-text-strong);
+    border-color: var(--tera-light-border);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .components-screen-search:focus,
+  #terajs-devtools-root[data-theme="light"] .components-screen-filter:focus {
+    border-color: var(--tera-light-accent);
+    box-shadow: 0 0 0 1px rgba(47, 109, 255, 0.18), 0 10px 22px rgba(47, 109, 255, 0.08);
   }
 
   .components-screen-header .component-tree-toolbar {
@@ -408,26 +453,37 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .component-drilldown-headline {
-    border-bottom-color: rgba(54, 118, 210, 0.24);
+    border-bottom-color: var(--tera-light-border-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .component-drilldown-path {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .component-drilldown-meta {
+    color: var(--tera-light-text-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen {
-    background: linear-gradient(180deg, rgba(249, 252, 255, 0.98), rgba(243, 248, 255, 0.98));
+    background: var(--tera-light-shell-bg);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-tree,
   #terajs-devtools-root[data-theme="light"] .components-screen-inspector {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(241, 247, 255, 0.98));
-    color: #10213f;
+    background: var(--tera-light-panel-bg);
+    color: var(--tera-light-text-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-tree {
-    background: linear-gradient(180deg, rgba(241, 247, 255, 0.99), rgba(231, 240, 255, 0.98));
+    background: var(--tera-light-panel-alt);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-header {
-    background: rgba(255, 255, 255, 0.86);
-    border-bottom-color: rgba(46, 46, 46, 0.12);
+    background:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.12), transparent 34%),
+      radial-gradient(circle at top right, rgba(50, 215, 255, 0.08), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(239, 246, 255, 0.88));
+    border-bottom-color: var(--tera-light-border);
   }
 
   .components-screen-tree .components-screen-header {
@@ -436,8 +492,11 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-tree .components-screen-header {
-    background: linear-gradient(180deg, rgba(233, 242, 255, 0.98), rgba(223, 235, 255, 0.96));
-    border-bottom-color: rgba(54, 118, 210, 0.18);
+    background:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.14), transparent 42%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.12), transparent 32%),
+      var(--tera-light-panel-emphasis);
+    border-bottom-color: var(--tera-light-border-strong);
   }
 
   .devtools-tabs {
@@ -457,10 +516,10 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-tabs {
-    background: linear-gradient(180deg, #f4f8ff, #eef4ff);
-    border-right-color: rgba(32, 64, 112, 0.16);
-    border-bottom-color: rgba(32, 64, 112, 0.16);
-    scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
+    background: linear-gradient(180deg, rgba(243, 248, 255, 0.99), rgba(230, 240, 255, 0.97));
+    border-right-color: var(--tera-light-border);
+    border-bottom-color: var(--tera-light-border);
+    scrollbar-color: rgba(47, 109, 255, 0.5) rgba(214, 226, 246, 0.85);
   }
 
   .tab-button,
@@ -504,9 +563,42 @@
   #terajs-devtools-root[data-theme="light"] .toolbar-button,
   #terajs-devtools-root[data-theme="light"] .filter-button,
   #terajs-devtools-root[data-theme="light"] .select-button {
-    background: rgba(255, 255, 255, 0.98);
-    color: #14284a;
-    border-color: rgba(55, 103, 183, 0.2);
+    background: rgba(255, 255, 255, 0.94);
+    color: var(--tera-light-text-strong);
+    border-color: var(--tera-light-border);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .tab-button:hover,
+  #terajs-devtools-root[data-theme="light"] .toolbar-button:hover,
+  #terajs-devtools-root[data-theme="light"] .filter-button:hover,
+  #terajs-devtools-root[data-theme="light"] .select-button:hover {
+    border-color: var(--tera-light-border-strong);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--tera-light-accent-strong);
+    transform: none;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .tab-button.is-active,
+  #terajs-devtools-root[data-theme="light"] .filter-button.is-active,
+  #terajs-devtools-root[data-theme="light"] .toolbar-button.is-active,
+  #terajs-devtools-root[data-theme="light"] .select-button.is-selected {
+    background: rgba(255, 255, 255, 0.94);
+    color: var(--tera-light-text-strong);
+    border-color: var(--tera-light-border-strong);
+    box-shadow: inset 0 0 0 1px rgba(79, 140, 255, 0.16);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .devtools-tabs .tab-button.is-active {
+    background: linear-gradient(180deg, #2b6edc, #1a4daa);
+    color: #ffffff;
+    border-color: rgba(26, 77, 170, 0.72);
+    box-shadow: 0 12px 24px rgba(31, 88, 214, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .devtools-tabs .tab-button.is-active:hover {
+    background: linear-gradient(180deg, #2f76e8, #1c56bc);
+    color: #ffffff;
+    transform: none;
   }
 
   .tab-button.is-active,
@@ -537,9 +629,9 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(241, 247, 255, 0.98));
-    color: #10213f;
-    scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
+    background: var(--tera-light-shell-bg);
+    color: var(--tera-light-text-strong);
+    scrollbar-color: rgba(47, 109, 255, 0.5) rgba(214, 226, 246, 0.85);
   }
 
   .devtools-page {
@@ -611,27 +703,30 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-panel {
-    background: linear-gradient(180deg, rgba(235, 245, 255, 0.96), rgba(225, 239, 255, 0.94));
-    border-color: rgba(54, 118, 210, 0.28);
-    box-shadow: 0 10px 30px rgba(63, 120, 203, 0.18);
+    background:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.16), transparent 36%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.14), transparent 28%),
+      linear-gradient(180deg, rgba(238, 246, 255, 0.98), rgba(221, 235, 255, 0.96));
+    border-color: var(--tera-light-border-strong);
+    box-shadow: var(--tera-light-shadow);
   }
 
   #terajs-devtools-root[data-theme="light"] .panel-hero {
     background:
-      linear-gradient(135deg, rgba(47, 109, 255, 0.08), rgba(50, 215, 255, 0.08) 58%, rgba(111, 109, 255, 0.08)),
-      rgba(255, 255, 255, 0.96);
-    border-color: rgba(54, 118, 210, 0.16);
-    box-shadow: 0 16px 30px rgba(63, 120, 203, 0.1);
+      linear-gradient(135deg, rgba(47, 109, 255, 0.14), rgba(90, 79, 212, 0.1) 42%, rgba(50, 215, 255, 0.08) 68%),
+      rgba(255, 255, 255, 0.97);
+    border-color: var(--tera-light-border);
+    box-shadow: var(--tera-light-shadow);
   }
 
   #terajs-devtools-root[data-theme="light"] .panel-hero-pill {
-    background: rgba(255, 255, 255, 0.94);
-    border-color: rgba(54, 118, 210, 0.16);
-    color: #516178;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.9));
+    border-color: var(--tera-light-border);
+    color: var(--tera-light-text-soft);
   }
 
   #terajs-devtools-root[data-theme="light"] .panel-section-heading {
-    color: #10213f;
+    color: var(--tera-light-text-strong);
   }
 
   .ask-ai-button {
@@ -675,9 +770,9 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-response {
-    background: rgba(255, 255, 255, 0.96);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 245, 255, 0.96));
     color: #18253d;
-    border-color: rgba(46, 46, 46, 0.2);
+    border-color: var(--tera-light-border);
   }
 
   .ai-hint {
@@ -726,8 +821,13 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .components-split-pane {
-    background: linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(236, 244, 255, 0.96));
-    border-color: rgba(54, 118, 210, 0.24);
+    background:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.16), transparent 30%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.14), transparent 26%),
+      radial-gradient(circle at center right, rgba(50, 215, 255, 0.08), transparent 24%),
+      linear-gradient(180deg, rgba(247, 252, 255, 0.99), rgba(226, 238, 255, 0.97));
+    border-color: var(--tera-light-border-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76), 0 18px 34px rgba(47, 109, 255, 0.12), 0 0 26px rgba(50, 215, 255, 0.08);
   }
 
   .components-tree-pane,
@@ -738,281 +838,7 @@
     overflow: auto;
   }
 
-  .components-tree-pane {
-    border-right: 1px solid rgba(50, 215, 255, 0.26);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .components-tree-pane {
-    border-right-color: rgba(54, 118, 210, 0.22);
-  }
-
-  .component-tree-toolbar {
-    margin-top: 0;
-    margin-bottom: 10px;
-  }
-
-  .component-tree-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  .component-tree-children {
-    margin-top: 2px;
-  }
-
-  .component-tree-node.has-children.is-expanded > .component-tree-children {
-    position: relative;
-  }
-
-  .component-tree-node.has-children.is-expanded > .component-tree-children::before {
-    content: "";
-    position: absolute;
-    left: 19px;
-    top: 0;
-    bottom: 15px;
-    width: 1px;
-    background: rgba(47, 109, 255, 0.24);
-    pointer-events: none;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-tree-node.has-children.is-expanded > .component-tree-children::before {
-    background: rgba(54, 118, 210, 0.24);
-  }
-
-  .component-tree-node {
-    margin: 0;
-    padding: 0;
-  }
-
-  .component-tree-row {
-    display: grid;
-    grid-template-columns: auto auto auto minmax(0, 1fr);
-    align-items: stretch;
-    gap: 0;
-    min-height: 30px;
-  }
-
-  .component-tree-guides {
-    display: inline-flex;
-    align-items: stretch;
-    gap: 0;
-  }
-
-  .tree-indent-guide {
-    width: 14px;
-    height: 30px;
-    display: inline-block;
-    position: relative;
-  }
-
-  .tree-indent-guide.is-continuing::before {
-    content: "";
-    position: absolute;
-    left: 5px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: rgba(47, 109, 255, 0.28);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .tree-indent-guide.is-continuing::before {
-    background: rgba(54, 118, 210, 0.32);
-  }
-
-  .component-tree-branch {
-    width: 14px;
-    height: 30px;
-    position: relative;
-    display: inline-block;
-  }
-
-  .component-tree-branch.is-branching::before,
-  .component-tree-branch.is-terminal::before {
-    content: "";
-    position: absolute;
-    left: 5px;
-    width: 1px;
-    background: rgba(47, 109, 255, 0.28);
-  }
-
-  .component-tree-branch.is-branching::before {
-    top: 0;
-    bottom: 0;
-  }
-
-  .component-tree-branch.is-terminal::before {
-    top: 0;
-    height: 50%;
-  }
-
-  .component-tree-branch.is-branching::after,
-  .component-tree-branch.is-terminal::after {
-    content: "";
-    position: absolute;
-    left: 5px;
-    right: 0;
-    top: calc(50% - 0.5px);
-    height: 1px;
-    background: rgba(47, 109, 255, 0.28);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-tree-branch.is-branching::before,
-  #terajs-devtools-root[data-theme="light"] .component-tree-branch.is-terminal::before,
-  #terajs-devtools-root[data-theme="light"] .component-tree-branch.is-branching::after,
-  #terajs-devtools-root[data-theme="light"] .component-tree-branch.is-terminal::after {
-    background: rgba(54, 118, 210, 0.32);
-  }
-
-  .component-tree-toggle {
-    appearance: none;
-    width: 14px;
-    min-width: 14px;
-    height: 30px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: var(--tera-blue);
-    cursor: pointer;
-    font: inherit;
-    font-size: 12px;
-    line-height: 1;
-    display: inline-grid;
-    place-items: center;
-    padding: 0;
-    align-self: stretch;
-    transition: color 140ms ease;
-  }
-
-  .component-tree-chevron {
-    width: 14px;
-    display: inline-grid;
-    place-items: center;
-  }
-
-  .component-tree-toggle:hover {
-    color: #a9c2ff;
-  }
-
-  .component-tree-toggle.is-placeholder {
-    cursor: default;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .component-tree-select {
-    appearance: none;
-    width: 100%;
-    border: 1px solid rgba(47, 109, 255, 0.08);
-    border-radius: 10px;
-    background: linear-gradient(180deg, rgba(12, 20, 37, 0.64), rgba(7, 13, 24, 0.54));
-    color: var(--tera-cloud);
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    min-height: 38px;
-    padding: 5px 10px 5px 6px;
-    cursor: pointer;
-    text-align: left;
-    transition: background 140ms ease, border-color 140ms ease, transform 120ms ease;
-  }
-
-  .component-tree-select:hover {
-    background: linear-gradient(180deg, rgba(22, 36, 64, 0.82), rgba(11, 21, 40, 0.74));
-    border-color: rgba(47, 109, 255, 0.34);
-    transform: translateX(1px);
-  }
-
-  .component-tree-select.is-active {
-    background: linear-gradient(180deg, rgba(39, 71, 135, 0.88), rgba(24, 46, 91, 0.92));
-    border-color: rgba(116, 160, 255, 0.64);
-    box-shadow: inset 0 0 0 1px rgba(139, 181, 255, 0.12);
-    color: #eef4ff;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-tree-select {
-    color: #10213f;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 247, 255, 0.98));
-    border-color: rgba(54, 118, 210, 0.14);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-tree-select.is-active {
-    color: #0d2a57;
-    background: linear-gradient(180deg, rgba(209, 228, 255, 0.92), rgba(193, 219, 255, 0.9));
-    border-color: rgba(54, 118, 210, 0.32);
-    box-shadow: inset 0 0 0 1px rgba(54, 118, 210, 0.08);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-tree-select:hover {
-    background: linear-gradient(180deg, rgba(236, 245, 255, 0.98), rgba(226, 238, 255, 0.98));
-  }
-
-  .component-tree-content {
-    min-width: 0;
-    flex: 1;
-    display: grid;
-    gap: 2px;
-  }
-
-  .component-tree-label-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .component-tree-label {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    font-weight: 600;
-  }
-
-  .component-tree-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 18px;
-    padding: 0 7px;
-    border-radius: 999px;
-    background: rgba(50, 215, 255, 0.12);
-    border: 1px solid rgba(50, 215, 255, 0.16);
-    color: var(--tera-cyan);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  .component-tree-badge.is-root {
-    background: rgba(47, 109, 255, 0.18);
-    border-color: rgba(116, 160, 255, 0.22);
-    color: #cfe0ff;
-  }
-
-  .component-tree-meta {
-    color: var(--tera-mist);
-    font-family: var(--tera-code-font);
-    font-size: 11px;
-    letter-spacing: 0.01em;
-  }
-
-  .component-tree-instance {
-    font-family: var(--tera-code-font);
-    opacity: 0.82;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .component-ai-hint {
-    margin-left: 44px;
-    margin-top: 2px;
-    margin-bottom: 4px;
-    font-size: 11px;
-  }
+${componentTreeStyles}
 
   .inspector-cascade {
     display: grid;
@@ -1032,6 +858,10 @@
     font-weight: 700;
     letter-spacing: 0.01em;
     text-transform: none;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-cascade-title {
+    color: var(--tera-light-text-strong);
   }
 
   .inspector-keyvalue-list {
@@ -1056,6 +886,18 @@
     color: var(--tera-cloud);
     font-family: var(--tera-code-font);
     overflow-wrap: anywhere;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-keyvalue-key {
+    color: var(--tera-light-text-muted);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-keyvalue-value {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-ai-title {
+    color: var(--tera-light-text-muted);
   }
 
   .inspector-ai-panel {
@@ -1216,68 +1058,68 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-panel {
-    background: linear-gradient(180deg, rgba(244, 249, 255, 0.98), rgba(234, 242, 255, 0.96));
-    border-color: rgba(54, 118, 210, 0.2);
+    background: var(--tera-light-panel-alt);
+    border-color: var(--tera-light-border);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-title {
-    color: #10213f;
+    color: var(--tera-light-text-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-caption {
-    color: #5f718d;
+    color: var(--tera-light-text-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-count {
-    border-color: rgba(54, 118, 210, 0.22);
-    background: rgba(54, 118, 210, 0.08);
-    color: #0a57cc;
+    border-color: var(--tera-light-border);
+    background: var(--tera-light-accent-soft);
+    color: var(--tera-light-accent-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-scroll {
-    scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
+    scrollbar-color: rgba(47, 109, 255, 0.5) rgba(214, 226, 246, 0.85);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-item {
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(54, 118, 210, 0.16);
+    background: var(--tera-light-panel-raised);
+    border-color: var(--tera-light-border);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-badge {
-    background: rgba(54, 118, 210, 0.1);
-    color: #0a57cc;
+    background: var(--tera-light-accent-soft);
+    color: var(--tera-light-accent-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-text {
-    color: #10213f;
+    color: var(--tera-light-text-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-empty {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(54, 118, 210, 0.2);
-    color: #5f718d;
+    background: var(--tera-light-panel-raised-soft);
+    border-color: var(--tera-light-border);
+    color: var(--tera-light-text-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-pill {
-    background: rgba(255, 255, 255, 0.94);
-    border-color: rgba(54, 118, 210, 0.16);
-    color: #5f718d;
+    background: rgba(255, 255, 255, 0.86);
+    border-color: var(--tera-light-border);
+    color: var(--tera-light-text-soft);
   }
 
   #terajs-devtools-root[data-theme="light"] .component-tree-badge {
-    background: rgba(54, 118, 210, 0.08);
-    border-color: rgba(54, 118, 210, 0.14);
-    color: #0a57cc;
+    background: var(--tera-light-accent-soft);
+    border-color: var(--tera-light-border);
+    color: var(--tera-light-accent-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .component-tree-badge.is-root {
-    background: rgba(47, 109, 255, 0.12);
-    border-color: rgba(54, 118, 210, 0.16);
-    color: #0d2a57;
+    background: var(--tera-light-accent-soft-strong);
+    border-color: var(--tera-light-border);
+    color: var(--tera-light-text-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .component-tree-meta {
-    color: #5f718d;
+    color: var(--tera-light-text-muted);
   }
 
   .reactive-feed,
@@ -1511,19 +1353,35 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-dropdown {
-    border-color: rgba(54, 118, 210, 0.22);
+    border-color: var(--tera-light-border);
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-dropdown-origin {
-    color: #0b4fa8;
-    border-color: rgba(54, 118, 210, 0.28);
-    background: rgba(54, 118, 210, 0.08);
+    color: var(--tera-light-accent-strong);
+    border-color: var(--tera-light-border-strong);
+    background: var(--tera-light-accent-soft);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-dropdown-summary::before {
+    color: var(--tera-light-accent-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-dropdown-key {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-dropdown-type {
+    color: var(--tera-light-text-muted);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-inline-value {
+    color: var(--tera-light-text-soft);
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-live-input {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(54, 118, 210, 0.22);
-    color: #10213f;
+    background: var(--tera-light-panel-raised);
+    border-color: var(--tera-light-border);
+    color: var(--tera-light-text-strong);
   }
 
   .inspector-section {
@@ -1537,7 +1395,7 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-section {
-    border-color: rgba(54, 118, 210, 0.22);
+    border-color: var(--tera-light-border);
   }
 
   .inspector-section-toggle {
@@ -1557,6 +1415,16 @@
 
   .inspector-section-toggle:hover {
     color: #e9f7ff;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-section-toggle {
+    color: var(--tera-light-text-strong);
+    border-radius: 6px;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-section-toggle:hover {
+    color: var(--tera-light-accent-strong);
+    background: linear-gradient(90deg, rgba(47, 109, 255, 0.08), rgba(90, 79, 212, 0.06), rgba(50, 215, 255, 0.03));
   }
 
   .inspector-section-chevron {
@@ -1580,6 +1448,14 @@
     letter-spacing: 0.01em;
   }
 
+  #terajs-devtools-root[data-theme="light"] .inspector-section-chevron {
+    color: var(--tera-light-accent-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-section-title {
+    color: var(--tera-light-text-strong);
+  }
+
   .inspector-section-summary {
     color: var(--tera-mist);
     font-family: var(--tera-code-font);
@@ -1589,7 +1465,7 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-section-summary {
-    color: #5f718d;
+    color: var(--tera-light-text-muted);
   }
 
   .inspector-section-body {
@@ -1621,9 +1497,9 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-code {
-    background: rgba(242, 248, 255, 0.96);
-    color: #10213f;
-    border-color: rgba(54, 118, 210, 0.28);
+    background: var(--tera-light-panel-raised-soft);
+    color: var(--tera-light-text-strong);
+    border-color: var(--tera-light-border-strong);
   }
 
   .inspector-grid {
@@ -1632,10 +1508,34 @@
     font-size: 12px;
   }
 
+  #terajs-devtools-root[data-theme="light"] .value-node-toggle,
+  #terajs-devtools-root[data-theme="light"] .value-leaf {
+    color: var(--tera-light-text-soft);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .value-node-toggle:hover {
+    background: linear-gradient(90deg, rgba(47, 109, 255, 0.08), rgba(90, 79, 212, 0.06), rgba(50, 215, 255, 0.03));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .value-node-chevron {
+    color: var(--tera-light-accent-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .value-key {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .value-type,
+  #terajs-devtools-root[data-theme="light"] .value-separator,
+  #terajs-devtools-root[data-theme="light"] .value-preview,
+  #terajs-devtools-root[data-theme="light"] .value-empty {
+    color: var(--tera-light-text-muted);
+  }
+
   @media (min-width: 901px) {
     .devtools-shell {
-      --tera-sidebar-width: 148px;
-      --tera-components-tree-width: clamp(280px, 34vw, 420px);
+      --tera-sidebar-width: 136px;
+      --tera-components-tree-width: clamp(240px, 28vw, 320px);
       --tera-components-column-padding: 14px;
     }
 
@@ -1716,12 +1616,17 @@
     text-transform: uppercase;
   }
 
-  #terajs-devtools-root[data-theme="light"] .is-blue { color: #0a57cc; }
-  #terajs-devtools-root[data-theme="light"] .is-green { color: #007e96; }
-  #terajs-devtools-root[data-theme="light"] .is-purple { color: #5a43bc; }
-  #terajs-devtools-root[data-theme="light"] .is-red { color: #b2204f; }
-  #terajs-devtools-root[data-theme="light"] .is-cyan { color: #007da8; }
-  #terajs-devtools-root[data-theme="light"] .is-amber { color: #8a5100; }
+  #terajs-devtools-root[data-theme="light"] .panel-title.is-blue,
+  #terajs-devtools-root[data-theme="light"] .panel-title.is-cyan {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .is-blue { color: var(--tera-light-accent-strong); }
+  #terajs-devtools-root[data-theme="light"] .is-green { color: var(--tera-light-mint-ink); }
+  #terajs-devtools-root[data-theme="light"] .is-purple { color: var(--tera-light-purple-ink); }
+  #terajs-devtools-root[data-theme="light"] .is-red { color: var(--tera-light-red-ink); }
+  #terajs-devtools-root[data-theme="light"] .is-cyan { color: var(--tera-light-cyan-ink); }
+  #terajs-devtools-root[data-theme="light"] .is-amber { color: var(--tera-light-amber-ink); }
 
   .is-blue { color: var(--tera-blue); }
   .is-green { color: var(--tera-cyan); }
@@ -1737,13 +1642,13 @@
   }
 
   #terajs-devtools-root[data-theme="light"] .empty-state {
-    color: rgba(46, 46, 46, 0.56);
+    color: var(--tera-light-text-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-ai-tag {
-    border-color: rgba(0, 125, 168, 0.2);
-    background: rgba(0, 125, 168, 0.1);
-    color: #164a5c;
+    border-color: var(--tera-light-border);
+    background: rgba(47, 109, 255, 0.08);
+    color: var(--tera-light-text-soft);
   }
 
   .stack-list {

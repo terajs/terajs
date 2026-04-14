@@ -3,6 +3,7 @@ import {
   compileTemplateFromSFC,
   type ParsedSFC
 } from "@terajs/sfc";
+import { annotateRuntimeDebugNames } from "./annotateRuntimeDebugNames.js";
 
 export function compileSfcToComponent(sfc: ParsedSFC): string {
   const scriptSource =
@@ -10,7 +11,7 @@ export function compileSfcToComponent(sfc: ParsedSFC): string {
       ? sfc.script
       : sfc.script?.content ?? "";
 
-  const script = compileScript(scriptSource);
+  const script = compileScript(annotateRuntimeDebugNames(scriptSource));
   const ir = compileTemplateFromSFC(sfc);
   ir.hasAsyncResource = script.hasAsyncResource;
   const name = inferComponentName(sfc.filePath);

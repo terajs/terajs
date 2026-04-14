@@ -25,9 +25,19 @@
  * - `watch:stop` - when the watcher is disposed
  */
 
-import { watchEffect } from "./watchEffect.js";
+import { type WatchEffectOptions, watchEffect } from "./watchEffect.js";
 import { onEffectCleanup } from "./cleanup.js";
-import { Debug } from "@terajs/shared";
+import { Debug, getCurrentContext } from "@terajs/shared";
+
+/**
+ * Optional metadata for watcher diagnostics.
+ */
+export interface WatchOptions {
+  /**
+   * Human-readable label shown in diagnostics surfaces when available.
+   */
+  debugName?: string;
+}
 
 /**
  * Watches a reactive source and invokes a callback whenever its value changes.
@@ -44,22 +54,50 @@ export function watch<T>(
     newValue: T,
     oldValue: T,
     onCleanup: (fn: () => void) => void
-  ) => void
+  ) => void,
+  options: WatchOptions = {}
 ): () => void {
+  const ctx = getCurrentContext();
+  const owner = ctx
+    ? {
+        scope: ctx.name,
+        instance: ctx.instance
+      }
+    : undefined;
+  const context = ctx
+    ? {
+        name: ctx.name,
+        instance: ctx.instance
+      }
+    : undefined;
+  const debugName = typeof options.debugName === "string" && options.debugName.trim().length > 0
+    ? options.debugName.trim()
+    : undefined;
+
   Debug.emit("watch:create", {
     source,
-    callback
+    callback,
+    owner,
+    context,
+    debugName
   });
 
   let oldValue: T;
   let initialized = false;
+
+  const internalWatchEffectOptions = {
+    internalRuntimeOwner: "watch"
+  } as WatchEffectOptions;
 
   const stop = watchEffect(() => {
     const newValue = source();
 
     Debug.emit("watch:source", {
       newValue,
-      initialized
+      initialized,
+      owner,
+      context,
+      debugName
     });
 
     if (!initialized) {
@@ -75,23 +113,32 @@ export function watch<T>(
 
     Debug.emit("watch:callback", {
       newValue,
-      oldValue
+      oldValue,
+      owner,
+      context,
+      debugName
     });
 
     callback(newValue, oldValue, (fn) => {
       Debug.emit("watch:cleanup", {
-        cleanup: fn
+        cleanup: fn,
+        owner,
+        context,
+        debugName
       });
       onEffectCleanup(fn);
     });
 
     oldValue = newValue;
-  });
+  }, internalWatchEffectOptions);
 
   return () => {
     Debug.emit("watch:stop", {
       source,
-      callback
+      callback,
+      owner,
+      context,
+      debugName
     });
 
     stop();

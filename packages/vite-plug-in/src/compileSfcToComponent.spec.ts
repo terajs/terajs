@@ -40,4 +40,26 @@ describe("compileSfcToComponent", () => {
     expect(out).toContain('...pickBindings(["LocalCard"], ctx)');
     expect(out).toContain("import.meta.hot.accept");
   });
+
+  it("annotates top-level runtime bindings before compiling the SFC script", () => {
+    const sfc = {
+      filePath: "/components/Test.tera",
+      template: "<div>Hello</div>",
+      script: [
+        'const doubledRef = computed(() => countRef() * stepRef())',
+        'const stopGateWatch = watch(() => gate.value, () => {})',
+        'const stopSurfaceWatch = watchEffect(() => { void panel.value })'
+      ].join("\n"),
+      style: null,
+      meta: {},
+      ai: {},
+      routeOverride: null
+    };
+
+    compileSfcToComponent(sfc as any);
+
+    expect(compileScript).toHaveBeenCalledWith(expect.stringContaining('{ key: "doubledRef" }'));
+    expect(compileScript).toHaveBeenCalledWith(expect.stringContaining('{ debugName: "gate" }'));
+    expect(compileScript).toHaveBeenCalledWith(expect.stringContaining('{ debugName: "stopSurfaceWatch" }'));
+  });
 });

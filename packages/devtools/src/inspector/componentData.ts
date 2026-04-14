@@ -48,6 +48,7 @@ export function buildComponentTree(components: MountedComponentEntry[]): {
 } {
   const nodeMap = new Map<string, ComponentTreeNode>();
   const parentByKey = resolveComponentParentMapFromDom(components);
+  const domOrderByKey = resolveComponentDomOrderMap(components);
 
   for (const component of components) {
     nodeMap.set(component.key, {
@@ -75,7 +76,7 @@ export function buildComponentTree(components: MountedComponentEntry[]): {
     roots.push(node);
   }
 
-  sortComponentTree(roots);
+  sortComponentTree(roots, domOrderByKey);
 
   return {
     roots,
@@ -340,40 +341,88 @@ function resolveComponentParentMapFromDom(components: MountedComponentEntry[]): 
 
   for (const component of components) {
     const selector = `[data-terajs-component-scope="${escapeAttributeSelector(component.scope)}"][data-terajs-component-instance="${component.instance}"]`;
-    const element = document.querySelector(selector);
-    if (!(element instanceof HTMLElement)) {
+    const elements = document.querySelectorAll<HTMLElement>(selector);
+    if (elements.length === 0) {
       continue;
     }
 
-    const parentElement = element.parentElement?.closest<HTMLElement>("[data-terajs-component-scope][data-terajs-component-instance]");
-    if (!parentElement) {
-      continue;
-    }
+    for (const element of Array.from(elements)) {
+      const parentElement = element.parentElement?.closest<HTMLElement>("[data-terajs-component-scope][data-terajs-component-instance]");
+      if (!parentElement) {
+        continue;
+      }
 
-    const parentScope = parentElement.getAttribute("data-terajs-component-scope");
-    const parentInstanceRaw = parentElement.getAttribute("data-terajs-component-instance");
-    const parentInstance = parentInstanceRaw !== null ? Number(parentInstanceRaw) : Number.NaN;
+      const parentScope = parentElement.getAttribute("data-terajs-component-scope");
+      const parentInstanceRaw = parentElement.getAttribute("data-terajs-component-instance");
+      const parentInstance = parentInstanceRaw !== null ? Number(parentInstanceRaw) : Number.NaN;
 
-    if (!parentScope || !Number.isFinite(parentInstance)) {
-      continue;
-    }
+      if (!parentScope || !Number.isFinite(parentInstance)) {
+        continue;
+      }
 
-    const parentKey = buildComponentKey(parentScope, parentInstance);
-    if (parentKey !== component.key) {
-      parentByKey.set(component.key, parentKey);
+      const parentKey = buildComponentKey(parentScope, parentInstance);
+      if (parentKey !== component.key) {
+        parentByKey.set(component.key, parentKey);
+        break;
+      }
     }
   }
 
   return parentByKey;
 }
 
-function sortComponentTree(nodes: ComponentTreeNode[]): void {
-  nodes.sort((left, right) =>
-    left.component.scope.localeCompare(right.component.scope) || left.component.instance - right.component.instance
-  );
+function resolveComponentDomOrderMap(components: MountedComponentEntry[]): Map<string, number> {
+  const orderByKey = new Map<string, number>();
+
+  if (typeof document === "undefined") {
+    return orderByKey;
+  }
+
+  const componentKeys = new Set(components.map((component) => component.key));
+  const elements = document.querySelectorAll<HTMLElement>("[data-terajs-component-scope][data-terajs-component-instance]");
+
+  let order = 0;
+  for (const element of Array.from(elements)) {
+    const scope = element.getAttribute("data-terajs-component-scope");
+    const instanceRaw = element.getAttribute("data-terajs-component-instance");
+    const instance = instanceRaw !== null ? Number(instanceRaw) : Number.NaN;
+    if (!scope || !Number.isFinite(instance)) {
+      continue;
+    }
+
+    const key = buildComponentKey(scope, instance);
+    if (componentKeys.has(key) && !orderByKey.has(key)) {
+      orderByKey.set(key, order);
+    }
+
+    order += 1;
+  }
+
+  return orderByKey;
+}
+
+function sortComponentTree(nodes: ComponentTreeNode[], domOrderByKey: Map<string, number>): void {
+  nodes.sort((left, right) => {
+    const leftOrder = domOrderByKey.get(left.component.key);
+    const rightOrder = domOrderByKey.get(right.component.key);
+
+    if (leftOrder !== undefined && rightOrder !== undefined && leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    if (leftOrder !== undefined && rightOrder === undefined) {
+      return -1;
+    }
+
+    if (leftOrder === undefined && rightOrder !== undefined) {
+      return 1;
+    }
+
+    return left.component.scope.localeCompare(right.component.scope) || left.component.instance - right.component.instance;
+  });
 
   for (const node of nodes) {
-    sortComponentTree(node.children);
+    sortComponentTree(node.children, domOrderByKey);
   }
 }
 

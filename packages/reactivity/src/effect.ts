@@ -38,23 +38,27 @@ import {
  * @returns A `ReactiveEffect` function that can be manually disposed.
  */
 export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
+    const ctx = getCurrentContext();
+    const owner = ctx
+        ? {
+            scope: ctx.name,
+            instance: ctx.instance
+        }
+        : undefined;
+    const context = ctx
+        ? {
+            name: ctx.name,
+            instance: ctx.instance
+        }
+        : undefined;
+
     /**
      * Internal reactive wrapper.
      * Handles cleanup, dependency tracking, nested effect disposal,
      * and execution of the user function.
      */
     const effectFn: ReactiveEffect = () => {
-        Debug.emit("effect:run", { effect: effectFn });
-
-        // Attach metadata for graph tracking (only once)
-        if (!(effectFn as any)._meta) {
-            const meta = createReactiveMetadata({
-                type: "effect",
-                scope: "Effect",
-                instance: 0
-            });
-            (effectFn as any)._meta = meta;
-        }
+        Debug.emit("effect:run", { effect: effectFn, owner, context });
 
         if (!effectFn.active || isServer()) return;
 
@@ -91,6 +95,13 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     effectFn.children = [];
     effectFn.scheduler = scheduler;
     effectFn.active = true;
+    (effectFn as any)._meta = createReactiveMetadata({
+        type: "effect",
+        scope: owner?.scope ?? "Effect",
+        instance: owner?.instance ?? 0
+    });
+    (effectFn as any)._owner = owner;
+    (effectFn as any)._context = context;
 
     /**
      * Component-context integration
@@ -98,7 +109,6 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
      * If a component is currently rendering, register a disposer
      * so this effect is automatically cleaned up on unmount.
      */
-    const ctx = getCurrentContext();
     if (ctx) {
         ctx.disposers.push(() => disposeEffect(effectFn));
     }
@@ -117,7 +127,11 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
  * @param effectFn - The effect to clean up.
  */
 function cleanup(effectFn: ReactiveEffect): void {
-    Debug.emit("effect:cleanup", { effect: effectFn });
+    Debug.emit("effect:cleanup", {
+        effect: effectFn,
+        owner: (effectFn as any)._owner,
+        context: (effectFn as any)._context
+    });
 
     // NEW: remove graph edges for this effect
     const meta = (effectFn as any)._meta;
@@ -142,7 +156,11 @@ function cleanup(effectFn: ReactiveEffect): void {
  * @param effectFn - The effect to dispose.
  */
 function disposeEffect(effectFn: ReactiveEffect): void {
-    Debug.emit("effect:dispose", { effect: effectFn });
+    Debug.emit("effect:dispose", {
+        effect: effectFn,
+        owner: (effectFn as any)._owner,
+        context: (effectFn as any)._context
+    });
 
     cleanup(effectFn);
 
@@ -169,7 +187,11 @@ function disposeEffect(effectFn: ReactiveEffect): void {
 export function scheduleEffect(effectFn: ReactiveEffect): void {
     if (effectFn === currentEffect || !effectFn.active) return;
 
-    Debug.emit("effect:schedule", { effect: effectFn });
+    Debug.emit("effect:schedule", {
+        effect: effectFn,
+        owner: (effectFn as any)._owner,
+        context: (effectFn as any)._context
+    });
 
     if (effectFn.scheduler) {
         effectFn.scheduler();

@@ -29,7 +29,21 @@
 import { type ReactiveEffect } from "../deps.js";
 import { effect } from "../effect.js";
 import { onEffectCleanup } from "./cleanup.js";
-import { Debug } from "@terajs/shared";
+import { Debug, getCurrentContext } from "@terajs/shared";
+
+/**
+ * Optional metadata for watchEffect diagnostics.
+ */
+export interface WatchEffectOptions {
+    /**
+     * Human-readable label shown in diagnostics surfaces when available.
+     */
+    debugName?: string;
+}
+
+type InternalWatchEffectOptions = WatchEffectOptions & {
+    internalRuntimeOwner?: "watch";
+};
 
 /**
  * Creates a reactive side-effect that automatically re-runs whenever any of its
@@ -38,20 +52,44 @@ import { Debug } from "@terajs/shared";
  * @param fn - The reactive function to execute.
  * @returns A `stop()` function that disposes the watcher.
  */
-export function watchEffect(fn: () => void): () => void {
-    Debug.emit("watchEffect:create", { fn });
+export function watchEffect(fn: () => void): () => void;
+export function watchEffect(fn: () => void, options: WatchEffectOptions): () => void;
+export function watchEffect(fn: () => void, options: InternalWatchEffectOptions = {}): () => void {
+    const ctx = getCurrentContext();
+    const owner = ctx
+        ? {
+            scope: ctx.name,
+            instance: ctx.instance
+        }
+        : undefined;
+    const context = ctx
+        ? {
+            name: ctx.name,
+            instance: ctx.instance
+        }
+        : undefined;
+    const debugName = typeof options.debugName === "string" && options.debugName.trim().length > 0
+        ? options.debugName.trim()
+        : undefined;
+    const internalRuntimeOwner = options.internalRuntimeOwner;
+
+    Debug.emit("watchEffect:create", { fn, owner, context, debugName, internalRuntimeOwner });
 
     // Must be declared before effect() executes
     let runner!: ReactiveEffect;
 
     runner = effect(() => {
-        Debug.emit("watchEffect:run", { effect: runner });
+        Debug.emit("watchEffect:run", { effect: runner, owner, context, debugName, internalRuntimeOwner });
 
         // Default cleanup hook - user may override via onEffectCleanup()
         onEffectCleanup(() => {
             Debug.emit("watchEffect:cleanup", {
                 effect: runner,
-                type: "before-next-run"
+                type: "before-next-run",
+                owner,
+                context,
+                debugName,
+                internalRuntimeOwner
             });
         });
 
@@ -62,7 +100,11 @@ export function watchEffect(fn: () => void): () => void {
         Debug.emit("watchEffect:stop", {
             effect: runner,
             cleanupCount: runner.cleanups.length,
-            depCount: runner.deps.length
+            depCount: runner.deps.length,
+            owner,
+            context,
+            debugName,
+            internalRuntimeOwner
         });
 
         // Run all cleanups
