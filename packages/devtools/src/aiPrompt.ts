@@ -1,4 +1,6 @@
 import type { AIStateSnapshot } from "@terajs/adapter-ai";
+import type { SafeDocumentContext } from "./documentContext.js";
+import type { SafeDocumentDiagnostic } from "./documentContext.js";
 import type { SanityAlert, SanityMetrics } from "./sanity.js";
 
 export interface AIPromptEvent {
@@ -12,6 +14,8 @@ export interface AIPromptInput {
   snapshot: AIStateSnapshot;
   sanity: SanityMetrics;
   events: AIPromptEvent[];
+  document?: SafeDocumentContext | null;
+  documentDiagnostics?: SafeDocumentDiagnostic[];
 }
 
 /**
@@ -26,6 +30,8 @@ export function buildAIPrompt(input: AIPromptInput): string {
   const warnings = input.sanity.alerts.filter((alert) => alert.severity === "warning");
 
   const payload = {
+    document: input.document ?? undefined,
+    documentDiagnostics: input.documentDiagnostics ?? undefined,
     snapshot: input.snapshot,
     sanity: {
       activeEffects: input.sanity.activeEffects,
@@ -44,6 +50,7 @@ export function buildAIPrompt(input: AIPromptInput): string {
     "Terajs AI Debug Prompt:",
     "",
     "Analyze this snapshot and sanity telemetry.",
+    "Use the safe document head summary to understand page intent, route context, and SEO metadata without assuming access to secrets or arbitrary DOM content.",
     "Prioritize root causes for runaway effects, listener leaks, and unstable update loops.",
     "Suggest concrete fixes and short verification steps.",
     "",

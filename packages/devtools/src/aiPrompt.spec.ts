@@ -77,6 +77,51 @@ describe("devtools ai prompt builder", () => {
     expect(prompt).toContain("Route fallback");
   });
 
+  it("includes safe document head context when available", () => {
+    const prompt = buildAIPrompt({
+      snapshot: {
+        "@context": "https://schema.org",
+        "@type": "TerajsStateSnapshot",
+        generatedAt: "2026-04-10T00:00:00.000Z",
+        signals: []
+      },
+      document: {
+        title: "Docs",
+        lang: "en",
+        dir: "ltr",
+        path: "/docs",
+        hash: "#intro",
+        queryKeys: ["preview"],
+        metaTags: [
+          { key: "description", source: "name", value: "Terajs documentation" },
+          { key: "og:title", source: "property", value: "Docs" }
+        ],
+        linkTags: [
+          { rel: "canonical", href: "/docs", sameOrigin: true, queryKeys: [] }
+        ]
+      },
+      documentDiagnostics: [
+        { id: "missing-robots", severity: "info", message: "Robots meta tag is not present." }
+      ],
+      sanity: {
+        activeEffects: 0,
+        effectCreates: 0,
+        effectDisposes: 0,
+        effectRunsPerSecond: 0,
+        effectImbalance: 0,
+        debugListenerCount: 0,
+        alerts: []
+      },
+      events: []
+    });
+
+    expect(prompt).toContain("safe document head summary");
+    expect(prompt).toContain('"document"');
+    expect(prompt).toContain('"documentDiagnostics"');
+    expect(prompt).toContain("Terajs documentation");
+    expect(prompt).toContain('"path": "/docs"');
+  });
+
   it("prioritizes queue failures, conflicts, and missing handlers", () => {
     const prompt = buildAIPrompt({
       snapshot: {

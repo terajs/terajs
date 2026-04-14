@@ -1,7 +1,11 @@
 import { captureStateSnapshot } from "@terajs/adapter-ai";
 import { getDebugListenerCount } from "@terajs/shared";
 import { buildAIPrompt } from "./aiPrompt.js";
-import { getGlobalAIAssistantHook, resolveAIAssistantResponse } from "./aiHelpers.js";
+import {
+  getGlobalAIAssistantHook,
+  isAIAssistantRequestFailure,
+  resolveAIAssistantResponseDetailed
+} from "./aiHelpers.js";
 import {
   isInspectorSectionKey,
   type InspectorSectionKey
@@ -12,6 +16,8 @@ import {
 } from "./inspector/liveEditing.js";
 import { buildComponentKey } from "./inspector/shared.js";
 import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "./sanity.js";
+import { analyzeSafeDocumentContext, type SafeDocumentContext } from "./documentContext.js";
+import { DEFAULT_AI_DIAGNOSTICS_SECTION, type AIDiagnosticsSectionKey } from "./panels/diagnosticsPanels.js";
 import type { DevtoolsEvent } from "./app.js";
 
 type TabName =
@@ -63,6 +69,7 @@ interface ClickHandlerState {
   aiStatus: "idle" | "loading" | "ready" | "error";
   aiResponse: string | null;
   aiError: string | null;
+  activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
   overlayPosition: DevtoolsOverlayPosition;
   overlayPanelSize: DevtoolsOverlaySize;
   persistOverlayPreferences: boolean;
@@ -79,8 +86,10 @@ interface ClickHandlerDependencies {
   state: ClickHandlerState;
   aiOptions: NormalizedAIAssistantOptionsLike;
   aiRequestTokenRef: { current: number };
+  readDocumentContext: () => SafeDocumentContext | null;
   defaultExpandedInspectorSections: InspectorSectionKey[];
   clearPersistedEvents: () => void;
+  emitDevtoolsEvent: (event: DevtoolsEvent) => void;
   render: () => void;
   notifyInspectMode: (enabled: boolean) => void;
   notifyComponentSelection: (scope: string | null, instance: number | null, source: "panel" | "picker" | "clear") => void;
@@ -91,8 +100,10 @@ export function createClickHandler({
   state,
   aiOptions,
   aiRequestTokenRef,
+  readDocumentContext,
   defaultExpandedInspectorSections,
   clearPersistedEvents,
+  emitDevtoolsEvent,
   render,
   notifyInspectMode,
   notifyComponentSelection,
@@ -125,6 +136,13 @@ export function createClickHandler({
     const metaKey = target.closest<HTMLElement>("[data-meta-key]")?.dataset.metaKey;
     if (metaKey) {
       state.selectedMetaKey = metaKey;
+      render();
+      return;
+    }
+
+    const aiSection = target.closest<HTMLElement>("[data-ai-section]")?.dataset.aiSection;
+    if (isAIDiagnosticsSectionKey(aiSection) && aiSection !== state.activeAIDiagnosticsSection) {
+      state.activeAIDiagnosticsSection = aiSection;
       render();
       return;
     }
@@ -239,12 +257,17 @@ export function createClickHandler({
 
     if (target.closest("[data-action='ask-ai']")) {
       const snapshot = captureStateSnapshot();
+      const documentContext = readDocumentContext();
+      const documentDiagnostics = analyzeSafeDocumentContext(documentContext);
+      const recentEvents = state.events.slice(-120);
       const sanity = computeSanityMetrics(state.events, {
         ...DEFAULT_SANITY_THRESHOLDS,
         debugListenerCount: getDebugListenerCount()
       });
 
       state.aiPrompt = buildAIPrompt({
+        document: documentContext,
+        documentDiagnostics,
         snapshot,
         sanity,
         events: state.events
@@ -260,7 +283,29 @@ export function createClickHandler({
         return;
       }
 
+      const promptChars = prompt.length;
+      const signalCount = snapshot.signals.length;
+      const baseTelemetryPayload = {
+        model: aiOptions.model,
+        endpoint: aiOptions.endpoint,
+        promptChars,
+        signalCount,
+        recentEventCount: recentEvents.length,
+        documentMetaCount: documentContext?.metaTags.length ?? 0,
+        documentLinkCount: documentContext?.linkTags.length ?? 0,
+        documentDiagnosticCount: documentDiagnostics.length
+      };
+
       if (!aiOptions.enabled) {
+        emitDevtoolsEvent({
+          type: "ai:assistant:skipped",
+          timestamp: Date.now(),
+          level: "warn",
+          payload: {
+            ...baseTelemetryPayload,
+            reason: "disabled"
+          }
+        });
         state.aiStatus = "idle";
         render();
         return;
@@ -268,28 +313,67 @@ export function createClickHandler({
 
       const hasGlobalHook = getGlobalAIAssistantHook() !== null;
       if (!hasGlobalHook && !aiOptions.endpoint) {
+        emitDevtoolsEvent({
+          type: "ai:assistant:skipped",
+          timestamp: Date.now(),
+          level: "warn",
+          payload: {
+            ...baseTelemetryPayload,
+            reason: "unconfigured"
+          }
+        });
         state.aiStatus = "idle";
         render();
         return;
       }
 
       const token = ++aiRequestTokenRef.current;
+      emitDevtoolsEvent({
+        type: "ai:assistant:request",
+        timestamp: Date.now(),
+        level: "info",
+        payload: {
+          requestId: token,
+          provider: hasGlobalHook ? "global-hook" : "http-endpoint",
+          delivery: "one-shot",
+          fallbackPath: hasGlobalHook && aiOptions.endpoint ? "global-hook-over-endpoint" : "none",
+          ...baseTelemetryPayload
+        }
+      });
       state.aiStatus = "loading";
       render();
 
-      void resolveAIAssistantResponse({
+      void resolveAIAssistantResponseDetailed({
         prompt,
         snapshot,
         sanity,
-        events: state.events.slice(-120)
+        events: recentEvents,
+        document: documentContext,
+        documentDiagnostics
       }, aiOptions).then((response) => {
         if (token !== aiRequestTokenRef.current) {
           return;
         }
 
         state.aiStatus = "ready";
-        state.aiResponse = response;
+        state.aiResponse = response.text;
         state.aiError = null;
+        emitDevtoolsEvent({
+          type: "ai:assistant:success",
+          timestamp: Date.now(),
+          level: "info",
+          payload: {
+            requestId: token,
+            provider: response.telemetry.provider,
+            delivery: response.telemetry.delivery,
+            fallbackPath: response.telemetry.fallbackPath,
+            model: response.telemetry.model,
+            endpoint: response.telemetry.endpoint,
+            durationMs: response.telemetry.durationMs,
+            statusCode: response.telemetry.httpStatus,
+            responseChars: response.text.length
+          }
+        });
         render();
       }).catch((error) => {
         if (token !== aiRequestTokenRef.current) {
@@ -299,6 +383,26 @@ export function createClickHandler({
         state.aiStatus = "error";
         state.aiError = error instanceof Error ? error.message : "AI request failed.";
         state.aiResponse = null;
+        const failure = isAIAssistantRequestFailure(error)
+          ? error
+          : null;
+        emitDevtoolsEvent({
+          type: "ai:assistant:error",
+          timestamp: Date.now(),
+          level: "error",
+          payload: {
+            requestId: token,
+            provider: failure?.telemetry.provider ?? (hasGlobalHook ? "global-hook" : "http-endpoint"),
+            delivery: failure?.telemetry.delivery ?? "one-shot",
+            fallbackPath: failure?.telemetry.fallbackPath ?? (hasGlobalHook && aiOptions.endpoint ? "global-hook-over-endpoint" : "none"),
+            model: failure?.telemetry.model ?? aiOptions.model,
+            endpoint: failure?.telemetry.endpoint ?? aiOptions.endpoint,
+            durationMs: failure?.telemetry.durationMs ?? 0,
+            statusCode: failure?.telemetry.httpStatus ?? null,
+            errorKind: failure?.kind ?? "request-failed",
+            message: error instanceof Error ? error.message : "AI request failed."
+          }
+        });
         render();
       });
       return;
@@ -338,6 +442,7 @@ export function createClickHandler({
       state.aiStatus = "idle";
       state.aiResponse = null;
       state.aiError = null;
+      state.activeAIDiagnosticsSection = DEFAULT_AI_DIAGNOSTICS_SECTION;
       aiRequestTokenRef.current += 1;
       notifyInspectMode(state.activeTab === "Components");
       notifyComponentSelection(null, null, "clear");
@@ -358,4 +463,13 @@ function isOverlayPosition(value: unknown): value is DevtoolsOverlayPosition {
 
 function isOverlaySize(value: unknown): value is DevtoolsOverlaySize {
   return value === "normal" || value === "large";
+}
+
+function isAIDiagnosticsSectionKey(value: unknown): value is AIDiagnosticsSectionKey {
+  return value === "session-mode"
+    || value === "analysis-output"
+    || value === "prompt-inputs"
+    || value === "provider-telemetry"
+    || value === "metadata-checks"
+    || value === "document-context";
 }

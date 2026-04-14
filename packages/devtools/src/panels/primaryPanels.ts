@@ -7,6 +7,7 @@ import {
   summarizeLog,
   type DevtoolsEventLike
 } from "../inspector/dataCollectors.js";
+import type { SafeDocumentContext } from "../documentContext.js";
 import { escapeHtml } from "../inspector/shared.js";
 import { renderValueExplorer } from "../inspector/valueExplorer.js";
 import { renderPageSection, renderPageShell } from "./layout.js";
@@ -96,16 +97,22 @@ export function renderSignalsPanel(state: SignalsStateLike): string {
   });
 }
 
-export function renderMetaPanel(state: MetaStateLike): string {
+export function renderMetaPanel(state: MetaStateLike, documentContext: SafeDocumentContext | null = null): string {
   const entries = collectMetaEntries(state.events);
   const selected = entries.find((entry) => entry.key === state.selectedMetaKey) ?? entries[0] ?? null;
+  const documentSnapshotMarkup = documentContext
+    ? renderValueExplorer(documentContext, "meta-panel.document", state.expandedValuePaths)
+    : `<div class="empty-state">No safe document head context captured yet.</div>`;
 
   if (entries.length === 0) {
     return renderPageShell({
       title: "Meta / AI / Route Inspector",
       accentClass: "is-green",
       subtitle: "Metadata currently available on the debug stream",
-      body: renderPageSection("Observed metadata", `<div class="empty-state">No component metadata has been observed yet.</div>`, "is-full")
+      body: [
+        renderPageSection("Observed metadata", `<div class="empty-state">No component metadata has been observed yet.</div>`, "is-full"),
+        renderPageSection("Document head snapshot", documentSnapshotMarkup, "is-full")
+      ].join("")
     });
   }
 
@@ -129,6 +136,7 @@ export function renderMetaPanel(state: MetaStateLike): string {
     pills: [selected ? `${selected.scope}#${selected.instance} selected` : "No selection"],
     body: [
       renderPageSection("Observed metadata", selectionMarkup),
+      renderPageSection("Document head snapshot", documentSnapshotMarkup, "is-full"),
       renderPageSection("Meta snapshot", renderValueExplorer(selected?.meta ?? {}, "meta-panel.meta", state.expandedValuePaths)),
       renderPageSection("AI snapshot", renderValueExplorer(selected?.ai ?? {}, "meta-panel.ai", state.expandedValuePaths)),
       renderPageSection("Route snapshot", renderValueExplorer(selected?.route ?? {}, "meta-panel.route", state.expandedValuePaths))

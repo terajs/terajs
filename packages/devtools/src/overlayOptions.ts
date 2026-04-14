@@ -1,4 +1,4 @@
-import type { DevtoolsAIAssistantOptions } from "./app.js";
+import type { DevtoolsAIAssistantOptions, DevtoolsBridgeOptions } from "./app.js";
 
 export type DevtoolsOverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
 export type DevtoolsOverlaySize = "normal" | "large";
@@ -14,6 +14,7 @@ export interface DevtoolsOverlayOptions {
   panelShortcut?: string;
   visibilityShortcut?: string;
   ai?: DevtoolsAIAssistantOptions;
+  bridge?: DevtoolsBridgeOptions;
 }
 
 export interface NormalizedOverlayOptions {
@@ -28,6 +29,9 @@ export interface NormalizedOverlayOptions {
     endpoint: string;
     model: string;
     timeoutMs: number;
+  };
+  bridge: {
+    enabled: boolean;
   };
 }
 
@@ -57,13 +61,17 @@ const DEFAULT_OPTIONS: NormalizedOverlayOptions = {
     endpoint: "",
     model: "terajs-assistant",
     timeoutMs: 12000
+  },
+  bridge: {
+    enabled: process.env.NODE_ENV !== "production"
   }
 };
 
 export function getDefaultOverlayOptions(): NormalizedOverlayOptions {
   return {
     ...DEFAULT_OPTIONS,
-    ai: { ...DEFAULT_OPTIONS.ai }
+    ai: { ...DEFAULT_OPTIONS.ai },
+    bridge: { ...DEFAULT_OPTIONS.bridge }
   };
 }
 
@@ -204,7 +212,12 @@ export function normalizeOverlayOptions(options?: DevtoolsOverlayOptions): Norma
     persistPreferences,
     panelShortcut,
     visibilityShortcut,
-    ai: normalizeAIAssistantOptions(options?.ai)
+    ai: normalizeAIAssistantOptions(options?.ai),
+    bridge: {
+      enabled: typeof options?.bridge?.enabled === "boolean"
+        ? options.bridge.enabled
+        : DEFAULT_OPTIONS.bridge.enabled
+    }
   };
 }
 

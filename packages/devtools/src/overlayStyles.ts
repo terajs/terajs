@@ -711,6 +711,114 @@ export const overlayStyles = `
     box-shadow: var(--tera-light-shadow);
   }
 
+  .ai-workbench-shell {
+    padding: 0;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.12), transparent 26%),
+      radial-gradient(circle at center, rgba(90, 79, 212, 0.08), transparent 36%),
+      linear-gradient(180deg, rgba(10, 18, 33, 0.98), rgba(5, 9, 18, 0.98));
+  }
+
+  .ai-workbench-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .ai-workbench-pane {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, rgba(10, 17, 31, 0.9), rgba(5, 9, 18, 0.96));
+    border-bottom: 1px solid var(--tera-border);
+  }
+
+  .ai-workbench-pane:last-child {
+    border-bottom: 0;
+  }
+
+  .ai-workbench-rail {
+    background: linear-gradient(180deg, rgba(16, 28, 58, 0.94), rgba(8, 14, 30, 0.98));
+  }
+
+  .ai-workbench-main {
+    background: linear-gradient(180deg, rgba(11, 23, 45, 0.94), rgba(6, 12, 25, 0.98));
+  }
+
+  .ai-workbench-body {
+    display: grid;
+    gap: 14px;
+    align-content: flex-start;
+  }
+
+  .ai-workbench-block {
+    display: grid;
+    gap: 8px;
+  }
+
+  .ai-workbench-message-card {
+    margin: 0;
+  }
+
+  .ai-workbench-details {
+    border: 1px solid rgba(50, 215, 255, 0.2);
+    border-radius: 14px;
+    background: rgba(7, 18, 35, 0.56);
+    overflow: hidden;
+  }
+
+  .ai-workbench-details summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 14px;
+    color: var(--tera-cloud);
+    font-family: var(--tera-heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .ai-workbench-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .ai-workbench-details-body {
+    padding: 0 14px 14px;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-shell {
+    background:
+      radial-gradient(circle at top left, rgba(47, 109, 255, 0.14), transparent 26%),
+      radial-gradient(circle at top right, rgba(90, 79, 212, 0.1), transparent 24%),
+      radial-gradient(circle at center right, rgba(50, 215, 255, 0.08), transparent 24%),
+      linear-gradient(180deg, rgba(247, 252, 255, 0.99), rgba(226, 238, 255, 0.97));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-pane {
+    background: var(--tera-light-panel-bg);
+    color: var(--tera-light-text-strong);
+    border-bottom-color: var(--tera-light-border);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-rail {
+    background: var(--tera-light-panel-alt);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-main {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.94));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-details {
+    background: var(--tera-light-panel-raised-soft);
+    border-color: var(--tera-light-border);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-details summary {
+    color: var(--tera-light-text-strong);
+  }
+
   #terajs-devtools-root[data-theme="light"] .panel-hero {
     background:
       linear-gradient(135deg, rgba(47, 109, 255, 0.14), rgba(90, 79, 212, 0.1) 42%, rgba(50, 215, 255, 0.08) 68%),
@@ -730,55 +838,254 @@ export const overlayStyles = `
   }
 
   .ask-ai-button {
-    background: linear-gradient(135deg, var(--tera-cyan), var(--tera-blue));
-    color: #ffffff;
-    border: 1px solid rgba(50, 215, 255, 0.38);
-    box-shadow: 0 14px 32px rgba(50, 215, 255, 0.2);
+    background: rgba(34, 66, 124, 0.58);
+    color: #f4f8ff;
+    border: 1px solid rgba(97, 156, 255, 0.26);
+    box-shadow: none;
+  }
+
+  .ask-ai-button:hover {
+    background: rgba(42, 79, 145, 0.62);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ask-ai-button {
+    background: rgba(73, 126, 255, 0.12);
+    color: var(--tera-light-text-strong);
+    border-color: rgba(73, 126, 255, 0.2);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ask-ai-button:hover {
+    background: rgba(73, 126, 255, 0.18);
+    color: var(--tera-light-text-strong);
   }
 
   .ai-prompt {
     display: block;
     width: 100%;
     min-height: 180px;
-    border: 1px solid rgba(111, 109, 255, 0.28);
-    border-radius: 14px;
+    border: 1px solid var(--tera-border);
+    border-radius: 8px;
     padding: 14px;
-    background: rgba(8, 14, 30, 0.95);
-    color: #dfe9ff;
+    background: rgba(4, 9, 19, 0.92);
+    color: var(--tera-cloud);
     font-family: var(--tera-code-font);
     font-size: 13px;
     white-space: pre-wrap;
     overflow: auto;
-    margin-top: 12px;
+    margin-top: 0;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-prompt {
+    background: var(--tera-light-panel-raised-soft);
+    color: var(--tera-light-text-strong);
+    border-color: var(--tera-light-border-strong);
   }
 
   .ai-response {
     display: block;
     width: 100%;
     min-height: 120px;
-    border: 1px solid rgba(50, 215, 255, 0.34);
-    border-radius: 14px;
+    border: 1px solid var(--tera-border);
+    border-radius: 8px;
     padding: 14px;
-    background: rgba(6, 16, 34, 0.96);
-    color: #d7f2ff;
+    background: rgba(4, 9, 19, 0.92);
+    color: var(--tera-cloud);
     font-family: var(--tera-code-font);
     font-size: 13px;
     line-height: 1.45;
     white-space: pre-wrap;
     overflow: auto;
-    margin-top: 10px;
+    margin-top: 0;
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-response {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 245, 255, 0.96));
-    color: #18253d;
-    border-color: var(--tera-light-border);
+    background: var(--tera-light-panel-raised-soft);
+    color: var(--tera-light-text-strong);
+    border-color: var(--tera-light-border-strong);
   }
 
   .ai-hint {
     display: block;
     margin-top: 6px;
     color: rgba(147, 167, 203, 0.96);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-hint {
+    color: var(--tera-light-text-muted);
+  }
+
+  .ai-diagnostics-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(180px, auto) minmax(0, 1fr);
+    min-height: 360px;
+    height: calc(100% + 24px);
+    margin: -12px;
+    overflow: hidden;
+  }
+
+  .ai-diagnostics-layout .ai-diagnostics-nav-pane,
+  .ai-diagnostics-layout .ai-diagnostics-detail-pane {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .ai-diagnostics-layout .ai-diagnostics-nav-pane,
+  .ai-diagnostics-layout .ai-diagnostics-detail-pane {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ai-diagnostics-layout .ai-diagnostics-nav-pane .components-screen-body {
+    flex: 1;
+    overflow: visible;
+    padding: var(--tera-components-column-padding) 12px;
+  }
+
+  .ai-diagnostics-layout .ai-diagnostics-detail-pane .components-screen-header {
+    flex: 0 0 auto;
+  }
+
+  .ai-diagnostics-layout .ai-diagnostics-detail-pane .components-screen-body {
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: var(--tera-components-column-padding) 12px;
+  }
+
+  .ai-diagnostics-layout .components-tree-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--tera-border);
+    background: linear-gradient(180deg, rgba(16, 28, 58, 0.94), rgba(8, 14, 30, 0.98));
+  }
+
+  .ai-diagnostics-layout .components-inspector-pane {
+    background: linear-gradient(180deg, rgba(10, 17, 31, 0.86), rgba(5, 9, 18, 0.92));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-layout .components-tree-pane {
+    border-bottom-color: var(--tera-light-border);
+    background: var(--tera-light-panel-alt);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-layout .components-inspector-pane {
+    background: var(--tera-light-panel-bg);
+  }
+
+  .ai-diagnostics-nav-list {
+    display: grid;
+    gap: 1px;
+  }
+
+  .ai-diagnostics-nav-button {
+    appearance: none;
+    width: 100%;
+    justify-self: stretch;
+    position: relative;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--component-tree-label-dark);
+    display: grid;
+    gap: 2px;
+    min-height: 26px;
+    padding: 3px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+  }
+
+  .ai-diagnostics-nav-button::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 999px;
+    background: rgba(97, 156, 255, 0.24);
+    opacity: 1;
+    transition: background 140ms ease;
+  }
+
+  .ai-diagnostics-nav-button:hover {
+    background: var(--component-tree-hover-dark);
+    color: #f3fff8;
+  }
+
+  .ai-diagnostics-nav-button.is-active {
+    background: var(--component-tree-active-dark);
+    box-shadow: inset 2px 0 0 var(--component-tree-accent-dark);
+    color: #f4f8ff;
+  }
+
+  .ai-diagnostics-nav-button:hover::before,
+  .ai-diagnostics-nav-button.is-active::before {
+    background: var(--component-tree-accent-dark);
+  }
+
+  .ai-diagnostics-nav-title {
+    font-family: var(--tera-code-font);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+
+  .ai-diagnostics-nav-summary {
+    color: var(--component-tree-meta-dark);
+    font-family: var(--tera-code-font);
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .ai-diagnostics-nav-button.is-active .ai-diagnostics-nav-summary {
+    color: rgba(223, 239, 255, 0.82);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button {
+    color: var(--component-tree-label-light);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button:hover {
+    background: var(--component-tree-hover-light);
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button.is-active {
+    background: var(--component-tree-active-light);
+    box-shadow: inset 2px 0 0 var(--component-tree-accent-light);
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button::before {
+    background: rgba(73, 126, 255, 0.24);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button:hover::before,
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button.is-active::before {
+    background: var(--component-tree-accent-light);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-summary {
+    color: var(--component-tree-meta-light);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-button.is-active .ai-diagnostics-nav-summary {
+    color: var(--tera-light-text-muted);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-diagnostics-nav-title {
+    text-shadow: 0 0 10px rgba(50, 215, 255, 0.12);
+  }
+
+  .ai-diagnostics-detail-stack,
+  .ai-diagnostics-section-block {
+    display: grid;
+    gap: 10px;
   }
 
   .component-select-button {
@@ -1604,6 +1911,20 @@ ${componentTreeStyles}
 
     .metrics-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ai-diagnostics-layout {
+      grid-template-columns: minmax(250px, 33%) minmax(0, 67%);
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .ai-diagnostics-layout .components-tree-pane {
+      border-right: 1px solid rgba(50, 215, 255, 0.26);
+      border-bottom: 0;
+    }
+
+    #terajs-devtools-root[data-theme="light"] .ai-diagnostics-layout .components-tree-pane {
+      border-right-color: var(--tera-light-border);
     }
   }
 

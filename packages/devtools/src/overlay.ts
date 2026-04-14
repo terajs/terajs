@@ -23,6 +23,25 @@ import {
 } from "./overlayOptions.js";
 
 export type { DevtoolsOverlayOptions } from "./overlayOptions.js";
+export {
+  DEVTOOLS_BRIDGE_DISPOSE_EVENT,
+  DEVTOOLS_BRIDGE_READY_EVENT,
+  DEVTOOLS_BRIDGE_UPDATE_EVENT,
+  getDevtoolsBridge,
+  readDevtoolsBridgeSession,
+  subscribeToDevtoolsBridge,
+  waitForDevtoolsBridge,
+  type DevtoolsBridgeEventDetail,
+  type DevtoolsBridgeEventPhase,
+  type DevtoolsBridgeEventRecord,
+  type DevtoolsBridgeInstanceSummary,
+  type DevtoolsBridgeSessionExport,
+  type DevtoolsBridgeSnapshot,
+  type DevtoolsBridgeTabName,
+  type DevtoolsGlobalBridge,
+  type SubscribeToDevtoolsBridgeOptions,
+  type WaitForDevtoolsBridgeOptions
+} from "./devtoolsBridge.js";
 
 const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
 
@@ -188,6 +207,7 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
 
   cleanupOverlay = mountDevtoolsApp(mountRoot, {
     ai: activeOptions.ai,
+    bridge: activeOptions.bridge,
     layout: {
       position: activeOptions.position,
       panelSize: activeOptions.panelSize,

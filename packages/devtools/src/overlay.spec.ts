@@ -2,13 +2,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComponentContext, Debug, emitDebug, resetDebugListeners, setCurrentContext } from "@terajs/shared";
 import { computed, ref, watch, watchEffect } from "@terajs/reactivity";
 import {
+  readDevtoolsBridgeSession,
   mountDevtoolsOverlay,
+  subscribeToDevtoolsBridge,
   toggleDevtoolsOverlay,
   toggleDevtoolsVisibility,
-  unmountDevtoolsOverlay
+  unmountDevtoolsOverlay,
+  waitForDevtoolsBridge
 } from "./overlay";
 
 const OVERLAY_PREFERENCES_STORAGE_KEY = "terajs:devtools:overlay-preferences";
+
+function appendTestHeadNode(node: HTMLElement): () => void {
+  node.setAttribute("data-devtools-doc-test", "true");
+  document.head.appendChild(node);
+  return () => node.remove();
+}
 
 function ensureTestStorage(): Storage {
   const candidate = (window as Window & { localStorage?: unknown }).localStorage;
@@ -61,7 +70,13 @@ describe("devtools overlay public entry", () => {
     resetDebugListeners();
     setCurrentContext(null);
     delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
+    delete (window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__;
     ensureTestStorage().removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
+    document.head.querySelectorAll('[data-devtools-doc-test="true"]').forEach((node) => node.remove());
+    document.title = "";
+    document.documentElement.lang = "";
+    document.documentElement.dir = "";
+    window.history.replaceState({}, "", "/");
     document.body.innerHTML = "";
   });
 
@@ -126,6 +141,80 @@ describe("devtools overlay public entry", () => {
 
     mountDevtoolsOverlay();
     expect(document.querySelectorAll("#terajs-overlay-container")).toHaveLength(1);
+  });
+
+  it("exposes an IDE bridge for snapshots and overlay control", () => {
+    mountDevtoolsOverlay();
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    expect(bridge).toBeTruthy();
+    expect(bridge?.listInstances().length).toBeGreaterThanOrEqual(1);
+
+    const initialSnapshot = bridge?.getSnapshot();
+    expect(initialSnapshot?.activeTab).toBe("Components");
+    expect(initialSnapshot?.hostKind).toBe("overlay");
+
+    expect(bridge?.reveal()).toBe(true);
+    expect(panel?.classList.contains("is-hidden")).toBe(false);
+
+    expect(bridge?.focusTab("AI Diagnostics")).toBe(true);
+    const updatedSnapshot = bridge?.getSnapshot();
+    expect(updatedSnapshot?.activeTab).toBe("AI Diagnostics");
+
+    const shadowRoot = host?.shadowRoot;
+    expect(shadowRoot?.textContent).toContain("AI Diagnostics");
+    expect(shadowRoot?.textContent).toContain("Provider wiring");
+  });
+
+  it("provides bridge helpers for readiness, subscriptions, and session export", async () => {
+    document.title = "Terajs Docs";
+    document.documentElement.lang = "en";
+    const description = document.createElement("meta");
+    description.setAttribute("name", "description");
+    description.setAttribute("content", "Terajs docs home");
+    appendTestHeadNode(description);
+
+    const bridgePromise = waitForDevtoolsBridge({ timeoutMs: 200 });
+    mountDevtoolsOverlay();
+
+    const bridge = await bridgePromise;
+    expect(bridge.getSnapshot()?.activeTab).toBe("Components");
+
+    const updates: Array<{ phase: string; activeTab: string | null }> = [];
+    const unsubscribe = subscribeToDevtoolsBridge((detail, snapshot) => {
+      updates.push({
+        phase: detail.phase,
+        activeTab: snapshot?.activeTab ?? null
+      });
+    });
+
+    Debug.emit("effect:run", { key: "bridge-helper-check" });
+    expect(bridge.focusTab("AI Diagnostics")).toBe(true);
+
+    const session = readDevtoolsBridgeSession();
+    expect(session?.snapshot.activeTab).toBe("AI Diagnostics");
+    expect(session?.document?.title).toBe("Terajs Docs");
+    expect(session?.document?.metaTags).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "description", value: "Terajs docs home" })
+    ]));
+    expect(session?.documentDiagnostics.some((entry) => entry.id === "missing-canonical")).toBe(true);
+    expect(session?.events.some((event) => event.payload?.key === "bridge-helper-check")).toBe(true);
+    expect(updates.some((entry) => entry.phase === "update" && entry.activeTab === "AI Diagnostics")).toBe(true);
+
+    unsubscribe();
+  });
+
+  it("can mount without exposing the external bridge surface", () => {
+    mountDevtoolsOverlay({ bridge: { enabled: false } });
+
+    expect((window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__).toBeUndefined();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(shadowRoot?.textContent).toContain("Terajs DevTools");
   });
 
   it("supports hiding and showing the full overlay shell", () => {
@@ -847,6 +936,18 @@ describe("devtools overlay public entry", () => {
   it("uses global AI assistant hook when available", async () => {
     const hook = vi.fn(async () => "Use keyed route metadata to trace render timing.");
     (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__ = hook;
+    document.title = "Terajs Docs";
+    document.documentElement.lang = "en";
+
+    const description = document.createElement("meta");
+    description.setAttribute("name", "description");
+    description.setAttribute("content", "Docs home page");
+    appendTestHeadNode(description);
+
+    const csrf = document.createElement("meta");
+    csrf.setAttribute("name", "csrf-token");
+    csrf.setAttribute("content", "secret-value");
+    appendTestHeadNode(csrf);
 
     mountDevtoolsOverlay();
 
@@ -866,8 +967,86 @@ describe("devtools overlay public entry", () => {
     await Promise.resolve();
 
     expect(hook).toHaveBeenCalledTimes(1);
+    const recordedCalls = hook.mock.calls as unknown as Array<[{ document?: { metaTags: Array<{ key: string }> } }]>
+    const firstRequest = recordedCalls[0]?.[0];
+    expect(hook).toHaveBeenCalledWith(expect.objectContaining({
+      document: expect.objectContaining({
+        title: "Terajs Docs",
+        metaTags: expect.arrayContaining([
+          expect.objectContaining({ key: "description", value: "Docs home page" })
+        ])
+      })
+    }));
+    expect(firstRequest?.document?.metaTags.some((tag) => tag.key.includes("csrf"))).toBe(false);
     expect(shadowRoot?.textContent).toContain("Response ready");
-    expect(shadowRoot?.textContent).toContain("Use keyed route metadata to trace render timing.");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Use keyed route metadata to trace render timing.");
+
+    const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
+    sessionModeButton?.click();
+    const sessionModePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
+    expect(sessionModePane?.textContent).toContain("Global hook");
+    expect(sessionModePane?.textContent).toContain("window.__TERAJS_AI_ASSISTANT__");
+
+    const telemetryButton = shadowRoot?.querySelector('[data-ai-section="provider-telemetry"]') as HTMLButtonElement | null;
+    telemetryButton?.click();
+    const telemetryPane = shadowRoot?.querySelector('[data-ai-active-section="provider-telemetry"]') as HTMLElement | null;
+    expect(telemetryPane?.textContent).toContain("Successes");
+    expect(telemetryPane?.textContent).toContain("Last provider:");
+    expect(telemetryPane?.textContent).toContain("Delivery mode:");
+    expect(telemetryPane?.textContent).toContain("one-shot");
+
+    const metadataButton = shadowRoot?.querySelector('[data-ai-section="metadata-checks"]') as HTMLButtonElement | null;
+    metadataButton?.click();
+    const metadataPane = shadowRoot?.querySelector('[data-ai-active-section="metadata-checks"]') as HTMLElement | null;
+    expect(metadataPane?.textContent).toContain("Canonical link tag is missing.");
+
+    const documentButton = shadowRoot?.querySelector('[data-ai-section="document-context"]') as HTMLButtonElement | null;
+    documentButton?.click();
+    const documentPane = shadowRoot?.querySelector('[data-ai-active-section="document-context"]') as HTMLElement | null;
+    expect(documentPane?.textContent).toContain("Docs home page");
+  });
+
+  it("surfaces prompt-only AI mode when no provider is configured", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
+    askButton?.click();
+
+    expect(shadowRoot?.textContent).toContain("Prompt-only");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Build Triage Prompt");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("No provider is configured");
+
+    const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
+    sessionModeButton?.click();
+    const sessionModePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
+    expect(sessionModePane?.textContent).toContain("Built-in model:");
+    expect(sessionModePane?.textContent).toContain("None. Apps provide the assistant hook or endpoint.");
+
+    const telemetryButton = shadowRoot?.querySelector('[data-ai-section="provider-telemetry"]') as HTMLButtonElement | null;
+    telemetryButton?.click();
+    const telemetryPane = shadowRoot?.querySelector('[data-ai-active-section="provider-telemetry"]') as HTMLElement | null;
+    expect(telemetryPane?.textContent).toContain("Skipped");
+    expect(telemetryPane?.textContent).toContain("Skipped (no provider configured)");
+  });
+
+  it("switches AI diagnostics detail from the left rail", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    const promptInputsButton = shadowRoot?.querySelector('[data-ai-section="prompt-inputs"]') as HTMLButtonElement | null;
+    promptInputsButton?.click();
+    expect(shadowRoot?.querySelector('[data-ai-active-section="prompt-inputs"]')?.textContent).toContain("Evidence included in prompt");
+
+    const metadataButton = shadowRoot?.querySelector('[data-ai-section="metadata-checks"]') as HTMLButtonElement | null;
+    metadataButton?.click();
+    expect(shadowRoot?.querySelector('[data-ai-active-section="metadata-checks"]')?.textContent).toContain("Metadata checks");
   });
 
   it("shows router issues in the issues panel", () => {

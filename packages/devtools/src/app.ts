@@ -62,12 +62,14 @@ import {
   renderTimelinePanel
 } from "./panels/primaryPanels.js";
 import {
+  DEFAULT_AI_DIAGNOSTICS_SECTION,
   renderAIDiagnosticsPanel,
   renderPerformancePanel,
   renderQueuePanel,
   renderRouterPanel,
   renderSanityPanel,
-  renderSettingsPanel
+  renderSettingsPanel,
+  type AIDiagnosticsSectionKey
 } from "./panels/diagnosticsPanels.js";
 import { normalizeEvent } from "./eventNormalization.js";
 import { appendPrioritizedDevtoolsEvent, retainPrioritizedDevtoolsEvents } from "./eventRetention.js";
@@ -76,6 +78,11 @@ import {
 } from "./aiHelpers.js";
 import { createClickHandler } from "./appClickHandler.js";
 import { renderAppShell } from "./appShell.js";
+import {
+  registerDevtoolsBridgeInstance,
+  type DevtoolsBridgeTabName,
+} from "./devtoolsBridge.js";
+import { analyzeSafeDocumentContext, captureSafeDocumentContext, summarizeSafeDocumentContext } from "./documentContext.js";
 import {
   createChangeHandler,
   createComponentPickedHandler,
@@ -100,6 +107,10 @@ export interface DevtoolsAIAssistantOptions {
   timeoutMs?: number;
 }
 
+export interface DevtoolsBridgeOptions {
+  enabled?: boolean;
+}
+
 type DevtoolsOverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
 type DevtoolsOverlaySize = "normal" | "large";
 
@@ -112,6 +123,15 @@ interface DevtoolsLayoutOptions {
 export interface DevtoolsAppOptions {
   ai?: DevtoolsAIAssistantOptions;
   layout?: DevtoolsLayoutOptions;
+  bridge?: DevtoolsBridgeOptions;
+}
+
+function isBridgeEnabled(options?: DevtoolsBridgeOptions): boolean {
+  if (typeof options?.enabled === "boolean") {
+    return options.enabled;
+  }
+
+  return process.env.NODE_ENV !== "production";
 }
 
 interface NormalizedAIAssistantOptions {
@@ -180,6 +200,11 @@ interface DevtoolsState {
   aiStatus: "idle" | "loading" | "ready" | "error";
   aiResponse: string | null;
   aiError: string | null;
+  activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
+  aiAssistantEnabled: boolean;
+  aiAssistantEndpoint: string | null;
+  aiAssistantModel: string;
+  aiAssistantTimeoutMs: number;
   overlayPosition: DevtoolsOverlayPosition;
   overlayPanelSize: DevtoolsOverlaySize;
   persistOverlayPreferences: boolean;
@@ -273,6 +298,8 @@ const inspectorSectionRenderers: InspectorSectionRenderers = {
 export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions = {}): () => void {
   const aiOptions = normalizeAIAssistantOptions(options.ai);
   const layoutOptions = normalizeLayoutOptions(options.layout);
+  const bridgeEnabled = isBridgeEnabled(options.bridge);
+  const readDocumentContext = () => captureSafeDocumentContext();
   const hydrateEvent = (event: DevtoolsEvent): DevtoolsEvent => {
     if (event.type !== "reactive:error" && event.type !== "error:reactivity") {
       return event;
@@ -345,11 +372,17 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     aiStatus: "idle",
     aiResponse: null,
     aiError: null,
+    activeAIDiagnosticsSection: DEFAULT_AI_DIAGNOSTICS_SECTION,
+    aiAssistantEnabled: aiOptions.enabled,
+    aiAssistantEndpoint: aiOptions.endpoint,
+    aiAssistantModel: aiOptions.model,
+    aiAssistantTimeoutMs: aiOptions.timeoutMs,
     overlayPosition: layoutOptions.position,
     overlayPanelSize: layoutOptions.panelSize,
     persistOverlayPreferences: layoutOptions.persistPreferences
   };
   const aiRequestTokenRef = { current: 0 };
+  let devtoolsBridge: ReturnType<typeof registerDevtoolsBridgeInstance> | null = null;
 
   const updateHeaderEventCount = () => {
     const subtitle = root.querySelector<HTMLElement>(".devtools-subtitle");
@@ -514,6 +547,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 
       if (!refreshTree && !refreshInspector) {
         updateHeaderEventCount();
+        devtoolsBridge?.sync();
         return;
       }
 
@@ -521,11 +555,13 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
         refreshTree,
         refreshInspector
       });
+      devtoolsBridge?.sync();
       return;
     }
 
     if (!shouldRenderAfterEvent(aiLikelyCauseChanged)) {
       updateHeaderEventCount();
+      devtoolsBridge?.sync();
       return;
     }
 
@@ -579,6 +615,118 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     });
   };
 
+  const focusBridgeTab = (tab: DevtoolsBridgeTabName): boolean => {
+    if (!TABS.includes(tab)) {
+      return false;
+    }
+
+    state.activeTab = tab;
+    notifyInspectMode(tab === "Components");
+    if (tab !== "Components") {
+      notifyComponentSelection(null, null, "clear");
+    }
+    render();
+    return true;
+  };
+
+  const selectBridgeComponent = (scope: string, instance: number): boolean => {
+    const componentKey = buildComponentKey(scope, instance);
+    if (!state.mountedComponents.has(componentKey)) {
+      return false;
+    }
+
+    state.activeTab = "Components";
+    state.selectedComponentKey = componentKey;
+    notifyComponentSelection(scope, instance, "panel");
+    render();
+    return true;
+  };
+
+  const revealBridgeHost = (): boolean => {
+    const rootNode = root.getRootNode();
+    if (rootNode instanceof ShadowRoot) {
+      const host = rootNode.host;
+
+      if (host.id === "terajs-overlay-container") {
+        const fab = rootNode.getElementById("terajs-devtools-fab");
+        const panel = rootNode.getElementById("terajs-devtools-panel");
+        if (fab instanceof HTMLButtonElement && panel instanceof HTMLElement && panel.classList.contains("is-hidden")) {
+          fab.click();
+        }
+        return true;
+      }
+
+      if (host instanceof HTMLElement) {
+        host.scrollIntoView({ block: "nearest", inline: "nearest" });
+        return true;
+      }
+    }
+
+    root.scrollIntoView({ block: "nearest", inline: "nearest" });
+    return true;
+  };
+
+  if (bridgeEnabled) {
+    devtoolsBridge = registerDevtoolsBridgeInstance({
+      root,
+      getSnapshot: () => {
+        const documentContext = readDocumentContext();
+        return {
+          activeTab: state.activeTab,
+          theme: state.theme,
+          eventCount: state.eventCount,
+          mountedComponentCount: state.mountedComponents.size,
+          selectedComponentKey: state.selectedComponentKey,
+          selectedMetaKey: state.selectedMetaKey,
+          componentSearchQuery: state.componentSearchQuery,
+          componentInspectorQuery: state.componentInspectorQuery,
+          ai: {
+            status: state.aiStatus,
+            likelyCause: state.aiLikelyCause,
+            error: state.aiError,
+            promptAvailable: state.aiPrompt !== null,
+            responseAvailable: state.aiResponse !== null,
+            assistantEnabled: state.aiAssistantEnabled,
+            assistantEndpoint: state.aiAssistantEndpoint,
+            assistantModel: state.aiAssistantModel,
+            assistantTimeoutMs: state.aiAssistantTimeoutMs,
+          },
+          layout: {
+            position: state.overlayPosition,
+            panelSize: state.overlayPanelSize,
+            persistPreferences: state.persistOverlayPreferences,
+          },
+          document: summarizeSafeDocumentContext(documentContext),
+          documentDiagnostics: analyzeSafeDocumentContext(documentContext),
+          recentEvents: state.events.slice(-25).map((event) => ({
+            type: event.type,
+            timestamp: event.timestamp,
+            level: event.level,
+          })),
+        };
+      },
+      getSessionExport: () => {
+        const documentContext = readDocumentContext();
+        return {
+          document: documentContext,
+          documentDiagnostics: analyzeSafeDocumentContext(documentContext),
+          events: state.events.map((event) => ({
+            type: event.type,
+            timestamp: event.timestamp,
+            payload: event.payload ? { ...event.payload } : undefined,
+            level: event.level,
+            file: event.file,
+            line: event.line,
+            column: event.column,
+          }))
+        };
+      },
+      focusTab: focusBridgeTab,
+      selectComponent: selectBridgeComponent,
+      reveal: revealBridgeHost,
+    });
+  }
+
   const handleComponentPicked = createComponentPickedHandler(state, render);
 
   if (typeof window !== "undefined") {
@@ -589,8 +737,10 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     state,
     aiOptions,
     aiRequestTokenRef,
+    readDocumentContext,
     defaultExpandedInspectorSections: DEFAULT_EXPANDED_INSPECTOR_SECTIONS,
     clearPersistedEvents: clearDebugHistory,
+    emitDevtoolsEvent: appendEvent,
     render,
     notifyInspectMode,
     notifyComponentSelection,
@@ -651,6 +801,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     if (typeof window !== "undefined") {
       window.removeEventListener(DEVTOOLS_COMPONENT_PICKED_EVENT, handleComponentPicked as EventListener);
     }
+    devtoolsBridge?.dispose();
     notifyInspectMode(false);
     notifyComponentSelection(null, null, "clear");
     notifyComponentHover(null, null);
@@ -668,28 +819,40 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       : null;
 
     root.dataset.theme = state.theme;
-    root.innerHTML = renderAppShell(state, TABS, renderPanel, renderComponentDrilldownInspector);
+    const documentContext = readDocumentContext();
+    root.innerHTML = renderAppShell(
+      state,
+      TABS,
+      (nextState) => renderPanel(nextState, documentContext),
+      renderComponentDrilldownInspector
+    );
 
     if (!scrollSnapshot) {
       notifyInspectMode(state.activeTab === "Components");
+      devtoolsBridge?.sync();
       return;
     }
 
     scheduleScrollRestore(scrollSnapshot);
     notifyInspectMode(state.activeTab === "Components");
+    devtoolsBridge?.sync();
   }
 }
 
-function renderPanel(state: DevtoolsState): string {
+function renderPanel(state: DevtoolsState, documentContext = captureSafeDocumentContext()): string {
   switch (state.activeTab) {
     case "Components":
       return "";
     case "AI Diagnostics":
-      return renderAIDiagnosticsPanel(state);
+      return renderAIDiagnosticsPanel({
+        ...state,
+        documentContext,
+        documentDiagnostics: analyzeSafeDocumentContext(documentContext)
+      });
     case "Signals":
       return renderSignalsPanel(state);
     case "Meta":
-      return renderMetaPanel(state);
+      return renderMetaPanel(state, documentContext);
     case "Issues":
       return renderIssuesPanel(state.events);
     case "Logs":

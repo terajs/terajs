@@ -1,10 +1,14 @@
 import { shortJson } from "./inspector/shared.js";
+import type { SafeDocumentDiagnostic } from "./documentContext.js";
+import type { SafeDocumentContext } from "./documentContext.js";
 
 export interface AIAssistantRequest {
   prompt: string;
   snapshot: unknown;
   sanity: unknown;
   events: unknown[];
+  document?: SafeDocumentContext | null;
+  documentDiagnostics?: SafeDocumentDiagnostic[];
 }
 
 export interface AIAssistantOptionsInput {
@@ -22,6 +26,28 @@ export interface NormalizedAIAssistantOptions {
 }
 
 export type AIAssistantHook = (request: AIAssistantRequest) => Promise<unknown> | unknown;
+export type AIAssistantProviderKind = "global-hook" | "http-endpoint";
+export type AIAssistantFallbackPath = "none" | "global-hook-over-endpoint";
+
+export interface AIAssistantTelemetry {
+  provider: AIAssistantProviderKind;
+  durationMs: number;
+  httpStatus: number | null;
+  delivery: "one-shot";
+  fallbackPath: AIAssistantFallbackPath;
+  model: string;
+  endpoint: string | null;
+}
+
+export interface AIAssistantResolvedResponse {
+  text: string;
+  telemetry: AIAssistantTelemetry;
+}
+
+export interface AIAssistantRequestFailure extends Error {
+  telemetry: AIAssistantTelemetry;
+  kind: "timeout" | "http-error" | "request-failed" | "unconfigured";
+}
 
 export function normalizeAIAssistantOptions(options?: AIAssistantOptionsInput): NormalizedAIAssistantOptions {
   const endpoint = typeof options?.endpoint === "string" && options.endpoint.trim().length > 0
@@ -48,16 +74,41 @@ export async function resolveAIAssistantResponse(
   request: AIAssistantRequest,
   options: NormalizedAIAssistantOptions
 ): Promise<string> {
+  const result = await resolveAIAssistantResponseDetailed(request, options);
+  return result.text;
+}
+
+export async function resolveAIAssistantResponseDetailed(
+  request: AIAssistantRequest,
+  options: NormalizedAIAssistantOptions
+): Promise<AIAssistantResolvedResponse> {
   const globalHook = getGlobalAIAssistantHook();
   if (globalHook) {
-    const response = await globalHook(request);
-    return extractAIAssistantResponseText(response);
+    const startedAt = Date.now();
+    try {
+      const response = await globalHook(request);
+      return {
+        text: extractAIAssistantResponseText(response),
+        telemetry: createAIAssistantTelemetry(options, "global-hook", Date.now() - startedAt, null)
+      };
+    } catch (error) {
+      throw createAIAssistantRequestFailure(
+        error instanceof Error ? error.message : "AI request failed.",
+        createAIAssistantTelemetry(options, "global-hook", Date.now() - startedAt, null),
+        "request-failed"
+      );
+    }
   }
 
   if (!options.endpoint) {
-    throw new Error("No AI assistant provider is configured. Set devtools.ai.endpoint or provide window.__TERAJS_AI_ASSISTANT__. ");
+    throw createAIAssistantRequestFailure(
+      "No AI assistant provider is configured. Set devtools.ai.endpoint or provide window.__TERAJS_AI_ASSISTANT__. ",
+      createAIAssistantTelemetry(options, "http-endpoint", 0, null),
+      "unconfigured"
+    );
   }
 
+  const startedAt = Date.now();
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => {
     controller.abort();
@@ -74,35 +125,76 @@ export async function resolveAIAssistantResponse(
         prompt: request.prompt,
         snapshot: request.snapshot,
         sanity: request.sanity,
-        events: request.events
+        events: request.events,
+        document: request.document ?? undefined,
+        documentDiagnostics: request.documentDiagnostics ?? undefined
       }),
       signal: controller.signal
     });
 
     if (!response.ok) {
-      throw new Error(`AI endpoint returned ${response.status}.`);
+      throw createAIAssistantRequestFailure(
+        `AI endpoint returned ${response.status}.`,
+        createAIAssistantTelemetry(options, "http-endpoint", Date.now() - startedAt, response.status),
+        "http-error"
+      );
     }
 
     const rawText = await response.text();
+    const telemetry = createAIAssistantTelemetry(options, "http-endpoint", Date.now() - startedAt, response.status);
     if (!rawText.trim()) {
-      return "AI endpoint returned an empty response body.";
+      return {
+        text: "AI endpoint returned an empty response body.",
+        telemetry
+      };
     }
 
     try {
       const parsed = JSON.parse(rawText) as unknown;
-      return extractAIAssistantResponseText(parsed);
+      return {
+        text: extractAIAssistantResponseText(parsed),
+        telemetry
+      };
     } catch {
-      return rawText;
+      return {
+        text: rawText,
+        telemetry
+      };
     }
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(`AI request timed out after ${options.timeoutMs}ms.`);
+    if (isAIAssistantRequestFailure(error)) {
+      throw error;
     }
 
-    throw error instanceof Error ? error : new Error("AI request failed.");
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw createAIAssistantRequestFailure(
+        `AI request timed out after ${options.timeoutMs}ms.`,
+        createAIAssistantTelemetry(options, "http-endpoint", Date.now() - startedAt, null),
+        "timeout"
+      );
+    }
+
+    throw createAIAssistantRequestFailure(
+      error instanceof Error ? error.message : "AI request failed.",
+      createAIAssistantTelemetry(options, "http-endpoint", Date.now() - startedAt, null),
+      "request-failed"
+    );
   } finally {
     clearTimeout(timeoutHandle);
   }
+}
+
+export function isAIAssistantRequestFailure(value: unknown): value is AIAssistantRequestFailure {
+  if (!(value instanceof Error)) {
+    return false;
+  }
+
+  const candidate = value as Partial<AIAssistantRequestFailure>;
+  return (
+    typeof candidate.kind === "string"
+    && typeof candidate.telemetry?.provider === "string"
+    && typeof candidate.telemetry?.durationMs === "number"
+  );
 }
 
 export function describeInspectorSnapshot(value: unknown): string {
@@ -143,6 +235,35 @@ export function getGlobalAIAssistantHook(): AIAssistantHook | null {
   }).__TERAJS_AI_ASSISTANT__;
 
   return typeof maybeHook === "function" ? maybeHook as AIAssistantHook : null;
+}
+
+function createAIAssistantTelemetry(
+  options: NormalizedAIAssistantOptions,
+  provider: AIAssistantProviderKind,
+  durationMs: number,
+  httpStatus: number | null
+): AIAssistantTelemetry {
+  return {
+    provider,
+    durationMs,
+    httpStatus,
+    delivery: "one-shot",
+    fallbackPath: provider === "global-hook" && options.endpoint ? "global-hook-over-endpoint" : "none",
+    model: options.model,
+    endpoint: options.endpoint
+  };
+}
+
+function createAIAssistantRequestFailure(
+  message: string,
+  telemetry: AIAssistantTelemetry,
+  kind: AIAssistantRequestFailure["kind"]
+): AIAssistantRequestFailure {
+  const error = new Error(message) as AIAssistantRequestFailure;
+  error.name = "AIAssistantRequestError";
+  error.telemetry = telemetry;
+  error.kind = kind;
+  return error;
 }
 
 function extractAIAssistantResponseText(value: unknown): string {
