@@ -11,6 +11,15 @@ type InputState = {
   timelineCursor: number;
 };
 
+function isHTMLInputElement(value: EventTarget | null): value is HTMLInputElement {
+  return typeof value === "object"
+    && value !== null
+    && "tagName" in value
+    && (value as { tagName?: unknown }).tagName === "INPUT"
+    && "value" in value
+    && "dataset" in value;
+}
+
 export function createComponentPickedHandler<TState extends { activeTab: string; selectedComponentKey: string | null }>(
   state: TState,
   render: () => void
@@ -21,7 +30,7 @@ export function createComponentPickedHandler<TState extends { activeTab: string;
 export function createInputHandler<TState extends InputState>(state: TState, render: () => void): EventListener {
   return (domEvent: Event) => {
     const target = domEvent.target;
-    if (!(target instanceof HTMLInputElement)) {
+    if (!isHTMLInputElement(target)) {
       return;
     }
 
@@ -41,7 +50,7 @@ export function createInputHandler<TState extends InputState>(state: TState, ren
 export function createChangeHandler(render: () => void): EventListener {
   return (domEvent: Event) => {
     const target = domEvent.target;
-    if (!(target instanceof HTMLInputElement)) {
+    if (!isHTMLInputElement(target)) {
       return;
     }
 

@@ -20,6 +20,7 @@ import {
   type DevtoolsEventLike
 } from "../inspector/dataCollectors.js";
 import { escapeHtml, shortJson } from "../inspector/shared.js";
+import { renderIframeFlatSection, renderIframeSinglePanel } from "./iframeShells.js";
 import { renderMetricCard, renderPageSection, renderPageShell } from "./layout.js";
 
 type OverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
@@ -596,17 +597,13 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
   const timeline = collectRouteTimeline(events).slice(-80).reverse();
   const issues = collectRouteIssues(events).slice(-30).reverse();
 
-  return renderPageShell({
+  return renderIframeSinglePanel({
+    className: "router-panel-layout",
+    ariaLabel: "Router diagnostics",
     title: "Router Diagnostics",
-    accentClass: "is-cyan",
     subtitle: `Current route: ${snapshot.currentRoute ?? "unknown"}`,
-    pills: [
-      `${metrics.pendingNavigations} pending`,
-      `${metrics.redirects} redirects`,
-      `${metrics.errors} errors`
-    ],
     body: [
-      renderPageSection("Window metrics", `
+      renderIframeFlatSection("Window metrics", `
         <div class="metrics-grid">
           ${renderMetricCard("Route Events (30s)", String(metrics.totalRouteEvents))}
           ${renderMetricCard("Navigate Start", String(metrics.navigationStarts))}
@@ -622,8 +619,8 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
           ${renderMetricCard("Avg Load", `${metrics.avgLoadMs}ms`)}
           ${renderMetricCard("Max Load", `${metrics.maxLoadMs}ms`)}
         </div>
-      `, "is-full"),
-      renderPageSection("Route snapshot", `
+      `),
+      renderIframeFlatSection("Route snapshot", `
         <div class="inspector-grid">
           <div><span class="accent-text is-cyan">Current:</span> ${escapeHtml(snapshot.currentRoute ?? "unknown")}</div>
           <div><span class="accent-text is-cyan">Last Event:</span> ${escapeHtml(snapshot.lastEventType ?? "none")}</div>
@@ -636,7 +633,7 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
           <div><span class="accent-text is-cyan">Phase:</span> ${escapeHtml(snapshot.phase ?? "unknown")}</div>
         </div>
       `),
-      renderPageSection("Route activity by target", metrics.byRoute.length === 0 ? `<div class="empty-state">No route activity in the current window.</div>` : `
+      renderIframeFlatSection("Route activity by target", metrics.byRoute.length === 0 ? `<div class="empty-state">No route activity in the current window.</div>` : `
         <ul class="stack-list log-list">
           ${metrics.byRoute.slice(0, 12).map((entry) => `
             <li class="stack-item performance-item">
@@ -651,7 +648,7 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
           `).join("")}
         </ul>
       `),
-      renderPageSection("Route issues", issues.length === 0 ? `<div class="empty-state">No router warnings or errors.</div>` : `
+      renderIframeFlatSection("Route issues", issues.length === 0 ? `<div class="empty-state">No router warnings or errors.</div>` : `
         <ul class="stack-list">
           ${issues.map((issue) => `
             <li class="stack-item ${issue.type === "error:router" || issue.type === "route:blocked" ? "issue-error" : "issue-warn"}">
@@ -661,7 +658,7 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
           `).join("")}
         </ul>
       `),
-      renderPageSection("Recent route timeline", timeline.length === 0 ? `<div class="empty-state">No route events captured yet.</div>` : `
+      renderIframeFlatSection("Recent route timeline", timeline.length === 0 ? `<div class="empty-state">No route events captured yet.</div>` : `
         <ul class="stack-list log-list">
           ${timeline.map((entry) => `
             <li class="stack-item">
@@ -670,7 +667,7 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
             </li>
           `).join("")}
         </ul>
-      `, "is-full")
+      `)
     ].join("")
   });
 }
@@ -678,13 +675,13 @@ export function renderRouterPanel(events: DevtoolsEventLike[]): string {
 export function renderPerformancePanel(events: DevtoolsEventLike[]): string {
   const metrics = computePerformanceMetrics(events, 10000);
 
-  return renderPageShell({
+  return renderIframeSinglePanel({
+    className: "performance-panel-layout",
+    ariaLabel: "Performance diagnostics",
     title: "Performance",
-    accentClass: "is-amber",
     subtitle: `Hot event types: ${metrics.hotTypes.length === 0 ? "none" : metrics.hotTypes.join(", ")}`,
-    pills: [`${metrics.totalEvents} events / 10s`, `${metrics.updatesPerSecond} events / sec`],
     body: [
-      renderPageSection("Performance window", `
+      renderIframeFlatSection("Performance window", `
         <div class="metrics-grid">
           ${renderMetricCard("Events (10s)", String(metrics.totalEvents))}
           ${renderMetricCard("Events / sec", String(metrics.updatesPerSecond))}
@@ -701,9 +698,9 @@ export function renderPerformancePanel(events: DevtoolsEventLike[]): string {
           ${renderMetricCard("Hub Errors", String(metrics.hubErrors))}
           ${renderMetricCard("Hub Push", String(metrics.hubPushReceived))}
         </div>
-      `, "is-full"),
-      renderPageSection("Hot event types", `<div class="muted-text">${escapeHtml(metrics.hotTypes.length === 0 ? "none" : metrics.hotTypes.join(", "))}</div>`),
-      renderPageSection("By event type", metrics.byType.length === 0 ? `<div class="empty-state">No performance data yet.</div>` : `
+      `),
+      renderIframeFlatSection("Hot event types", `<div class="muted-text">${escapeHtml(metrics.hotTypes.length === 0 ? "none" : metrics.hotTypes.join(", "))}</div>`),
+      renderIframeFlatSection("By event type", metrics.byType.length === 0 ? `<div class="empty-state">No performance data yet.</div>` : `
         <ul class="stack-list log-list">
           ${metrics.byType.slice(0, 20).map((item) => `
             <li class="stack-item performance-item">
@@ -726,13 +723,13 @@ export function renderQueuePanel(events: DevtoolsEventLike[]): string {
     .slice(-80)
     .reverse();
 
-  return renderPageShell({
+  return renderIframeSinglePanel({
+    className: "queue-panel-layout",
+    ariaLabel: "Queue diagnostics",
     title: "Queue Monitor",
-    accentClass: "is-amber",
     subtitle: `Pending estimate: ${metrics.queueDepthEstimate} | Enqueued: ${metrics.queueEnqueued}`,
-    pills: [`${metrics.queueConflicts} conflicts`, `${metrics.queueRetried} retried`],
     body: [
-      renderPageSection("Queue metrics", `
+      renderIframeFlatSection("Queue metrics", `
         <div class="metrics-grid">
           ${renderMetricCard("Queue Enqueued", String(metrics.queueEnqueued))}
           ${renderMetricCard("Queue Conflicts", String(metrics.queueConflicts))}
@@ -742,7 +739,7 @@ export function renderQueuePanel(events: DevtoolsEventLike[]): string {
           ${renderMetricCard("Queue Depth Est.", String(metrics.queueDepthEstimate))}
         </div>
       `),
-      renderPageSection("Recent queue events", queueEvents.length === 0 ? `<div class="empty-state">No queue events yet.</div>` : `
+      renderIframeFlatSection("Recent queue events", queueEvents.length === 0 ? `<div class="empty-state">No queue events yet.</div>` : `
         <ul class="stack-list log-list">
           ${queueEvents.map((event) => `
             <li class="stack-item performance-item">
@@ -765,13 +762,13 @@ export function renderSanityPanel(events: DevtoolsEventLike[]): string {
   const criticalCount = metrics.alerts.filter((alert) => alert.severity === "critical").length;
   const warningCount = metrics.alerts.filter((alert) => alert.severity === "warning").length;
 
-  return renderPageShell({
+  return renderIframeSinglePanel({
+    className: "sanity-panel-layout",
+    ariaLabel: "Sanity diagnostics",
     title: "Sanity Check",
-    accentClass: "is-red",
     subtitle: `Critical: ${criticalCount} | Warnings: ${warningCount}`,
-    pills: [`${metrics.activeEffects} active effects`, `${metrics.debugListenerCount} debug listeners`],
     body: [
-      renderPageSection("Sanity metrics", `
+      renderIframeFlatSection("Sanity metrics", `
         <div class="metrics-grid">
           ${renderMetricCard("Active Effects", String(metrics.activeEffects))}
           ${renderMetricCard("Effect Creates", String(metrics.effectCreates))}
@@ -781,7 +778,7 @@ export function renderSanityPanel(events: DevtoolsEventLike[]): string {
           ${renderMetricCard("Debug Listeners", String(metrics.debugListenerCount))}
         </div>
       `),
-      renderPageSection("Alerts", metrics.alerts.length === 0 ? `<div class="empty-state">No runaway effects or listener leaks detected in the active window.</div>` : `
+      renderIframeFlatSection("Alerts", metrics.alerts.length === 0 ? `<div class="empty-state">No runaway effects or listener leaks detected in the active window.</div>` : `
         <ul class="stack-list">
           ${metrics.alerts.map((alert) => `
             <li class="stack-item ${alert.severity === "critical" ? "issue-error" : "issue-warn"}">

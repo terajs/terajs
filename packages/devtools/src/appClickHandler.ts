@@ -50,6 +50,7 @@ interface ClickHandlerState {
   selectedComponentActivityVersion: number;
   componentSearchQuery: string;
   componentInspectorQuery: string;
+  issueFilter: "all" | "error" | "warn";
   logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
   timelineCursor: number;
   theme: "dark" | "light";
@@ -87,6 +88,14 @@ interface ClickHandlerDependencies {
   notifyLayoutPreferences: () => void;
 }
 
+function isHTMLElement(value: EventTarget | null): value is HTMLElement {
+  return typeof value === "object"
+    && value !== null
+    && "closest" in value
+    && typeof (value as { closest?: unknown }).closest === "function"
+    && "dataset" in value;
+}
+
 export function createClickHandler({
   state,
   aiOptions,
@@ -102,7 +111,7 @@ export function createClickHandler({
 }: ClickHandlerDependencies): EventListener {
   return (domEvent: Event) => {
     const target = domEvent.target;
-    if (!(target instanceof HTMLElement)) {
+    if (!isHTMLElement(target)) {
       return;
     }
 
@@ -120,6 +129,13 @@ export function createClickHandler({
     const logFilter = target.closest<HTMLElement>("[data-log-filter]")?.dataset.logFilter as ClickHandlerState["logFilter"] | undefined;
     if (logFilter) {
       state.logFilter = logFilter;
+      render();
+      return;
+    }
+
+    const issueFilter = target.closest<HTMLElement>("[data-issue-filter]")?.dataset.issueFilter as ClickHandlerState["issueFilter"] | undefined;
+    if (issueFilter) {
+      state.issueFilter = issueFilter;
       render();
       return;
     }

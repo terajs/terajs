@@ -2,7 +2,8 @@ import { clearDebugHistory, Debug, readDebugHistory, subscribeDebug } from "@ter
 import { captureStateSnapshot } from "@terajs/adapter-ai";
 import { collectRecentCodeReferences } from "./aiDebugContext.js";
 import { computeSanityMetrics } from "./sanity.js";
-import { LIVE_DEVTOOLS_TABS } from "./areas/registry.js";
+import { LIVE_DEVTOOLS_TABS, resolveDevtoolsAreaHostKind } from "./areas/registry.js";
+import { renderIframeAreaHost, syncIframeAreaHost } from "./areas/iframe/render.js";
 import {
   renderInspectorRuntimeMonitor as renderRuntimeMonitorPanel,
   type RuntimeMonitorRenderUtils
@@ -58,6 +59,19 @@ import {
 import {
   DEFAULT_AI_DIAGNOSTICS_SECTION,
   type AIDiagnosticsSectionKey
+} from "./panels/diagnosticsPanels.js";
+import {
+  renderIssuesPanel,
+  renderLogsPanel,
+  renderMetaPanel,
+  renderSignalsPanel,
+  renderTimelinePanel,
+} from "./panels/primaryPanels.js";
+import {
+  renderPerformancePanel,
+  renderQueuePanel,
+  renderRouterPanel,
+  renderSanityPanel,
 } from "./panels/diagnosticsPanels.js";
 import { renderShadowAIArea } from "./areas/shadow/ai/render.js";
 import { normalizeEvent } from "./eventNormalization.js";
@@ -184,6 +198,7 @@ interface DevtoolsState {
   selectedComponentActivityVersion: number;
   componentSearchQuery: string;
   componentInspectorQuery: string;
+  issueFilter: "all" | "error" | "warn";
   logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
   timelineCursor: number;
   theme: "dark" | "light";
@@ -345,6 +360,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     selectedComponentActivityVersion: 0,
     componentSearchQuery: "",
     componentInspectorQuery: "",
+    issueFilter: "all",
     logFilter: "all",
     timelineCursor: hydratedEvents.length - 1,
     theme: "dark",
@@ -772,6 +788,19 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       renderComponentDrilldownInspector
     );
 
+    if (resolveDevtoolsAreaHostKind(state.activeTab) === "iframe") {
+      syncIframeAreaHost(root, {
+        title: state.activeTab,
+        theme: state.theme,
+        markup: renderIframePanelContent(state, documentContext),
+        eventBridge: {
+          click: handleClick,
+          input: handleInput,
+          change: handleChange
+        }
+      });
+    }
+
     if (!scrollSnapshot) {
       notifyInspectMode(state.activeTab === "Components");
       devtoolsBridge?.sync();
@@ -838,11 +867,40 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 }
 
 function renderPanel(state: DevtoolsState, documentContext = captureSafeDocumentContext()): string {
+  if (resolveDevtoolsAreaHostKind(state.activeTab) === "iframe") {
+    return renderIframeAreaHost(state.activeTab);
+  }
+
   switch (state.activeTab) {
     case "Components":
       return "";
     case "AI Diagnostics":
       return renderShadowAIArea(state, documentContext);
+    default:
+      return "";
+  }
+}
+
+function renderIframePanelContent(state: DevtoolsState, documentContext = captureSafeDocumentContext()): string {
+  switch (state.activeTab) {
+    case "Signals":
+      return renderSignalsPanel(state);
+    case "Meta":
+      return renderMetaPanel(state, documentContext);
+    case "Issues":
+      return renderIssuesPanel(state);
+    case "Logs":
+      return renderLogsPanel(state);
+    case "Timeline":
+      return renderTimelinePanel(state);
+    case "Router":
+      return renderRouterPanel(state.events);
+    case "Queue":
+      return renderQueuePanel(state.events);
+    case "Performance":
+      return renderPerformancePanel(state.events);
+    case "Sanity Check":
+      return renderSanityPanel(state.events);
     default:
       return "";
   }

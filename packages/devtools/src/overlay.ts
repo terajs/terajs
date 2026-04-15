@@ -21,10 +21,22 @@ import {
   type NormalizedOverlayOptions,
   type OverlayPreferencesPayload
 } from "./overlayOptions.js";
+import {
+  autoAttachVsCodeDevtoolsBridge,
+  stopAutoAttachVsCodeDevtoolsBridge,
+  type DevtoolsIdeAutoAttachOptions,
+  type DevtoolsIdeBridgeManifest,
+} from "./ideBridgeAutoAttach.js";
 
 export type { DevtoolsOverlayOptions } from "./overlayOptions.js";
 export { mountDevtoolsApp };
 export type { DevtoolsAppOptions } from "./app.js";
+export {
+  autoAttachVsCodeDevtoolsBridge,
+  stopAutoAttachVsCodeDevtoolsBridge,
+  type DevtoolsIdeAutoAttachOptions,
+  type DevtoolsIdeBridgeManifest,
+} from "./ideBridgeAutoAttach.js";
 export {
   DEVTOOLS_BRIDGE_DISPOSE_EVENT,
   DEVTOOLS_BRIDGE_READY_EVENT,
@@ -316,6 +328,8 @@ export function toggleDevtoolsVisibility(): void {
  */
 export function unmountDevtoolsOverlay(): void {
   if (process.env.NODE_ENV === "production") return;
+
+  stopAutoAttachVsCodeDevtoolsBridge();
 
   if (wheelListener && overlayEl?.shadowRoot) {
     overlayEl.shadowRoot.removeEventListener("wheel", wheelListener);

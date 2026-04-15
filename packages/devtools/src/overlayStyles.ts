@@ -689,6 +689,23 @@ export const overlayStyles = `
     scrollbar-color: rgba(67, 140, 255, 0.55) rgba(7, 17, 33, 0.42);
   }
 
+  .devtools-panel-iframe-shell {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .devtools-panel-iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 100%;
+    border: 0;
+    background: transparent;
+  }
+
   #terajs-devtools-root[data-theme="light"] .devtools-panel {
     background: var(--tera-light-shell-bg);
     color: var(--tera-light-text-strong);
@@ -1147,6 +1164,344 @@ export const overlayStyles = `
   .ai-diagnostics-section-block {
     display: grid;
     gap: 10px;
+  }
+
+  .meta-panel-layout {
+    grid-template-columns: minmax(180px, 31%) minmax(0, 69%);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .meta-panel-layout .components-tree-pane {
+    border-right: 1px solid rgba(50, 215, 255, 0.26);
+    border-bottom: 0;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .meta-panel-layout .components-tree-pane {
+    border-right-color: var(--tera-light-border);
+  }
+
+  .meta-panel-layout .meta-panel-nav-pane .components-screen-body {
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .issues-panel-layout .ai-diagnostics-nav-pane .components-screen-body,
+  .logs-panel-layout .ai-diagnostics-nav-pane .components-screen-body {
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .issues-panel-layout,
+  .logs-panel-layout {
+    grid-template-columns: minmax(220px, 30%) minmax(0, 70%);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .issues-panel-layout .components-tree-pane,
+  .logs-panel-layout .components-tree-pane {
+    border-right: 1px solid rgba(50, 215, 255, 0.26);
+    border-bottom: 0;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .issues-panel-layout .components-tree-pane,
+  #terajs-devtools-root[data-theme="light"] .logs-panel-layout .components-tree-pane {
+    border-right-color: var(--tera-light-border);
+  }
+
+  .iframe-single-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 360px;
+    height: calc(100% + 24px);
+    margin: -12px;
+    padding: 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(10, 17, 31, 0.86), rgba(5, 9, 18, 0.92));
+  }
+
+  .iframe-single-panel .components-screen-body {
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: var(--tera-components-column-padding) 12px;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .iframe-single-panel {
+    background: var(--tera-light-panel-bg);
+  }
+
+  @media (max-width: 520px) {
+    .meta-panel-layout {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .meta-panel-layout .components-tree-pane {
+      border-right: 0;
+      border-bottom: 1px solid var(--tera-border);
+    }
+
+    #terajs-devtools-root[data-theme="light"] .meta-panel-layout .components-tree-pane {
+      border-bottom-color: var(--tera-light-border);
+    }
+  }
+
+  .signals-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(160px, auto) minmax(0, 1fr);
+    min-height: 360px;
+    height: calc(100% + 24px);
+    margin: -12px;
+    overflow: hidden;
+  }
+
+  .signals-summary-pane,
+  .signals-detail-pane {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .signals-summary-pane .components-screen-body,
+  .signals-detail-pane .components-screen-body {
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: var(--tera-components-column-padding) 12px;
+  }
+
+  .signals-summary-pane {
+    border-bottom: 1px solid var(--tera-border);
+    background: linear-gradient(180deg, rgba(16, 28, 58, 0.94), rgba(8, 14, 30, 0.98));
+  }
+
+  .signals-detail-pane {
+    background: linear-gradient(180deg, rgba(10, 17, 31, 0.86), rgba(5, 9, 18, 0.92));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-summary-pane {
+    border-bottom-color: var(--tera-light-border);
+    background: var(--tera-light-panel-alt);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-detail-pane {
+    background: var(--tera-light-panel-bg);
+  }
+
+  .signals-summary-list,
+  .signals-detail-stack,
+  .meta-panel-detail-stack,
+  .iframe-panel-stack {
+    display: grid;
+    gap: 10px;
+  }
+
+  .signals-summary-row,
+  .signals-section-block,
+  .meta-panel-section-block,
+  .iframe-panel-section-block {
+    display: grid;
+    gap: 8px;
+    border: 1px solid var(--tera-border);
+    border-radius: 8px;
+    background: rgba(10, 20, 38, 0.34);
+    padding: 12px;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-summary-row,
+  #terajs-devtools-root[data-theme="light"] .signals-section-block,
+  #terajs-devtools-root[data-theme="light"] .meta-panel-section-block,
+  #terajs-devtools-root[data-theme="light"] .iframe-panel-section-block {
+    border-color: var(--tera-light-border);
+    background: rgba(255, 255, 255, 0.58);
+  }
+
+  .signals-summary-label,
+  .signals-section-heading,
+  .meta-panel-section-heading,
+  .iframe-panel-section-heading {
+    color: var(--tera-cloud);
+    font-family: var(--tera-heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-summary-label,
+  #terajs-devtools-root[data-theme="light"] .signals-section-heading,
+  #terajs-devtools-root[data-theme="light"] .meta-panel-section-heading,
+  #terajs-devtools-root[data-theme="light"] .iframe-panel-section-heading {
+    color: var(--tera-light-text-strong);
+  }
+
+  .signals-summary-value {
+    color: var(--tera-cloud);
+    font-family: var(--tera-code-font);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .signals-summary-note {
+    color: var(--tera-mist);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-summary-value {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-summary-note {
+    color: var(--tera-light-text-muted);
+  }
+
+  .iframe-results-pane {
+    min-width: 0;
+  }
+
+  .iframe-results-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .iframe-results-item {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid rgba(50, 215, 255, 0.16);
+    border-radius: 10px;
+    background: rgba(6, 14, 28, 0.56);
+    min-width: 0;
+  }
+
+  .iframe-results-item.is-error {
+    border-color: rgba(255, 107, 139, 0.26);
+    background: linear-gradient(180deg, rgba(62, 16, 28, 0.52), rgba(12, 12, 18, 0.72));
+  }
+
+  .iframe-results-item.is-warn {
+    border-color: rgba(255, 197, 106, 0.24);
+    background: linear-gradient(180deg, rgba(62, 40, 12, 0.48), rgba(12, 12, 18, 0.72));
+  }
+
+  .iframe-results-item-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .iframe-results-item-title {
+    color: var(--tera-cloud);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .iframe-results-item-meta {
+    color: var(--tera-mist);
+    font-family: var(--tera-code-font);
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .iframe-results-item-summary {
+    color: rgba(227, 238, 255, 0.76);
+    font-family: var(--tera-code-font);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .timeline-control-panel {
+    display: grid;
+    gap: 10px;
+  }
+
+  .timeline-control-summary {
+    display: grid;
+    gap: 4px;
+  }
+
+  .timeline-control-count {
+    color: var(--tera-cloud);
+    font-family: var(--tera-code-font);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .timeline-control-note {
+    color: var(--tera-mist);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .signals-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    max-height: 420px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(67, 140, 255, 0.55) rgba(7, 17, 33, 0.42);
+  }
+
+  .signals-list-compact {
+    max-height: 360px;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-list {
+    scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
+  }
+
+  .signals-list-item {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-left: 2px solid var(--tera-cyan);
+    background: rgba(7, 18, 35, 0.3);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-list-item {
+    border-left-color: var(--tera-light-accent);
+    background: rgba(47, 109, 255, 0.04);
+  }
+
+  .signals-list-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .signals-list-preview {
+    color: var(--tera-cloud);
+    font-family: var(--tera-code-font);
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .signals-list-preview {
+    color: var(--tera-light-text-strong);
   }
 
   .component-select-button {
@@ -1979,12 +2334,26 @@ ${componentTreeStyles}
       grid-template-rows: minmax(0, 1fr);
     }
 
+    .signals-layout {
+      grid-template-columns: minmax(250px, 33%) minmax(0, 67%);
+      grid-template-rows: minmax(0, 1fr);
+    }
+
     .ai-diagnostics-layout .components-tree-pane {
       border-right: 1px solid rgba(50, 215, 255, 0.26);
       border-bottom: 0;
     }
 
+    .signals-summary-pane {
+      border-right: 1px solid rgba(50, 215, 255, 0.26);
+      border-bottom: 0;
+    }
+
     #terajs-devtools-root[data-theme="light"] .ai-diagnostics-layout .components-tree-pane {
+      border-right-color: var(--tera-light-border);
+    }
+
+    #terajs-devtools-root[data-theme="light"] .signals-summary-pane {
       border-right-color: var(--tera-light-border);
     }
   }
@@ -2128,12 +2497,30 @@ ${componentTreeStyles}
     color: #8a5400;
   }
 
-  .timeline-active {
-    border-left: 3px solid var(--tera-cyan);
+  #terajs-devtools-root[data-theme="light"] .iframe-results-item {
+    border-color: var(--tera-light-border);
+    background: rgba(255, 255, 255, 0.72);
   }
 
-  .timeline-inactive {
-    opacity: 0.7;
+  #terajs-devtools-root[data-theme="light"] .iframe-results-item.is-error {
+    border-color: rgba(206, 76, 119, 0.24);
+    background: linear-gradient(180deg, rgba(255, 224, 232, 0.88), rgba(255, 255, 255, 0.94));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .iframe-results-item.is-warn {
+    border-color: rgba(219, 157, 50, 0.24);
+    background: linear-gradient(180deg, rgba(255, 244, 216, 0.92), rgba(255, 255, 255, 0.94));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .iframe-results-item-title,
+  #terajs-devtools-root[data-theme="light"] .timeline-control-count {
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .iframe-results-item-meta,
+  #terajs-devtools-root[data-theme="light"] .iframe-results-item-summary,
+  #terajs-devtools-root[data-theme="light"] .timeline-control-note {
+    color: var(--tera-light-text-muted);
   }
 
   .performance-item {
@@ -2174,51 +2561,71 @@ ${componentTreeStyles}
     accent-color: var(--tera-blue);
   }
 
+  #terajs-devtools-root::-webkit-scrollbar,
   .devtools-panel::-webkit-scrollbar,
   .devtools-tabs::-webkit-scrollbar,
+  .components-screen-body::-webkit-scrollbar,
   .stack-list::-webkit-scrollbar,
+  .signals-list::-webkit-scrollbar,
   .ai-prompt::-webkit-scrollbar,
   .ai-response::-webkit-scrollbar,
+  .inspector-code::-webkit-scrollbar,
   .runtime-history-scroll::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
 
+  #terajs-devtools-root::-webkit-scrollbar-track,
   .devtools-panel::-webkit-scrollbar-track,
   .devtools-tabs::-webkit-scrollbar-track,
+  .components-screen-body::-webkit-scrollbar-track,
   .stack-list::-webkit-scrollbar-track,
+  .signals-list::-webkit-scrollbar-track,
   .ai-prompt::-webkit-scrollbar-track,
   .ai-response::-webkit-scrollbar-track,
+  .inspector-code::-webkit-scrollbar-track,
   .runtime-history-scroll::-webkit-scrollbar-track {
     background: rgba(9, 20, 39, 0.46);
     border-radius: 999px;
   }
 
+  #terajs-devtools-root::-webkit-scrollbar-thumb,
   .devtools-panel::-webkit-scrollbar-thumb,
   .devtools-tabs::-webkit-scrollbar-thumb,
+  .components-screen-body::-webkit-scrollbar-thumb,
   .stack-list::-webkit-scrollbar-thumb,
+  .signals-list::-webkit-scrollbar-thumb,
   .ai-prompt::-webkit-scrollbar-thumb,
   .ai-response::-webkit-scrollbar-thumb,
+  .inspector-code::-webkit-scrollbar-thumb,
   .runtime-history-scroll::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgba(55, 139, 255, 0.88), rgba(50, 215, 255, 0.76));
     border-radius: 999px;
     border: 2px solid rgba(9, 20, 39, 0.46);
   }
 
+  #terajs-devtools-root[data-theme="light"]::-webkit-scrollbar-track,
   #terajs-devtools-root[data-theme="light"] .devtools-panel::-webkit-scrollbar-track,
   #terajs-devtools-root[data-theme="light"] .devtools-tabs::-webkit-scrollbar-track,
+  #terajs-devtools-root[data-theme="light"] .components-screen-body::-webkit-scrollbar-track,
   #terajs-devtools-root[data-theme="light"] .stack-list::-webkit-scrollbar-track,
+  #terajs-devtools-root[data-theme="light"] .signals-list::-webkit-scrollbar-track,
   #terajs-devtools-root[data-theme="light"] .ai-prompt::-webkit-scrollbar-track,
   #terajs-devtools-root[data-theme="light"] .ai-response::-webkit-scrollbar-track,
+  #terajs-devtools-root[data-theme="light"] .inspector-code::-webkit-scrollbar-track,
   #terajs-devtools-root[data-theme="light"] .runtime-history-scroll::-webkit-scrollbar-track {
     background: rgba(206, 220, 243, 0.88);
   }
 
+  #terajs-devtools-root[data-theme="light"]::-webkit-scrollbar-thumb,
   #terajs-devtools-root[data-theme="light"] .devtools-panel::-webkit-scrollbar-thumb,
   #terajs-devtools-root[data-theme="light"] .devtools-tabs::-webkit-scrollbar-thumb,
+  #terajs-devtools-root[data-theme="light"] .components-screen-body::-webkit-scrollbar-thumb,
   #terajs-devtools-root[data-theme="light"] .stack-list::-webkit-scrollbar-thumb,
+  #terajs-devtools-root[data-theme="light"] .signals-list::-webkit-scrollbar-thumb,
   #terajs-devtools-root[data-theme="light"] .ai-prompt::-webkit-scrollbar-thumb,
   #terajs-devtools-root[data-theme="light"] .ai-response::-webkit-scrollbar-thumb,
+  #terajs-devtools-root[data-theme="light"] .inspector-code::-webkit-scrollbar-thumb,
   #terajs-devtools-root[data-theme="light"] .runtime-history-scroll::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgba(64, 126, 213, 0.9), rgba(39, 174, 217, 0.86));
     border-color: rgba(206, 220, 243, 0.88);

@@ -137,9 +137,9 @@ describe("Terajs Vite Plugin (integration)", () => {
       middlewares: { use }
     } as any);
 
-    expect(use).toHaveBeenCalledTimes(1);
+    expect(use).toHaveBeenCalledTimes(2);
 
-    const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => Promise<void>;
+    const middleware = use.mock.calls[1][0] as (req: any, res: any, next: () => void) => Promise<void>;
     const req = Readable.from([JSON.stringify({ id: "getGreeting", args: ["Ada"] })]) as any;
     req.method = "POST";
     req.url = "/_terajs/server";
@@ -172,7 +172,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       middlewares: { use }
     } as any);
 
-    const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => Promise<void>;
+    const middleware = use.mock.calls[1][0] as (req: any, res: any, next: () => void) => Promise<void>;
     const req = Readable.from([]) as any;
     req.method = "GET";
     req.url = "/app";
@@ -184,6 +184,55 @@ describe("Terajs Vite Plugin (integration)", () => {
     await middleware(req, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves the devtools IDE bridge manifest from a same-origin dev route", async () => {
+    const plugin = terajsPlugin();
+    const use = vi.fn();
+    const configureServer = requireServerHook(plugin.configureServer);
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      return String(input).includes("node_modules") && String(input).includes("devtools-bridge.json");
+    });
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      if (String(input).includes("devtools-bridge.json")) {
+        return JSON.stringify({
+          version: 1,
+          session: "http://127.0.0.1:4040/live/token",
+          ai: "http://127.0.0.1:4040/ai/token",
+          updatedAt: 1713120000000
+        });
+      }
+
+      return "";
+    });
+
+    configureServer({
+      middlewares: { use }
+    } as any);
+
+    const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => void;
+    const req = Readable.from([]) as any;
+    req.method = "GET";
+    req.url = "/_terajs/devtools/bridge";
+    req.headers = { host: "localhost:5173" };
+
+    const res = createResponseCollector();
+    const next = vi.fn();
+    middleware(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(res.headers.get("Content-Type")).toBe("application/json;charset=UTF-8");
+    expect(res.readJson()).toEqual({
+      version: 1,
+      session: "http://127.0.0.1:4040/live/token",
+      ai: "http://127.0.0.1:4040/ai/token",
+      updatedAt: 1713120000000
+    });
+
+    existsSpy.mockRestore();
+    readSpy.mockRestore();
   });
 
   it("emits sfc:load when loading a .tera file", () => {
@@ -488,6 +537,8 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(typeof code).toBe("string");
     expect(code).toContain("/@fs/");
     expect(code).toContain("mountDevtoolsOverlay");
+    expect(code).toContain("autoAttachVsCodeDevtoolsBridge");
+    expect(code).toContain("/_terajs/devtools/bridge");
   });
 
   it("keeps bare terajs imports in build mode virtual modules", () => {
@@ -501,6 +552,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(typeof code).toBe("string");
     expect(code).toContain("from 'terajs';");
     expect(code).toContain("import('terajs/devtools')");
+    expect(code).not.toContain("autoAttachVsCodeDevtoolsBridge");
   });
 
   it("loads virtual app module when the id carries query suffixes", () => {

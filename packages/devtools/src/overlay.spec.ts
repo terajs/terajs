@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComponentContext, Debug, emitDebug, resetDebugListeners, setCurrentContext } from "@terajs/shared";
 import { computed, ref, watch, watchEffect } from "@terajs/reactivity";
 import {
+  autoAttachVsCodeDevtoolsBridge,
   readDevtoolsBridgeSession,
   mountDevtoolsOverlay,
   subscribeToDevtoolsBridge,
+  stopAutoAttachVsCodeDevtoolsBridge,
   toggleDevtoolsOverlay,
   toggleDevtoolsVisibility,
   unmountDevtoolsOverlay,
@@ -72,6 +74,7 @@ async function flushMicrotasks(count = 8): Promise<void> {
 
 describe("devtools overlay public entry", () => {
   afterEach(() => {
+    stopAutoAttachVsCodeDevtoolsBridge();
     unmountDevtoolsOverlay();
     resetDebugListeners();
     setCurrentContext(null);
@@ -186,6 +189,114 @@ describe("devtools overlay public entry", () => {
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     expect(shadowRoot?.querySelector('[data-host-controls-toggle="true"]')?.getAttribute("aria-expanded")).toBe("true");
     expect(shadowRoot?.textContent).toContain("Overlay Controls");
+  });
+
+  it("hosts the Signals tab inside an iframe-backed panel", async () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    Debug.emit("signal:update", {
+      key: "count",
+      next: 2
+    });
+    Debug.emit("effect:run", {
+      key: "count:effect"
+    });
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    expect(bridge?.focusTab("Signals")).toBe(true);
+
+    await flushMicrotasks();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const iframe = shadowRoot?.querySelector('[data-devtools-iframe-area="Signals"]') as HTMLIFrameElement | null;
+    const iframeDocument = iframe?.getAttribute("srcdoc") ?? "";
+
+    expect(iframe).toBeTruthy();
+    expect(iframe?.getAttribute("sandbox")).toContain("allow-same-origin");
+    expect(iframeDocument).toContain("Ref / Reactive Inspector");
+    expect(iframeDocument).toContain("Signal summary");
+    expect(iframeDocument).toContain("signals-layout");
+    expect(iframeDocument).toContain("Recent updates");
+    expect(iframeDocument).toContain("count");
+    expect(iframeDocument).toContain("--tera-black: #05070f");
+    expect(bridge?.getSnapshot()?.activeTab).toBe("Signals");
+  });
+
+  it("hosts the Meta tab inside an iframe-backed panel", async () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "route:meta:resolved",
+      timestamp: Date.now(),
+      payload: {
+        to: "/docs",
+        meta: {
+          title: "Docs"
+        },
+        ai: {
+          summary: "Docs route summary"
+        },
+        route: {
+          branch: "docs"
+        }
+      }
+    } as any);
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    expect(bridge?.focusTab("Meta")).toBe(true);
+
+    await flushMicrotasks();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const iframe = shadowRoot?.querySelector('[data-devtools-iframe-area="Meta"]') as HTMLIFrameElement | null;
+    const iframeDocument = iframe?.getAttribute("srcdoc") ?? "";
+
+    expect(iframe).toBeTruthy();
+    expect(iframeDocument).toContain("Meta / AI / Route Inspector");
+    expect(iframeDocument).toContain("meta-panel-layout");
+    expect(iframeDocument).toContain("Observed metadata");
+    expect(iframeDocument).toContain("Route /docs");
+    expect(iframeDocument).toContain("Document head snapshot");
+    expect(iframeDocument).toContain("Route snapshot");
+    expect(bridge?.getSnapshot()?.activeTab).toBe("Meta");
+  });
+
+  it("hosts the remaining promoted runtime tabs inside iframe-backed panels", async () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "lifecycle:warn",
+      timestamp: Date.now(),
+      level: "warn",
+      payload: {
+        message: "Synthetic warning for issues coverage"
+      }
+    } as any);
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    const expectations = [
+      { tab: "Issues", title: "Issues and Warnings" },
+      { tab: "Logs", title: "Event Logs" },
+      { tab: "Timeline", title: "Timeline and Replay" },
+      { tab: "Router", title: "Router Diagnostics" },
+      { tab: "Queue", title: "Queue Monitor" },
+      { tab: "Performance", title: "Performance" },
+      { tab: "Sanity Check", title: "Sanity Check" }
+    ] as const;
+
+    for (const expectation of expectations) {
+      expect(bridge?.focusTab(expectation.tab)).toBe(true);
+      await flushMicrotasks();
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const iframe = shadowRoot?.querySelector(`[data-devtools-iframe-area="${expectation.tab}"]`) as HTMLIFrameElement | null;
+      const iframeDocument = iframe?.getAttribute("srcdoc") ?? "";
+
+      expect(iframe).toBeTruthy();
+      expect(iframeDocument).toContain(expectation.title);
+    }
+
+    expect(bridge?.getSnapshot()?.activeTab).toBe("Sanity Check");
   });
 
   it("provides bridge helpers for readiness, subscriptions, and session export", async () => {
@@ -1207,6 +1318,194 @@ describe("devtools overlay public entry", () => {
     telemetryButton?.click();
     const telemetryPane = shadowRoot?.querySelector('[data-ai-active-section="provider-telemetry"]') as HTMLElement | null;
     expect(telemetryPane?.textContent).toContain("VS Code AI bridge");
+  });
+
+  it("auto-attaches the VS Code AI bridge from the dev manifest endpoint", async () => {
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              updatedAt: 1713120000000
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return "accepted";
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/ai/token") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              response: '{"summary":"Attached","likelyCauses":["The VS Code bridge connected automatically from the dev manifest."],"codeReferences":[],"nextChecks":[],"suggestedFixes":[]}',
+              telemetry: {
+                model: "copilot/test",
+                endpoint: null
+              }
+            });
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    mountDevtoolsOverlay();
+    autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
+
+    await flushMicrotasks();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    await flushMicrotasks();
+
+    const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+    expect(extensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/live/token", expect.objectContaining({ method: "POST" }));
+
+    extensionButton?.click();
+    await flushMicrotasks();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/ai/token", expect.objectContaining({ method: "POST" }));
+    expect(shadowRoot?.textContent).toContain("Structured response ready");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("coalesces repeated bridge updates before syncing the live session", async () => {
+    vi.useFakeTimers();
+
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              updatedAt: 1713120000000
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return "accepted";
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay();
+      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
+
+      await flushMicrotasks();
+
+      for (let index = 0; index < 50; index += 1) {
+        window.dispatchEvent(new CustomEvent("terajs:devtools:bridge:update"));
+      }
+
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(1);
+
+      await vi.advanceTimersByTimeAsync(300);
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("stops manifest polling after a successful bridge attach", async () => {
+    vi.useFakeTimers();
+
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              updatedAt: 1713120000000
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return "accepted";
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay();
+      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
+
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(1);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("switches AI diagnostics detail from the left rail", () => {
