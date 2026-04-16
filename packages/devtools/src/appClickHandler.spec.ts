@@ -26,6 +26,7 @@ function createState() {
     aiPrompt: null,
     aiLikelyCause: null,
     aiStatus: "idle" as const,
+    activeAIRequestTarget: null,
     aiResponse: null,
     aiStructuredResponse: null,
     aiError: null,

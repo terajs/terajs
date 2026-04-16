@@ -7,10 +7,12 @@ import {
 } from "../aiHelpers.js";
 
 export const EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT = "terajs:devtools:extension-ai-bridge:change";
+export const MIN_EXTENSION_AI_TIMEOUT_MS = 45000;
 
 export interface ExtensionAIAssistantBridge {
   label: string;
   request: AIAssistantHook;
+  revealSession?: () => Promise<void>;
 }
 
 declare global {
@@ -44,6 +46,10 @@ export function clearExtensionAIAssistantBridge(): void {
   dispatchExtensionAIAssistantBridgeChange();
 }
 
+export function resolveExtensionAIAssistantTimeoutMs(timeoutMs: number): number {
+  return Math.max(timeoutMs, MIN_EXTENSION_AI_TIMEOUT_MS);
+}
+
 export async function resolveExtensionAIAssistantResponseDetailed(
   request: AIAssistantRequest,
   options: NormalizedAIAssistantOptions
@@ -55,10 +61,22 @@ export async function resolveExtensionAIAssistantResponseDetailed(
 
   return resolveAIAssistantResponseWithHandlerDetailed(
     request,
-    options,
+    {
+      ...options,
+      timeoutMs: resolveExtensionAIAssistantTimeoutMs(options.timeoutMs)
+    },
     "vscode-extension",
     bridge.request
   );
+}
+
+export async function revealExtensionLiveSession(): Promise<void> {
+  const bridge = getExtensionAIAssistantBridge();
+  if (!bridge || typeof bridge.revealSession !== "function") {
+    throw new Error("VS Code live session bridge is not connected.");
+  }
+
+  await bridge.revealSession();
 }
 
 function dispatchExtensionAIAssistantBridgeChange(): void {

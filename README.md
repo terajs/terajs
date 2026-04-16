@@ -57,6 +57,7 @@ Everything a component needs lives in one place.
 - All `.tera` files in `src/components` (or configured dirs) are globally available in SFCs - no manual imports needed.
 - DevTools overlay: live inspection of components, signals, effects, logs, issues, performance, and sanity checks.
 - In development, DevTools is available by default as a floating FAB overlay with keyboard toggles.
+- In development, DevTools can also mirror a sanitized live session into the companion VS Code tooling through a same-origin bridge. Production builds do not expose that bridge.
 
 ## **Single entry + leaf packages**
 
@@ -93,6 +94,30 @@ module.exports = {
   }
 };
 ```
+
+### VS Code live attach in development
+
+Terajs DevTools exposes a development-only VS Code pairing path built around structured session export, not DOM scraping.
+
+- The browser side discovers the live bridge through the same-origin `/_terajs/devtools/bridge` route during development.
+- The exported session includes structured snapshots, recent event records, code references, and allowlisted document-head context.
+- Production builds do not install the auto-attach helper or serve the bridge manifest route.
+
+```ts
+import {
+  autoAttachVsCodeDevtoolsBridge,
+  mountDevtoolsOverlay
+} from "terajs/devtools";
+
+mountDevtoolsOverlay();
+autoAttachVsCodeDevtoolsBridge();
+```
+
+When the companion VS Code tooling is available, the DevTools overlay can:
+
+- open the mirrored live session in VS Code
+- send the current sanitized debugging bundle to VS Code AI
+- copy the same debugging prompt for manual pairing
 
 ### Customizing auto-imports
 

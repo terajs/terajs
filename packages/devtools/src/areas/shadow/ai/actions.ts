@@ -4,8 +4,10 @@ import {
 } from "../../../aiHelpers.js";
 import { type SafeDocumentContext } from "../../../documentContext.js";
 import type { AIDiagnosticsSectionKey } from "../../../panels/diagnosticsPanels.js";
+import { revealExtensionLiveSession } from "../../../providers/extensionBridge.js";
 import type { DevtoolsEvent } from "../../../app.js";
 import {
+  copyAIDebugPrompt,
   requestConfiguredAIAssistant,
   requestExtensionAIAssistant,
 } from "./requestExecution.js";
@@ -14,6 +16,7 @@ interface ShadowAIActionsState {
   events: DevtoolsEvent[];
   aiPrompt: string | null;
   aiStatus: "idle" | "loading" | "ready" | "error";
+  activeAIRequestTarget: "configured" | "vscode" | null;
   aiResponse: string | null;
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
@@ -55,6 +58,12 @@ export function handleShadowAIAreaClick({
     render
   };
 
+  if (state.aiStatus === "loading") {
+    if (target.closest("[data-action='ask-ai']") || target.closest("[data-action='ask-vscode-ai']")) {
+      return true;
+    }
+  }
+
   if (target.closest("[data-action='ask-ai']")) {
     return requestConfiguredAIAssistant(requestDependencies);
   }
@@ -63,11 +72,13 @@ export function handleShadowAIAreaClick({
     return requestExtensionAIAssistant(requestDependencies);
   }
 
-  if (target.closest("[data-action='copy-ai-prompt']")) {
-    if (state.aiPrompt && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(state.aiPrompt).catch(() => {});
-    }
+  if (target.closest("[data-action='open-vscode-session']")) {
+    void revealExtensionLiveSession().catch(() => {});
     return true;
+  }
+
+  if (target.closest("[data-action='copy-debugging-prompt']")) {
+    return copyAIDebugPrompt(requestDependencies);
   }
 
   return false;

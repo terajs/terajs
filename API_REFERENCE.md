@@ -40,10 +40,66 @@ It also exposes route-manifest helpers:
 ## 0.3 Devtools overlay
 
 - `terajs/devtools` re-exports the devtools overlay controls:
+  - `mountDevtoolsApp(...)`
   - `mountDevtoolsOverlay(...)`
   - `toggleDevtoolsOverlay()`
   - `toggleDevtoolsVisibility()`
   - `unmountDevtoolsOverlay()`
+
+- `terajs/devtools` also re-exports bridge/session helpers for browser tooling and IDE integrations:
+  - `getDevtoolsBridge()`
+  - `readDevtoolsBridgeSession(instanceId?)`
+  - `waitForDevtoolsBridge(options?)`
+  - `subscribeToDevtoolsBridge(listener, options?)`
+
+- Current bridge event exports:
+  - `DEVTOOLS_BRIDGE_READY_EVENT`
+  - `DEVTOOLS_BRIDGE_UPDATE_EVENT`
+  - `DEVTOOLS_BRIDGE_DISPOSE_EVENT`
+
+- Current bridge contract types:
+  - `DevtoolsBridgeSnapshot`
+  - `DevtoolsBridgeSessionExport`
+  - `DevtoolsBridgeEventDetail`
+  - `DevtoolsBridgeEventRecord`
+  - `DevtoolsBridgeInstanceSummary`
+  - `DevtoolsBridgeTabName`
+  - `DevtoolsGlobalBridge`
+  - `SubscribeToDevtoolsBridgeOptions`
+  - `WaitForDevtoolsBridgeOptions`
+
+- The browser global bridge surface is structured and imperative rather than DOM-based:
+  - `listInstances()`
+  - `getSnapshot(instanceId?)`
+  - `exportSession(instanceId?)`
+  - `setActiveInstance(instanceId)`
+  - `focusTab(tab, instanceId?)`
+  - `selectComponent(scope, instance, instanceId?)`
+  - `reveal(instanceId?)`
+
+- `DevtoolsBridgeTabName` currently includes:
+  - `Components`
+  - `AI Diagnostics`
+  - `Signals`
+  - `Meta`
+  - `Issues`
+  - `Logs`
+  - `Timeline`
+  - `Router`
+  - `Queue`
+  - `Performance`
+  - `Sanity Check`
+  - `Settings`
+
+- Development-only VS Code bridge helpers are also public from `terajs/devtools`:
+  - `autoAttachVsCodeDevtoolsBridge(options?)`
+  - `stopAutoAttachVsCodeDevtoolsBridge()`
+  - `DevtoolsIdeAutoAttachOptions`
+  - `DevtoolsIdeBridgeManifest`
+
+The auto-attach helper is development-only. It discovers the live receiver through the same-origin `/_terajs/devtools/bridge` route and is a no-op in production builds.
+
+The exported session intentionally uses structured runtime state, code references, and allowlisted document-head context instead of scraping arbitrary page DOM.
 
 ---
 

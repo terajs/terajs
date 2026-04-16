@@ -66,6 +66,15 @@ function ensureTestStorage(): Storage {
   return fallback;
 }
 
+function installClipboardMock() {
+  const writeText = vi.fn(async (_value: string) => {});
+  Object.defineProperty(globalThis.navigator, "clipboard", {
+    value: { writeText },
+    configurable: true
+  });
+  return { writeText };
+}
+
 async function flushMicrotasks(count = 8): Promise<void> {
   for (let index = 0; index < count; index += 1) {
     await Promise.resolve();
@@ -1091,9 +1100,8 @@ describe("devtools overlay public entry", () => {
     expect(remountedShadowRoot?.textContent).not.toContain("Counter");
   });
 
-  it("uses global AI assistant hook when available", async () => {
-    const hook = vi.fn(async () => "Use keyed route metadata to trace render timing.");
-    (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__ = hook;
+  it("copies a sanitized debugging prompt without leaking filtered metadata", async () => {
+    const clipboard = installClipboardMock();
     document.title = "Terajs Docs";
     document.documentElement.lang = "en";
 
@@ -1118,39 +1126,27 @@ describe("devtools overlay public entry", () => {
     const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
     aiTab?.click();
 
-    const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
-    askButton?.click();
+    expect(shadowRoot?.querySelector('[data-action="ask-ai"]')).toBeNull();
+
+    const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
+    copyButton?.click();
 
     await flushMicrotasks();
 
-    expect(hook).toHaveBeenCalledTimes(1);
-    const recordedCalls = hook.mock.calls as unknown as Array<[{ document?: { metaTags: Array<{ key: string }> } }]>
-    const firstRequest = recordedCalls[0]?.[0];
-    expect(hook).toHaveBeenCalledWith(expect.objectContaining({
-      document: expect.objectContaining({
-        title: "Terajs Docs",
-        metaTags: expect.arrayContaining([
-          expect.objectContaining({ key: "description", value: "Docs home page" })
-        ])
-      })
-    }));
-    expect(firstRequest?.document?.metaTags.some((tag) => tag.key.includes("csrf"))).toBe(false);
-    expect(shadowRoot?.textContent).toContain("Response ready");
-    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Use keyed route metadata to trace render timing.");
+    expect(clipboard.writeText).toHaveBeenCalledTimes(1);
+    const prompt = clipboard.writeText.mock.calls[0]?.[0] as string;
+    expect(prompt).toContain("Terajs AI Debug Prompt:");
+    expect(prompt).toContain("Terajs Docs");
+    expect(prompt).toContain("Docs home page");
+    expect(prompt).not.toContain("secret-value");
+    expect(shadowRoot?.textContent).toContain("Prompt ready");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Debugging prompt ready");
 
     const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
     sessionModeButton?.click();
     const sessionModePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
-    expect(sessionModePane?.textContent).toContain("Global hook");
-    expect(sessionModePane?.textContent).toContain("window.__TERAJS_AI_ASSISTANT__");
-
-    const telemetryButton = shadowRoot?.querySelector('[data-ai-section="provider-telemetry"]') as HTMLButtonElement | null;
-    telemetryButton?.click();
-    const telemetryPane = shadowRoot?.querySelector('[data-ai-active-section="provider-telemetry"]') as HTMLElement | null;
-    expect(telemetryPane?.textContent).toContain("Successes");
-    expect(telemetryPane?.textContent).toContain("Last provider:");
-    expect(telemetryPane?.textContent).toContain("Delivery mode:");
-    expect(telemetryPane?.textContent).toContain("one-shot");
+    expect(sessionModePane?.textContent).toContain("Prompt-only");
+    expect(sessionModePane?.textContent).toContain("Copyable prompt only");
 
     const metadataButton = shadowRoot?.querySelector('[data-ai-section="metadata-checks"]') as HTMLButtonElement | null;
     metadataButton?.click();
@@ -1163,8 +1159,8 @@ describe("devtools overlay public entry", () => {
     expect(documentPane?.textContent).toContain("Docs home page");
   });
 
-  it("renders structured AI analysis when the assistant returns diagnostics JSON", async () => {
-    const hook = vi.fn(async () => ({
+  it("renders structured AI analysis from the VS Code bridge response", async () => {
+    const bridge = vi.fn(async () => ({
       summary: "Counter updates are re-entering the same effect.",
       likelyCauses: [
         "An effect mutates the same signal it reads during render.",
@@ -1185,7 +1181,13 @@ describe("devtools overlay public entry", () => {
         "Move the write into an event handler or gate the effect on stale input."
       ]
     }));
-    (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__ = hook;
+    (window as typeof window & {
+      __TERAJS_VSCODE_AI_ASSISTANT__?: { label: string; request: (payload: unknown) => Promise<unknown> };
+    }).__TERAJS_VSCODE_AI_ASSISTANT__ = {
+      label: "VS Code AI/Copilot",
+      request: bridge
+    };
+    window.dispatchEvent(new CustomEvent("terajs:devtools:extension-ai-bridge:change"));
 
     mountDevtoolsOverlay();
 
@@ -1203,11 +1205,12 @@ describe("devtools overlay public entry", () => {
     const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
     aiTab?.click();
 
-    const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
+    const askButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
     askButton?.click();
 
     await flushMicrotasks();
 
+    expect(bridge).toHaveBeenCalledTimes(1);
     const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
     expect(shadowRoot?.textContent).toContain("Structured response ready");
     expect(analysisPane?.textContent).toContain("AI summary");
@@ -1218,19 +1221,26 @@ describe("devtools overlay public entry", () => {
     expect(analysisPane?.textContent).toContain("src/components/Counter.tera:27:9");
   });
 
-  it("surfaces prompt-only AI mode when no provider is configured", () => {
+  it("copies the debugging prompt even when no provider is configured", async () => {
+    const clipboard = installClipboardMock();
     mountDevtoolsOverlay();
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
     aiTab?.click();
 
-    const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
-    askButton?.click();
+    expect(shadowRoot?.querySelector('[data-action="ask-ai"]')).toBeNull();
 
-    expect(shadowRoot?.textContent).toContain("Prompt-only");
-    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Build Triage Prompt");
-    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("No provider is configured");
+    const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
+    expect(copyButton?.textContent).toContain("Copy Debugging Prompt");
+    copyButton?.click();
+
+    await flushMicrotasks();
+
+    expect(clipboard.writeText).toHaveBeenCalledTimes(1);
+    expect(shadowRoot?.textContent).toContain("Prompt ready");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Copy Debugging Prompt packages the current sanitized bundle");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Debugging prompt ready");
 
     const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
     sessionModeButton?.click();
@@ -1241,8 +1251,7 @@ describe("devtools overlay public entry", () => {
     const telemetryButton = shadowRoot?.querySelector('[data-ai-section="provider-telemetry"]') as HTMLButtonElement | null;
     telemetryButton?.click();
     const telemetryPane = shadowRoot?.querySelector('[data-ai-active-section="provider-telemetry"]') as HTMLElement | null;
-    expect(telemetryPane?.textContent).toContain("Skipped");
-    expect(telemetryPane?.textContent).toContain("Skipped (no provider configured)");
+    expect(telemetryPane?.textContent).toContain("No provider-backed assistant request has run yet.");
   });
 
   it("shows and runs the explicit VS Code AI bridge action when the extension attaches", async () => {
@@ -1264,7 +1273,54 @@ describe("devtools overlay public entry", () => {
 
     expect(shadowRoot?.querySelector('[data-action="ask-vscode-ai"]')).toBeNull();
 
-    const extensionHook = vi.fn(async () => ({
+    let resolveExtensionRequest!: (value: unknown) => void;
+    const extensionHook = vi.fn(() => new Promise((resolve) => {
+      resolveExtensionRequest = resolve;
+    }));
+    const revealSession = vi.fn(async () => {});
+
+    (window as typeof window & {
+      __TERAJS_VSCODE_AI_ASSISTANT__?: {
+        label: string;
+        request: (payload: unknown) => Promise<unknown>;
+        revealSession?: () => Promise<void>;
+      };
+    }).__TERAJS_VSCODE_AI_ASSISTANT__ = {
+      label: "VS Code AI/Copilot",
+      request: extensionHook,
+      revealSession
+    };
+    window.dispatchEvent(new CustomEvent("terajs:devtools:extension-ai-bridge:change"));
+
+    await flushMicrotasks();
+
+    const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
+    const openSessionButton = shadowRoot?.querySelector('[data-action="open-vscode-session"]') as HTMLButtonElement | null;
+    const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+    const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
+    expect(openSessionButton?.textContent).toContain("Open VS Code Live Session");
+    expect(extensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(copyButton?.textContent).toContain("Copy Debugging Prompt");
+    expect(analysisPane?.textContent).toContain("The current sanitized session already streams into the attached extension.");
+
+    openSessionButton?.click();
+    await flushMicrotasks();
+
+    expect(revealSession).toHaveBeenCalledTimes(1);
+
+    extensionButton?.click();
+
+    await flushMicrotasks();
+
+    const busyButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+    const busyAnalysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
+    expect(busyButton?.textContent).toContain("Asking VS Code AI...");
+    expect(busyButton?.disabled).toBe(true);
+    expect(busyButton?.getAttribute("aria-busy")).toBe("true");
+    expect(busyAnalysisPane?.textContent).toContain("Waiting for the attached VS Code bridge to respond with the current sanitized diagnostics bundle...");
+    expect(busyAnalysisPane?.textContent).toContain("The attached extension is thinking through the current sanitized diagnostics bundle now.");
+
+    resolveExtensionRequest({
       response: {
         summary: "The attached VS Code bridge reproduced the current runtime issue from the sanitized payload.",
         likelyCauses: [
@@ -1281,30 +1337,16 @@ describe("devtools overlay public entry", () => {
         model: "copilot/gpt-4.1",
         endpoint: null
       }
-    }));
-
-    (window as typeof window & {
-      __TERAJS_VSCODE_AI_ASSISTANT__?: { label: string; request: (payload: unknown) => Promise<unknown> };
-    }).__TERAJS_VSCODE_AI_ASSISTANT__ = {
-      label: "VS Code AI/Copilot",
-      request: extensionHook
-    };
-    window.dispatchEvent(new CustomEvent("terajs:devtools:extension-ai-bridge:change"));
-
-    await flushMicrotasks();
-
-    const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
-    const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
-    expect(extensionButton?.textContent).toContain("Ask VS Code AI");
-    expect(analysisPane?.textContent).toContain("Ask VS Code AI sends the same sanitized diagnostics bundle through the attached extension bridge.");
-
-    extensionButton?.click();
+    });
 
     await flushMicrotasks();
 
     expect(extensionHook).toHaveBeenCalledTimes(1);
     expect(shadowRoot?.textContent).toContain("Structured response ready");
     const refreshedAnalysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
+    const refreshedExtensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+    expect(refreshedExtensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(refreshedExtensionButton?.disabled).toBe(false);
     expect(refreshedAnalysisPane?.textContent).toContain("The attached VS Code bridge reproduced the current runtime issue from the sanitized payload.");
 
     const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
@@ -1333,6 +1375,7 @@ describe("devtools overlay public entry", () => {
               version: 1,
               session: "http://127.0.0.1:4040/live/token",
               ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
               updatedAt: 1713120000000
             });
           }
@@ -1340,6 +1383,16 @@ describe("devtools overlay public entry", () => {
       }
 
       if (url === "http://127.0.0.1:4040/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return "accepted";
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/reveal/token") {
         return {
           ok: true,
           status: 202,
@@ -1380,10 +1433,17 @@ describe("devtools overlay public entry", () => {
 
     await flushMicrotasks();
 
+  const openSessionButton = shadowRoot?.querySelector('[data-action="open-vscode-session"]') as HTMLButtonElement | null;
     const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+  expect(openSessionButton?.textContent).toContain("Open VS Code Live Session");
     expect(extensionButton?.textContent).toContain("Ask VS Code AI");
     expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/live/token", expect.objectContaining({ method: "POST" }));
+
+  openSessionButton?.click();
+  await flushMicrotasks();
+
+  expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/reveal/token", expect.objectContaining({ method: "POST" }));
 
     extensionButton?.click();
     await flushMicrotasks();
@@ -1409,6 +1469,7 @@ describe("devtools overlay public entry", () => {
               version: 1,
               session: "http://127.0.0.1:4040/live/token",
               ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
               updatedAt: 1713120000000
             });
           }
@@ -1469,6 +1530,7 @@ describe("devtools overlay public entry", () => {
               version: 1,
               session: "http://127.0.0.1:4040/live/token",
               ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
               updatedAt: 1713120000000
             });
           }

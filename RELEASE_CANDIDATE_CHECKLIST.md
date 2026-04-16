@@ -22,6 +22,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] README roadmap reflects shipped web features
 - [x] API reference router loading signatures aligned with source
 - [x] Devtools/Sanity behavior documented in README/API surface
+- [x] Dev-only VS Code bridge workflow and session export surface documented in README/API surface
 - [x] Remaining core docs (`VISION.md`, `ROADMAP.md`, `COMPONENTS.md`) contradiction pass
 
 ## 4. CI and Workflow
@@ -47,3 +48,18 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [ ] Finalize version bump strategy and changelog entries
 - [ ] Confirm package exports and public API freeze for RC
 - [ ] Tag RC branch and publish dry-run
+
+## 7. DevTools Release Surface
+
+- [ ] Fresh consumer-app smoke verifies the dev-only `/_terajs/devtools/bridge` manifest and auto-attach lifecycle on a new window
+- [ ] Companion VS Code tooling smoke verifies `Ask VS Code AI`, `Copy Debugging Prompt`, and live session reveal against the current bridge manifest
+- [ ] Structured session export reviewed for sanitized document context, code references, and bounded event payloads
+- [ ] Production build verification confirms the VS Code bridge bootstrap and manifest route are absent outside development mode
+
+## 8. Maintainability Holdouts (900+ lines)
+
+These are the current large-file refactor candidates to keep post-RC work aligned with the modularity guardrails:
+
+- `packages/devtools/src/panels/diagnosticsPanels.ts` (`1202` lines): split AI Diagnostics rendering into section-specific modules plus provider-status helpers.
+- `packages/devtools/src/overlayStyles.ts` (`2338` lines): split shared tokens/layout rules from panel-specific styling so DevTools surfaces can evolve without one monolithic stylesheet.
+- `packages/devtools/src/overlay.spec.ts` (`1684` lines): split bridge, layout, components, and AI Diagnostics coverage into feature-scoped suites.

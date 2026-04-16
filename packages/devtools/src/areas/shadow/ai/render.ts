@@ -11,6 +11,7 @@ export interface ShadowAIAreaState {
   aiResponse: string | null;
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
+  activeAIRequestTarget: "configured" | "vscode" | null;
   aiPrompt: string | null;
   aiAssistantEnabled: boolean;
   aiAssistantEndpoint: string | null;

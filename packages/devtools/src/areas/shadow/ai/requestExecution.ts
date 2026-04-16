@@ -21,6 +21,7 @@ interface ShadowAIActionsState {
   events: DevtoolsEvent[];
   aiPrompt: string | null;
   aiStatus: "idle" | "loading" | "ready" | "error";
+  activeAIRequestTarget: "configured" | "vscode" | null;
   aiResponse: string | null;
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
@@ -56,7 +57,7 @@ interface PreparedAIAssistantRequest {
 }
 
 export function requestConfiguredAIAssistant(dependencies: ShadowAIActionsDependencies): boolean {
-  const prepared = prepareAIAssistantRequest(dependencies);
+  const prepared = prepareAIAssistantRequest(dependencies, { resetAssistantOutput: true });
   if (!prepared) {
     return true;
   }
@@ -73,6 +74,7 @@ export function requestConfiguredAIAssistant(dependencies: ShadowAIActionsDepend
       }
     });
     dependencies.state.aiStatus = "idle";
+    dependencies.state.activeAIRequestTarget = null;
     dependencies.render();
     return true;
   }
@@ -94,7 +96,7 @@ export function requestConfiguredAIAssistant(dependencies: ShadowAIActionsDepend
 }
 
 export function requestExtensionAIAssistant(dependencies: ShadowAIActionsDependencies): boolean {
-  const prepared = prepareAIAssistantRequest(dependencies);
+  const prepared = prepareAIAssistantRequest(dependencies, { resetAssistantOutput: true });
   if (!prepared) {
     return true;
   }
@@ -116,8 +118,25 @@ export function requestExtensionAIAssistant(dependencies: ShadowAIActionsDepende
   });
 }
 
+export function copyAIDebugPrompt(dependencies: ShadowAIActionsDependencies): boolean {
+  const prepared = prepareAIAssistantRequest(dependencies, { resetAssistantOutput: false });
+  if (!prepared) {
+    return true;
+  }
+
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(prepared.prompt).catch(() => {});
+  }
+
+  dependencies.render();
+  return true;
+}
+
 function prepareAIAssistantRequest(
-  dependencies: ShadowAIActionsDependencies
+  dependencies: ShadowAIActionsDependencies,
+  options: {
+    resetAssistantOutput: boolean;
+  }
 ): PreparedAIAssistantRequest | null {
   const snapshot = captureStateSnapshot();
   const documentContext = dependencies.readDocumentContext();
@@ -136,12 +155,15 @@ function prepareAIAssistantRequest(
     events: dependencies.state.events
   });
   dependencies.state.aiError = null;
-  dependencies.state.aiResponse = null;
-  dependencies.state.aiStructuredResponse = null;
+  if (options.resetAssistantOutput) {
+    dependencies.state.aiResponse = null;
+    dependencies.state.aiStructuredResponse = null;
+  }
 
   const prompt = dependencies.state.aiPrompt;
   if (!prompt) {
     dependencies.state.aiStatus = "error";
+    dependencies.state.activeAIRequestTarget = null;
     dependencies.state.aiError = "Unable to generate an AI prompt for the current state.";
     dependencies.render();
     return null;
@@ -190,6 +212,7 @@ function runAIAssistantRequest(
       }
     });
     dependencies.state.aiStatus = "idle";
+    dependencies.state.activeAIRequestTarget = null;
     dependencies.render();
     return true;
   }
@@ -210,6 +233,7 @@ function runAIAssistantRequest(
     }
   });
   dependencies.state.aiStatus = "loading";
+  dependencies.state.activeAIRequestTarget = config.provider === "vscode-extension" ? "vscode" : "configured";
   dependencies.render();
 
   void config.execute().then((response) => {
@@ -218,6 +242,7 @@ function runAIAssistantRequest(
     }
 
     dependencies.state.aiStatus = "ready";
+  dependencies.state.activeAIRequestTarget = null;
     dependencies.state.aiResponse = response.text;
     dependencies.state.aiStructuredResponse = response.structured;
     dependencies.state.aiError = null;
@@ -247,6 +272,7 @@ function runAIAssistantRequest(
       ? error
       : null;
     dependencies.state.aiStatus = "error";
+    dependencies.state.activeAIRequestTarget = null;
     dependencies.state.aiError = error instanceof Error ? error.message : "AI request failed.";
     dependencies.state.aiResponse = null;
     dependencies.state.aiStructuredResponse = null;

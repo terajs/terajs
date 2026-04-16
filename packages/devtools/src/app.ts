@@ -182,6 +182,8 @@ type TabName =
   | "Sanity Check"
   | "Settings";
 
+type AIAssistantRequestTarget = "configured" | "vscode" | null;
+
 interface DevtoolsState {
   activeTab: TabName;
   events: DevtoolsEvent[];
@@ -205,6 +207,7 @@ interface DevtoolsState {
   aiPrompt: string | null;
   aiLikelyCause: string | null;
   aiStatus: "idle" | "loading" | "ready" | "error";
+  activeAIRequestTarget: AIAssistantRequestTarget;
   aiResponse: string | null;
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
@@ -367,6 +370,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     aiPrompt: null,
     aiLikelyCause: hydratedLikelyCause,
     aiStatus: "idle",
+    activeAIRequestTarget: null,
     aiResponse: null,
     aiStructuredResponse: null,
     aiError: null,

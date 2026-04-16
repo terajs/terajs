@@ -239,10 +239,13 @@ function readDevtoolsIdeBridgeManifest(rootDir: string): string | null {
       return null;
     }
 
+    const reveal = typeof parsed.reveal === "string" ? parsed.reveal : null;
+
     return JSON.stringify({
       version: 1,
       session: parsed.session,
       ai: parsed.ai,
+      ...(reveal ? { reveal } : {}),
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now()
     });
   } catch {

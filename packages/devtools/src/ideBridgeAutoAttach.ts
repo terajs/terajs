@@ -21,6 +21,7 @@ export interface DevtoolsIdeBridgeManifest {
   version: 1;
   session: string;
   ai: string;
+  reveal: string | null;
   updatedAt: number;
 }
 
@@ -108,7 +109,7 @@ async function syncBridgeManifest(): Promise<void> {
       return;
     }
 
-    const nextSignature = `${manifest.session}|${manifest.ai}`;
+    const nextSignature = `${manifest.session}|${manifest.ai}|${manifest.reveal ?? ""}`;
     const shouldInstall = nextSignature !== activeSignature || activeMode === "recovering" || !activeCleanup;
     if (!shouldInstall) {
       activeMode = "attached";
@@ -217,6 +218,7 @@ function parseBridgeManifest(rawText: string): DevtoolsIdeBridgeManifest | null 
     version: 1,
     session: record.session,
     ai: record.ai,
+    reveal: typeof record.reveal === "string" ? record.reveal : null,
     updatedAt: typeof record.updatedAt === "number" && Number.isFinite(record.updatedAt)
       ? record.updatedAt
       : Date.now()
@@ -235,8 +237,30 @@ function installBridge(
   let sendInFlight = false;
   let pendingUpdate = false;
   let pendingUpdateHandle: number | null = null;
+  const revealUrl = manifest.reveal;
   const assistantBridge: ExtensionAIAssistantBridge = {
     label: "VS Code AI/Copilot",
+    revealSession: revealUrl
+      ? async () => {
+        let response: Response;
+        try {
+          response = await fetchImpl(revealUrl, {
+            method: "POST",
+            mode: "cors"
+          });
+        } catch (error) {
+          onBridgeFailure();
+          throw error;
+        }
+
+        if (!response.ok) {
+          if (shouldRecoverBridgeFromStatus(response.status)) {
+            onBridgeFailure();
+          }
+          throw new Error(`VS Code live session reveal failed (${response.status}).`);
+        }
+      }
+      : undefined,
     request: async (request) => {
       let response: Response;
       try {

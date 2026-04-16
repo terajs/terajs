@@ -57,6 +57,7 @@ interface ClickHandlerState {
   aiPrompt: string | null;
   aiLikelyCause: string | null;
   aiStatus: "idle" | "loading" | "ready" | "error";
+  activeAIRequestTarget: "configured" | "vscode" | null;
   aiResponse: string | null;
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
@@ -252,6 +253,7 @@ export function createClickHandler({
       state.aiPrompt = null;
       state.aiLikelyCause = null;
       state.aiStatus = "idle";
+      state.activeAIRequestTarget = null;
       state.aiResponse = null;
       state.aiStructuredResponse = null;
       state.aiError = null;

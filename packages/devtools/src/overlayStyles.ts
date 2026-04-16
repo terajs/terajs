@@ -620,6 +620,13 @@ export const overlayStyles = `
     transform: translateY(-1px);
   }
 
+  .toolbar-button:disabled,
+  .toolbar-button:disabled:hover {
+    cursor: wait;
+    transform: none;
+    opacity: 0.82;
+  }
+
   #terajs-devtools-root[data-theme="light"] .tab-button,
   #terajs-devtools-root[data-theme="light"] .toolbar-button,
   #terajs-devtools-root[data-theme="light"] .filter-button,
@@ -669,6 +676,35 @@ export const overlayStyles = `
     background: linear-gradient(135deg, var(--tera-blue), var(--tera-cyan));
     color: #ffffff;
     box-shadow: 0 10px 24px rgba(47, 109, 255, 0.3);
+  }
+
+  .toolbar-button.is-loading {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .toolbar-button.is-loading::before {
+    content: "";
+    width: 11px;
+    height: 11px;
+    flex: 0 0 auto;
+    border: 2px solid rgba(255, 255, 255, 0.82);
+    border-right-color: transparent;
+    border-radius: 999px;
+    animation: tera-toolbar-spin 0.85s linear infinite;
+  }
+
+  @keyframes tera-toolbar-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  #terajs-devtools-root[data-theme="light"] .toolbar-button.is-loading::before {
+    border-color: rgba(31, 88, 214, 0.82);
+    border-right-color: transparent;
   }
 
   .danger-button {
@@ -2532,6 +2568,67 @@ ${componentTreeStyles}
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 12px;
+  }
+
+  .ai-connection-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .ai-connection-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(147, 167, 203, 0.2);
+    background: rgba(7, 18, 35, 0.58);
+    color: var(--tera-mist);
+    font-family: var(--tera-code-font);
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .ai-connection-pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(147, 167, 203, 0.5);
+    flex: 0 0 auto;
+  }
+
+  .ai-connection-pill.is-ready {
+    border-color: rgba(50, 215, 255, 0.24);
+    background: rgba(50, 215, 255, 0.1);
+    color: var(--tera-cloud);
+  }
+
+  .ai-connection-pill.is-ready::before {
+    background: var(--tera-cyan);
+    box-shadow: 0 0 10px rgba(50, 215, 255, 0.45);
+  }
+
+  .ai-connection-pill.is-idle::before {
+    background: rgba(147, 167, 203, 0.52);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-connection-pill {
+    border-color: var(--tera-light-border);
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--tera-light-text-muted);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-connection-pill.is-ready {
+    background: rgba(47, 109, 255, 0.08);
+    color: var(--tera-light-text-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-connection-pill.is-ready::before {
+    background: var(--tera-light-accent-strong);
+    box-shadow: 0 0 10px rgba(47, 109, 255, 0.2);
   }
 
   .metrics-grid {

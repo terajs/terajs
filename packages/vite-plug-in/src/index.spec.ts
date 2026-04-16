@@ -199,6 +199,7 @@ describe("Terajs Vite Plugin (integration)", () => {
           version: 1,
           session: "http://127.0.0.1:4040/live/token",
           ai: "http://127.0.0.1:4040/ai/token",
+          reveal: "http://127.0.0.1:4040/reveal/token",
           updatedAt: 1713120000000
         });
       }
@@ -228,6 +229,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       version: 1,
       session: "http://127.0.0.1:4040/live/token",
       ai: "http://127.0.0.1:4040/ai/token",
+      reveal: "http://127.0.0.1:4040/reveal/token",
       updatedAt: 1713120000000
     });
 
