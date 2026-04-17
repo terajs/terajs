@@ -246,7 +246,7 @@ export const componentTreeStyles = `
     background: var(--component-tree-active-dark);
     border-color: transparent;
     box-shadow: inset 2px 0 0 var(--component-tree-accent-dark);
-    color: #f4f8ff;
+    color: var(--tera-cyan);
   }
 
   .component-tree-select:hover::before,
@@ -265,10 +265,14 @@ export const componentTreeStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .component-tree-select.is-active {
-    color: var(--tera-light-text-strong);
+    color: var(--tera-blue);
     background: var(--component-tree-active-light);
     border-color: transparent;
     box-shadow: inset 2px 0 0 var(--component-tree-accent-light);
+  }
+
+  .component-tree-select.is-active .component-tree-label-bracket {
+    color: currentColor;
   }
 
   #terajs-devtools-root[data-theme="light"] .component-tree-select:hover {

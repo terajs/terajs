@@ -97,7 +97,16 @@ It also exposes route-manifest helpers:
   - `DevtoolsIdeAutoAttachOptions`
   - `DevtoolsIdeBridgeManifest`
 
-The auto-attach helper is development-only. It discovers the live receiver through the same-origin `/_terajs/devtools/bridge` route and is a no-op in production builds.
+- `DevtoolsIdeBridgeManifest` currently serializes:
+  - `version`
+  - `session`
+  - `ai`
+  - optional `reveal`
+  - `updatedAt`
+
+The auto-attach helper is development-only. It polls the same-origin `/_terajs/devtools/bridge` route, which mirrors the extension's workspace cache manifest at `node_modules/.cache/terajs/devtools-bridge.json`, and is a no-op in production builds.
+
+When a manifest is present, the helper streams sanitized `exportSession()` payloads to the localhost receiver, exposes the reveal action used by `Open VS Code Live Session`, and installs the VS Code AI bridge used by `Ask VS Code AI`.
 
 The exported session intentionally uses structured runtime state, code references, and allowlisted document-head context instead of scraping arbitrary page DOM.
 

@@ -81,6 +81,7 @@ You can use `<FancyButton />` in any SFC without importing it.
 ### DevTools defaults and overrides
 
 By default, DevTools is enabled in development and starts collapsed as a FAB in the bottom-center corner.
+Generated starter apps intentionally pin `devtools.enabled: false` in `terajs.config.cjs` so each app opts in explicitly; remove that override to use the development default.
 You can override this in `terajs.config.cjs`:
 
 ```js
@@ -97,9 +98,11 @@ module.exports = {
 
 ### VS Code live attach in development
 
-Terajs DevTools exposes a development-only VS Code pairing path built around structured session export, not DOM scraping.
+Terajs DevTools exposes a development-only VS Code pairing path built around structured session export and a same-origin manifest route, not DOM scraping.
 
-- The browser side discovers the live bridge through the same-origin `/_terajs/devtools/bridge` route during development.
+- The companion VS Code extension writes localhost receiver metadata into `node_modules/.cache/terajs/devtools-bridge.json` for Terajs workspace roots.
+- The Vite plugin mirrors that metadata through the same-origin `/_terajs/devtools/bridge` route during development, and `autoAttachVsCodeDevtoolsBridge()` polls that route with `no-store` caching.
+- When a manifest is present, the browser streams `bridge.exportSession()` payloads to the extension's localhost receiver, installs the attached VS Code AI bridge, and enables `Open VS Code Live Session` and `Ask VS Code AI` in the overlay.
 - The exported session includes structured snapshots, recent event records, code references, and allowlisted document-head context.
 - Production builds do not install the auto-attach helper or serve the bridge manifest route.
 

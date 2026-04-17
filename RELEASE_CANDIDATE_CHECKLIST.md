@@ -45,6 +45,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 ## 6. Release Packaging
 
 - [x] Automated package exports audit passes (`npm run audit:exports`)
+- [x] Publish metadata guard passes (`npm run guard:publish-metadata`)
 - [ ] Finalize version bump strategy and changelog entries
 - [ ] Confirm package exports and public API freeze for RC
 - [ ] Tag RC branch and publish dry-run
@@ -56,10 +57,23 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [ ] Structured session export reviewed for sanitized document context, code references, and bounded event payloads
 - [ ] Production build verification confirms the VS Code bridge bootstrap and manifest route are absent outside development mode
 
-## 8. Maintainability Holdouts (900+ lines)
+## 8. Maintainability Holdouts (500+ lines)
 
-These are the current large-file refactor candidates to keep post-RC work aligned with the modularity guardrails:
+These are the current large-file refactor candidates frozen at their present baseline by `packages/shared/src/architectureGuardrails.spec.ts` so post-RC work stays aligned with the modularity guardrails:
 
+- `packages/devtools/src/overlay.ts` (`2090` lines): split public entry wiring from bridge lifecycle and mount orchestration.
 - `packages/devtools/src/panels/diagnosticsPanels.ts` (`1202` lines): split AI Diagnostics rendering into section-specific modules plus provider-status helpers.
 - `packages/devtools/src/overlayStyles.ts` (`2338` lines): split shared tokens/layout rules from panel-specific styling so DevTools surfaces can evolve without one monolithic stylesheet.
 - `packages/devtools/src/overlay.spec.ts` (`1684` lines): split bridge, layout, components, and AI Diagnostics coverage into feature-scoped suites.
+- `packages/vite-plug-in/src/index.ts` (`852` lines): split bootstrap injection, devtools bridge wiring, and hub transport resolution into narrower modules.
+- `packages/devtools/src/app.ts` (`846` lines): split overlay app state transitions, event ingestion, and panel routing into feature-local modules.
+- `packages/sfc/src/stripTypes.ts` (`619` lines): keep strip rules modular and isolate expression-preservation heuristics from block scanning.
+- `packages/devtools/src/inspector/runtimeMonitor.ts` (`540` lines): split summary rendering, history formatting, and filter helpers.
+- `packages/devtools/src/overlayInspectorSuite.ts` (`537` lines): split inspector-focused regression coverage from selection and drill-down cases.
+- `packages/devtools/src/overlayPanelAndContentStyles.ts` (`533` lines): split panel chrome/layout styling from per-panel state styling.
+- `packages/renderer-web/src/renderFromIR.ts` (`530` lines): isolate IR operation rendering helpers from fragment/component orchestration.
+- `packages/devtools/src/panels/aiDiagnosticsPanel.ts` (`528` lines): split nav rail, detail rendering, and provider status helpers.
+- `packages/devtools/src/overlayInspectorAndRuntimeStyles.ts` (`517` lines): split inspector styling from runtime-monitor styling.
+- `packages/renderer-ssr/src/renderToString.ts` (`513` lines): isolate stream/string serialization helpers from route render orchestration.
+- `packages/devtools/src/aiHelpers.ts` (`512` lines): split structured AI response formatting from prompt-building helpers.
+- `packages/devtools/src/overlayValueAndInteractiveStyles.ts` (`511` lines): split interactive control styling from value-explorer styling.
