@@ -1,6 +1,6 @@
 {
   "name": "@terajs/app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Default app-facing entry package for Terajs.",
   "author": "Terajs Labs",
   "type": "module",

@@ -1,11 +1,11 @@
 {
   "name": "terajs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
     "build": "npm run clean && tsc -b",
-    "clean": "tsc -b --clean",
+    "clean": "node scripts/clean-workspace.mjs",
     "test": "vitest",
     "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
     "test:docs": "npm run audit:docs && vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",

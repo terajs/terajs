@@ -124,6 +124,18 @@ describe("Terajs Vite Plugin (integration)", () => {
     throw new Error("Expected transformIndexHtml hook to be defined.");
   }
 
+  function requireBuildStart(hook: Plugin["buildStart"]): (this: any) => void {
+    if (typeof hook === "function") {
+      return hook as (this: any) => void;
+    }
+
+    if (hook && typeof hook === "object" && "handler" in hook && typeof hook.handler === "function") {
+      return hook.handler as (this: any) => void;
+    }
+
+    throw new Error("Expected buildStart hook to be defined.");
+  }
+
   it("mounts a dev middleware for server function requests", async () => {
     setRuntimeMode("server");
     const getGreeting = server(async (name: string) => `hello ${name}`, { id: "getGreeting" });
@@ -530,6 +542,20 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("export function bootstrapTerajsApp()");
   });
 
+  it("generates a dedicated bootstrap virtual module", () => {
+    const plugin = terajsPlugin();
+    const resolveId = requireHook<[string], unknown>(plugin.resolveId);
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const resolved = resolveId("virtual:terajs-bootstrap");
+    const code = load("\0virtual:terajs-bootstrap");
+
+    expect(resolved).toBe("\0virtual:terajs-bootstrap");
+    expect(typeof code).toBe("string");
+    expect(code).toContain('import { bootstrapTerajsApp } from "virtual:terajs-app";');
+    expect(code).toContain("bootstrapTerajsApp();");
+  });
+
   it("resolves app facade runtime imports to /@fs specifiers in dev mode", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
@@ -565,6 +591,16 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof code).toBe("string");
     expect(code).toContain("export function bootstrapTerajsApp()");
+  });
+
+  it("loads bootstrap virtual module when the id carries query suffixes", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = load("\0virtual:terajs-bootstrap?t=171");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("bootstrapTerajsApp();");
   });
 
   it("returns a JavaScript error module when virtual app generation fails", async () => {
@@ -635,8 +671,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 </html>`);
 
     expect(typeof html).toBe("string");
-    expect(html).toContain("bootstrapTerajsApp");
-    expect(html).toContain("/@id/__x00__virtual:terajs-app");
+    expect(html).toContain('src="/@id/__x00__virtual:terajs-bootstrap"');
   });
 
   it("injects bootstrap when only the Vite client module script exists", () => {
@@ -654,8 +689,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 </html>`);
 
     expect(typeof html).toBe("string");
-    expect(html).toContain("bootstrapTerajsApp");
-    expect(html).toContain("/@id/__x00__virtual:terajs-app");
+    expect(html).toContain('src="/@id/__x00__virtual:terajs-bootstrap"');
   });
 
   it("injects bootstrap when helper module scripts are marked as bootstrap-ignored", () => {
@@ -674,16 +708,15 @@ describe("Terajs Vite Plugin (integration)", () => {
 </html>`);
 
     expect(typeof html).toBe("string");
-    expect(html).toContain("bootstrapTerajsApp");
-    expect(html).toContain("/@id/__x00__virtual:terajs-app");
+    expect(html).toContain('src="/@id/__x00__virtual:terajs-bootstrap"');
   });
 
-  it("injects virtual app id in build mode", () => {
+  it("injects fixed bootstrap asset path in build mode", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
     const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
-    configResolved({ command: "build" });
+    configResolved({ command: "build", base: "/" });
     const html = transform(`<!doctype html>
 <html lang="en">
   <head></head>
@@ -693,8 +726,31 @@ describe("Terajs Vite Plugin (integration)", () => {
 </html>`);
 
     expect(typeof html).toBe("string");
-    expect(html).toContain("bootstrapTerajsApp");
-    expect(html).toContain('from "virtual:terajs-app"');
+    expect(html).toContain('src="/assets/terajs-bootstrap.js"');
+  });
+
+  it("emits a fixed-name bootstrap chunk in build mode", () => {
+    const plugin = terajsPlugin();
+    const configResolved = plugin.configResolved as ((config: any) => void);
+    const buildStart = requireBuildStart(plugin.buildStart);
+
+    configResolved({ command: "build", base: "/" });
+
+    let emitted = 0;
+    buildStart.call({
+      emitFile(input: any) {
+        emitted += 1;
+        expect(input).toEqual({
+          type: "chunk",
+          id: "virtual:terajs-bootstrap",
+          fileName: "assets/terajs-bootstrap.js",
+          name: "terajs-bootstrap"
+        });
+        return "bootstrap-ref";
+      }
+    });
+
+    expect(emitted).toBe(1);
   });
 
   it("does not inject bootstrap when a module script already exists", () => {

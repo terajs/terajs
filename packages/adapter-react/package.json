@@ -1,6 +1,6 @@
 {
   "name": "@terajs/adapter-react",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React interoperability adapter for mounting Terajs components in React applications.",
   "author": "Terajs Labs",
   "type": "module",

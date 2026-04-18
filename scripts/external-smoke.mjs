@@ -220,6 +220,12 @@ async function main() {
     console.log("[external-smoke] Building scaffold app...");
     await runNpm(["run", "build"], { cwd: appRoot });
 
+    const builtIndexHtmlPath = join(appRoot, "dist", "index.html");
+    const builtIndexHtml = await readFile(builtIndexHtmlPath, "utf8");
+    if (builtIndexHtml.includes("virtual:")) {
+      throw new Error("Scaffold build left unresolved virtual module imports in dist/index.html.");
+    }
+
     const manifestCandidates = [
       join(appRoot, "dist", "manifest.json"),
       join(appRoot, "dist", ".vite", "manifest.json")

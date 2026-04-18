@@ -34,7 +34,11 @@ const ROUTES_VIRTUAL_ID = "virtual:terajs-routes";
 const RESOLVED_ROUTES_VIRTUAL_ID = `\0${ROUTES_VIRTUAL_ID}`;
 const APP_VIRTUAL_ID = "virtual:terajs-app";
 const RESOLVED_APP_VIRTUAL_ID = `\0${APP_VIRTUAL_ID}`;
+const APP_BOOTSTRAP_VIRTUAL_ID = "virtual:terajs-bootstrap";
+const RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID = `\0${APP_BOOTSTRAP_VIRTUAL_ID}`;
 const DEV_APP_MODULE_PATH = `/@id/__x00__${APP_VIRTUAL_ID}`;
+const DEV_APP_BOOTSTRAP_MODULE_PATH = `/@id/__x00__${APP_BOOTSTRAP_VIRTUAL_ID}`;
+const BUILD_BOOTSTRAP_FILE = "assets/terajs-bootstrap.js";
 const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
 const DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT = "/_terajs/devtools/bridge";
 const DEVTOOLS_IDE_BRIDGE_MANIFEST_RELATIVE_PATH = path.join("node_modules", ".cache", "terajs", "devtools-bridge.json");
@@ -770,12 +774,47 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     }
   }
 
+  function generateAppBootstrapModule(): string {
+    return [
+      `import { bootstrapTerajsApp } from "${APP_VIRTUAL_ID}";`,
+      "bootstrapTerajsApp();"
+    ].join("\n");
+  }
+
+  function ensureTrailingSlash(value: string): string {
+    return value.endsWith("/") ? value : `${value}/`;
+  }
+
+  function toPublicAssetPath(fileName: string): string {
+    const normalizedFileName = normalizePath(fileName);
+    const base = ensureTrailingSlash(config?.base ?? "/");
+
+    if (base === "./") {
+      return `./${normalizedFileName}`;
+    }
+
+    return `${base}${normalizedFileName}`;
+  }
+
   return {
     name: "terajs",
     enforce: "pre",
 
     configResolved(resolvedConfig) {
       config = resolvedConfig;
+    },
+
+    buildStart() {
+      if ((config?.command ?? "serve") !== "build") {
+        return;
+      }
+
+      this.emitFile({
+        type: "chunk",
+        id: APP_BOOTSTRAP_VIRTUAL_ID,
+        fileName: BUILD_BOOTSTRAP_FILE,
+        name: "terajs-bootstrap"
+      });
     },
 
     async writeBundle() {
@@ -839,15 +878,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }
 
       const appEntrySpecifier = config?.command === "build"
-        ? APP_VIRTUAL_ID
-        : DEV_APP_MODULE_PATH;
+        ? toPublicAssetPath(BUILD_BOOTSTRAP_FILE)
+        : DEV_APP_BOOTSTRAP_MODULE_PATH;
 
-      const bootstrapTag = [
-        "    <script type=\"module\">",
-        `      import { bootstrapTerajsApp } from \"${appEntrySpecifier}\";`,
-        "      bootstrapTerajsApp();",
-        "    </script>"
-      ].join("\n");
+      const bootstrapTag = `    <script type="module" src="${appEntrySpecifier}"></script>`;
 
       if (html.includes("</body>")) {
         return html.replace("</body>", `${bootstrapTag}\n  </body>`);
@@ -860,6 +894,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       if (id === AUTO_IMPORT_VIRTUAL_ID) return RESOLVED_AUTO_IMPORT_VIRTUAL_ID;
       if (id === ROUTES_VIRTUAL_ID) return RESOLVED_ROUTES_VIRTUAL_ID;
       if (id === APP_VIRTUAL_ID) return RESOLVED_APP_VIRTUAL_ID;
+      if (id === APP_BOOTSTRAP_VIRTUAL_ID) return RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID;
       return null;
     },
 
@@ -882,6 +917,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
           }
 
           return generateRoutesModule();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
+        }
+      }
+      if (normalizedId === RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID) {
+        try {
+          return generateAppBootstrapModule();
         } catch (error) {
           return createVirtualErrorModule(normalizedId, error);
         }
