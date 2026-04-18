@@ -4,19 +4,7 @@ Terajs is a compiler-native UI framework for route-first, local-first web applic
 
 It combines fine-grained reactivity, direct DOM bindings from compiler output, a renderer-agnostic core, and first-party diagnostics. The web-first launch surface centers on `@terajs/app`, while lower-level packages remain public for teams that want tighter control over the stack.
 
-Status note (April 2026): this README is intended to be the release-facing overview of the full shipped Terajs surface. If you only read one file before evaluating the release, read this one. Use `API_REFERENCE.md` for canonical API signatures and exact exported symbols. Use `VISION.md` and the roadmap documents for directional work.
-
-## How to read the root docs
-
-The root docs should not feel partial or force you into package-level archaeology.
-
-- `README.md`: the full launch overview, feature map, and package map
-- `API_REFERENCE.md`: the canonical shipped API surface and public package reference
-- `COMPONENTS.md`: the component model, `.tera` block system, TSX/JSX authoring, and integration seams
-- `Core_Philosophy.md`: architecture rules and package-boundary rationale
-- the other root docs: release tracking, style guidance, vision, roadmaps, brand/legal, and directional design notes
-
-Not every root markdown file should repeat every feature verbatim. The release rule is simpler: `README.md` and `API_REFERENCE.md` must make the full shipped product obvious, and the other root docs must deepen specific areas instead of hiding them.
+For exact API signatures and exported symbols, see `API_REFERENCE.md`. For longer-range direction, see `VISION.md` and the roadmap documents.
 
 ## Why Terajs
 
@@ -93,6 +81,89 @@ const summary = signal("Route-first apps with compiler-native rendering.");
 ```
 
 If `index.html` contains `#app` and no module entry script, the plugin can auto-bootstrap the app through `virtual:terajs-app`. The same build surface also exposes `virtual:terajs-auto-imports` and `virtual:terajs-routes` for route-aware application assembly.
+
+## Examples
+
+These examples cover common entry points.
+
+### 1. A TSX/JSX component on the same runtime
+
+```tsx
+import { component, signal } from "@terajs/app";
+
+export const Counter = component(
+  { name: "Counter" },
+  ({ initialCount = 0 }: { initialCount?: number }) => {
+    const count = signal(initialCount);
+
+    return () => (
+      <button onClick={() => count.set(count() + 1)}>
+        Count: {count()}
+      </button>
+    );
+  }
+);
+```
+
+### 2. A queue-aware local-first action
+
+```ts
+import { createAction, createMutationQueue } from "@terajs/app";
+
+const queue = await createMutationQueue();
+
+const saveProfile = createAction(async (payload: { name: string }) => {
+  return payload.name;
+});
+
+await saveProfile.runQueued(
+  {
+    queue,
+    type: "profile:save",
+    conflictKey: "current-user"
+  },
+  { name: "Ada" }
+);
+```
+
+### 3. A realtime transport wired into invalidation
+
+```ts
+import { invalidateResources, setServerFunctionTransport } from "@terajs/app";
+import { createSocketIoHubTransport } from "@terajs/hub-socketio";
+
+const hub = await createSocketIoHubTransport({
+  url: "https://api.example.com/live",
+  autoConnect: true,
+  retryPolicy: "exponential"
+});
+
+hub.subscribe((message) => {
+  if (message.type === "invalidate") {
+    void invalidateResources(message.keys);
+  }
+});
+
+setServerFunctionTransport(hub);
+```
+
+### 4. A browser-native custom element
+
+```tsx
+import { component, defineCustomElement, signal } from "@terajs/app";
+
+const CounterBadge = component({ name: "CounterBadge" }, () => {
+  const count = signal(0);
+
+  return () => (
+    <button onClick={() => count.set(count() + 1)}>
+      Badge count: {count()}
+    </button>
+  );
+});
+
+defineCustomElement("counter-badge", CounterBadge);
+```
 
 ## Full shipped release surface
 
@@ -199,7 +270,7 @@ module.exports = {
 
 ### 7. DevTools and the VS Code bridge
 
-Terajs DevTools is part of the shipped app story, not an afterthought.
+Terajs DevTools is part of the shipped app surface.
 
 The overlay can inspect:
 
@@ -303,41 +374,20 @@ The current repo is easiest to understand in four groups.
 - `packages/renderer-ios`
 - `packages/renderer-android`
 
-## Documentation map
+## Related docs
 
-- Release-critical root docs:
-- `README.md`: full launch overview, feature map, and package map
-- `API_REFERENCE.md`: canonical shipped API surface and public package reference
-- `COMPONENTS.md`: component model, SFC blocks, TSX/JSX, metadata, AI, route carriers, and interop seams
-- `Core_Philosophy.md`: architecture principles and package-boundary rationale
-- `CHANGELOG.md`: shipped release changes and status notes
-- `RELEASE_CANDIDATE_CHECKLIST.md`: release gating and hardening status
-
-- Deep dives and conventions:
-- `STYLE_GUIDE.md`: authoring conventions for components, styling, and project structure
-
-- Directional and planning docs:
-- `VISION.md`: long-range product vision
-- `ROADMAP.md`: broader roadmap and future-facing initiatives
+- `API_REFERENCE.md`: current public API surface
+- `COMPONENTS.md`: component model and authoring patterns
+- `Core_Philosophy.md`: architecture principles and package boundaries
+- `CHANGELOG.md`: shipped release changes
+- `RELEASE_CANDIDATE_CHECKLIST.md`: RC status and release gates
+- `STYLE_GUIDE.md`: authoring conventions
+- `VISION.md`: long-range product direction
+- `ROADMAP.md`: broader roadmap
 - `ROADMAP_NATIVE_RENDERERS.md`: native renderer direction
 - `RENDERER_ARCHITECHTURE.md`: renderer-contract and renderer-design notes
-- `terajs_kit.md`: Kit-level direction and ideas
-
-- Brand and legal:
-- `BRAND_GUIDELINES.md`: naming, voice, and visual direction
-- `BRAND_TOKENS.md`: design tokens used by current Terajs surfaces
-- `TRADEMARKS.md`: trademark rules
-- `LICENSE.md`: license terms
-
-- Package READMEs under `packages/*`: leaf-package guidance for direct package consumers
-
-## Direction without confusion
-
-Terajs keeps both launch realism and long-term ambition visible.
-
-- The shipped web-first surface is documented in `README.md` and `API_REFERENCE.md`.
-- Directional work remains visible in `VISION.md`, `ROADMAP.md`, and the renderer roadmap documents.
-
-That split is intentional: the release docs should be complete and concrete, while the vision and roadmap docs should keep sight of what Terajs is building toward.
+- `terajs_kit.md`: Kit-level direction
+- `BRAND_GUIDELINES.md`, `BRAND_TOKENS.md`, `TRADEMARKS.md`, `LICENSE.md`: brand and legal documents
+- package READMEs under `packages/*`: leaf-package guidance for direct package consumers
 
 ---

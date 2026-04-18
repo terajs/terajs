@@ -1,6 +1,6 @@
 # Terajs Renderer Architecture
 
-Status note (April 2026): this document describes renderer contracts and longer-range renderer direction. The shipped launch surface is web-first. Use `README.md` and `API_REFERENCE.md` for current application-facing behavior.
+This document describes renderer contracts and longer-range renderer direction. The shipped launch surface is web-first. Use `README.md` and `API_REFERENCE.md` for current application-facing behavior.
 
 Terajs Core is intentionally renderer‑agnostic. It provides reactivity, component execution, and template evaluation — but it does not know anything about the DOM, native UI systems, or canvas drawing APIs.
 

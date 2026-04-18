@@ -2,7 +2,7 @@
 
 Terajs is a fine‑grained, compiler‑powered UI framework designed for clarity, performance, and flexibility. This roadmap reflects Terajs’s current architecture and future direction.
 
-Status note (April 2026): This roadmap mixes shipped and planned items. Canonical shipped API behavior is documented in API_REFERENCE.md and README.md.
+This roadmap mixes shipped and planned items. Canonical shipped API behavior is documented in `API_REFERENCE.md` and `README.md`.
 
 Terajs’s philosophy:  
 > **Provide structure without restricting creativity.  
@@ -71,7 +71,7 @@ Scoped styles are optional and require no build step.
 
 ## **5. Async Components**
 
-Status note: route and module-level async loading are shipped; a standalone public `lazy(...)` helper is not part of the current shipped API surface.
+Route and module-level async loading are shipped; a standalone public `lazy(...)` helper is not part of the current shipped API surface.
 
 - route and module-level async loading follow component and route boundaries
 - SSR‑friendly  

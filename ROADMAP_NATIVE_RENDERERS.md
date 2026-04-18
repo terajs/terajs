@@ -1,6 +1,6 @@
 # Terajs Native Renderer Roadmap
 
-Status note (April 2026): this document is directional. Native renderer work is not part of the shipped web-first launch surface. Use `README.md` and `API_REFERENCE.md` for current application-facing behavior.
+This document is directional. Native renderer work is not part of the shipped web-first launch surface. Use `README.md` and `API_REFERENCE.md` for current application-facing behavior.
 
 This document outlines the plan for building production-ready native renderers for Terajs (iOS, Android, and beyond).
 

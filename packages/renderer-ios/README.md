@@ -1,6 +1,6 @@
 # @terajs/renderer-ios
 
-Status note (April 2026): experimental stub package. iOS renderer work is directional and not part of the shipped web-first launch surface.
+Experimental stub package. iOS renderer work is directional and not part of the shipped web-first launch surface.
 
 This package represents the iOS-side exploration for rendering Terajs components into SwiftUI-backed native views.
 

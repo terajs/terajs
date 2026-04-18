@@ -1,6 +1,6 @@
 # @terajs/renderer-android
 
-Status note (April 2026): experimental stub package. Android renderer work is directional and not part of the shipped web-first launch surface.
+Experimental stub package. Android renderer work is directional and not part of the shipped web-first launch surface.
 
 This package represents the Android-side exploration for rendering Terajs components into Jetpack Compose-backed native views.
 

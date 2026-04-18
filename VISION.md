@@ -1,7 +1,7 @@
 
 # Terajs Vision
 
-Status note (April 2026): this document is directional. It describes where Terajs is going and the product shape it is trying to become. For shipped web-first APIs and launch behavior, use `API_REFERENCE.md` and `README.md` as the canonical source.
+This document covers longer-range product direction. For shipped web-first APIs and launch behavior, use `API_REFERENCE.md` and `README.md`.
 
 Terajs is trying to build a different kind of application framework:
 

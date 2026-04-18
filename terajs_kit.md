@@ -1,6 +1,6 @@
 # Terajs Kit
 
-Status note (April 2026): This document describes Kit-level architecture and planned direction. For shipped APIs and current behavior, use API_REFERENCE.md.
+This document describes Kit-level architecture and planned direction. For shipped APIs and current behavior, use `API_REFERENCE.md`.
 
 Terajs Kit is the application framework layer built on top of Terajs Core. While Terajs Core provides the rendering engine, reactivity system, and component model, Terajs Kit provides structure for full applications.
 

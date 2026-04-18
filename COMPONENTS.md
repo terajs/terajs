@@ -1,6 +1,6 @@
 # Terajs Component System
 
-Status note (April 2026): this guide explains the component model and authoring patterns. For exact signatures and canonical exported symbols, use `API_REFERENCE.md`.
+This guide explains the component model and authoring patterns. For exact signatures and canonical exported symbols, use `API_REFERENCE.md`.
 
 Terajs components are the unit where rendering, routing, metadata, and runtime behavior meet. They are not just paint functions.
 
