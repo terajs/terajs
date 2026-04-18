@@ -19,10 +19,16 @@ async function exists(path: string): Promise<boolean> {
 
 async function readScaffoldVersionRange(workspaceRoot: string): Promise<string> {
   const cliManifest = JSON.parse(await readText(join(workspaceRoot, "packages", "cli", "package.json"))) as {
-    version: string;
+    dependencies?: Record<string, string>;
   };
 
-  return `^${cliManifest.version}`;
+  const frameworkVersionRange = cliManifest.dependencies?.["@terajs/vite-plugin"];
+
+  if (!frameworkVersionRange) {
+    throw new Error("packages/cli/package.json is missing the @terajs/vite-plugin dependency range");
+  }
+
+  return frameworkVersionRange;
 }
 
 describe("cli scaffoldProject", () => {

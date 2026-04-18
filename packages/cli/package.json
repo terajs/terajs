@@ -1,6 +1,6 @@
 {
   "name": "@terajs/cli",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Official Terajs scaffold and project CLI.",
   "author": "Terajs Labs",
   "license": "Apache-2.0",
@@ -30,7 +30,7 @@
     }
   },
   "dependencies": {
-    "@terajs/vite-plugin": "^1.0.1",
+    "@terajs/vite-plugin": "^1.0.3",
     "commander": "^11.0.0",
     "vite": "^8.0.0"
   },

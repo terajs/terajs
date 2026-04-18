@@ -21,12 +21,20 @@ const MODULE_PATH = import.meta.url.startsWith("file:")
   : import.meta.url;
 const CLI_ROOT = join(dirname(MODULE_PATH), "..");
 const CLI_ASSETS_DIR = join(CLI_ROOT, "assets");
+const FRAMEWORK_VERSION_SOURCE_PACKAGE = "@terajs/vite-plugin";
 
 function readScaffoldVersionRange(): string {
   try {
     const manifest = JSON.parse(readFileSync(join(CLI_ROOT, "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
       version?: string;
     };
+
+    const frameworkVersionRange = manifest.dependencies?.[FRAMEWORK_VERSION_SOURCE_PACKAGE]?.trim();
+
+    if (typeof frameworkVersionRange === "string" && frameworkVersionRange.length > 0) {
+      return frameworkVersionRange;
+    }
 
     if (typeof manifest.version === "string" && manifest.version.trim().length > 0) {
       return `^${manifest.version.trim()}`;
