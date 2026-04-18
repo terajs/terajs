@@ -2,7 +2,19 @@
 
 Command-line tooling for scaffolding and running Terajs projects.
 
-Status: internal package (`private: true`) used for Terajs development and external smoke validation.
+This is the direct public CLI entry for Terajs scaffolding and project maintenance.
+
+## Quickstart
+
+```bash
+npx @terajs/cli init my-app
+```
+
+If you prefer npm's create flow, the same scaffold is also available through:
+
+```bash
+npm create terajs@latest my-app
+```
 
 ## Commands
 
@@ -15,7 +27,7 @@ Status: internal package (`private: true`) used for Terajs development and exter
 ## Typical Flow
 
 ```bash
-tera init my-app
+npx @terajs/cli init my-app
 cd my-app
 npm install
 npm run dev
@@ -32,4 +44,4 @@ Scaffolded projects target the app-facing launch surface:
 
 - Generated projects include `.tera` file association defaults for VS Code.
 - Realtime scaffolds can preconfigure `sync.hub` for SignalR, Socket.IO, or raw WebSockets.
-- Publish behavior is intentionally disabled while CLI surface remains internal.
+- `create-terajs` is a thin wrapper around this CLI for npm's `create` flow.

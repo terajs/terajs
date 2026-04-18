@@ -30,6 +30,7 @@
     { "path": "./packages/terajs" },
     { "path": "./packages/vite-plug-in" },
     { "path": "./packages/cli" },
+    { "path": "./packages/create-terajs" },
     { "path": "./packages/adapter-react" },
     { "path": "./packages/adapter-vue" },
     { "path": "./packages/adapter-ai" },

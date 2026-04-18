@@ -6,7 +6,8 @@ declare module "commander" {
     version(version: string): this;
     command(command: string): this;
     option(flags: string, description: string, defaultValue?: string): this;
-    action(fn: (...args: any[]) => void): this;
+    action(fn: (...args: any[]) => void | Promise<void>): this;
     parse(argv?: string[]): void;
+    parseAsync(argv?: string[], options?: { from?: "user" | "node" | "electron" }): Promise<void>;
   }
 }

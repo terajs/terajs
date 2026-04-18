@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +22,23 @@ const MODULE_PATH = import.meta.url.startsWith("file:")
 const CLI_ROOT = join(dirname(MODULE_PATH), "..");
 const CLI_ASSETS_DIR = join(CLI_ROOT, "assets");
 
-const TERAJS_VERSION = "^1.0.0";
+function readScaffoldVersionRange(): string {
+  try {
+    const manifest = JSON.parse(readFileSync(join(CLI_ROOT, "package.json"), "utf8")) as {
+      version?: string;
+    };
+
+    if (typeof manifest.version === "string" && manifest.version.trim().length > 0) {
+      return `^${manifest.version.trim()}`;
+    }
+  } catch {
+    // Fall through to the fallback range below.
+  }
+
+  return "^1.0.0";
+}
+
+const TERAJS_VERSION = readScaffoldVersionRange();
 const APP_FACADE_PACKAGE = "@terajs/app";
 
 const HUB_DEFAULT_URLS: Record<ScaffoldHubType, string> = {

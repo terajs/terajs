@@ -1,6 +1,6 @@
 {
   "name": "@terajs/reactivity",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Terajs fine-grained reactivity engine",
   "type": "module",
   "main": "dist/index.js",

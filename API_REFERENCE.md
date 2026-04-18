@@ -3,6 +3,8 @@
 This reference describes the current shipped public surface for web-first Terajs applications and the public leaf packages they build on.
 
 Release scope reflected here:
+- `create-terajs`
+- `@terajs/cli`
 - `@terajs/app`
 - `@terajs/app/vite`
 - `@terajs/app/devtools`
@@ -27,6 +29,12 @@ Release scope reflected here:
 - `@terajs/hub-websockets`
 
 This file is intentionally launch-scoped. Directional renderer work, Kit-level ideas, and future-native plans belong in the roadmap and vision docs.
+
+## Project Creation
+
+- `npm create terajs@latest <name>` runs the published `create-terajs` scaffold wrapper.
+- `npx @terajs/cli init <name>` invokes the same scaffold directly through the public CLI.
+- Both commands generate the same starter surface around `@terajs/app`, `@terajs/app/vite`, `terajs.config.cjs`, and the default `src/pages` route tree.
 
 ## 0. App Entry Surface (`@terajs/app`)
 

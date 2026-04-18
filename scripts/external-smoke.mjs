@@ -9,10 +9,11 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const packagesRoot = join(repoRoot, "packages");
-const cliEntry = join(repoRoot, "packages", "cli", "dist", "index.js");
 const appName = "terajs-smoke-app";
 const npmExecPath = process.env.npm_execpath;
 const appFacadePackage = "@terajs/app";
+const cliPackage = "@terajs/cli";
+const createPackage = "create-terajs";
 
 const skipBuild = process.argv.includes("--skip-build");
 const keepArtifacts = process.argv.includes("--keep-artifacts");
@@ -98,7 +99,7 @@ async function collectTerajsPackages() {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     if (
       typeof manifest.name === "string"
-      && (manifest.name === appFacadePackage || manifest.name.startsWith("@terajs/"))
+      && (manifest.name === appFacadePackage || manifest.name === createPackage || manifest.name.startsWith("@terajs/"))
     ) {
       packages.push({
         name: manifest.name,
@@ -192,10 +193,6 @@ async function main() {
     await runNpm(["run", "build"], { cwd: repoRoot });
   }
 
-  if (!existsSync(cliEntry)) {
-    throw new Error("CLI build output is missing. Run npm run build before smoke testing.");
-  }
-
   const tempRoot = await mkdtemp(join(tmpdir(), "terajs-external-smoke-"));
   const tarballsRoot = join(tempRoot, "tarballs");
   const appRoot = join(tempRoot, appName);
@@ -206,8 +203,25 @@ async function main() {
     console.log("[external-smoke] Packing Terajs packages...");
     const tarballs = await packTerajsPackages(tarballsRoot);
 
-    console.log("[external-smoke] Scaffolding app with CLI...");
-    await runCommand(process.execPath, [cliEntry, "init", appName], { cwd: tempRoot });
+    const createTarball = tarballs.get(createPackage);
+    const cliTarball = tarballs.get(cliPackage);
+
+    if (!createTarball || !cliTarball) {
+      throw new Error("Required scaffold tarballs for create-terajs or @terajs/cli are missing.");
+    }
+
+    console.log("[external-smoke] Scaffolding app with public create command...");
+    await runNpm([
+      "exec",
+      "--yes",
+      "--package",
+      toFileSpecifier(tempRoot, createTarball),
+      "--package",
+      toFileSpecifier(tempRoot, cliTarball),
+      "--",
+      "create-terajs",
+      appName
+    ], { cwd: tempRoot });
 
     console.log("[external-smoke] Rewriting scaffold dependencies to local tarballs...");
     await rewriteScaffoldPackage(appRoot, tarballs);

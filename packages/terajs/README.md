@@ -4,7 +4,22 @@ App-facing facade package for Terajs.
 
 Most Terajs applications should start here. `@terajs/app` gives you the default web-first surface in one package while keeping leaf packages available when you need lower-level control.
 
-## Install
+## Scaffold a new app
+
+```bash
+npm create terajs@latest my-app
+cd my-app
+npm install
+npm run dev
+```
+
+If you want the direct CLI path instead of npm's create alias:
+
+```bash
+npx @terajs/cli init my-app
+```
+
+## Install into an existing Vite app
 
 ```bash
 npm install @terajs/app vite

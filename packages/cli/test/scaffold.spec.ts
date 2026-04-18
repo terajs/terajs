@@ -17,6 +17,14 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+async function readScaffoldVersionRange(workspaceRoot: string): Promise<string> {
+  const cliManifest = JSON.parse(await readText(join(workspaceRoot, "packages", "cli", "package.json"))) as {
+    version: string;
+  };
+
+  return `^${cliManifest.version}`;
+}
+
 describe("cli scaffoldProject", () => {
   const originalCwd = process.cwd();
   let tempRoot = "";
@@ -28,6 +36,7 @@ describe("cli scaffoldProject", () => {
   it("creates a runnable starter project layout", async () => {
     tempRoot = await mkdtemp(join(tmpdir(), "terajs-cli-scaffold-"));
     process.chdir(tempRoot);
+    const scaffoldVersionRange = await readScaffoldVersionRange(originalCwd);
 
     await scaffoldProject("demo-app");
 
@@ -40,7 +49,7 @@ describe("cli scaffoldProject", () => {
 
     expect(packageJson.scripts.dev).toBe("vite");
     expect(packageJson.scripts.build).toBe("vite build");
-    expect(packageJson.dependencies["@terajs/app"]).toBe("^1.0.0");
+    expect(packageJson.dependencies["@terajs/app"]).toBe(scaffoldVersionRange);
     expect(packageJson.devDependencies["vite"]).toBe("^8.0.0");
 
     const config = await readText(join(appRoot, "terajs.config.cjs"));
@@ -114,6 +123,7 @@ describe("cli scaffoldProject", () => {
   it("can preconfigure socket.io hub scaffolding", async () => {
     tempRoot = await mkdtemp(join(tmpdir(), "terajs-cli-scaffold-"));
     process.chdir(tempRoot);
+    const scaffoldVersionRange = await readScaffoldVersionRange(originalCwd);
 
     await scaffoldProject("socket-app", {
       hub: "socket.io",
@@ -125,8 +135,8 @@ describe("cli scaffoldProject", () => {
       dependencies: Record<string, string>;
     };
 
-    expect(packageJson.dependencies["@terajs/app"]).toBe("^1.0.0");
-    expect(packageJson.dependencies["@terajs/hub-socketio"]).toBe("^1.0.0");
+    expect(packageJson.dependencies["@terajs/app"]).toBe(scaffoldVersionRange);
+    expect(packageJson.dependencies["@terajs/hub-socketio"]).toBe(scaffoldVersionRange);
     expect(packageJson.dependencies["socket.io-client"]).toBe("^4.8.1");
 
     const config = await readText(join(appRoot, "terajs.config.cjs"));

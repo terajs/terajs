@@ -17,9 +17,34 @@ Terajs is strongest where these pieces reinforce each other:
 - **Integrated diagnostics:** DevTools can inspect components, router activity, queue health, performance, and structured AI/debug context, with an optional live bridge into the companion VS Code tooling.
 - **Framework-agnostic core:** neutral packages stay neutral, while React and Vue wrappers exist as integration seams rather than as design centers.
 
-## Start with `@terajs/app`
+## Start with a scaffold
 
-For most apps, the default entrypoint is the app-facing facade package.
+For most apps, start with the official project generator.
+
+```bash
+npm create terajs@latest my-app
+cd my-app
+npm install
+npm run dev
+```
+
+If you want the CLI directly instead of npm's `create` alias:
+
+```bash
+npx @terajs/cli init my-app
+```
+
+Those commands generate the route-first starter surface around:
+
+- `@terajs/app`
+- `@terajs/app/vite`
+- `terajs.config.cjs`
+- `src/pages` route scaffolding
+- `src/components` auto-import scaffolding
+
+### Manual setup in an existing Vite app
+
+If you are integrating Terajs into an existing Vite app instead of generating a starter, use the app-facing facade package directly.
 
 ```bash
 npm install @terajs/app vite
@@ -251,7 +276,7 @@ The current first-party realtime adapters are:
 - `@terajs/hub-socketio`
 - `@terajs/hub-websockets`
 
-All three plug into the same runtime `ServerFunctionTransport` contract. The internal CLI (`@terajs/cli`, currently private) can scaffold hub-ready apps with `tera init <name> --hub <signalr|socket.io|websockets> [--hub-url <url>]`.
+All three plug into the same runtime `ServerFunctionTransport` contract. The public scaffolders can preconfigure hub-ready apps with `npm create terajs@latest my-app -- --hub <signalr|socket.io|websockets> [--hub-url <url>]` or `npx @terajs/cli init my-app --hub <signalr|socket.io|websockets> [--hub-url <url>]`.
 
 Example realtime config:
 
@@ -365,9 +390,10 @@ The current repo is easiest to understand in four groups.
 - `@terajs/hub-websockets`
 - `@terajs/ui`
 
-### Internal tooling
+### Scaffold and CLI tools
 
-- `@terajs/cli` is currently private and used for Terajs development and external smoke validation.
+- `create-terajs`: the npm `create` wrapper for one-command project scaffolding
+- `@terajs/cli`: the direct CLI entry for `init`, `doctor`, `dev`, and `build`
 
 ### Directional repo work
 
