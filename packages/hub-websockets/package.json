@@ -16,7 +16,10 @@
     "@terajs/shared": "^1.0.0"
   },
   "license": "Apache-2.0",
-  "repository": "https://github.com/Thecodergabe/terajs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thecodergabe/terajs.git"
+  },
   "publishConfig": {
     "access": "public"
   }

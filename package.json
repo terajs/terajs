@@ -6,6 +6,7 @@
   "scripts": {
     "build": "npm run clean && tsc -b",
     "clean": "node scripts/clean-workspace.mjs",
+    "changeset": "changeset",
     "test": "vitest",
     "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
     "test:docs": "npm run audit:docs && vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
@@ -18,9 +19,13 @@
     "audit:docs": "node scripts/audit-docs.mjs",
     "audit:exports": "node scripts/audit-exports.mjs",
     "audit:exports:strict": "node scripts/audit-exports.mjs --strict",
-    "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict && npm run audit:docs"
+    "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict && npm run audit:docs",
+    "release:status": "changeset status --verbose",
+    "version-packages": "changeset version && npm install --package-lock-only",
+    "release:publish": "npm run guard:publish-metadata && npm run build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.7",
     "@types/node": "^25.5.2",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
