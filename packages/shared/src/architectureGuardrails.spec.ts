@@ -34,6 +34,7 @@ const adapterImports = [
 ];
 
 const allowedRootDevDependencies = new Set([
+  "@changesets/cli",
   "@types/node",
   "@types/react",
   "@types/react-dom",
