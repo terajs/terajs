@@ -581,7 +581,9 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof code).toBe("string");
     expect(code).toContain("from '@terajs/app';");
-    expect(code).toContain("import('@terajs/app/devtools')");
+    expect(code).not.toContain("import('@terajs/app/devtools')");
+    expect(code).not.toContain("initializeDevtoolsOverlay");
+    expect(code).not.toContain("mountDevtoolsOverlay");
     expect(code).not.toContain("autoAttachVsCodeDevtoolsBridge");
   });
 

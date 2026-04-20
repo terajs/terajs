@@ -24,6 +24,7 @@ import {
   type AIDiagnosticsSectionKey,
   type AIDiagnosticsStateLike
 } from "./aiDiagnosticsModel.js";
+import { buildAIDiagnosticsBridgeState } from "./aiDiagnosticsBridgeState.js";
 
 export { DEFAULT_AI_DIAGNOSTICS_SECTION, type AIDiagnosticsSectionKey } from "./aiDiagnosticsModel.js";
 
@@ -112,7 +113,6 @@ function renderStructuredAIAssistantResponse(
 }
 
 export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string {
-  const extensionBridge = getExtensionAIAssistantBridge();
   const providerDetails = resolveAIProviderDetails(state);
   const assistantTelemetry = collectAIAssistantTelemetry(state.events);
   const snapshotSignals = collectSignalRegistrySnapshot();
@@ -129,38 +129,30 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
   const documentWarnCount = documentDiagnostics.filter((entry) => entry.severity === "warn").length;
   const documentInfoCount = documentDiagnostics.filter((entry) => entry.severity === "info").length;
   const extensionBridgeTimeoutMs = resolveExtensionAIAssistantTimeoutMs(state.aiAssistantTimeoutMs);
-  const integrationWarnings: string[] = [];
-  const canQueryExtensionAssistant = state.aiAssistantEnabled && providerDetails.hasExtensionBridge;
-  const canRevealExtensionSession = typeof extensionBridge?.revealSession === "function";
-  const vscodeRequestPending = state.aiStatus === "loading" && state.activeAIRequestTarget === "vscode";
-  const debuggingPromptStatusLabel = state.aiPrompt
-    ? "Debugging prompt ready"
-    : "Copy debugging prompt available";
-  const extensionBridgeStatusLabel = canQueryExtensionAssistant
-    ? "VS Code bridge ready"
-    : "VS Code bridge not attached";
-  const extensionActionLabel = vscodeRequestPending ? "Asking Copilot..." : "Ask Copilot";
-  const debuggingPromptHint = canRevealExtensionSession
-    ? "Ask Copilot sends the current sanitized bundle straight through the attached VS Code bridge. Open VS Code Live Session only reveals the mirrored session, and Copy Debugging Prompt gives you the same payload for manual use."
-    : canQueryExtensionAssistant
-    ? "Ask Copilot sends the current sanitized bundle directly through the attached extension bridge, and Copy Debugging Prompt gives you the same payload for manual use."
-    : "Copy Debugging Prompt packages the current sanitized bundle so you can paste it into your own agent, ticket, or debugging chat while you attach the VS Code bridge.";
-  const extensionActionHint = canRevealExtensionSession
-    ? "Ask Copilot sends the current sanitized diagnostics bundle straight through the attached extension and returns the response in DevTools. Open VS Code Live Session is only for viewing the mirrored session."
-    : "Ask Copilot sends the same sanitized diagnostics bundle straight through the attached extension bridge.";
-  const analysisSummary = state.aiStructuredResponse
-    ? "Structured response ready"
-    : state.aiResponse
-    ? "Response ready"
-    : state.aiStatus === "loading"
-    ? state.activeAIRequestTarget === "vscode"
-      ? "VS Code AI running"
-      : "Running"
-    : state.aiPrompt
-    ? "Prompt ready"
-    : canQueryExtensionAssistant || canRevealExtensionSession
-    ? "Ready to sync"
-    : "Prompt-first";
+  const {
+    ideBridgeStatus,
+    canQueryExtensionAssistant,
+    canConnectExtensionBridge,
+    canRetryExtensionBridge,
+    canDisconnectExtensionBridge,
+    vscodeRequestPending,
+    debuggingPromptStatusLabel,
+    extensionBridgeStatusLabel,
+    extensionActionLabel,
+    bridgeConnectActionLabel,
+    debuggingPromptHint,
+    extensionActionHint,
+    ideBridgeHint,
+    analysisSummary,
+    integrationWarnings
+  } = buildAIDiagnosticsBridgeState({
+    state,
+    providerDetails,
+    componentAIMetadataCount,
+    routeAIMetadataCount,
+    mountedAIPreviewCount,
+    documentContext
+  });
 
   let assistantOutputMarkup = "";
   if (state.aiStatus === "loading") {
@@ -191,28 +183,14 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
   } else if (state.aiPrompt) {
     assistantOutputMarkup = `
       <div class="ai-diagnostics-section-block">
-        <div class="panel-title is-cyan">Debugging prompt ready</div>
-        <div class="muted-text">${escapeHtml(canQueryExtensionAssistant ? "The current session bundle is ready to send to the attached Copilot bridge or to copy for manual use." : "The current session bundle is ready to copy into your own agent or debugging chat.")}</div>
+        <div class="panel-title is-cyan">${escapeHtml(canQueryExtensionAssistant ? "Connected and ready" : "Debugging prompt ready")}</div>
+        <div class="muted-text">${escapeHtml(canQueryExtensionAssistant ? "The bridge is attached. This VS Code window is ready for direct agent inspection of the current sanitized snapshot, and Ask Copilot can use the same bundle immediately." : "The current session bundle is ready to copy into your own agent or debugging chat.")}</div>
       </div>
     `;
   } else {
     assistantOutputMarkup = `
-      <div class="empty-state">${escapeHtml(canQueryExtensionAssistant ? "Ask Copilot or copy the debugging prompt to capture the active runtime state." : "Copy the debugging prompt to package the current runtime evidence for an external assistant.")}</div>
+      <div class="empty-state">${escapeHtml(canQueryExtensionAssistant ? "Connected and ready. Ask Copilot or copy the debugging prompt to capture the active runtime state." : "Copy the debugging prompt to package the current runtime evidence for an external assistant.")}</div>
     `;
-  }
-
-  if (!state.aiAssistantEnabled) {
-    integrationWarnings.push("Assistant execution is disabled in the DevTools overlay options.");
-  } else if (!providerDetails.hasExtensionBridge) {
-    integrationWarnings.push("VS Code bridge is not attached. Copy Debugging Prompt still packages the current sanitized bundle while you reconnect the live receiver.");
-  }
-
-  if (componentAIMetadataCount === 0 && routeAIMetadataCount === 0 && mountedAIPreviewCount === 0) {
-    integrationWarnings.push("No component or route AI metadata is currently visible in the mounted app state.");
-  }
-
-  if (!documentContext || (documentContext.metaTags.length === 0 && documentContext.linkTags.length === 0 && !documentContext.title)) {
-    integrationWarnings.push("No safe document head context is currently available, so AI triage will lean more heavily on route and signal diagnostics.");
   }
 
   const navItems: Array<{
@@ -225,7 +203,7 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
       key: "analysis-output",
       title: "Analysis Output",
       summary: analysisSummary,
-      description: "Open the mirrored VS Code session, run the bridge-backed assistant, or copy the current debugging prompt."
+      description: "Run the bridge-backed assistant or copy the current debugging prompt."
     },
     {
       key: "session-mode",
@@ -282,7 +260,8 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
             { key: "Snapshot signals:", value: String(snapshotSignals.length) },
             { key: "AI metadata:", value: String(componentAIMetadataCount + routeAIMetadataCount) },
             { key: "Prompt inputs:", value: String(promptInputs.length) },
-            { key: "VS Code bridge:", value: providerDetails.hasExtensionBridge ? "Attached" : "Not attached" },
+            { key: "VS Code bridge:", value: extensionBridgeStatusLabel },
+            { key: "Receiver discovered:", value: ideBridgeStatus.hasManifest ? "Yes" : "No" },
             { key: "Built-in model:", value: providerDetails.builtInModel },
             { key: "Current insight:", value: state.aiLikelyCause ?? "No reactive error detected yet." },
             { key: "Active path:", value: providerDetails.activePath },
@@ -298,7 +277,8 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
             { key: "Mounted AI previews:", value: String(mountedAIPreviewCount) },
             { key: "Component AI metadata:", value: String(componentAIMetadataCount) },
             { key: "Route AI metadata:", value: String(routeAIMetadataCount) },
-            { key: "Prompt ready:", value: state.aiPrompt ? "Yes" : "No" }
+            { key: "Prompt ready:", value: state.aiPrompt ? "Yes" : "No" },
+            { key: "Last bridge error:", value: ideBridgeStatus.lastError ?? "none" }
           ])}
           ${integrationWarnings.length === 0 ? `<div class="empty-state">AI-aware metadata is visible and the panel is ready to help triage integration issues.</div>` : `
             <ul class="stack-list compact-list">
@@ -487,15 +467,18 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
           <div class="panel-title is-cyan">Run analysis</div>
           <div class="ai-connection-row">
             <span class="ai-connection-pill ${state.aiPrompt ? "is-ready" : "is-idle"}">${escapeHtml(debuggingPromptStatusLabel)}</span>
-            <span class="ai-connection-pill ${canQueryExtensionAssistant ? "is-ready" : "is-idle"}">${escapeHtml(extensionBridgeStatusLabel)}</span>
+            <span class="ai-connection-pill ${(canQueryExtensionAssistant || canConnectExtensionBridge) ? "is-ready" : "is-idle"}">${escapeHtml(extensionBridgeStatusLabel)}</span>
           </div>
           <div class="button-row">
-            ${canRevealExtensionSession ? `<button class="toolbar-button" data-action="open-vscode-session" type="button">Open VS Code Live Session</button>` : ""}
+            ${canRetryExtensionBridge ? `<button class="toolbar-button" data-action="retry-vscode-bridge" type="button">${escapeHtml(bridgeConnectActionLabel)}</button>` : ""}
+            ${canConnectExtensionBridge ? `<button class="toolbar-button" data-action="connect-vscode-bridge" type="button">${escapeHtml(bridgeConnectActionLabel)}</button>` : ""}
             ${canQueryExtensionAssistant ? `<button class="toolbar-button ${vscodeRequestPending ? "is-loading" : ""}" data-action="ask-vscode-ai" type="button" ${state.aiStatus === "loading" ? "disabled" : ""} ${vscodeRequestPending ? 'aria-busy="true"' : ""}>${escapeHtml(extensionActionLabel)}</button>` : ""}
+            ${canDisconnectExtensionBridge ? `<button class="toolbar-button" data-action="disconnect-vscode-bridge" type="button">Disconnect Bridge</button>` : ""}
             <button class="toolbar-button" data-action="copy-debugging-prompt" type="button">Copy Debugging Prompt</button>
           </div>
           <div class="muted-text ai-hint">${escapeHtml(debuggingPromptHint)}</div>
           ${canQueryExtensionAssistant ? `<div class="muted-text ai-hint">${escapeHtml(vscodeRequestPending ? "The attached extension is thinking through the current sanitized diagnostics bundle now." : extensionActionHint)}</div>` : ""}
+          <div class="muted-text ai-hint">${escapeHtml(ideBridgeHint)}</div>
           <div class="muted-text ai-hint">${escapeHtml(providerDetails.detail)}</div>
         </div>
         ${assistantOutputMarkup}

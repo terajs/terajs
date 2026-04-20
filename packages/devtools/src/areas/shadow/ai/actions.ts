@@ -4,7 +4,11 @@ import {
 } from "../../../aiHelpers.js";
 import { type SafeDocumentContext } from "../../../documentContext.js";
 import type { AIDiagnosticsSectionKey } from "../../../panels/diagnosticsPanels.js";
-import { revealExtensionLiveSession } from "../../../providers/extensionBridge.js";
+import {
+  connectVsCodeDevtoolsBridge,
+  disconnectVsCodeDevtoolsBridge,
+  retryVsCodeDevtoolsBridgeConnection,
+} from "../../../ideBridgeAutoAttach.js";
 import type { DevtoolsEvent } from "../../../app.js";
 import {
   copyAIDebugPrompt,
@@ -72,8 +76,21 @@ export function handleShadowAIAreaClick({
     return requestExtensionAIAssistant(requestDependencies);
   }
 
-  if (target.closest("[data-action='open-vscode-session']")) {
-    void revealExtensionLiveSession().catch(() => {});
+  if (target.closest("[data-action='connect-vscode-bridge']")) {
+    connectVsCodeDevtoolsBridge();
+    render();
+    return true;
+  }
+
+  if (target.closest("[data-action='retry-vscode-bridge']")) {
+    retryVsCodeDevtoolsBridgeConnection();
+    render();
+    return true;
+  }
+
+  if (target.closest("[data-action='disconnect-vscode-bridge']")) {
+    disconnectVsCodeDevtoolsBridge();
+    render();
     return true;
   }
 

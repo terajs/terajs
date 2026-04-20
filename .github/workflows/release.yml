@@ -1,21 +1,24 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch to release from
+        required: true
+        default: main
+        type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
   release:
-    if: ${{ secrets.NPM_TOKEN != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
       pull-requests: write
 
     steps:
@@ -23,6 +26,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -37,6 +41,12 @@ jobs:
       - name: Run Publish Metadata Guard
         run: npm run guard:publish-metadata
 
+      - name: Describe Release Behavior
+        run: |
+          echo "The Changesets action will open or update a version PR when release notes are pending."
+          echo "After that version PR is merged, run this workflow again to publish the packages."
+          echo "npm publish uses trusted publishing through GitHub Actions OIDC when the package settings on npm are configured for this workflow."
+
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
@@ -46,4 +56,3 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

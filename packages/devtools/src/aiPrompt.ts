@@ -36,6 +36,8 @@ export function buildAIPrompt(input: AIPromptInput): string {
       effectDisposes: input.sanity.effectDisposes,
       effectRunsPerSecond: input.sanity.effectRunsPerSecond,
       effectImbalance: input.sanity.effectImbalance,
+      effectLifecycleConfidence: input.sanity.effectLifecycleConfidence,
+      effectLifecycleReason: input.sanity.effectLifecycleReason,
       debugListenerCount: input.sanity.debugListenerCount,
       criticalAlerts: critical.map(toAlertSummary),
       warningAlerts: warnings.map(toAlertSummary)
@@ -50,6 +52,7 @@ export function buildAIPrompt(input: AIPromptInput): string {
     "Analyze this snapshot and sanity telemetry.",
     "Use the safe document head summary to understand page intent, route context, and SEO metadata without assuming access to secrets or arbitrary DOM content.",
     "Use the code references to point the developer to likely implementation files and lines when the events provide source locations.",
+    "If effectLifecycleConfidence is low, treat high create-dispose deltas as provisional startup evidence, not a confirmed leak. Ask for verification after navigation, HMR, or a cleared-event baseline before blaming app code.",
     "Prioritize root causes for runaway effects, listener leaks, and unstable update loops.",
     "Suggest concrete fixes and short verification steps.",
     "Return JSON only, without markdown fences, using this shape:",

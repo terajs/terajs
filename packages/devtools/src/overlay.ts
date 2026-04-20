@@ -23,9 +23,16 @@ import {
 } from "./overlayOptions.js";
 import {
   autoAttachVsCodeDevtoolsBridge,
+  connectVsCodeDevtoolsBridge,
+  DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT,
+  disconnectVsCodeDevtoolsBridge,
+  getDevtoolsIdeBridgeStatus,
+  retryVsCodeDevtoolsBridgeConnection,
   stopAutoAttachVsCodeDevtoolsBridge,
   type DevtoolsIdeAutoAttachOptions,
   type DevtoolsIdeBridgeManifest,
+  type DevtoolsIdeBridgeMode,
+  type DevtoolsIdeBridgeStatus,
 } from "./ideBridgeAutoAttach.js";
 
 export type { DevtoolsOverlayOptions } from "./overlayOptions.js";
@@ -33,9 +40,16 @@ export { mountDevtoolsApp };
 export type { DevtoolsAppOptions } from "./app.js";
 export {
   autoAttachVsCodeDevtoolsBridge,
+  connectVsCodeDevtoolsBridge,
+  DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT,
+  disconnectVsCodeDevtoolsBridge,
+  getDevtoolsIdeBridgeStatus,
+  retryVsCodeDevtoolsBridgeConnection,
   stopAutoAttachVsCodeDevtoolsBridge,
   type DevtoolsIdeAutoAttachOptions,
   type DevtoolsIdeBridgeManifest,
+  type DevtoolsIdeBridgeMode,
+  type DevtoolsIdeBridgeStatus,
 } from "./ideBridgeAutoAttach.js";
 export {
   DEVTOOLS_BRIDGE_DISPOSE_EVENT,

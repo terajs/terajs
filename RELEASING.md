@@ -1,8 +1,51 @@
 # Releasing Terajs
 
-Terajs now uses Changesets for versioning and package release prep.
+Terajs uses Changesets for versioning and package release prep.
 
-## Local flow
+The recommended release path is a manually triggered GitHub Actions workflow. Local publishing remains the fallback path.
+
+## One-time setup
+
+1. Sign in to npm and open the settings for each published `@terajs/*` package.
+2. Add a trusted publisher for GitHub Actions with:
+	- organization or user: the GitHub owner for this repo
+	- repository: `terajs`
+	- workflow filename: `release.yml`
+3. Leave the built-in `GITHUB_TOKEN` alone; the workflow already uses it for the version PR.
+
+Trusted publishing is configured on npm, not as a GitHub secret. Once it is enabled on the published packages, the workflow can publish without storing a long-lived npm token.
+
+## Recommended GitHub Actions flow
+
+Prerequisites:
+
+- Trusted publishing is configured on npm for the published packages and points to this repository's `release.yml` workflow.
+- `.changeset/*.md` release notes are committed on `main`.
+
+Flow:
+
+1. Open the `Release` workflow in GitHub Actions.
+2. Run it against `main`.
+3. If pending Changesets exist, the workflow opens or updates the version PR.
+4. Merge the version PR.
+5. Run the `Release` workflow again against `main` to publish the packages.
+
+This keeps publishing explicit while removing the need to run `changeset version` and `changeset publish` by hand on a local machine.
+
+The release workflow already includes the GitHub Actions permission npm needs for OIDC: `id-token: write`.
+
+The workflow only needs real Changeset files. A valid file lists one or more packages and bump levels in the frontmatter, for example:
+
+```md
+---
+"@terajs/devtools": minor
+"@terajs/app": minor
+---
+
+Add explicit VS Code bridge lifecycle helpers and app-facing re-exports.
+```
+
+## Local fallback flow
 
 1. Add a release note after package changes:
 
@@ -28,11 +71,4 @@ npm run version-packages
 npm run release:publish
 ```
 
-## Automated flow
-
-The workflow in `.github/workflows/release.yml` uses Changesets on `main`.
-
-- With pending `.changeset/*.md` files, it opens or updates a version PR.
-- After the version PR lands on `main`, it publishes the updated public packages.
-
-To enable publishing from GitHub Actions, set the repository secret `NPM_TOKEN`.
+Use the local flow if GitHub Actions is unavailable or if you need to recover a release manually.

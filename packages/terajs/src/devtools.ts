@@ -3,8 +3,13 @@
  */
 export {
   autoAttachVsCodeDevtoolsBridge,
+  connectVsCodeDevtoolsBridge,
+  DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT,
+  disconnectVsCodeDevtoolsBridge,
+  getDevtoolsIdeBridgeStatus,
   mountDevtoolsApp,
   mountDevtoolsOverlay,
+  retryVsCodeDevtoolsBridgeConnection,
   stopAutoAttachVsCodeDevtoolsBridge,
   toggleDevtoolsOverlay,
   toggleDevtoolsVisibility,
@@ -14,5 +19,7 @@ export {
 export type {
   DevtoolsAppOptions,
   DevtoolsIdeAutoAttachOptions,
+  DevtoolsIdeBridgeMode,
   DevtoolsIdeBridgeManifest,
+  DevtoolsIdeBridgeStatus,
 } from "@terajs/devtools";

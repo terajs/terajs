@@ -313,7 +313,7 @@ The overlay can inspect:
 - AI diagnostics context assembled from structured runtime data
 - live bridge sessions for the companion VS Code tooling
 
-In development, you can also attach DevTools to the companion VS Code extension through a same-origin bridge.
+In development, you can also discover the companion VS Code receiver through a same-origin bridge and then connect from the page when you are ready to stream the sanitized live session.
 
 ```ts
 import {
@@ -325,7 +325,11 @@ mountDevtoolsOverlay();
 autoAttachVsCodeDevtoolsBridge();
 ```
 
-That bridge is development-only. Production builds do not expose the bridge manifest route or auto-attach helper.
+`autoAttachVsCodeDevtoolsBridge()` enables receiver discovery. In the stock overlay, AI Diagnostics exposes `Connect VS Code Bridge` when a receiver is available. Custom shells can drive the same explicit lifecycle with `connectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, and `disconnectVsCodeDevtoolsBridge()`.
+
+Once connected, the companion extension can inspect the same sanitized snapshot directly through `Terajs: Inspect Attached Site`, the attached-site status bar entry, or the sticky `@terajs` chat participant. The mirrored live panel is still available, but it is no longer required for the direct AI workflow.
+
+That bridge is development-only. Production app builds do not emit the bridge manifest route, the auto-attach wiring, or the DevTools bootstrap path.
 
 ### 8. Interop and lower-level public packages
 
@@ -333,7 +337,7 @@ Terajs exposes a wider public package graph than the three app-facing entrypoint
 
 - `@terajs/adapter-react`: mount Terajs components inside React trees and bridge Terajs resources into React hooks
 - `@terajs/adapter-vue`: mount Terajs components inside Vue applications and bridge resources into Vue composables and directives
-- `@terajs/adapter-ai`: define structured AI action schemas and capture sanitized reactive state snapshots for tooling or assistants
+- `@terajs/adapter-ai`: define structured AI action schemas, capture sanitized reactive state snapshots, and wire app chatbots with same-origin-safe defaults
 - `@terajs/renderer`: platform-agnostic renderer interfaces, AST contracts, mount/hydration interfaces, and renderer errors
 - `@terajs/router-manifest`: infer file paths, build routes from parsed SFCs, and assemble route manifests directly
 - `@terajs/compiler`: template parsing, AST, IR, and style compilation primitives

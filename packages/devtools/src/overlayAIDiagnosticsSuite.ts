@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { emitDebug } from "@terajs/shared";
-import { autoAttachVsCodeDevtoolsBridge, mountDevtoolsOverlay } from "./overlay";
+import { autoAttachVsCodeDevtoolsBridge, connectVsCodeDevtoolsBridge, mountDevtoolsOverlay } from "./overlay";
 import { appendTestHeadNode, flushMicrotasks, installClipboardMock } from "./overlaySpecShared.js";
 
 export function registerOverlayAIDiagnosticsSuite(): void {
@@ -225,18 +225,13 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     await flushMicrotasks();
 
     const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
-    const openSessionButton = shadowRoot?.querySelector('[data-action="open-vscode-session"]') as HTMLButtonElement | null;
     const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
     const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
-    expect(openSessionButton?.textContent).toContain("Open VS Code Live Session");
+    expect(shadowRoot?.querySelector('[data-action="open-vscode-session"]')).toBeNull();
     expect(extensionButton?.textContent).toContain("Ask Copilot");
     expect(copyButton?.textContent).toContain("Copy Debugging Prompt");
-    expect(analysisPane?.textContent).toContain("Ask Copilot sends the current sanitized bundle straight through the attached VS Code bridge.");
-
-    openSessionButton?.click();
-    await flushMicrotasks();
-
-    expect(revealSession).toHaveBeenCalledTimes(1);
+    expect(shadowRoot?.textContent).toContain("Connected and ready");
+    expect(analysisPane?.textContent).toContain("Ask Copilot sends the current sanitized bundle directly through the attached extension bridge");
 
     extensionButton?.click();
 
@@ -283,7 +278,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     sessionModeButton?.click();
     const sessionModePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
     expect(sessionModePane?.textContent).toContain("VS Code bridge:");
-    expect(sessionModePane?.textContent).toContain("Attached");
+    expect(sessionModePane?.textContent).toContain("Connected and ready");
     expect(sessionModePane?.textContent).toContain("VS Code AI/Copilot via attached extension bridge.");
 
     const telemetryButton = shadowRoot?.querySelector('[data-ai-section="provider-telemetry"]') as HTMLButtonElement | null;
@@ -363,17 +358,19 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
     await flushMicrotasks();
 
-    const openSessionButton = shadowRoot?.querySelector('[data-action="open-vscode-session"]') as HTMLButtonElement | null;
-    const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
-    expect(openSessionButton?.textContent).toContain("Open VS Code Live Session");
-    expect(extensionButton?.textContent).toContain("Ask Copilot");
     expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/live/token", expect.objectContaining({ method: "POST" }));
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(0);
 
-    openSessionButton?.click();
+    const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+    expect(connectButton?.textContent).toContain("Connect VS Code Bridge");
+    connectButton?.click();
+
     await flushMicrotasks();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/reveal/token", expect.objectContaining({ method: "POST" }));
+    const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+    expect(shadowRoot?.querySelector('[data-action="open-vscode-session"]')).toBeNull();
+    expect(extensionButton?.textContent === "Ask Copilot" || extensionButton?.textContent === "Asking Copilot...").toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/live/token", expect.objectContaining({ method: "POST" }));
 
     extensionButton?.click();
     await flushMicrotasks();
@@ -382,6 +379,213 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     expect(shadowRoot?.textContent).toContain("Structured response ready");
 
     vi.unstubAllGlobals();
+  });
+
+  it("refreshes the manifest before an explicit bridge connect", async () => {
+    let manifestUpdatedAt = 1713120000000;
+    let manifestPort = 4040;
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: `http://127.0.0.1:${manifestPort}/live/token`,
+              ai: `http://127.0.0.1:${manifestPort}/ai/token`,
+              reveal: `http://127.0.0.1:${manifestPort}/reveal/token`,
+              updatedAt: manifestUpdatedAt
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4041/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return JSON.stringify({
+              accepted: true,
+              phase: "ready",
+              state: "connected",
+              connectedAt: 1713120005000,
+              instanceId: "devtools-instance-1"
+            });
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay();
+      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
+
+      await flushMicrotasks();
+
+      manifestPort = 4041;
+      manifestUpdatedAt += 1000;
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+      await flushMicrotasks();
+
+      const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+      connectButton?.click();
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(2);
+      expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4041/live/token", expect.objectContaining({ method: "POST" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("runs one automatic VS Code AI diagnosis after an explicit bridge connect", async () => {
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
+              updatedAt: 1713120000000
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return JSON.stringify({
+              accepted: true,
+              phase: "ready",
+              state: "connected",
+              connectedAt: 1713120004321,
+              instanceId: "devtools-instance-1"
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/ai/token") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              response: '{"summary":"Automatic VS Code diagnosis completed.","likelyCauses":["A route-level effect is re-entering during the current live session."],"codeReferences":[],"nextChecks":["Inspect the first effect that writes during route activation."],"suggestedFixes":["Guard the effect or move the write behind an explicit action."]}',
+              telemetry: {
+                model: "copilot/test",
+                endpoint: null
+              }
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/reveal/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return "accepted";
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay();
+      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
+
+      await flushMicrotasks();
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+
+      await flushMicrotasks();
+
+      const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+      connectButton?.click();
+
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/ai/token")).toHaveLength(1);
+      expect(shadowRoot?.textContent).toContain("Automatic VS Code diagnosis completed.");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("stops background manifest polling after discovery while waiting for an explicit connect", async () => {
+    vi.useFakeTimers();
+
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
+              updatedAt: 1713120000000
+            });
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay();
+      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
+
+      await flushMicrotasks();
+
+      const manifestCallCountAfterDiscovery = fetchMock.mock.calls.filter(
+        ([input]) => String(input) === "/_terajs/devtools/bridge"
+      ).length;
+
+      await vi.advanceTimersByTimeAsync(5000);
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(manifestCallCountAfterDiscovery);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("coalesces repeated bridge updates before syncing the live session", async () => {
@@ -411,7 +615,29 @@ export function registerOverlayAIDiagnosticsSuite(): void {
           ok: true,
           status: 202,
           async text() {
-            return "accepted";
+            return JSON.stringify({
+              accepted: true,
+              phase: "ready",
+              state: "connected",
+              connectedAt: 1713120000000,
+              instanceId: "devtools-instance-1"
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/ai/token") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              response: '{"summary":"Connected","likelyCauses":[],"codeReferences":[],"nextChecks":[],"suggestedFixes":[]}',
+              telemetry: {
+                model: "copilot/test",
+                endpoint: null
+              }
+            });
           }
         } as Response;
       }
@@ -425,6 +651,8 @@ export function registerOverlayAIDiagnosticsSuite(): void {
       mountDevtoolsOverlay();
       autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
 
+      await flushMicrotasks();
+      connectVsCodeDevtoolsBridge();
       await flushMicrotasks();
 
       for (let index = 0; index < 50; index += 1) {
@@ -472,7 +700,29 @@ export function registerOverlayAIDiagnosticsSuite(): void {
           ok: true,
           status: 202,
           async text() {
-            return "accepted";
+            return JSON.stringify({
+              accepted: true,
+              phase: "ready",
+              state: "connected",
+              connectedAt: 1713120000000,
+              instanceId: "devtools-instance-1"
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/ai/token") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              response: '{"summary":"Connected","likelyCauses":[],"codeReferences":[],"nextChecks":[],"suggestedFixes":[]}',
+              telemetry: {
+                model: "copilot/test",
+                endpoint: null
+              }
+            });
           }
         } as Response;
       }
@@ -487,23 +737,28 @@ export function registerOverlayAIDiagnosticsSuite(): void {
       autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
 
       await flushMicrotasks();
+      connectVsCodeDevtoolsBridge();
+      await flushMicrotasks();
 
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(1);
+      const manifestCallCountAfterConnect = fetchMock.mock.calls.filter(
+        ([input]) => String(input) === "/_terajs/devtools/bridge"
+      ).length;
 
       await vi.advanceTimersByTimeAsync(5000);
       await flushMicrotasks();
 
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(1);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(manifestCallCountAfterConnect);
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
   });
 
-  it("quarantines a failed live bridge until the manifest changes", async () => {
+  it("does not retry a failed live bridge until the user explicitly retries", async () => {
     vi.useFakeTimers();
 
     let manifestUpdatedAt = 1713120000000;
+    let manifestPort = 4040;
     const fetchMock = vi.fn(async (input: unknown) => {
       const url = String(input);
 
@@ -514,9 +769,9 @@ export function registerOverlayAIDiagnosticsSuite(): void {
           async text() {
             return JSON.stringify({
               version: 1,
-              session: "http://127.0.0.1:4040/live/token",
-              ai: "http://127.0.0.1:4040/ai/token",
-              reveal: "http://127.0.0.1:4040/reveal/token",
+              session: `http://127.0.0.1:${manifestPort}/live/token`,
+              ai: `http://127.0.0.1:${manifestPort}/ai/token`,
+              reveal: `http://127.0.0.1:${manifestPort}/reveal/token`,
               updatedAt: manifestUpdatedAt
             });
           }
@@ -525,6 +780,22 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
       if (url === "http://127.0.0.1:4040/live/token") {
         throw new Error("receiver offline");
+      }
+
+      if (url === "http://127.0.0.1:4041/live/token") {
+        return {
+          ok: true,
+          status: 202,
+          async text() {
+            return JSON.stringify({
+              accepted: true,
+              phase: "ready",
+              state: "connected",
+              connectedAt: 1713120005000,
+              instanceId: "devtools-instance-1"
+            });
+          }
+        } as Response;
       }
 
       throw new Error(`Unexpected fetch call: ${url}`);
@@ -537,27 +808,40 @@ export function registerOverlayAIDiagnosticsSuite(): void {
       autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
 
       await flushMicrotasks();
+      connectVsCodeDevtoolsBridge();
+      await flushMicrotasks();
 
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(2);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(1);
 
       window.dispatchEvent(new CustomEvent("terajs:devtools:bridge:update"));
       await flushMicrotasks();
 
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(2);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(1);
 
-      await vi.advanceTimersByTimeAsync(1000);
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
       await flushMicrotasks();
 
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(2);
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
-
-      manifestUpdatedAt += 1000;
-
-      await vi.advanceTimersByTimeAsync(1000);
+      const retryButton = shadowRoot?.querySelector('[data-action="retry-vscode-bridge"]') as HTMLButtonElement | null;
+      retryButton?.click();
       await flushMicrotasks();
 
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(3);
-      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(4);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+
+      manifestPort = 4041;
+      manifestUpdatedAt += 1000;
+
+      const retryButtonAfterFailure = shadowRoot?.querySelector('[data-action="retry-vscode-bridge"]') as HTMLButtonElement | null;
+      retryButtonAfterFailure?.click();
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(4);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4041/live/token")).not.toHaveLength(0);
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();

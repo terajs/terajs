@@ -18,6 +18,7 @@ describe("devtools sanity metrics", () => {
 
     expect(metrics.alerts).toEqual([]);
     expect(metrics.activeEffects).toBe(0);
+    expect(metrics.effectLifecycleConfidence).toBe("normal");
   });
 
   it("flags critical alert when active effects exceed threshold", () => {
@@ -38,6 +39,31 @@ describe("devtools sanity metrics", () => {
     });
 
     expect(metrics.alerts.some((alert) => alert.id === "active-effects" && alert.severity === "critical")).toBe(true);
+  });
+
+  it("downgrades effect leak alerts during initial mount without teardown evidence", () => {
+    const now = 10_000;
+    const events: DevtoolsEventLike[] = [];
+
+    for (let i = 0; i < 8; i += 1) {
+      events.push({ type: "template:mount", timestamp: now - i * 10 });
+      events.push({ type: "effect:create", timestamp: now - i * 10 });
+    }
+
+    const metrics = computeSanityMetrics(events, {
+      lookbackMs: 1000,
+      maxActiveEffects: 5,
+      maxEffectRunsPerSecond: 999,
+      maxEffectImbalance: 5,
+      maxDebugListeners: 999,
+      debugListenerCount: 0
+    });
+
+    expect(metrics.effectLifecycleConfidence).toBe("low");
+    expect(metrics.effectLifecycleReason).toContain("initial template or component mount");
+    expect(metrics.alerts.some((alert) => alert.id === "active-effects" && alert.severity === "critical")).toBe(false);
+    expect(metrics.alerts.some((alert) => alert.id === "active-effects" && alert.confidence === "low")).toBe(true);
+    expect(metrics.alerts.some((alert) => alert.id === "effect-imbalance" && alert.confidence === "low")).toBe(true);
   });
 
   it("flags critical alert for high effect run rate", () => {
@@ -68,5 +94,6 @@ describe("devtools sanity metrics", () => {
     });
 
     expect(metrics.alerts.some((alert) => alert.id === "debug-listeners" && alert.severity === "critical")).toBe(true);
+    expect(metrics.effectLifecycleConfidence).toBe("normal");
   });
 });

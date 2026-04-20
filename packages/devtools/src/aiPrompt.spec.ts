@@ -19,6 +19,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 9,
         effectRunsPerSecond: 42.5,
         effectImbalance: 11,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 6,
         alerts: [
           {
@@ -26,7 +28,8 @@ describe("devtools ai prompt builder", () => {
             severity: "critical",
             message: "Active effects exceeded threshold",
             current: 11,
-            threshold: 10
+            threshold: 10,
+            confidence: "normal"
           }
         ]
       },
@@ -37,6 +40,7 @@ describe("devtools ai prompt builder", () => {
     expect(prompt).toContain("criticalAlerts");
     expect(prompt).toContain("active-effects");
     expect(prompt).toContain("effectRunsPerSecond");
+    expect(prompt).toContain("effectLifecycleConfidence");
   });
 
   it("adds recent issues for AI triage context", () => {
@@ -53,6 +57,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 0,
         effectRunsPerSecond: 0,
         effectImbalance: 0,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 0,
         alerts: []
       },
@@ -109,6 +115,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 0,
         effectRunsPerSecond: 0,
         effectImbalance: 0,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 0,
         alerts: []
       },
@@ -136,6 +144,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 0,
         effectRunsPerSecond: 0,
         effectImbalance: 0,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 0,
         alerts: []
       },
@@ -196,6 +206,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 0,
         effectRunsPerSecond: 0,
         effectImbalance: 0,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 0,
         alerts: []
       },
@@ -237,6 +249,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 0,
         effectRunsPerSecond: 0,
         effectImbalance: 0,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 0,
         alerts: []
       },
@@ -273,6 +287,8 @@ describe("devtools ai prompt builder", () => {
         effectDisposes: 0,
         effectRunsPerSecond: 0,
         effectImbalance: 0,
+        effectLifecycleConfidence: "normal",
+        effectLifecycleReason: null,
         debugListenerCount: 0,
         alerts: []
       },

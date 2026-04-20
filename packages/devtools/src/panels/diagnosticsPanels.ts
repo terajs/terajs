@@ -211,16 +211,20 @@ export function renderSanityPanel(events: DevtoolsEventLike[]): string {
           ${renderMetricCard("Effect Disposes", String(metrics.effectDisposes))}
           ${renderMetricCard("Effect Runs / sec", String(metrics.effectRunsPerSecond))}
           ${renderMetricCard("Effect Imbalance", String(metrics.effectImbalance))}
+          ${renderMetricCard("Lifecycle Confidence", metrics.effectLifecycleConfidence === "low" ? "provisional" : "normal")}
           ${renderMetricCard("Debug Listeners", String(metrics.debugListenerCount))}
         </div>
       `),
+      metrics.effectLifecycleReason ? renderIframeFlatSection("Effect lifecycle evidence", `
+        <div class="empty-state">${escapeHtml(metrics.effectLifecycleReason)}</div>
+      `) : "",
       renderIframeFlatSection("Alerts", metrics.alerts.length === 0 ? `<div class="empty-state">No runaway effects or listener leaks detected in the active window.</div>` : `
         <ul class="stack-list">
           ${metrics.alerts.map((alert) => `
             <li class="stack-item ${alert.severity === "critical" ? "issue-error" : "issue-warn"}">
               <span class="item-label">[${escapeHtml(alert.severity.toUpperCase())}]</span>
               <span>${escapeHtml(alert.message)}</span>
-              <span class="muted-text">current=${escapeHtml(String(alert.current))}, threshold=${escapeHtml(String(alert.threshold))}</span>
+              <span class="muted-text">confidence=${escapeHtml(alert.confidence)}, current=${escapeHtml(String(alert.current))}, threshold=${escapeHtml(String(alert.threshold))}</span>
             </li>
           `).join("")}
         </ul>

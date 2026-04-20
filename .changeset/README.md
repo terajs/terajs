@@ -2,7 +2,16 @@
 
 Use Changesets for package versioning and release prep in this repo.
 
-Common flow:
+Recommended release flow:
+
+1. Run `npm run changeset` after a user-facing package change.
+2. Commit the generated file under `.changeset/` with the implementation.
+3. Make sure npm trusted publishing is configured for the published packages and points to the `release.yml` workflow in this repo.
+4. Trigger the `Release` GitHub Actions workflow against `main`.
+5. Merge the generated version PR when Changesets opens or updates it.
+6. Trigger the `Release` workflow again to publish the updated packages.
+
+Local fallback flow:
 
 1. Run `npm run changeset` after a user-facing package change.
 2. Commit the generated file under `.changeset/` with the implementation.
@@ -10,4 +19,19 @@ Common flow:
 4. Run `npm run version-packages` when you are ready to cut versions locally.
 5. Run `npm run release:publish` to build and publish the updated packages.
 
-The GitHub release workflow can also create the version PR and publish automatically once `NPM_TOKEN` is configured in repository secrets.
+The GitHub workflow still depends on the same Changesets files, so both paths stay aligned.
+
+Trusted publishing is configured on npm package settings, not by adding an `NPM_TOKEN` secret to GitHub.
+
+Valid Changeset files look like this:
+
+```md
+---
+"@terajs/devtools": minor
+"@terajs/app": minor
+---
+
+Add explicit VS Code bridge lifecycle helpers and app-facing re-exports.
+```
+
+An empty frontmatter block does not schedule a package release. If a note does not need to bump any package, keep it out of `.changeset/`.

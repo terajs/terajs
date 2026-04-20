@@ -81,9 +81,13 @@ import {
   type AIAssistantStructuredResponse,
 } from "./aiHelpers.js";
 import { EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT } from "./providers/extensionBridge.js";
+import {
+  DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT,
+} from "./ideBridgeAutoAttach.js";
 import { patchShadowComponentsArea, captureComponentsScrollPositions } from "./areas/shadow/components/render.js";
 import { createClickHandler } from "./appClickHandler.js";
 import { renderAppShell } from "./appShell.js";
+import { createAutomaticIdeBridgeDiagnosisHandler } from "./areas/shadow/ai/requestExecution.js";
 import {
   registerDevtoolsBridgeInstance,
   type DevtoolsBridgeTabName,
@@ -607,6 +611,10 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
             status: state.aiStatus,
             likelyCause: state.aiLikelyCause,
             error: state.aiError,
+            summary: state.aiStructuredResponse?.summary ?? (state.aiResponse?.trim() || null),
+            likelyCauses: state.aiStructuredResponse?.likelyCauses ?? [],
+            nextChecks: state.aiStructuredResponse?.nextChecks ?? [],
+            suggestedFixes: state.aiStructuredResponse?.suggestedFixes ?? [],
             promptAvailable: state.aiPrompt !== null,
             responseAvailable: state.aiResponse !== null || state.aiStructuredResponse !== null,
             assistantEnabled: state.aiAssistantEnabled,
@@ -656,10 +664,19 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   const handleExtensionAIBridgeChange = () => {
     render();
   };
+  const handleIdeBridgeStatusChange = createAutomaticIdeBridgeDiagnosisHandler({
+    state,
+    aiOptions,
+    aiRequestTokenRef,
+    readDocumentContext,
+    emitDevtoolsEvent: appendEvent,
+    render
+  });
 
   if (typeof window !== "undefined") {
     window.addEventListener(DEVTOOLS_COMPONENT_PICKED_EVENT, handleComponentPicked as EventListener);
     window.addEventListener(EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT, handleExtensionAIBridgeChange as EventListener);
+    window.addEventListener(DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT, handleIdeBridgeStatusChange as EventListener);
   }
 
   const handleClick = createClickHandler({
@@ -730,6 +747,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     if (typeof window !== "undefined") {
       window.removeEventListener(DEVTOOLS_COMPONENT_PICKED_EVENT, handleComponentPicked as EventListener);
       window.removeEventListener(EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT, handleExtensionAIBridgeChange as EventListener);
+      window.removeEventListener(DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT, handleIdeBridgeStatusChange as EventListener);
     }
     devtoolsBridge?.dispose();
     notifyInspectMode(false);

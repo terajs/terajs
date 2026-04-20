@@ -12,6 +12,7 @@ import {
   type NormalizedAIAssistantOptions
 } from "../../../aiHelpers.js";
 import { analyzeSafeDocumentContext, type SafeDocumentContext } from "../../../documentContext.js";
+import { getDevtoolsIdeBridgeStatus } from "../../../ideBridgeAutoAttach.js";
 import { resolveExtensionAIAssistantResponseDetailed } from "../../../providers/extensionBridge.js";
 import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "../../../sanity.js";
 import type { AIDiagnosticsSectionKey } from "../../../panels/diagnosticsPanels.js";
@@ -35,6 +36,34 @@ interface ShadowAIActionsDependencies {
   readDocumentContext: () => SafeDocumentContext | null;
   emitDevtoolsEvent: (event: DevtoolsEvent) => void;
   render: () => void;
+}
+
+export function createAutomaticIdeBridgeDiagnosisHandler(
+  dependencies: ShadowAIActionsDependencies & {
+    state: ShadowAIActionsState & { aiAssistantEnabled: boolean };
+  }
+): () => void {
+  let lastAutomaticBridgeDiagnosisConnectedAt = 0;
+
+  return () => {
+    dependencies.render();
+
+    const bridgeStatus = getDevtoolsIdeBridgeStatus();
+    if (!dependencies.state.aiAssistantEnabled || bridgeStatus.mode !== "connected" || bridgeStatus.connectedAt === null) {
+      return;
+    }
+
+    if (bridgeStatus.connectedAt === lastAutomaticBridgeDiagnosisConnectedAt) {
+      return;
+    }
+
+    if (dependencies.state.aiStatus === "loading" && dependencies.state.activeAIRequestTarget === "vscode") {
+      return;
+    }
+
+    lastAutomaticBridgeDiagnosisConnectedAt = bridgeStatus.connectedAt;
+    requestExtensionAIAssistant(dependencies);
+  };
 }
 
 interface PreparedAIAssistantRequest {

@@ -67,7 +67,7 @@ It also re-exports route-manifest helpers:
 - browser bridge helpers: `getDevtoolsBridge()`, `readDevtoolsBridgeSession(instanceId?)`, `waitForDevtoolsBridge(options?)`, `subscribeToDevtoolsBridge(listener, options?)`
 - bridge events: `DEVTOOLS_BRIDGE_READY_EVENT`, `DEVTOOLS_BRIDGE_UPDATE_EVENT`, `DEVTOOLS_BRIDGE_DISPOSE_EVENT`
 - bridge types: `DevtoolsBridgeSnapshot`, `DevtoolsBridgeSessionExport`, `DevtoolsBridgeEventDetail`, `DevtoolsBridgeEventRecord`, `DevtoolsBridgeInstanceSummary`, `DevtoolsBridgeTabName`, `DevtoolsGlobalBridge`, `SubscribeToDevtoolsBridgeOptions`, `WaitForDevtoolsBridgeOptions`
-- development-only VS Code bridge helpers: `autoAttachVsCodeDevtoolsBridge(options?)`, `stopAutoAttachVsCodeDevtoolsBridge()`, `DevtoolsIdeAutoAttachOptions`, `DevtoolsIdeBridgeManifest`
+- development-only VS Code bridge helpers: `autoAttachVsCodeDevtoolsBridge(options?)`, `connectVsCodeDevtoolsBridge()`, `disconnectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, `getDevtoolsIdeBridgeStatus()`, `stopAutoAttachVsCodeDevtoolsBridge()`, `DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT`, `DevtoolsIdeAutoAttachOptions`, `DevtoolsIdeBridgeManifest`, `DevtoolsIdeBridgeMode`, `DevtoolsIdeBridgeStatus`
 
 The browser global bridge surface is structured and imperative rather than DOM-based:
 
@@ -95,6 +95,8 @@ The browser global bridge surface is structured and imperative rather than DOM-b
 - `Settings`
 
 The VS Code auto-attach helper is development-only. It polls the same-origin `/_terajs/devtools/bridge` route, which mirrors the extension's workspace cache manifest at `node_modules/.cache/terajs/devtools-bridge.json`, and is a no-op in production builds.
+
+Receiver discovery and live-session streaming are now separate steps. The default overlay uses an explicit connect or retry action once a receiver is available, and custom shells can drive the same lifecycle through `connectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, and `disconnectVsCodeDevtoolsBridge()`. Production app builds do not emit the bridge manifest route or DevTools bootstrap wiring.
 
 ## 1. SFC and Route Metadata Contracts
 
@@ -431,7 +433,7 @@ It returns:
 
 ### 7.1 `@terajs/devtools`
 
-The leaf-package entrypoint for the same DevTools surface exposed through `@terajs/app/devtools`.
+The leaf-package entrypoint for the same DevTools surface exposed through `@terajs/app/devtools`, including the explicit VS Code bridge lifecycle helpers and status types documented in section `0.3`.
 
 ### 7.2 `@terajs/vite-plugin`
 
@@ -511,11 +513,14 @@ Public exports include:
 
 - `defineAIActions(schema)`
 - `captureStateSnapshot(signals?)`
+- `createAIChatbot(options)`
 - `AIActionsSchema`
 - `AIActionsDefinition`
 - `AIStateSnapshot`
 
 `captureStateSnapshot(...)` emits a sanitized reactive-state snapshot intended for tooling and assistant-style integrations. Sensitive keys are filtered rather than blindly serialized.
+
+`createAIChatbot(...)` provides a higher-level chatbot request client for apps. It defaults to same-origin endpoints, blocks absolute external endpoints unless `allowExternalEndpoint: true` is set, omits ambient credentials when external transport is explicitly enabled, and only includes state snapshots when the caller explicitly provides signals and opts in with `includeStateSnapshot: true`.
 
 ### 7.10 React and Vue adapters
 

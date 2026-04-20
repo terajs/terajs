@@ -585,45 +585,48 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }
     };
 
-    const devtoolsBootstrap = [
-      `async function initializeDevtoolsOverlay() {`,
-      `  if (!DEVTOOLS_CONFIG.enabled || typeof document === 'undefined') {`,
-      `    return;`,
-      `  }`,
-      `  try {`,
-      `    const { mountDevtoolsOverlay${shouldAutoAttachVsCodeBridge ? ", autoAttachVsCodeDevtoolsBridge" : ""} } = await import('${resolveRuntimeSpecifier(APP_DEVTOOLS_SUBPATH)}');`,
-      ...(shouldAutoAttachVsCodeBridge ? [
-      `    if (typeof autoAttachVsCodeDevtoolsBridge === 'function') {`,
-      `      autoAttachVsCodeDevtoolsBridge({ endpoint: ${JSON.stringify(DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT)} });`,
-      `    }`,
-      ] : []),
-      `    const existingDevtoolsHost = document.getElementById('terajs-overlay-container');`,
-      `    if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__ && !existingDevtoolsHost) {`,
-      `      globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = false;`,
-      `    }`,
-      `    if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__ && existingDevtoolsHost) {`,
-      `      return;`,
-      `    }`,
-      `    if (typeof mountDevtoolsOverlay === 'function') {`,
-      `      mountDevtoolsOverlay({`,
-      `        startOpen: DEVTOOLS_CONFIG.startOpen,`,
-      `        position: DEVTOOLS_CONFIG.position,`,
-      `        panelShortcut: DEVTOOLS_CONFIG.panelShortcut,`,
-      `        visibilityShortcut: DEVTOOLS_CONFIG.visibilityShortcut,`,
-      `        ai: {`,
-      `          enabled: DEVTOOLS_CONFIG.ai?.enabled,`,
-      `          endpoint: DEVTOOLS_CONFIG.ai?.endpoint,`,
-      `          model: DEVTOOLS_CONFIG.ai?.model,`,
-      `          timeoutMs: DEVTOOLS_CONFIG.ai?.timeoutMs`,
-      `        }`,
-      `      });`,
-      `      globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = true;`,
-      `    }`,
-      `  } catch (error) {`,
-      `    console.warn('[terajs] Devtools overlay unavailable in this environment.', error);`,
-      `  }`,
-      `}`
-    ];
+    const shouldEmitDevtoolsBootstrap = resolvedDevtoolsConfig.enabled;
+    const devtoolsBootstrap = shouldEmitDevtoolsBootstrap
+      ? [
+        `async function initializeDevtoolsOverlay() {`,
+        `  if (!DEVTOOLS_CONFIG.enabled || typeof document === 'undefined') {`,
+        `    return;`,
+        `  }`,
+        `  try {`,
+        `    const { mountDevtoolsOverlay${shouldAutoAttachVsCodeBridge ? ", autoAttachVsCodeDevtoolsBridge" : ""} } = await import('${resolveRuntimeSpecifier(APP_DEVTOOLS_SUBPATH)}');`,
+        ...(shouldAutoAttachVsCodeBridge ? [
+        `    if (typeof autoAttachVsCodeDevtoolsBridge === 'function') {`,
+        `      autoAttachVsCodeDevtoolsBridge({ endpoint: ${JSON.stringify(DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT)} });`,
+        `    }`,
+        ] : []),
+        `    const existingDevtoolsHost = document.getElementById('terajs-overlay-container');`,
+        `    if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__ && !existingDevtoolsHost) {`,
+        `      globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = false;`,
+        `    }`,
+        `    if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__ && existingDevtoolsHost) {`,
+        `      return;`,
+        `    }`,
+        `    if (typeof mountDevtoolsOverlay === 'function') {`,
+        `      mountDevtoolsOverlay({`,
+        `        startOpen: DEVTOOLS_CONFIG.startOpen,`,
+        `        position: DEVTOOLS_CONFIG.position,`,
+        `        panelShortcut: DEVTOOLS_CONFIG.panelShortcut,`,
+        `        visibilityShortcut: DEVTOOLS_CONFIG.visibilityShortcut,`,
+        `        ai: {`,
+        `          enabled: DEVTOOLS_CONFIG.ai?.enabled,`,
+        `          endpoint: DEVTOOLS_CONFIG.ai?.endpoint,`,
+        `          model: DEVTOOLS_CONFIG.ai?.model,`,
+        `          timeoutMs: DEVTOOLS_CONFIG.ai?.timeoutMs`,
+        `        }`,
+        `      });`,
+        `      globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = true;`,
+        `    }`,
+        `  } catch (error) {`,
+        `    console.warn('[terajs] Devtools overlay unavailable in this environment.', error);`,
+        `  }`,
+        `}`
+      ]
+      : [];
 
     const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
 
@@ -744,7 +747,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `    void initializeHubTransport().catch((error) => {`,
       `      console.error('[terajs] sync.hub initialization failed', error);`,
       `    });`,
-      `    void initializeDevtoolsOverlay();`,
+      ...(shouldEmitDevtoolsBootstrap ? [`    void initializeDevtoolsOverlay();`] : []),
       `    const unsubscribe = router.subscribe((match) => {`,
       `      moveRouteView(match);`,
       `    });`,

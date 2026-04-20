@@ -1,21 +1,26 @@
-import {
-  DEVTOOLS_BRIDGE_DISPOSE_EVENT,
-  DEVTOOLS_BRIDGE_READY_EVENT,
-  DEVTOOLS_BRIDGE_UPDATE_EVENT,
-  getDevtoolsBridge,
-  type DevtoolsBridgeEventPhase,
-} from "./devtoolsBridge.js";
-import {
-  EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT,
-  setExtensionAIAssistantBridge,
-  type ExtensionAIAssistantBridge,
-} from "./providers/extensionBridge.js";
+import { installIdeBridgeConnection } from "./ideBridgeConnection.js";
 
 const DEFAULT_AUTO_ATTACH_ENDPOINT = "/_terajs/devtools/bridge";
 const DEFAULT_POLL_MS = 2000;
-const DEFAULT_UPDATE_COALESCE_MS = 250;
+export const DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT = "terajs:devtools:ide-bridge:status-change";
 
-type DevtoolsIdeBridgeMode = "discovering" | "attached" | "recovering";
+export type DevtoolsIdeBridgeMode =
+  | "disabled"
+  | "discovering"
+  | "available"
+  | "connecting"
+  | "connected"
+  | "recovering"
+  | "error";
+
+/** Snapshot of the local VS Code live-bridge controller state. */
+export interface DevtoolsIdeBridgeStatus {
+  mode: DevtoolsIdeBridgeMode;
+  hasManifest: boolean;
+  isConnected: boolean;
+  connectedAt: number | null;
+  lastError: string | null;
+}
 
 export interface DevtoolsIdeBridgeManifest {
   version: 1;
@@ -43,10 +48,86 @@ let activeManifestUpdatedAt = 0;
 let pollHandle: number | null = null;
 let polling = false;
 let activeOptions: NormalizedAutoAttachOptions | null = null;
-let activeMode: DevtoolsIdeBridgeMode = "discovering";
+let activeManifest: DevtoolsIdeBridgeManifest | null = null;
+let activeMode: DevtoolsIdeBridgeMode = "disabled";
 let refreshRequested = false;
 let failedSignature: string | null = null;
 let failedManifestUpdatedAt = 0;
+let connectionRequested = false;
+let lastError: string | null = null;
+let lastPublishedStatusKey = "";
+let activeConnectedAt: number | null = null;
+
+/** Returns the current local VS Code bridge controller state. */
+export function getDevtoolsIdeBridgeStatus(): DevtoolsIdeBridgeStatus {
+  return {
+    mode: activeMode,
+    hasManifest: activeManifest !== null,
+    isConnected: activeMode === "connected" && activeCleanup !== null,
+    connectedAt: activeConnectedAt,
+    lastError
+  };
+}
+
+/** Requests an explicit connection to the discovered VS Code live receiver. */
+export function connectVsCodeDevtoolsBridge(): boolean {
+  if (!activeOptions) {
+    return false;
+  }
+
+  connectionRequested = true;
+  lastError = null;
+  activeMode = activeManifest ? "connecting" : "discovering";
+  publishBridgeStatus();
+
+  if (polling) {
+    refreshRequested = true;
+    return true;
+  }
+
+  scheduleBridgeManifestSync(0);
+  return true;
+}
+
+/** Disconnects the current live session while leaving receiver discovery enabled. */
+export function disconnectVsCodeDevtoolsBridge(): void {
+  connectionRequested = false;
+  lastError = null;
+  failedSignature = null;
+  failedManifestUpdatedAt = 0;
+  activeConnectedAt = null;
+  uninstallActiveBridge();
+  clearBridgeManifestSync();
+  activeMode = activeOptions
+    ? activeManifest
+      ? "available"
+      : "discovering"
+    : "disabled";
+  publishBridgeStatus();
+}
+
+/** Clears a failed bridge quarantine and retries discovery and connection immediately. */
+export function retryVsCodeDevtoolsBridgeConnection(): boolean {
+  if (!activeOptions) {
+    return false;
+  }
+
+  failedSignature = null;
+  failedManifestUpdatedAt = 0;
+  lastError = null;
+  connectionRequested = true;
+  uninstallActiveBridge();
+  activeMode = activeManifest ? "connecting" : "discovering";
+  publishBridgeStatus();
+
+  if (polling) {
+    refreshRequested = true;
+    return true;
+  }
+
+  scheduleBridgeManifestSync(0);
+  return true;
+}
 
 export function autoAttachVsCodeDevtoolsBridge(
   options: DevtoolsIdeAutoAttachOptions = {}
@@ -61,8 +142,12 @@ export function autoAttachVsCodeDevtoolsBridge(
   }
 
   activeOptions = normalized;
+  activeManifest = null;
   activeMode = "discovering";
+  connectionRequested = false;
+  lastError = null;
   refreshRequested = false;
+  publishBridgeStatus();
   void syncBridgeManifest();
 
   return stopAutoAttachVsCodeDevtoolsBridge;
@@ -71,15 +156,20 @@ export function autoAttachVsCodeDevtoolsBridge(
 export function stopAutoAttachVsCodeDevtoolsBridge(): void {
   clearBridgeManifestSync();
   activeOptions = null;
+  activeManifest = null;
   activeSignature = null;
   activeManifestUpdatedAt = 0;
-  activeMode = "discovering";
+  activeMode = "disabled";
   refreshRequested = false;
   failedSignature = null;
   failedManifestUpdatedAt = 0;
+  connectionRequested = false;
+  activeConnectedAt = null;
+  lastError = null;
   polling = false;
   activeCleanup?.();
   activeCleanup = null;
+  publishBridgeStatus();
 }
 
 function normalizeAutoAttachOptions(options: DevtoolsIdeAutoAttachOptions): NormalizedAutoAttachOptions {
@@ -110,16 +200,23 @@ async function syncBridgeManifest(): Promise<void> {
     const manifest = await readBridgeManifest(activeOptions);
     if (!manifest) {
       uninstallActiveBridge();
-      activeMode = "discovering";
-      scheduleBridgeManifestSync(activeOptions.pollMs);
+      activeManifest = null;
+      if (connectionRequested) {
+        activeMode = lastError !== null || failedSignature !== null ? "recovering" : "error";
+        lastError ??= "VS Code receiver is unavailable. Retry after the live session starts again.";
+      } else {
+        activeMode = "discovering";
+      }
+      publishBridgeStatus();
       return;
     }
 
+    activeManifest = manifest;
     const nextSignature = `${manifest.session}|${manifest.ai}|${manifest.reveal ?? ""}`;
     if (nextSignature === failedSignature && manifest.updatedAt <= failedManifestUpdatedAt) {
       uninstallActiveBridge();
       activeMode = "recovering";
-      scheduleBridgeManifestSync(activeOptions.pollMs);
+      publishBridgeStatus();
       return;
     }
 
@@ -128,16 +225,17 @@ async function syncBridgeManifest(): Promise<void> {
       failedManifestUpdatedAt = 0;
     }
 
-    const shouldInstall = nextSignature !== activeSignature || !activeCleanup;
-    if (!shouldInstall) {
-      activeMode = "attached";
+    if (!connectionRequested) {
+      lastError = null;
+      activeMode = "available";
+      publishBridgeStatus();
       return;
     }
 
-    installBridge(manifest, activeOptions.fetchImpl, requestBridgeRecovery);
-    activeSignature = nextSignature;
-    activeManifestUpdatedAt = manifest.updatedAt;
-    activeMode = "attached";
+    if (connectActiveManifestIfAvailable()) {
+      refreshRequested = false;
+      return;
+    }
   } finally {
     polling = false;
     if (refreshRequested && activeOptions) {
@@ -166,13 +264,19 @@ function scheduleBridgeManifestSync(delayMs: number): void {
     window.clearTimeout(pollHandle);
   }
 
+  if (delayMs <= 0) {
+    pollHandle = null;
+    void syncBridgeManifest();
+    return;
+  }
+
   pollHandle = window.setTimeout(() => {
     pollHandle = null;
     void syncBridgeManifest();
   }, Math.max(0, delayMs));
 }
 
-function requestBridgeRecovery(): void {
+function requestBridgeRecovery(reason?: string): void {
   if (!activeOptions) {
     return;
   }
@@ -182,14 +286,64 @@ function requestBridgeRecovery(): void {
     failedManifestUpdatedAt = activeManifestUpdatedAt;
   }
 
+  activeConnectedAt = null;
   uninstallActiveBridge();
   activeMode = "recovering";
+  lastError = typeof reason === "string" && reason.trim().length > 0
+    ? reason.trim()
+    : "VS Code live bridge connection failed.";
   refreshRequested = false;
-  if (polling) {
+  publishBridgeStatus();
+}
+
+function markBridgeConnected(connectedAt: number | null = null): void {
+  if (!activeOptions || !connectionRequested) {
     return;
   }
 
-  scheduleBridgeManifestSync(activeOptions.pollMs);
+  activeConnectedAt = connectedAt ?? Date.now();
+  lastError = null;
+  activeMode = "connected";
+  publishBridgeStatus();
+}
+
+function connectActiveManifestIfAvailable(): boolean {
+  if (!activeOptions || !activeManifest) {
+    return false;
+  }
+
+  const nextSignature = `${activeManifest.session}|${activeManifest.ai}|${activeManifest.reveal ?? ""}`;
+  if (nextSignature === failedSignature && activeManifest.updatedAt <= failedManifestUpdatedAt) {
+    uninstallActiveBridge();
+    activeMode = "recovering";
+    publishBridgeStatus();
+    return false;
+  }
+
+  if (nextSignature !== failedSignature || activeManifest.updatedAt > failedManifestUpdatedAt) {
+    failedSignature = null;
+    failedManifestUpdatedAt = 0;
+  }
+
+  clearBridgeManifestSync();
+
+  const shouldInstall = nextSignature !== activeSignature || !activeCleanup;
+  if (!shouldInstall) {
+    lastError = null;
+    activeConnectedAt ??= Date.now();
+    activeMode = "connected";
+    publishBridgeStatus();
+    return true;
+  }
+
+  lastError = null;
+  activeMode = "connecting";
+  publishBridgeStatus();
+  uninstallActiveBridge();
+  activeCleanup = installIdeBridgeConnection(activeManifest, activeOptions.fetchImpl, requestBridgeRecovery, markBridgeConnected);
+  activeSignature = nextSignature;
+  activeManifestUpdatedAt = activeManifest.updatedAt;
+  return true;
 }
 
 async function readBridgeManifest(
@@ -250,182 +404,6 @@ function parseBridgeManifest(rawText: string): DevtoolsIdeBridgeManifest | null 
   };
 }
 
-function installBridge(
-  manifest: DevtoolsIdeBridgeManifest,
-  fetchImpl: typeof fetch,
-  onBridgeFailure: () => void
-): void {
-  uninstallActiveBridge();
-
-  let disposed = false;
-  let lastPayload = "";
-  let sendInFlight = false;
-  let pendingUpdate = false;
-  let pendingUpdateHandle: number | null = null;
-  const revealUrl = manifest.reveal;
-  const assistantBridge: ExtensionAIAssistantBridge = {
-    label: "VS Code AI/Copilot",
-    revealSession: revealUrl
-      ? async () => {
-        let response: Response;
-        try {
-          response = await fetchImpl(revealUrl, {
-            method: "POST",
-            mode: "cors"
-          });
-        } catch (error) {
-          onBridgeFailure();
-          throw error;
-        }
-
-        if (!response.ok) {
-          if (shouldRecoverBridgeFromStatus(response.status)) {
-            onBridgeFailure();
-          }
-          throw new Error(`VS Code live session reveal failed (${response.status}).`);
-        }
-      }
-      : undefined,
-    request: async (request) => {
-      let response: Response;
-      try {
-        response = await fetchImpl(manifest.ai, {
-          method: "POST",
-          mode: "cors",
-          headers: {
-            "Content-Type": "application/json;charset=UTF-8"
-          },
-          body: JSON.stringify(request)
-        });
-      } catch (error) {
-        onBridgeFailure();
-        throw error;
-      }
-
-      const payload = await parseJsonResponse(response);
-      if (!response.ok) {
-        if (shouldRecoverBridgeFromStatus(response.status)) {
-          onBridgeFailure();
-        }
-        const payloadRecord = payload && typeof payload === "object" && !Array.isArray(payload)
-          ? payload as Record<string, unknown>
-          : null;
-        const message = payloadRecord && typeof payloadRecord.error === "string"
-          ? payloadRecord.error
-          : `VS Code AI bridge request failed (${response.status}).`;
-        throw new Error(message);
-      }
-
-      return payload;
-    }
-  };
-
-  const clearPendingUpdate = (): void => {
-    if (pendingUpdateHandle !== null && typeof window !== "undefined") {
-      window.clearTimeout(pendingUpdateHandle);
-    }
-
-    pendingUpdateHandle = null;
-  };
-
-  const scheduleUpdate = (): void => {
-    if (disposed || typeof window === "undefined") {
-      return;
-    }
-
-    pendingUpdate = true;
-    if (pendingUpdateHandle !== null) {
-      return;
-    }
-
-    pendingUpdateHandle = window.setTimeout(() => {
-      pendingUpdateHandle = null;
-      if (!pendingUpdate || disposed) {
-        return;
-      }
-
-      pendingUpdate = false;
-      void send("update");
-    }, DEFAULT_UPDATE_COALESCE_MS);
-  };
-
-  const send = async (phase: DevtoolsBridgeEventPhase): Promise<void> => {
-    if (disposed && phase !== "dispose") {
-      return;
-    }
-
-    const session = getDevtoolsBridge()?.exportSession();
-    if (!session) {
-      return;
-    }
-
-    const payload = JSON.stringify({ phase, session });
-    if (phase === "update" && payload === lastPayload) {
-      return;
-    }
-
-    if (phase === "update" && sendInFlight) {
-      pendingUpdate = true;
-      return;
-    }
-
-    sendInFlight = true;
-    lastPayload = payload;
-    try {
-      const response = await fetchImpl(manifest.session, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "text/plain;charset=UTF-8"
-        },
-        body: payload
-      });
-
-      if (!response.ok && phase !== "dispose" && shouldRecoverBridgeFromStatus(response.status)) {
-        onBridgeFailure();
-      }
-    } catch {
-      if (phase !== "dispose") {
-        onBridgeFailure();
-      }
-    } finally {
-      sendInFlight = false;
-      if (phase === "update" && pendingUpdate && pendingUpdateHandle === null && !disposed) {
-        scheduleUpdate();
-      }
-    }
-  };
-
-  const handleReady = () => { void send("ready"); };
-  const handleUpdate = () => { scheduleUpdate(); };
-  const handleDispose = () => {
-    pendingUpdate = false;
-    clearPendingUpdate();
-    void send("dispose");
-  };
-
-  setExtensionAIAssistantBridge(assistantBridge);
-  window.addEventListener(DEVTOOLS_BRIDGE_READY_EVENT, handleReady as EventListener);
-  window.addEventListener(DEVTOOLS_BRIDGE_UPDATE_EVENT, handleUpdate as EventListener);
-  window.addEventListener(DEVTOOLS_BRIDGE_DISPOSE_EVENT, handleDispose as EventListener);
-  void send("ready");
-
-  activeCleanup = () => {
-    pendingUpdate = false;
-    clearPendingUpdate();
-    void send("dispose");
-    disposed = true;
-    window.removeEventListener(DEVTOOLS_BRIDGE_READY_EVENT, handleReady as EventListener);
-    window.removeEventListener(DEVTOOLS_BRIDGE_UPDATE_EVENT, handleUpdate as EventListener);
-    window.removeEventListener(DEVTOOLS_BRIDGE_DISPOSE_EVENT, handleDispose as EventListener);
-
-    if (globalThis.__TERAJS_VSCODE_AI_ASSISTANT__ === assistantBridge) {
-      delete globalThis.__TERAJS_VSCODE_AI_ASSISTANT__;
-      window.dispatchEvent(new CustomEvent(EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT));
-    }
-  };
-}
-
 function uninstallActiveBridge(): void {
   activeCleanup?.();
   activeCleanup = null;
@@ -433,19 +411,19 @@ function uninstallActiveBridge(): void {
   activeManifestUpdatedAt = 0;
 }
 
-function shouldRecoverBridgeFromStatus(status: number): boolean {
-  return status === 401 || status === 403 || status === 404 || status === 410;
-}
-
-async function parseJsonResponse(response: Response): Promise<unknown> {
-  const rawText = await response.text();
-  if (!rawText) {
-    return null;
+function publishBridgeStatus(): void {
+  if (typeof window === "undefined") {
+    return;
   }
 
-  try {
-    return JSON.parse(rawText);
-  } catch {
-    return { response: rawText };
+  const status = getDevtoolsIdeBridgeStatus();
+  const nextKey = `${status.mode}|${status.hasManifest ? "1" : "0"}|${status.isConnected ? "1" : "0"}|${status.connectedAt ?? ""}|${status.lastError ?? ""}`;
+  if (nextKey === lastPublishedStatusKey) {
+    return;
   }
+
+  lastPublishedStatusKey = nextKey;
+  window.dispatchEvent(new CustomEvent(DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT, {
+    detail: status
+  }));
 }
