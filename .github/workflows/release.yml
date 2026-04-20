@@ -67,8 +67,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: changeset-release/${{ inputs.ref }}
           base: ${{ inputs.ref }}
-          commit-message: chore: version packages
-          title: chore: version packages
+          commit-message: "chore: version packages"
+          title: "chore: version packages"
           body: |
             This PR was opened by the Terajs release workflow.
 
