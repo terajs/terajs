@@ -8,7 +8,7 @@ Recommended release flow:
 2. Commit the generated file under `.changeset/` with the implementation.
 3. Make sure npm trusted publishing is configured for the published packages and points to the `release.yml` workflow in this repo.
 4. Trigger the `Release` GitHub Actions workflow against `main`.
-5. Merge the generated version PR when Changesets opens or updates it.
+5. If pending Changesets exist, open or refresh the version PR from the `changeset-release/main` branch the workflow pushes.
 6. Trigger the `Release` workflow again to publish the updated packages.
 
 Local fallback flow:

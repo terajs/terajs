@@ -19,7 +19,6 @@ jobs:
     permissions:
       contents: write
       id-token: write
-      pull-requests: write
 
     steps:
       - name: Checkout
@@ -43,8 +42,8 @@ jobs:
 
       - name: Describe Release Behavior
         run: |
-          echo "When release notes are pending, this workflow versions packages locally and opens or updates the version PR."
-          echo "After that version PR is merged, run this workflow again on main to publish the packages."
+          echo "When release notes are pending, this workflow versions packages locally and pushes the release branch."
+          echo "Open or update the version PR from that branch, merge it, then run this workflow again on main to publish the packages."
           echo "npm publish uses trusted publishing through GitHub Actions OIDC when the package settings on npm are configured for this workflow."
 
       - name: Version Packages
@@ -60,22 +59,35 @@ jobs:
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create Or Update Version Pull Request
+      - name: Push Version Branch
         if: steps.version_diff.outputs.has_changes == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: changeset-release/${{ inputs.ref }}
-          base: ${{ inputs.ref }}
-          commit-message: "chore: version packages"
-          title: "chore: version packages"
-          body: |
-            This PR was opened by the Terajs release workflow.
+        id: version_branch
+        shell: bash
+        run: |
+          release_branch="changeset-release/${{ inputs.ref }}"
 
-            It contains the version and lockfile updates generated from the committed Changesets files.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-            Merge this PR when the release is ready, then run the `Release` workflow again on `main` to publish the packages.
-          delete-branch: false
+          git fetch origin "$release_branch":"refs/remotes/origin/$release_branch" || true
+          git switch -C "$release_branch"
+          git add -A
+          git commit -m "chore: version packages"
+          git push --force-with-lease origin "HEAD:$release_branch"
+
+          compare_url="${{ github.server_url }}/${{ github.repository }}/compare/${{ inputs.ref }}...$release_branch?expand=1"
+          echo "branch=$release_branch" >> "$GITHUB_OUTPUT"
+          echo "compare_url=$compare_url" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize Version Branch
+        if: steps.version_diff.outputs.has_changes == 'true'
+        run: |
+          echo "Version changes were pushed to \\`${{ steps.version_branch.outputs.branch }}\\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Open or refresh the release PR here:" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.version_branch.outputs.compare_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "After that PR is merged, rerun the Release workflow on main to publish the packages." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Guard Publish Branch
         if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref != 'main'

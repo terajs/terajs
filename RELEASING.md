@@ -11,7 +11,7 @@ The recommended release path is a manually triggered GitHub Actions workflow. Lo
 	- organization or user: the GitHub owner for this repo
 	- repository: `terajs`
 	- workflow filename: `release.yml`
-3. Leave the built-in `GITHUB_TOKEN` alone; the workflow already uses it for the version PR.
+3. Leave the built-in `GITHUB_TOKEN` alone; the workflow uses it to push the version branch and to publish through npm trusted publishing.
 
 Trusted publishing is configured on npm, not as a GitHub secret. Once it is enabled on the published packages, the workflow can publish without storing a long-lived npm token.
 
@@ -26,13 +26,15 @@ Flow:
 
 1. Open the `Release` workflow in GitHub Actions.
 2. Run it against `main`.
-3. If pending Changesets exist, the workflow opens or updates the version PR.
-4. Merge the version PR.
+3. If pending Changesets exist, the workflow pushes or updates the `changeset-release/main` branch and prints a compare URL in the workflow summary.
+4. Open or refresh the version PR from that branch and merge it.
 5. Run the `Release` workflow again against `main` to publish the packages.
 
 This keeps publishing explicit while removing the need to run `changeset version` and `changeset publish` by hand on a local machine.
 
 The release workflow already includes the GitHub Actions permission npm needs for OIDC: `id-token: write`.
+
+If you later enable `Allow GitHub Actions to create and approve pull requests` in GitHub repository settings, you can add automated PR creation back on top of this flow. It is not required for publishing.
 
 The workflow only needs real Changeset files. A valid file lists one or more packages and bump levels in the frontmatter, for example:
 
