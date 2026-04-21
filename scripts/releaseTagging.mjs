@@ -27,8 +27,40 @@ export function parseGitTagLines(output) {
     .filter(Boolean);
 }
 
-export function collectTagsToPush(headTags, repoTagName) {
+export function collectChangedPackageTags(packageChanges) {
+  const tags = new Set();
+
+  for (const change of packageChanges) {
+    if (!change || change.private === true) {
+      continue;
+    }
+
+    if (typeof change.name !== "string" || change.name.length === 0) {
+      continue;
+    }
+
+    if (typeof change.currentVersion !== "string" || change.currentVersion.length === 0) {
+      continue;
+    }
+
+    if (change.previousVersion === change.currentVersion) {
+      continue;
+    }
+
+    tags.add(`${change.name}@${change.currentVersion}`);
+  }
+
+  return [...tags];
+}
+
+export function collectTagsToPush(headTags, repoTagName, packageTags = []) {
   const tags = new Set(parseGitTagLines(headTags));
+  for (const packageTag of packageTags) {
+    if (typeof packageTag === "string" && packageTag.length > 0) {
+      tags.add(packageTag);
+    }
+  }
+
   if (typeof repoTagName === "string" && repoTagName.length > 0) {
     tags.add(repoTagName);
   }
