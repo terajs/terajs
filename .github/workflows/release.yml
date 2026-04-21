@@ -105,12 +105,18 @@ jobs:
           echo "Refusing to publish from '${{ inputs.ref }}'. Run the Release workflow against 'main'."
           exit 1
 
+      - name: Configure Release Git Identity
+        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Publish Packages
         if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         run: npm run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Release Tag
+      - name: Push Release Tags
         if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         run: npm run release:tag:push
