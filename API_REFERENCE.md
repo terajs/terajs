@@ -96,7 +96,7 @@ The browser global bridge surface is structured and imperative rather than DOM-b
 - `Sanity Check`
 - `Settings`
 
-The VS Code auto-attach helper is development-only. It polls the same-origin `/_terajs/devtools/bridge` route, which mirrors the extension's workspace cache manifest at `node_modules/.cache/terajs/devtools-bridge.json`, and is a no-op in production builds.
+The VS Code auto-attach helper is development-only. It polls the same-origin `/_terajs/devtools/bridge` route, which mirrors the extension's workspace cache manifest at `node_modules/.cache/terajs/devtools-bridge.json` when available and falls back to the extension's user-local receiver manifest for apps outside the current workspace, and is a no-op in production builds.
 
 Receiver discovery and live-session streaming are now separate steps. The default overlay uses an explicit connect or retry action once a receiver is available, and custom shells can drive the same lifecycle through `connectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, and `disconnectVsCodeDevtoolsBridge()`. Production app builds do not emit the bridge manifest route or DevTools bootstrap wiring.
 

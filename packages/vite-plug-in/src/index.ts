@@ -5,6 +5,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
 import {
@@ -45,6 +46,7 @@ const DEV_APP_MODULE_PATH = `/@id/__x00__${APP_VIRTUAL_ID}`;
 const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
 const DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT = "/_terajs/devtools/bridge";
 const DEVTOOLS_IDE_BRIDGE_MANIFEST_RELATIVE_PATH = path.join("node_modules", ".cache", "terajs", "devtools-bridge.json");
+const DEVTOOLS_IDE_BRIDGE_MANIFEST_PATH_ENV = "TERAJS_DEVTOOLS_BRIDGE_MANIFEST_PATH";
 
 export interface TerajsVitePluginOptions {
   serverFunctions?: false | {
@@ -237,31 +239,59 @@ function resolveDevtoolsIdeBridgeManifestPath(rootDir: string): string {
   return path.resolve(rootDir, DEVTOOLS_IDE_BRIDGE_MANIFEST_RELATIVE_PATH);
 }
 
-function readDevtoolsIdeBridgeManifest(rootDir: string): string | null {
-  const manifestPath = resolveDevtoolsIdeBridgeManifestPath(rootDir);
-  if (!fs.existsSync(manifestPath)) {
-    return null;
+function resolveGlobalDevtoolsIdeBridgeManifestPath(): string {
+  const overridePath = process.env[DEVTOOLS_IDE_BRIDGE_MANIFEST_PATH_ENV]?.trim();
+  if (overridePath) {
+    return path.resolve(overridePath);
   }
 
-  try {
-    const rawText = fs.readFileSync(manifestPath, "utf8");
-    const parsed = JSON.parse(rawText) as Record<string, unknown>;
-    if (parsed.version !== 1 || typeof parsed.session !== "string" || typeof parsed.ai !== "string") {
-      return null;
+  if (process.platform === "win32") {
+    const baseDir = process.env.LOCALAPPDATA?.trim() || path.join(os.homedir(), "AppData", "Local");
+    return path.join(baseDir, "terajs", "devtools-bridge.json");
+  }
+
+  if (process.platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Caches", "terajs", "devtools-bridge.json");
+  }
+
+  const xdgCacheHome = process.env.XDG_CACHE_HOME?.trim();
+  return path.join(xdgCacheHome && xdgCacheHome.length > 0 ? xdgCacheHome : path.join(os.homedir(), ".cache"), "terajs", "devtools-bridge.json");
+}
+
+function resolveDevtoolsIdeBridgeManifestCandidatePaths(rootDir: string): string[] {
+  const localPath = resolveDevtoolsIdeBridgeManifestPath(rootDir);
+  const globalPath = resolveGlobalDevtoolsIdeBridgeManifestPath();
+  return localPath === globalPath ? [localPath] : [localPath, globalPath];
+}
+
+function readDevtoolsIdeBridgeManifest(rootDir: string): string | null {
+  for (const manifestPath of resolveDevtoolsIdeBridgeManifestCandidatePaths(rootDir)) {
+    if (!fs.existsSync(manifestPath)) {
+      continue;
     }
 
-    const reveal = typeof parsed.reveal === "string" ? parsed.reveal : null;
+    try {
+      const rawText = fs.readFileSync(manifestPath, "utf8");
+      const parsed = JSON.parse(rawText) as Record<string, unknown>;
+      if (parsed.version !== 1 || typeof parsed.session !== "string" || typeof parsed.ai !== "string") {
+        continue;
+      }
 
-    return JSON.stringify({
-      version: 1,
-      session: parsed.session,
-      ai: parsed.ai,
-      ...(reveal ? { reveal } : {}),
-      updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now()
-    });
-  } catch {
-    return null;
+      const reveal = typeof parsed.reveal === "string" ? parsed.reveal : null;
+
+      return JSON.stringify({
+        version: 1,
+        session: parsed.session,
+        ai: parsed.ai,
+        ...(reveal ? { reveal } : {}),
+        updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now()
+      });
+    } catch {
+      continue;
+    }
   }
+
+  return null;
 }
 
 function createDevtoolsIdeBridgeMiddleware(rootDir: string) {

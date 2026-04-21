@@ -249,6 +249,69 @@ describe("Terajs Vite Plugin (integration)", () => {
     readSpy.mockRestore();
   });
 
+  it("falls back to a user-local devtools IDE bridge manifest when the workspace cache is missing", async () => {
+    const plugin = terajsPlugin();
+    const use = vi.fn();
+    const configureServer = requireServerHook(plugin.configureServer);
+    const previousManifestOverride = process.env.TERAJS_DEVTOOLS_BRIDGE_MANIFEST_PATH;
+    const globalManifestPath = path.resolve(process.cwd(), ".tmp-devtools-bridge.json");
+
+    process.env.TERAJS_DEVTOOLS_BRIDGE_MANIFEST_PATH = globalManifestPath;
+
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      return String(input) === globalManifestPath;
+    });
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      if (String(input) === globalManifestPath) {
+        return JSON.stringify({
+          version: 1,
+          session: "http://127.0.0.1:5050/live/token",
+          ai: "http://127.0.0.1:5050/ai/token",
+          reveal: "http://127.0.0.1:5050/reveal/token",
+          updatedAt: 1713120000001
+        });
+      }
+
+      return "";
+    });
+
+    try {
+      configureServer({
+        middlewares: { use }
+      } as any);
+
+      const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => void;
+      const req = Readable.from([]) as any;
+      req.method = "GET";
+      req.url = "/_terajs/devtools/bridge";
+      req.headers = { host: "localhost:5173" };
+
+      const res = createResponseCollector();
+      const next = vi.fn();
+      middleware(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      expect(res.headers.get("Content-Type")).toBe("application/json;charset=UTF-8");
+      expect(res.readJson()).toEqual({
+        version: 1,
+        session: "http://127.0.0.1:5050/live/token",
+        ai: "http://127.0.0.1:5050/ai/token",
+        reveal: "http://127.0.0.1:5050/reveal/token",
+        updatedAt: 1713120000001
+      });
+    } finally {
+      if (previousManifestOverride === undefined) {
+        delete process.env.TERAJS_DEVTOOLS_BRIDGE_MANIFEST_PATH;
+      } else {
+        process.env.TERAJS_DEVTOOLS_BRIDGE_MANIFEST_PATH = previousManifestOverride;
+      }
+      existsSpy.mockRestore();
+      readSpy.mockRestore();
+    }
+  });
+
   it("emits sfc:load when loading a .tera file", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
