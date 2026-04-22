@@ -119,7 +119,7 @@ function createTerajsConfig(hubType?: ScaffoldHubType, hubUrl = ""): string {
   routeDirs: ["src/pages"],
   devtools: {
     enabled: true,
-    startOpen: true,
+    startOpen: false,
     position: "bottom-center",
     panelShortcut: "Alt+Shift+D",
     visibilityShortcut: "Alt+Shift+H"

@@ -50,7 +50,7 @@ interface OverlayStorage {
 const OVERLAY_PREFERENCES_STORAGE_KEY = "terajs:devtools:overlay-preferences";
 
 const DEFAULT_OPTIONS: NormalizedOverlayOptions = {
-  startOpen: true,
+  startOpen: false,
   position: "bottom-center",
   panelSize: "normal",
   persistPreferences: true,

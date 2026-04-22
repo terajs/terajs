@@ -82,18 +82,18 @@ export function registerOverlayShellSuite(): void {
     expect(shadowRoot?.textContent).toContain("LandingPage");
   });
 
-  it("starts open by default and toggles panel visibility from the fab without remounting a second host", () => {
+  it("starts minimized by default and toggles panel visibility from the fab without remounting a second host", () => {
     mountDevtoolsOverlay();
 
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
-    expect(panel?.classList.contains("is-hidden")).toBe(false);
-
-    toggleDevtoolsOverlay();
     expect(panel?.classList.contains("is-hidden")).toBe(true);
 
     toggleDevtoolsOverlay();
     expect(panel?.classList.contains("is-hidden")).toBe(false);
+
+    toggleDevtoolsOverlay();
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
 
     mountDevtoolsOverlay();
     expect(document.querySelectorAll("#terajs-overlay-container")).toHaveLength(1);

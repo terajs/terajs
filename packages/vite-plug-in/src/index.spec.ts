@@ -13,7 +13,7 @@ vi.mock("./config", () => ({
   getConfiguredRoutes: () => [],
   getDevtoolsConfig: () => ({
     enabled: true,
-    startOpen: true,
+    startOpen: false,
     position: "bottom-center",
     panelShortcut: "Alt+Shift+D",
     visibilityShortcut: "Alt+Shift+H",

@@ -38,7 +38,7 @@ The overlay supports layout and shell options such as:
 - `panelShortcut`
 - `visibilityShortcut`
 
-By default, the overlay opens immediately in development, `Alt+Shift+D` toggles the panel, and `Alt+Shift+H` hides or restores the full shell.
+By default, the overlay mounts with Tera Lens visible and the panel minimized, `Alt+Shift+D` toggles the panel, and `Alt+Shift+H` hides or restores the full shell.
 
 Repeated calls reuse the existing overlay instead of creating duplicates.
 

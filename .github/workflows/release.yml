@@ -120,3 +120,18 @@ jobs:
       - name: Push Release Tags
         if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         run: npm run release:tag:push
+
+      - name: Resolve Release Tag
+        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
+        id: release_tag
+        shell: bash
+        run: |
+          echo "tag=v$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          generate_release_notes: true
+          make_latest: true
