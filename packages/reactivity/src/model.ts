@@ -26,6 +26,7 @@
 
 import { ref, type Ref } from "./ref.js";
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "./debugRuntime.js";
 
 /**
  * Creates a two-way binding between a component prop and a local `ref()`.
@@ -39,20 +40,24 @@ export function model<T>(props: any, key: string): Ref<T> {
     const initial = props[key];
     const r = ref(initial);
 
-    Debug.emit("model:create", {
-        key,
-        initialValue: initial,
-        ref: r
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("model:create", {
+            key,
+            initialValue: initial,
+            ref: r
+        });
+    }
 
     // Sync -> parent
     const originalSet = r._sig.set;
     r._sig.set = (v: T) => {
-        Debug.emit("model:update:child-to-parent", {
-            key,
-            newValue: v,
-            ref: r
-        });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("model:update:child-to-parent", {
+                key,
+                newValue: v,
+                ref: r
+            });
+        }
         props[key] = v;
         originalSet(v);
     };
@@ -63,11 +68,13 @@ export function model<T>(props: any, key: string): Ref<T> {
             return r.value;
         },
         set(v) {
-            Debug.emit("model:update:parent-to-child", {
-                key,
-                newValue: v,
-                ref: r
-            });
+            if (debugInstrumentationEnabled) {
+                Debug.emit("model:update:parent-to-child", {
+                    key,
+                    newValue: v,
+                    ref: r
+                });
+            }
             r.value = v;
         }
     });

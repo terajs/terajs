@@ -21,6 +21,7 @@
  */
 
 import { signal, type Signal } from "./signal.js";
+import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 import {
   createReactiveMetadata,
   registerReactiveInstance,
@@ -79,15 +80,17 @@ export function ref<T>(
   const instance = options?.instance ?? 0;
 
   // Create metadata for this ref
-  const meta: ReactiveMetadata = createReactiveMetadata({
-    type: "ref",
-    scope,
-    instance,
-    key: options?.key,
-    file: options?.file,
-    line: options?.line,
-    column: options?.column
-  });
+  const meta: ReactiveMetadata = debugInstrumentationEnabled
+    ? createReactiveMetadata({
+        type: "ref",
+        scope,
+        instance,
+        key: options?.key,
+        file: options?.file,
+        line: options?.line,
+        column: options?.column
+      })
+    : getProductionMetadataPlaceholder("ref");
 
   // Create the underlying signal
   const sig = signal(initial, {
@@ -105,41 +108,47 @@ export function ref<T>(
     const prev = sig();
 
     sig.set(next);
-    updateReactiveValue(meta.rid, next);
+    if (debugInstrumentationEnabled) {
+      updateReactiveValue(meta.rid, next);
 
-    Debug.emit("reactive:updated", {
-      type: "reactive:updated",
-      timestamp: Date.now(),
-      rid: meta.rid,
-      prev,
-      next
-    });
+      Debug.emit("reactive:updated", {
+        type: "reactive:updated",
+        timestamp: Date.now(),
+        rid: meta.rid,
+        prev,
+        next
+      });
+    }
   };
 
-  registerReactiveInstance(meta, { scope, instance }, {
-    setValue: (next) => {
-      applyRefValue(next as T);
-    }
-  });
-  updateReactiveValue(meta.rid, initial);
+  if (debugInstrumentationEnabled) {
+    registerReactiveInstance(meta, { scope, instance }, {
+      setValue: (next) => {
+        applyRefValue(next as T);
+      }
+    });
+    updateReactiveValue(meta.rid, initial);
 
-  // Emit creation event after the live DevTools setter is registered.
-  Debug.emit("reactive:created", {
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta
-  });
+    // Emit creation event after the live DevTools setter is registered.
+    Debug.emit("reactive:created", {
+      type: "reactive:created",
+      timestamp: Date.now(),
+      meta
+    });
+  }
 
   return new Proxy(refObj, {
     get(target, prop) {
       if (prop === "value") {
         const value = target._sig();
 
-        Debug.emit("reactive:read", {
-          type: "reactive:read",
-          timestamp: Date.now(),
-          rid: meta.rid
-        });
+        if (debugInstrumentationEnabled) {
+          Debug.emit("reactive:read", {
+            type: "reactive:read",
+            timestamp: Date.now(),
+            rid: meta.rid
+          });
+        }
 
         return value;
       }

@@ -27,12 +27,18 @@ export interface ComponentContext {
 let currentContext: ComponentContext | null = null;
 
 export function getCurrentContext(): ComponentContext | null {
-  Debug.emit("component:context:get", { context: currentContext });
+  if (process.env.NODE_ENV !== "production") {
+    Debug.emit("component:context:get", { context: currentContext });
+  }
+
   return currentContext;
 }
 
 export function setCurrentContext(ctx: ComponentContext | null): void {
-  Debug.emit("component:context:set", { context: ctx });
+  if (process.env.NODE_ENV !== "production") {
+    Debug.emit("component:context:set", { context: ctx });
+  }
+
   currentContext = ctx;
 }
 
@@ -52,7 +58,9 @@ export function createComponentContext(): ComponentContext {
     unmounted: []
   };
 
-  Debug.emit("component:context:create", { context: ctx });
+  if (process.env.NODE_ENV !== "production") {
+    Debug.emit("component:context:create", { context: ctx });
+  }
 
   return ctx;
 }

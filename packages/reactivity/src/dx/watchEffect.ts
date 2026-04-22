@@ -30,6 +30,7 @@ import { type ReactiveEffect } from "../deps.js";
 import { effect } from "../effect.js";
 import { onEffectCleanup } from "./cleanup.js";
 import { Debug, getCurrentContext } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
 
 /**
  * Optional metadata for watchEffect diagnostics.
@@ -73,39 +74,47 @@ export function watchEffect(fn: () => void, options: InternalWatchEffectOptions 
         : undefined;
     const internalRuntimeOwner = options.internalRuntimeOwner;
 
-    Debug.emit("watchEffect:create", { fn, owner, context, debugName, internalRuntimeOwner });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("watchEffect:create", { fn, owner, context, debugName, internalRuntimeOwner });
+    }
 
     // Must be declared before effect() executes
     let runner!: ReactiveEffect;
 
     runner = effect(() => {
-        Debug.emit("watchEffect:run", { effect: runner, owner, context, debugName, internalRuntimeOwner });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("watchEffect:run", { effect: runner, owner, context, debugName, internalRuntimeOwner });
+        }
 
         // Default cleanup hook - user may override via onEffectCleanup()
         onEffectCleanup(() => {
-            Debug.emit("watchEffect:cleanup", {
-                effect: runner,
-                type: "before-next-run",
-                owner,
-                context,
-                debugName,
-                internalRuntimeOwner
-            });
+            if (debugInstrumentationEnabled) {
+                Debug.emit("watchEffect:cleanup", {
+                    effect: runner,
+                    type: "before-next-run",
+                    owner,
+                    context,
+                    debugName,
+                    internalRuntimeOwner
+                });
+            }
         });
 
         fn();
     });
 
     return () => {
-        Debug.emit("watchEffect:stop", {
-            effect: runner,
-            cleanupCount: runner.cleanups.length,
-            depCount: runner.deps.length,
-            owner,
-            context,
-            debugName,
-            internalRuntimeOwner
-        });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("watchEffect:stop", {
+                effect: runner,
+                cleanupCount: runner.cleanups.length,
+                depCount: runner.deps.length,
+                owner,
+                context,
+                debugName,
+                internalRuntimeOwner
+            });
+        }
 
         // Run all cleanups
         for (const cleanup of runner.cleanups) {

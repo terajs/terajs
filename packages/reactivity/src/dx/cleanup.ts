@@ -11,6 +11,7 @@
 
 import { getCurrentEffect } from "../deps.js";
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
 
 /**
  * Registers a cleanup function to be executed before the next run of the
@@ -22,10 +23,12 @@ export function onEffectCleanup(fn: () => void): void {
     const currentEffect = getCurrentEffect();
 
     if (currentEffect) {
-        Debug.emit("effect:cleanup:register", {
-            effect: currentEffect,
-            cleanup: fn
-        });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("effect:cleanup:register", {
+                effect: currentEffect,
+                cleanup: fn
+            });
+        }
 
         currentEffect.cleanups.push(fn);
     }

@@ -2,6 +2,7 @@ import { currentEffect } from "./deps.js";
 import type { ReactiveEffect } from "./deps.js";
 import { scheduleEffect } from "./effect.js";
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "./debugRuntime.js";
 
 /**
  * Creates a reactive state container (Signal).
@@ -18,10 +19,12 @@ export function state<T>(value: T) {
      */
     const deps = new Set<ReactiveEffect>();
 
-    Debug.emit("state:create", {
-        initialValue: value,
-        deps
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("state:create", {
+            initialValue: value,
+            deps
+        });
+    }
 
     return {
         /**
@@ -39,15 +42,19 @@ export function state<T>(value: T) {
                     currentEffect.deps.push(deps);
                 }
 
-                Debug.emit("state:link", {
-                    state: value,
-                    effect: currentEffect
-                });
+                if (debugInstrumentationEnabled) {
+                    Debug.emit("state:link", {
+                        state: value,
+                        effect: currentEffect
+                    });
+                }
             }
 
-            Debug.emit("state:read", {
-                value
-            });
+            if (debugInstrumentationEnabled) {
+                Debug.emit("state:read", {
+                    value
+                });
+            }
 
             return value;
         },
@@ -66,10 +73,12 @@ export function state<T>(value: T) {
             const oldValue = value;
             value = newValue;
 
-            Debug.emit("state:update", {
-                oldValue,
-                newValue
-            });
+            if (debugInstrumentationEnabled) {
+                Debug.emit("state:update", {
+                    oldValue,
+                    newValue
+                });
+            }
 
             /**
              * Create a snapshot of dependencies before iteration.

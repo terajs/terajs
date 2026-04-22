@@ -12,6 +12,7 @@
 import { effect } from "./effect.js";
 import { currentEffect, type ReactiveEffect, withDetachedCurrentEffect } from "./deps.js";
 import { scheduleEffect } from "./effect.js";
+import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 
 import {
   addDependency,
@@ -63,13 +64,13 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
   let value: T;
 
   const ctx = getCurrentContext();
-  const owner = ctx
+  const owner = debugInstrumentationEnabled && ctx
     ? {
         scope: ctx.name,
         instance: ctx.instance
       }
     : undefined;
-  const context = ctx
+  const context = debugInstrumentationEnabled && ctx
     ? {
         name: ctx.name,
         instance: ctx.instance
@@ -82,30 +83,34 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
   const instance = owner?.instance ?? 0;
 
   // Metadata + registry entry for this computed
-  const meta = createReactiveMetadata({
-    type: "computed",
-    scope,
-    instance,
-    key
-  });
+  const meta = debugInstrumentationEnabled
+    ? createReactiveMetadata({
+        type: "computed",
+        scope,
+        instance,
+        key
+      })
+    : getProductionMetadataPlaceholder("computed");
 
-  registerReactiveInstance(meta, owner);
+  if (debugInstrumentationEnabled) {
+    registerReactiveInstance(meta, owner);
 
-  Debug.emit("computed:create", {
-    type: "computed:create",
-    timestamp: Date.now(),
-    rid: meta.rid,
-    meta,
-    owner,
-    context,
-    key
-  });
+    Debug.emit("computed:create", {
+      type: "computed:create",
+      timestamp: Date.now(),
+      rid: meta.rid,
+      meta,
+      owner,
+      context,
+      key
+    });
 
-  Debug.emit("reactive:created", {
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta
-  });
+    Debug.emit("reactive:created", {
+      type: "reactive:created",
+      timestamp: Date.now(),
+      meta
+    });
+  }
 
   /**
    * Cache invalidation flag.
@@ -152,15 +157,17 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
       value = fn();
       dirty = false;
 
-      updateReactiveValue(meta.rid, value);
+      if (debugInstrumentationEnabled) {
+        updateReactiveValue(meta.rid, value);
 
-      Debug.emit("computed:recomputed", {
-        type: "computed:recomputed",
-        timestamp: Date.now(),
-        rid: meta.rid,
-        owner,
-        context
-      });
+        Debug.emit("computed:recomputed", {
+          type: "computed:recomputed",
+          timestamp: Date.now(),
+          rid: meta.rid,
+          owner,
+          context
+        });
+      }
     },
     scheduler
   );
@@ -187,15 +194,17 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
 
       // Graph edge: effect RID -> computed RID
       const from = (currentEffect as any)._meta?.rid as string | undefined;
-      if (from) {
+      if (debugInstrumentationEnabled && from) {
         addDependency(from, meta.rid);
       }
 
-      Debug.emit("reactive:read", {
-        type: "reactive:read",
-        timestamp: Date.now(),
-        rid: meta.rid
-      });
+      if (debugInstrumentationEnabled) {
+        Debug.emit("reactive:read", {
+          type: "reactive:read",
+          timestamp: Date.now(),
+          rid: meta.rid
+        });
+      }
     }
 
     return value;

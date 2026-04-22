@@ -12,6 +12,7 @@
 import { currentEffect } from "./deps.js";
 import type { ReactiveEffect } from "./deps.js";
 import { scheduleEffect } from "./effect.js";
+import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 
 import {
   createReactiveMetadata,
@@ -43,6 +44,10 @@ function registerActiveSignal<T>(sig: Signal<T>): void {
  * @returns A snapshot of active signals that still have live references.
  */
 export function getActiveSignals(): Signal<unknown>[] {
+  if (!debugInstrumentationEnabled) {
+    return [];
+  }
+
   const active: Signal<unknown>[] = [];
 
   for (const ref of Array.from(signalRegistry)) {
@@ -92,15 +97,17 @@ export function signal<T>(
   const instance = options?.instance ?? 0;
 
   // Create metadata for this signal
-  const meta: ReactiveMetadata = createReactiveMetadata({
-    type: "ref",
-    scope,
-    instance,
-    key: options?.key,
-    file: options?.file,
-    line: options?.line,
-    column: options?.column
-  });
+  const meta: ReactiveMetadata = debugInstrumentationEnabled
+    ? createReactiveMetadata({
+        type: "ref",
+        scope,
+        instance,
+        key: options?.key,
+        file: options?.file,
+        line: options?.line,
+        column: options?.column
+      })
+    : getProductionMetadataPlaceholder("ref");
 
   const sig = function () {
     // Track dependency if inside an effect
@@ -113,15 +120,17 @@ export function signal<T>(
 
       // Add to dependency graph: effect RID -> signal RID
       const from = (currentEffect as any)._meta?.rid as string | undefined;
-      if (from) {
+      if (debugInstrumentationEnabled && from) {
         addDependency(from, meta.rid);
       }
 
-      emitDebug({
-        type: "reactive:read",
-        timestamp: Date.now(),
-        rid: meta.rid
-      });
+      if (debugInstrumentationEnabled) {
+        emitDebug({
+          type: "reactive:read",
+          timestamp: Date.now(),
+          rid: meta.rid
+        });
+      }
     }
 
     return sig._value;
@@ -131,7 +140,7 @@ export function signal<T>(
   sig._dep = new Set<ReactiveEffect>();
   sig._meta = meta;
 
-  if (typeof options?.key === "string" && options.key.length > 0) {
+  if (debugInstrumentationEnabled && typeof options?.key === "string" && options.key.length > 0) {
     registerActiveSignal(sig);
   }
 
@@ -148,15 +157,17 @@ export function signal<T>(
 
     sig._value = next;
 
-    updateReactiveValue(meta.rid, next);
+    if (debugInstrumentationEnabled) {
+      updateReactiveValue(meta.rid, next);
 
-    emitDebug({
-      type: "reactive:updated",
-      timestamp: Date.now(),
-      rid: meta.rid,
-      prev,
-      next
-    });
+      emitDebug({
+        type: "reactive:updated",
+        timestamp: Date.now(),
+        rid: meta.rid,
+        prev,
+        next
+      });
+    }
 
     // Trigger effects
     const subs = Array.from(sig._dep);
@@ -169,18 +180,20 @@ export function signal<T>(
     }
   };
 
-  registerReactiveInstance(meta, { scope, instance }, {
-    setValue: (next) => sig.set(next as T)
-  });
+  if (debugInstrumentationEnabled) {
+    registerReactiveInstance(meta, { scope, instance }, {
+      setValue: (next) => sig.set(next as T)
+    });
 
-  // Track the initial value once the debug registry can mutate the signal.
-  updateReactiveValue(meta.rid, value);
+    // Track the initial value once the debug registry can mutate the signal.
+    updateReactiveValue(meta.rid, value);
 
-  emitDebug({
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta
-  });
+    emitDebug({
+      type: "reactive:created",
+      timestamp: Date.now(),
+      meta
+    });
+  }
 
   /**
    * Updates the signal's value using a transformation function.

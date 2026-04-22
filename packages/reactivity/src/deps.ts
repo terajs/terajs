@@ -9,6 +9,7 @@
  */
 
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "./debugRuntime.js";
 
 /**
  * Represents a reactive side-effect function.
@@ -72,11 +73,13 @@ export function withDetachedCurrentEffect<T>(fn: () => T): T {
  * @param effect - The ReactiveEffect to begin tracking.
  */
 export function pushEffect(effect: ReactiveEffect): void {
-    Debug.emit("effect:create", {
-        effect,
-        owner: (effect as any)._owner,
-        context: (effect as any)._context
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:create", {
+            effect,
+            owner: (effect as any)._owner,
+            context: (effect as any)._context
+        });
+    }
     
     if (currentEffect) {
         effect.parent = currentEffect;
@@ -104,10 +107,12 @@ export function popEffect(): void {
  * @returns The currently active ReactiveEffect, or null if no effect is active.
  */
 export function getCurrentEffect(): ReactiveEffect | null {
-    Debug.emit("effect:getCurrent", {
-        effect: currentEffect,
-        owner: (currentEffect as any)?._owner,
-        context: (currentEffect as any)?._context
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:getCurrent", {
+            effect: currentEffect,
+            owner: (currentEffect as any)?._owner,
+            context: (currentEffect as any)?._context
+        });
+    }
     return currentEffect;
 }
