@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terajs Browser Benchmark</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #f5f7fb;
+        color: #172033;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top left, rgba(30, 109, 255, 0.12), transparent 28%),
+          linear-gradient(180deg, #f9fbff 0%, #f3f6fb 100%);
+      }
+
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(23, 32, 51, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 24px 80px rgba(18, 28, 45, 0.08);
+        overflow: hidden;
+      }
+
+      header {
+        padding: 28px 32px 20px;
+        border-bottom: 1px solid rgba(23, 32, 51, 0.08);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      p {
+        margin: 8px 0 0;
+        color: #526079;
+        line-height: 1.5;
+      }
+
+      .meta,
+      .status,
+      .notes {
+        padding: 18px 32px 0;
+      }
+
+      .status strong {
+        color: #0e6a31;
+      }
+
+      .status.error strong {
+        color: #b42318;
+      }
+
+      table {
+        width: calc(100% - 64px);
+        margin: 24px 32px 16px;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(23, 32, 51, 0.08);
+        text-align: left;
+      }
+
+      th {
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #6b7891;
+      }
+
+      td:first-child,
+      th:first-child {
+        padding-left: 0;
+      }
+
+      td:last-child,
+      th:last-child {
+        padding-right: 0;
+      }
+
+      .notes {
+        padding-bottom: 28px;
+      }
+
+      code {
+        font-family: Consolas, "SFMono-Regular", monospace;
+        font-size: 13px;
+      }
+
+      #mount-arena {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Browser Framework Benchmark</h1>
+        <p>
+          Real browser DOM run of the same workload shape as the jsdom harness: 1000 rows, 200 targeted
+          updates, 20 full-list updates.
+        </p>
+      </header>
+      <section class="meta">
+        <div id="config"></div>
+      </section>
+      <section class="status" id="status">
+        <strong>Running…</strong>
+      </section>
+      <table>
+        <thead>
+          <tr>
+            <th>Framework</th>
+            <th>Mount Median</th>
+            <th>Targeted Median</th>
+            <th>Targeted Per Update</th>
+            <th>Bulk Median</th>
+            <th>Bulk Per Update</th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+      <section class="notes">
+        <div id="summary"></div>
+      </section>
+    </main>
+    <div id="mount-arena"></div>
+    <script type="module" src="/benchmarks/frameworks-browser.ts"></script>
+  </body>
+</html>

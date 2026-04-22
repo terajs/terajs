@@ -13,6 +13,7 @@
 
 import { type ReactiveEffect } from "../deps.js";
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
 
 /**
  * Disposes of a reactive effect.
@@ -25,16 +26,20 @@ import { Debug } from "@terajs/shared";
  * @param effectFn - The ReactiveEffect to dispose.
  */
 export function dispose(effectFn: ReactiveEffect): void {
-    Debug.emit("effect:dispose:start", {
-        effect: effectFn
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:dispose:start", {
+            effect: effectFn
+        });
+    }
 
     // 1. Run cleanup functions
     if (effectFn.cleanups.length) {
-        Debug.emit("effect:dispose:cleanup", {
-            effect: effectFn,
-            count: effectFn.cleanups.length
-        });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("effect:dispose:cleanup", {
+                effect: effectFn,
+                count: effectFn.cleanups.length
+            });
+        }
 
         for (const cleanup of effectFn.cleanups) {
             try {
@@ -49,10 +54,12 @@ export function dispose(effectFn: ReactiveEffect): void {
 
     // 2. Remove from dependency sets
     if (effectFn.deps.length) {
-        Debug.emit("effect:dispose:deps", {
-            effect: effectFn,
-            count: effectFn.deps.length
-        });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("effect:dispose:deps", {
+                effect: effectFn,
+                count: effectFn.deps.length
+            });
+        }
 
         for (const dep of effectFn.deps) {
             dep.delete(effectFn);
@@ -64,7 +71,9 @@ export function dispose(effectFn: ReactiveEffect): void {
     // 3. Mark inactive
     effectFn.active = false;
 
-    Debug.emit("effect:dispose:end", {
-        effect: effectFn
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:dispose:end", {
+            effect: effectFn
+        });
+    }
 }

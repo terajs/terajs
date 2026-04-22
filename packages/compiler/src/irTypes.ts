@@ -56,11 +56,20 @@ export interface IRTextNode extends IRNodeBase {
 }
 
 /**
+ * Neutral binding hint for common expression shapes the compiler can classify.
+ */
+export interface IRBindingHint {
+  kind: "simple-path"
+  segments: string[]
+}
+
+/**
  * Interpolation node in IR (e.g. {{ expr }}).
  */
 export interface IRInterpolationNode extends IRNodeBase {
   type: "interp"
   expression: string
+  binding?: IRBindingHint
 }
 
 /**
@@ -120,6 +129,7 @@ export interface IRPropNode {
   kind: "static" | "bind" | "event" | "directive" | string
   name: string
   value: unknown
+  binding?: IRBindingHint
 }
 
 /**

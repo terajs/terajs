@@ -9,11 +9,11 @@ import type {
   IRNode,
   IRTextNode,
   IRInterpolationNode,
+  IRBindingHint,
   IRElementNode,
   IRPortalNode,
   IRSlotNode,
   IRIfNode,
-  IRForNode,
   IRPropNode,
 } from "@terajs/compiler";
 
@@ -25,20 +25,29 @@ import {
   remove,
   addNodeCleanup,
 } from "./dom.js";
-
 import { renderComponent, type FrameworkComponent } from "./render.js";
-
 import {
   bindText,
+  bindDirectTextSource,
   bindProp,
+  bindDirectPropSource,
   bindClass,
   bindStyle,
   bindEvent,
 } from "./bindings.js";
 
 import { dispose, effect } from "@terajs/reactivity";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 import { Portal as WebPortal } from "./portal.js";
+import {
+  isDirectBindingSource,
+  resolveDirectTextSource,
+  resolveEventHandler,
+  resolveExpr,
+  resolveHintedDirectSource,
+  resolveHintedPath,
+} from "./renderFromIRExpressions.js";
+import { renderIRForNode } from "./renderFromIRFor.js";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -56,13 +65,15 @@ import { Portal as WebPortal } from "./portal.js";
  * @returns A document fragment containing the rendered module output.
  */
 export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragment {
-  Debug.emit("ir:render:module", { filePath: ir.filePath });
+  emitRendererDebug("ir:render:module", () => ({ filePath: ir.filePath }));
 
   const frag = createFragment();
 
   for (const node of ir.template) {
     const dom = renderIRNode(node, ctx);
-    if (dom) insert(frag, dom);
+    if (dom) {
+      insert(frag, dom);
+    }
   }
 
   return frag;
@@ -95,9 +106,9 @@ export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): No
     case "if":
       return renderIRIf(node, ctx, isSvg);
     case "for":
-      return renderIRFor(node, ctx, isSvg);
+      return renderIRForNode(node, ctx, isSvg, renderIRNode);
     default:
-      Debug.emit("error:renderer", { message: "Unknown IR node", node });
+      emitRendererDebug("error:renderer", () => ({ message: "Unknown IR node", node }));
       return null;
   }
 }
@@ -107,7 +118,7 @@ export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): No
 /* -------------------------------------------------------------------------- */
 
 function renderIRText(node: IRTextNode): Text {
-  Debug.emit("ir:render:text", { value: node.value });
+  emitRendererDebug("ir:render:text", () => ({ value: node.value }));
   return createText(node.value);
 }
 
@@ -116,9 +127,29 @@ function renderIRText(node: IRTextNode): Text {
 /* -------------------------------------------------------------------------- */
 
 function renderIRInterpolation(node: IRInterpolationNode, ctx: any): Text {
-  Debug.emit("ir:render:interp", { expression: node.expression });
+  emitRendererDebug("ir:render:interp", () => ({ expression: node.expression }));
 
   const text = createText("");
+
+  const hintedBinding = node.binding;
+  if (hintedBinding?.kind === "simple-path") {
+    const directSource = resolveHintedDirectSource(ctx, hintedBinding);
+    if (isDirectBindingSource(directSource)) {
+      bindDirectTextSource(text, directSource);
+      return text;
+    }
+
+    bindText(text, () => resolveHintedPath(ctx, hintedBinding, true));
+    return text;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    const directSource = resolveDirectTextSource(ctx, node.expression);
+    if (isDirectBindingSource(directSource)) {
+      bindDirectTextSource(text, directSource);
+      return text;
+    }
+  }
 
   bindText(text, () => resolveExpr(ctx, node.expression));
 
@@ -135,7 +166,7 @@ function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element
     return renderIRComponent(node, component, ctx, isSvg) as Element;
   }
 
-  Debug.emit("ir:render:element", { tag: node.tag, svg: isSvg });
+  emitRendererDebug("ir:render:element", () => ({ tag: node.tag, svg: isSvg }));
 
   const nextSvg = isSvg || node.tag === "svg";
   const el = createElement(node.tag, nextSvg);
@@ -144,7 +175,9 @@ function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element
 
   for (const child of node.children) {
     const dom = renderIRNode(child, ctx, nextSvg);
-    if (dom) insert(el, dom);
+    if (dom) {
+      insert(el, dom);
+    }
   }
 
   return el;
@@ -156,7 +189,7 @@ function renderIRComponent(
   ctx: any,
   isSvg: boolean
 ): Node {
-  Debug.emit("ir:render:component", { tag: node.tag });
+  emitRendererDebug("ir:render:component", () => ({ tag: node.tag }));
 
   const props = buildComponentProps(node, ctx, isSvg);
   const rendered = renderComponent(component, props);
@@ -176,9 +209,9 @@ function renderIRComponent(
 }
 
 function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
-  Debug.emit("ir:render:portal", {
+  emitRendererDebug("ir:render:portal", () => ({
     hasTarget: node.target != null
-  });
+  }));
 
   return WebPortal({
     to: resolvePortalTarget(node.target, ctx),
@@ -187,7 +220,7 @@ function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
 }
 
 function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
-  Debug.emit("ir:render:slot", { name: node.name ?? "default" });
+  emitRendererDebug("ir:render:slot", () => ({ name: node.name ?? "default" }));
 
   const slotName = node.name ?? "default";
   const slotValue = ctx?.slots?.[slotName];
@@ -203,38 +236,36 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
       insert(frag, dom);
     }
   }
+
   return frag;
 }
 
 function applyIRProps(el: Element, props: IRPropNode[], ctx: any): void {
-  for (const p of props) {
-    switch (p.kind) {
+  for (const prop of props) {
+    switch (prop.kind) {
       case "static":
-        applyStaticProp(el, p);
+        applyStaticProp(el, prop);
         break;
-
       case "bind":
-        applyBindProp(el, p, ctx);
+        applyBindProp(el, prop, ctx);
         break;
-
       case "event":
-        applyEventProp(el, p, ctx);
+        applyEventProp(el, prop, ctx);
         break;
-
       default:
-        Debug.emit("ir:render:prop:skip", p);
+        emitRendererDebug("ir:render:prop:skip", () => prop);
     }
   }
 }
 
-function applyStaticProp(el: Element, p: IRPropNode): void {
-  if (p.name === "class") {
+function applyStaticProp(el: Element, prop: IRPropNode): void {
+  if (prop.name === "class") {
     if (el instanceof HTMLElement) {
-      el.className = String(p.value ?? "");
+      el.className = String(prop.value ?? "");
       return;
     }
-  } else if (p.name === "style" && typeof p.value === "object") {
-    const styleObj = p.value as Record<string, any>;
+  } else if (prop.name === "style" && typeof prop.value === "object") {
+    const styleObj = prop.value as Record<string, any>;
     const styleTarget = (el as HTMLElement | SVGElement).style;
     for (const key in styleObj) {
       styleTarget[key as any] = String(styleObj[key]);
@@ -242,42 +273,78 @@ function applyStaticProp(el: Element, p: IRPropNode): void {
     return;
   }
 
-  if (p.value != null) el.setAttribute(p.name, String(p.value));
+  if (prop.value != null) {
+    el.setAttribute(prop.name, String(prop.value));
+  }
 }
 
-function applyBindProp(el: Element, p: IRPropNode, ctx: any): void {
-  const expr = String(p.value);
+function applyBindProp(el: Element, prop: IRPropNode, ctx: any): void {
+  if (prop.binding?.kind === "simple-path") {
+    applyHintedBindProp(el, prop, ctx, prop.binding);
+    return;
+  }
 
-  if (p.name === "class") {
+  const expr = String(prop.value);
+
+  if (prop.name === "class") {
     bindClass(el, () => resolveExpr(ctx, expr));
     return;
   }
 
-  if (p.name === "style") {
+  if (prop.name === "style") {
     bindStyle(el, () => {
-      const v = resolveExpr(ctx, expr);
+      const value = resolveExpr(ctx, expr);
+      if (typeof value === "string") {
+        return { color: value };
+      }
 
-      if (typeof v === "string") return { color: v };
-
-      return v || {};
+      return value || {};
     });
     return;
   }
 
-  bindProp(el, p.name, () => resolveExpr(ctx, expr));
+  bindProp(el, prop.name, () => resolveExpr(ctx, expr));
 }
 
-function applyEventProp(el: Element, p: IRPropNode, ctx: any): void {
-  const handler = resolveEventHandler(ctx, String(p.value));
+function applyHintedBindProp(el: Element, prop: IRPropNode, ctx: any, binding: IRBindingHint): void {
+  if (prop.name === "class") {
+    bindClass(el, () => resolveHintedPath(ctx, binding, true));
+    return;
+  }
+
+  if (prop.name === "style") {
+    bindStyle(el, () => {
+      const value = resolveHintedPath(ctx, binding, true);
+      if (typeof value === "string") {
+        return { color: value };
+      }
+
+      return value || {};
+    });
+    return;
+  }
+
+  const directSource = resolveHintedDirectSource(ctx, binding);
+  if (isDirectBindingSource(directSource)) {
+    bindDirectPropSource(el, prop.name, directSource);
+    return;
+  }
+
+  bindProp(el, prop.name, () => resolveHintedPath(ctx, binding, true));
+}
+
+function applyEventProp(el: Element, prop: IRPropNode, ctx: any): void {
+  const handler = resolveEventHandler(ctx, String(prop.value));
 
   if (typeof handler === "function") {
-    bindEvent(el, p.name, handler);
-  } else {
-    Debug.emit("error:renderer", {
-      message: `Event handler '${p.value}' is not a function`,
-      value: handler,
-    });
+    bindEvent(el, prop.name, handler);
+    return;
   }
+
+  emitRendererDebug("error:renderer", () => ({
+    message: `Event handler '${prop.value}' is not a function`,
+    value: handler,
+  }));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -285,7 +352,7 @@ function applyEventProp(el: Element, p: IRPropNode, ctx: any): void {
 /* -------------------------------------------------------------------------- */
 
 function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
-  Debug.emit("ir:render:if", { condition: node.condition });
+  emitRendererDebug("ir:render:if", () => ({ condition: node.condition }));
 
   const anchor = document.createComment("if");
   const parent = createFragment();
@@ -295,7 +362,6 @@ function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
     const condition = !!resolveExpr(ctx, node.condition);
     const branch = condition ? node.then : node.else ?? [];
 
-    // Remove old nodes
     let next = anchor.nextSibling;
     while (next) {
       const toRemove = next;
@@ -303,7 +369,6 @@ function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
       remove(toRemove);
     }
 
-    // Insert new nodes in correct order
     let ref: ChildNode | null = anchor.nextSibling;
     for (const child of branch) {
       const dom = renderIRNode(child, ctx, isSvg);
@@ -320,157 +385,8 @@ function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                    FOR                                     */
+/*                               COMPONENTS                                   */
 /* -------------------------------------------------------------------------- */
-
-function renderIRFor(node: IRForNode, ctx: any, isSvg: boolean): Node {
-  Debug.emit("ir:render:for", { each: node.each });
-
-  const anchor = document.createComment("for");
-  const parent = createFragment();
-  parent.appendChild(anchor);
-
-  const effectFn = effect(() => {
-    const array = resolveExpr(ctx, node.each) || [];
-    const nodes: Node[] = [];
-
-    for (let i = 0; i < array.length; i++) {
-      const childCtx = {
-        ...ctx,
-        [node.item]: array[i],
-        [node.index ?? "i"]: i,
-      };
-
-      const frag = createFragment();
-      for (const child of node.body) {
-        const dom = renderIRNode(child, childCtx, isSvg);
-        if (dom) frag.appendChild(dom);
-      }
-
-      nodes.push(frag);
-    }
-
-    // Clear old
-    let next = anchor.nextSibling;
-    while (next) {
-      const toRemove = next;
-      next = next.nextSibling;
-      remove(toRemove);
-    }
-
-    // Insert new in correct order
-    let ref: ChildNode | null = anchor.nextSibling;
-    for (const n of nodes) {
-      insert(parent, n, ref ?? null);
-      ref = null;
-    }
-  });
-
-  addNodeCleanup(anchor, () => dispose(effectFn));
-
-  return parent;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             EXPRESSION RESOLUTION                          */
-/* -------------------------------------------------------------------------- */
-
-const SIMPLE_PATH_RE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
-const RESERVED_LITERAL_RE = /^(?:true|false|null|undefined|NaN|Infinity)$/;
-const expressionEvaluatorCache = new Map<string, (ctx: any, event: Event | undefined) => any>();
-
-function resolveExpr(ctx: any, expr: string): any {
-  const normalized = expr.trim();
-
-  if (normalized.length === 0) {
-    return undefined;
-  }
-
-  if (isSimplePath(normalized)) {
-    return resolveSimplePath(ctx, normalized, true);
-  }
-
-  return evaluateExpression(ctx, normalized, undefined);
-}
-
-function resolveEventHandler(ctx: any, expr: string): EventListener | undefined {
-  const normalized = expr.trim();
-
-  if (normalized.length === 0) {
-    return undefined;
-  }
-
-  if (isSimplePath(normalized)) {
-    const handler = resolveSimplePath(ctx, normalized, false);
-    return typeof handler === "function" ? handler as EventListener : undefined;
-  }
-
-  return (event: Event) => {
-    evaluateExpression(ctx, normalized, event);
-  };
-}
-
-function isSimplePath(expr: string): boolean {
-  return SIMPLE_PATH_RE.test(expr) && !RESERVED_LITERAL_RE.test(expr);
-}
-
-function resolveSimplePath(ctx: any, expr: string, invokeFinal: boolean): any {
-  if (!ctx) {
-    return undefined;
-  }
-
-  const parts = expr.split(".");
-  let current: any = ctx;
-
-  for (let index = 0; index < parts.length; index += 1) {
-    if (current == null) {
-      return undefined;
-    }
-
-    const value = current[parts[index]];
-    const isLast = index === parts.length - 1;
-    current = typeof value === "function" && (invokeFinal || !isLast) ? value() : value;
-  }
-
-  return current;
-}
-
-function evaluateExpression(ctx: any, expr: string, event: Event | undefined): any {
-  const evaluator = getExpressionEvaluator(expr);
-
-  try {
-    return evaluator(ctx, event);
-  } catch (error) {
-    Debug.emit("error:renderer", {
-      message: `Failed to evaluate expression '${expr}'`,
-      expression: expr,
-      error,
-    });
-    return undefined;
-  }
-}
-
-function getExpressionEvaluator(expr: string): (ctx: any, event: Event | undefined) => any {
-  const cached = expressionEvaluatorCache.get(expr);
-
-  if (cached) {
-    return cached;
-  }
-
-  const evaluator = new Function(
-    "$ctx",
-    "$event",
-    [
-      "const scope = $ctx ?? {};",
-      "with (scope) {",
-      `  return (${expr});`,
-      "}",
-    ].join("\n"),
-  ) as (ctx: any, event: Event | undefined) => any;
-
-  expressionEvaluatorCache.set(expr, evaluator);
-  return evaluator;
-}
 
 function resolveComponentBinding(ctx: any, tag: string): FrameworkComponent | null {
   if (!isComponentTag(tag)) {
@@ -506,7 +422,9 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
     }
 
     if (prop.kind === "bind") {
-      props[prop.name] = resolveExpr(ctx, String(prop.value));
+      props[prop.name] = prop.binding?.kind === "simple-path"
+        ? resolveHintedPath(ctx, prop.binding, true)
+        : resolveExpr(ctx, String(prop.value));
       continue;
     }
 
@@ -545,11 +463,11 @@ function runMountedHooks(ctx: any): void {
     try {
       fn();
     } catch (error) {
-      Debug.emit("error:component", {
+      emitRendererDebug("error:component", () => ({
         name: ctx.name,
         instance: ctx.instance,
         error,
-      });
+      }));
     }
   }
 }
@@ -569,11 +487,11 @@ function createComponentCleanup(ctx: any): { active: () => boolean; dispose: () 
         try {
           fn();
         } catch (error) {
-          Debug.emit("error:component", {
+          emitRendererDebug("error:component", () => ({
             name: ctx.name,
             instance: ctx.instance,
             error,
-          });
+          }));
         }
       }
     }
@@ -619,6 +537,10 @@ function normalizeRenderedComponentNode(node: Node): Node {
   return node;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                  HELPERS                                   */
+/* -------------------------------------------------------------------------- */
+
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -658,4 +580,3 @@ function normalizeSlotValue(value: any): Node {
 
   return createText(String(value));
 }
-

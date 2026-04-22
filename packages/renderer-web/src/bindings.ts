@@ -10,9 +10,10 @@
  * This is the same model used by SolidJS and Vue Vapor Mode.
  */
 
-import { effect } from "@terajs/reactivity";
+import { dispose, effect, type ReactiveEffect, type Ref, type Signal } from "@terajs/reactivity";
 import { unwrap } from "./unwrap.js";
 import {
+    addNodeCleanup,
     setText,
     setProp,
     setStyle,
@@ -20,7 +21,63 @@ import {
     addEvent,
     removeEvent,
 } from "./dom.js";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
+
+function isRefSource(value: unknown): value is Ref<unknown> {
+    return typeof value === "object"
+        && value !== null
+        && "_sig" in value;
+}
+
+function subscribeTextSource(node: Text, source: Signal<unknown> | Ref<unknown>): void {
+    const signalSource = isRefSource(source) ? source._sig : source;
+
+    const subscriber = (() => {
+        if (subscriber.active === false) {
+            return;
+        }
+
+        setText(node, signalSource());
+    }) as ReactiveEffect;
+
+    subscriber.deps = [];
+    subscriber.cleanups = [];
+    subscriber.active = true;
+
+    signalSource._dep.add(subscriber);
+    subscriber.deps.push(signalSource._dep);
+
+    addNodeCleanup(node, () => {
+        dispose(subscriber);
+    });
+
+    setText(node, signalSource());
+}
+
+function subscribePropSource(el: Element, name: string, source: Signal<unknown> | Ref<unknown>): void {
+    const signalSource = isRefSource(source) ? source._sig : source;
+
+    const subscriber = (() => {
+        if (subscriber.active === false) {
+            return;
+        }
+
+        setProp(el, name, signalSource());
+    }) as ReactiveEffect;
+
+    subscriber.deps = [];
+    subscriber.cleanups = [];
+    subscriber.active = true;
+
+    signalSource._dep.add(subscriber);
+    subscriber.deps.push(signalSource._dep);
+
+    addNodeCleanup(el, () => {
+        dispose(subscriber);
+    });
+
+    setProp(el, name, signalSource());
+}
 
 /**
  * Bind a reactive expression to a Text node.
@@ -29,22 +86,50 @@ import { Debug } from "@terajs/shared";
  * @param compute - A function returning the latest text value.
  */
 export function bindText(node: Text, compute: () => any): void {
-    Debug.emit("binding:create", {
+    emitRendererDebug("binding:create", () => ({
         type: "text",
         node,
-    });
+    }));
 
     effect(() => {
         const value = unwrap(compute());
 
-        Debug.emit("binding:update", {
+        emitRendererDebug("binding:update", () => ({
             type: "text",
             node,
             value,
-        });
+        }));
 
         setText(node, value);
     });
+}
+
+export function bindDirectTextSource(
+    node: Text,
+    source: Signal<unknown> | Ref<unknown>
+): void {
+    emitRendererDebug("binding:create", () => ({
+        type: "text:direct",
+        node,
+        sourceType: isRefSource(source) ? "ref" : "signal",
+    }));
+
+    subscribeTextSource(node, source);
+}
+
+export function bindDirectPropSource(
+    el: Element,
+    name: string,
+    source: Signal<unknown> | Ref<unknown>
+): void {
+    emitRendererDebug("binding:create", () => ({
+        type: "prop:direct",
+        el,
+        name,
+        sourceType: isRefSource(source) ? "ref" : "signal",
+    }));
+
+    subscribePropSource(el, name, source);
 }
 
 /**
@@ -59,21 +144,21 @@ export function bindProp(
     name: string,
     compute: () => any
 ): void {
-    Debug.emit("binding:create", {
+    emitRendererDebug("binding:create", () => ({
         type: "prop",
         el,
         name,
-    });
+    }));
 
     effect(() => {
         const value = unwrap(compute());
 
-        Debug.emit("binding:update", {
+        emitRendererDebug("binding:update", () => ({
             type: "prop",
             el,
             name,
             value,
-        });
+        }));
 
         setProp(el, name, value);
     });
@@ -89,19 +174,19 @@ export function bindClass(
     el: Element,
     compute: () => any
 ): void {
-    Debug.emit("binding:create", {
+    emitRendererDebug("binding:create", () => ({
         type: "class",
         el,
-    });
+    }));
 
     effect(() => {
         const value = unwrap(compute());
 
-        Debug.emit("binding:update", {
+        emitRendererDebug("binding:update", () => ({
             type: "class",
             el,
             value,
-        });
+        }));
 
         setClass(el, value);
     });
@@ -117,10 +202,10 @@ export function bindStyle(
     el: Element,
     compute: () => Record<string, any>
 ): void {
-    Debug.emit("binding:create", {
+    emitRendererDebug("binding:create", () => ({
         type: "style",
         el,
-    });
+    }));
 
     effect(() => {
         const styleObj = unwrap(compute());
@@ -130,11 +215,11 @@ export function bindStyle(
             resolved[key] = unwrap(styleObj[key]);
         }
 
-        Debug.emit("binding:update", {
+        emitRendererDebug("binding:update", () => ({
             type: "style",
             el,
             value: resolved,
-        });
+        }));
 
         setStyle(el, resolved);
     });
@@ -154,12 +239,12 @@ export function bindEvent(
     name: string,
     handler: EventListener
 ): void {
-    Debug.emit("binding:create", {
+    emitRendererDebug("binding:create", () => ({
         type: "event",
         el,
         name,
         handler,
-    });
+    }));
 
     addEvent(el, name, handler);
 }
@@ -176,12 +261,12 @@ export function unbindEvent(
     name: string,
     handler: EventListener
 ): void {
-    Debug.emit("binding:dispose", {
+    emitRendererDebug("binding:dispose", () => ({
         type: "event",
         el,
         name,
         handler,
-    });
+    }));
 
     removeEvent(el, name, handler);
 }

@@ -1,6 +1,6 @@
 {
   "name": "@terajs/reactivity",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Terajs fine-grained reactivity engine",
   "type": "module",
   "main": "dist/index.js",
@@ -14,7 +14,7 @@
     }
   },
   "dependencies": {
-    "@terajs/shared": "^1.0.4"
+    "@terajs/shared": "^1.0.5"
   },
   "publishConfig": {
     "access": "public"

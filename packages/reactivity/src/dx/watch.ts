@@ -28,6 +28,7 @@
 import { type WatchEffectOptions, watchEffect } from "./watchEffect.js";
 import { onEffectCleanup } from "./cleanup.js";
 import { Debug, getCurrentContext } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
 
 /**
  * Optional metadata for watcher diagnostics.
@@ -74,13 +75,15 @@ export function watch<T>(
     ? options.debugName.trim()
     : undefined;
 
-  Debug.emit("watch:create", {
-    source,
-    callback,
-    owner,
-    context,
-    debugName
-  });
+  if (debugInstrumentationEnabled) {
+    Debug.emit("watch:create", {
+      source,
+      callback,
+      owner,
+      context,
+      debugName
+    });
+  }
 
   let oldValue: T;
   let initialized = false;
@@ -92,13 +95,15 @@ export function watch<T>(
   const stop = watchEffect(() => {
     const newValue = source();
 
-    Debug.emit("watch:source", {
-      newValue,
-      initialized,
-      owner,
-      context,
-      debugName
-    });
+    if (debugInstrumentationEnabled) {
+      Debug.emit("watch:source", {
+        newValue,
+        initialized,
+        owner,
+        context,
+        debugName
+      });
+    }
 
     if (!initialized) {
       initialized = true;
@@ -111,21 +116,25 @@ export function watch<T>(
       return;
     }
 
-    Debug.emit("watch:callback", {
-      newValue,
-      oldValue,
-      owner,
-      context,
-      debugName
-    });
-
-    callback(newValue, oldValue, (fn) => {
-      Debug.emit("watch:cleanup", {
-        cleanup: fn,
+    if (debugInstrumentationEnabled) {
+      Debug.emit("watch:callback", {
+        newValue,
+        oldValue,
         owner,
         context,
         debugName
       });
+    }
+
+    callback(newValue, oldValue, (fn) => {
+      if (debugInstrumentationEnabled) {
+        Debug.emit("watch:cleanup", {
+          cleanup: fn,
+          owner,
+          context,
+          debugName
+        });
+      }
       onEffectCleanup(fn);
     });
 
@@ -133,13 +142,15 @@ export function watch<T>(
   }, internalWatchEffectOptions);
 
   return () => {
-    Debug.emit("watch:stop", {
-      source,
-      callback,
-      owner,
-      context,
-      debugName
-    });
+    if (debugInstrumentationEnabled) {
+      Debug.emit("watch:stop", {
+        source,
+        callback,
+        owner,
+        context,
+        debugName
+      });
+    }
 
     stop();
   };

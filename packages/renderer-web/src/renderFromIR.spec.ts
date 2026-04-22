@@ -20,7 +20,7 @@ import type {
   IRForNode
 } from "@terajs/compiler";
 
-import { signal } from "@terajs/reactivity";
+import { ref, signal } from "@terajs/reactivity";
 import { component, onMounted, onUnmounted } from "@terajs/runtime";
 import { clear } from "./dom";
 
@@ -66,6 +66,46 @@ describe("IR -> DOM Renderer", () => {
     count.set(2);
     await tick();
     expect(dom.textContent).toBe("2");
+  });
+
+  it("renders reactive ref interpolation", async () => {
+    const count = ref(1);
+
+    const node: IRInterpolationNode = {
+      type: "interp",
+      expression: "count",
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+
+    const dom = renderIRNode(node, { count })!;
+    expect(dom.textContent).toBe("1");
+
+    count.value = 2;
+    await tick();
+    expect(dom.textContent).toBe("2");
+  });
+
+  it("renders hinted simple-path interpolation", async () => {
+    const user = signal({ name: "Alpha" });
+
+    const node: IRInterpolationNode = {
+      type: "interp",
+      expression: "user.name",
+      binding: {
+        kind: "simple-path",
+        segments: ["user", "name"]
+      },
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+
+    const dom = renderIRNode(node, { user })!;
+    expect(dom.textContent).toBe("Alpha");
+
+    user.set({ name: "Beta" });
+    await tick();
+    expect(dom.textContent).toBe("Beta");
   });
 
   it("renders call-expression interpolation", () => {
@@ -132,6 +172,68 @@ describe("IR -> DOM Renderer", () => {
     color.set("blue");
     await tick();
     expect(el.style.color).toBe("blue");
+  });
+
+  it("binds hinted direct props", async () => {
+    const title = signal("Alpha");
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "div",
+      props: [
+        {
+          kind: "bind",
+          name: "title",
+          value: "title",
+          binding: {
+            kind: "simple-path",
+            segments: ["title"]
+          }
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, { title }) as HTMLElement;
+
+    expect(el.title).toBe("Alpha");
+
+    title.set("Beta");
+    await tick();
+    expect(el.title).toBe("Beta");
+  });
+
+  it("binds hinted simple-path props", async () => {
+    const user = signal({ name: "Alpha" });
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "div",
+      props: [
+        {
+          kind: "bind",
+          name: "title",
+          value: "user.name",
+          binding: {
+            kind: "simple-path",
+            segments: ["user", "name"]
+          }
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, { user }) as HTMLElement;
+
+    expect(el.title).toBe("Alpha");
+
+    user.set({ name: "Beta" });
+    await tick();
+    expect(el.title).toBe("Beta");
   });
 
   /* ---------------------------------------------------------------------- */
@@ -300,6 +402,56 @@ describe("IR -> DOM Renderer", () => {
     items.set([3, 4, 5]);
     await tick();
     expect(dom.textContent).toBe("345");
+  });
+
+  it("reuses keyed row DOM for single-root IR for bodies", async () => {
+    const items = signal([
+      { id: "a", label: "A" },
+      { id: "b", label: "B" }
+    ]);
+
+    const node: IRForNode = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      body: [
+        {
+          type: "element",
+          tag: "div",
+          props: [],
+          children: [
+            {
+              type: "interp",
+              expression: "item.label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(node, { items })!);
+
+    const firstNode = root.children[0];
+    const secondNode = root.children[1];
+    expect(root.textContent).toBe("AB");
+
+    items.set([
+      { id: "b", label: "B2" },
+      { id: "a", label: "A" }
+    ]);
+    await tick();
+
+    expect(root.textContent).toBe("B2A");
+    expect(root.children[0]).toBe(secondNode);
+    expect(root.children[1]).toBe(firstNode);
   });
 
   it("renders slot content before fallback", () => {

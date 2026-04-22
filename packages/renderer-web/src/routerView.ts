@@ -1,7 +1,7 @@
 import type { LoadedRouteMatch, RouteHydrationSnapshot, RouteMatch, Router } from "@terajs/router";
 import { getRouteDataResourceKeys, loadRouteMatch } from "@terajs/router";
 import { onCleanup, registerResourceInvalidation } from "@terajs/runtime";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 import { addNodeCleanup } from "./dom.js";
 import { updateHead } from "./clientMeta.js";
 import { withErrorBoundary } from "./errorBoundary.js";
@@ -116,11 +116,11 @@ function runRouteMountedHooks(ctx: any): void {
     try {
       fn();
     } catch (error) {
-      Debug.emit("error:component", {
+      emitRendererDebug("error:component", () => ({
         name: ctx.name,
         instance: ctx.instance,
         error
-      });
+      }));
     }
   }
 }
@@ -140,11 +140,11 @@ function createRouteComponentCleanup(ctx: any): { active: () => boolean; dispose
         try {
           fn();
         } catch (error) {
-          Debug.emit("error:component", {
+          emitRendererDebug("error:component", () => ({
             name: ctx.name,
             instance: ctx.instance,
             error
-          });
+          }));
         }
       }
     }
@@ -340,11 +340,11 @@ export function createRouteView<TData = unknown>(
           console.error(`[terajs/router] Route render failed for ${lastTarget}`, error);
         }
 
-        Debug.emit("error:router", {
+        emitRendererDebug("error:router", () => ({
           message: errorMessage,
           to: lastTarget,
           error
-        });
+        }));
 
         renderContentNode(
           options.error?.({ router, target: lastTarget, error, retry }) ??

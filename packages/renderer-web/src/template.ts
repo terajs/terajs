@@ -10,8 +10,8 @@
 
 import { dispose, effect, getCurrentEffect, type ReactiveEffect } from "@terajs/reactivity";
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
-import { Debug } from "@terajs/shared";
 import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom.js";
+import { emitRendererDebug } from "./debug.js";
 
 /**
  * A reactive template function.
@@ -29,9 +29,9 @@ export type TemplateFn = () => Node;
  * @returns The initial DOM node produced by the template.
  */
 export function template(fn: TemplateFn): Node {
-    Debug.emit("template:create", {
+    emitRendererDebug("template:create", () => ({
         templateFn: fn
-    });
+    }));
 
     let current: Node | null = null;
     const boundary = getCurrentContext()?.errorBoundary;
@@ -64,18 +64,18 @@ export function template(fn: TemplateFn): Node {
             throw error;
         }
 
-        Debug.emit("template:update", {
+        emitRendererDebug("template:update", () => ({
             templateFn: fn,
             next,
             current
-        });
+        }));
 
         if (current == null) {
             // First render
-            Debug.emit("template:mount", {
+            emitRendererDebug("template:mount", () => ({
                 templateFn: fn,
                 node: next
-            });
+            }));
             current = next;
             if (!isNestedTemplate) {
                 addNodeCleanup(current, cleanup);
@@ -85,12 +85,12 @@ export function template(fn: TemplateFn): Node {
             const parent = current.parentNode;
             const oldNode = current;
 
-            Debug.emit("template:replace", {
+            emitRendererDebug("template:replace", () => ({
                 templateFn: fn,
                 oldNode,
                 newNode: next,
                 parent
-            });
+            }));
 
             if (!isNestedTemplate) {
                 removeNodeCleanup(oldNode, cleanup);
@@ -114,10 +114,10 @@ export function template(fn: TemplateFn): Node {
     });
 
     onCleanup(() => {
-        Debug.emit("template:dispose", {
+        emitRendererDebug("template:dispose", () => ({
             templateFn: fn,
             node: current
-        });
+        }));
         cleanup();
     });
 

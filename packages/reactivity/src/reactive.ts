@@ -29,6 +29,7 @@
  */
 
 import { signal, type Signal } from "./signal.js";
+import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 import {
   createReactiveMetadata,
   registerReactiveInstance,
@@ -84,15 +85,17 @@ function createTrackedSignal<T>(
     analyzeReactivity(initial, ctx);
   }
 
-  const meta: ReactiveMetadata = createReactiveMetadata({
-    type: "reactive",
-    scope: ctx.scope,
-    instance: ctx.instance,
-    key,
-    file: ctx.file,
-    line: ctx.line,
-    column: ctx.column
-  });
+  const meta: ReactiveMetadata = debugInstrumentationEnabled
+    ? createReactiveMetadata({
+        type: "reactive",
+        scope: ctx.scope,
+        instance: ctx.instance,
+        key,
+        file: ctx.file,
+        line: ctx.line,
+        column: ctx.column
+      })
+    : getProductionMetadataPlaceholder("reactive");
 
   const sig = signal(initial, {
     scope: ctx.scope,
@@ -105,16 +108,18 @@ function createTrackedSignal<T>(
 
   (sig as any)._meta = meta;
 
-  registerReactiveInstance(meta, { scope: ctx.scope, instance: ctx.instance }, {
-    setValue: (next) => sig.set(next as T)
-  });
-  updateReactiveValue(meta.rid, initial);
+  if (debugInstrumentationEnabled) {
+    registerReactiveInstance(meta, { scope: ctx.scope, instance: ctx.instance }, {
+      setValue: (next) => sig.set(next as T)
+    });
+    updateReactiveValue(meta.rid, initial);
 
-  Debug.emit("reactive:created", {
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta
-  });
+    Debug.emit("reactive:created", {
+      type: "reactive:created",
+      timestamp: Date.now(),
+      meta
+    });
+  }
 
   return sig;
 }
@@ -190,20 +195,24 @@ export function reactive<T extends AnyObj>(
   };
 
   // Root object metadata (for grouping/inspection)
-  const rootMeta: ReactiveMetadata = createReactiveMetadata({
-    type: "reactive",
-    scope: ctx.scope,
-    instance: ctx.instance,
-    file: ctx.file,
-    line: ctx.line,
-    column: ctx.column
-  });
+  const rootMeta: ReactiveMetadata = debugInstrumentationEnabled
+    ? createReactiveMetadata({
+        type: "reactive",
+        scope: ctx.scope,
+        instance: ctx.instance,
+        file: ctx.file,
+        line: ctx.line,
+        column: ctx.column
+      })
+    : getProductionMetadataPlaceholder("reactive");
 
-  Debug.emit("reactive:created", {
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta: rootMeta
-  });
+  if (debugInstrumentationEnabled) {
+    Debug.emit("reactive:created", {
+      type: "reactive:created",
+      timestamp: Date.now(),
+      meta: rootMeta
+    });
+  }
 
   const store: AnyObj = {};
 
@@ -227,11 +236,13 @@ export function reactive<T extends AnyObj>(
         const sig = v as Signal<any>;
         const value = sig();
 
-        Debug.emit("reactive:read", {
-          type: "reactive:read",
-          timestamp: Date.now(),
-          rid: (sig as any)._meta?.rid ?? rootMeta.rid
-        });
+        if (debugInstrumentationEnabled) {
+          Debug.emit("reactive:read", {
+            type: "reactive:read",
+            timestamp: Date.now(),
+            rid: (sig as any)._meta?.rid ?? rootMeta.rid
+          });
+        }
 
         return value;
       }
@@ -254,15 +265,17 @@ export function reactive<T extends AnyObj>(
           sig.set(value);
         }
 
-        updateReactiveValue((sig as any)._meta?.rid ?? rootMeta.rid, sig());
+        if (debugInstrumentationEnabled) {
+          updateReactiveValue((sig as any)._meta?.rid ?? rootMeta.rid, sig());
 
-        Debug.emit("reactive:updated", {
-          type: "reactive:updated",
-          timestamp: Date.now(),
-          rid: (sig as any)._meta?.rid ?? rootMeta.rid,
-          prev,
-          next: sig()
-        });
+          Debug.emit("reactive:updated", {
+            type: "reactive:updated",
+            timestamp: Date.now(),
+            rid: (sig as any)._meta?.rid ?? rootMeta.rid,
+            prev,
+            next: sig()
+          });
+        }
 
         return true;
       }

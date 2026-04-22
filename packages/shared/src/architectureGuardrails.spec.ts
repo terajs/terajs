@@ -40,8 +40,11 @@ const allowedRootDevDependencies = new Set([
   "@types/react-dom",
   "@types/vue",
   "jsdom",
+  "react",
+  "react-dom",
   "typescript",
-  "vitest"
+  "vitest",
+  "vue"
 ]);
 
 const allowedPackageExternalDependencies = new Map<string, Set<string>>([
@@ -285,6 +288,8 @@ describe("architecture guardrails", () => {
     expect(isApprovedTrackedCodeSurface("packages/shared/src/index.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("packages/cli/test/doctor.spec.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("packages/vite-plug-in/index.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("benchmarks/frameworks-browser.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("benchmarks/vite.browser-bench.config.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("scripts/audit-exports.mjs")).toBe(true);
 
     expect(isApprovedTrackedCodeSurface("debug-check.ts")).toBe(false);
@@ -381,6 +386,10 @@ function isApprovedTrackedCodeSurface(filePath: string): boolean {
   }
 
   if (filePath.startsWith("scripts/")) {
+    return true;
+  }
+
+  if (filePath.startsWith("benchmarks/")) {
     return true;
   }
 

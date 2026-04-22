@@ -25,10 +25,12 @@ export function setRuntimeMode(mode: RuntimeMode): void {
     const prev = runtimeMode;
     runtimeMode = mode;
 
-    Debug.emit("runtime:mode:set", {
-        previous: prev,
-        next: mode
-    });
+    if (process.env.NODE_ENV !== "production") {
+        Debug.emit("runtime:mode:set", {
+            previous: prev,
+            next: mode
+        });
+    }
 }
 
 /**
@@ -39,10 +41,12 @@ export function setRuntimeMode(mode: RuntimeMode): void {
 export function isServer(): boolean {
     const result = runtimeMode === "server";
 
-    Debug.emit("runtime:mode:check", {
-        mode: runtimeMode,
-        isServer: result
-    });
+    if (process.env.NODE_ENV !== "production") {
+        Debug.emit("runtime:mode:check", {
+            mode: runtimeMode,
+            isServer: result
+        });
+    }
 
     return result;
 }

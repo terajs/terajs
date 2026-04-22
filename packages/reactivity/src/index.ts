@@ -14,6 +14,7 @@ export {
   popEffect, 
   currentEffect, 
   getCurrentEffect, // Essential for DX utilities
+  withDetachedCurrentEffect,
   type ReactiveEffect 
 } from "./deps.js";
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.4
+
+- Reduced production overhead across core reactive and renderer hot paths by gating debug instrumentation out of production runtime work.
+- Added compiler-emitted simple-path binding hints plus renderer fast paths for common text and prop bindings.
+- Improved IR keyed `for` reuse for stable single-root rows so repeated list churn preserves more DOM and setup work.
+- Added reproducible framework and route-startup benchmark harnesses used to validate the current performance release story.
+
 ## 1.0.5
 
 - Fixed DevTools connected-mode regressions that could remount active tabs, stack iframe listeners, and leave stale component hover highlights behind while live events were streaming.

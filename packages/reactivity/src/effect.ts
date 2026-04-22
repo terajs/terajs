@@ -23,6 +23,7 @@ import {
     getCurrentContext,
     removeDependencyNode
 } from "@terajs/shared";
+import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 
 /**
  * Creates a reactive effect that:
@@ -39,13 +40,13 @@ import {
  */
 export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     const ctx = getCurrentContext();
-    const owner = ctx
+    const owner = debugInstrumentationEnabled && ctx
         ? {
             scope: ctx.name,
             instance: ctx.instance
         }
         : undefined;
-    const context = ctx
+    const context = debugInstrumentationEnabled && ctx
         ? {
             name: ctx.name,
             instance: ctx.instance
@@ -58,7 +59,9 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
      * and execution of the user function.
      */
     const effectFn: ReactiveEffect = () => {
-        Debug.emit("effect:run", { effect: effectFn, owner, context });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("effect:run", { effect: effectFn, owner, context });
+        }
 
         if (!effectFn.active || isServer()) return;
 
@@ -95,11 +98,13 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     effectFn.children = [];
     effectFn.scheduler = scheduler;
     effectFn.active = true;
-    (effectFn as any)._meta = createReactiveMetadata({
-        type: "effect",
-        scope: owner?.scope ?? "Effect",
-        instance: owner?.instance ?? 0
-    });
+    (effectFn as any)._meta = debugInstrumentationEnabled
+        ? createReactiveMetadata({
+            type: "effect",
+            scope: owner?.scope ?? "Effect",
+            instance: owner?.instance ?? 0
+        })
+        : getProductionMetadataPlaceholder("effect");
     (effectFn as any)._owner = owner;
     (effectFn as any)._context = context;
 
@@ -127,15 +132,17 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
  * @param effectFn - The effect to clean up.
  */
 function cleanup(effectFn: ReactiveEffect): void {
-    Debug.emit("effect:cleanup", {
-        effect: effectFn,
-        owner: (effectFn as any)._owner,
-        context: (effectFn as any)._context
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:cleanup", {
+            effect: effectFn,
+            owner: (effectFn as any)._owner,
+            context: (effectFn as any)._context
+        });
+    }
 
     // NEW: remove graph edges for this effect
     const meta = (effectFn as any)._meta;
-    if (meta) {
+    if (debugInstrumentationEnabled && meta) {
         removeDependencyNode(meta.rid);
     }
 
@@ -156,11 +163,13 @@ function cleanup(effectFn: ReactiveEffect): void {
  * @param effectFn - The effect to dispose.
  */
 function disposeEffect(effectFn: ReactiveEffect): void {
-    Debug.emit("effect:dispose", {
-        effect: effectFn,
-        owner: (effectFn as any)._owner,
-        context: (effectFn as any)._context
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:dispose", {
+            effect: effectFn,
+            owner: (effectFn as any)._owner,
+            context: (effectFn as any)._context
+        });
+    }
 
     cleanup(effectFn);
 
@@ -187,11 +196,13 @@ function disposeEffect(effectFn: ReactiveEffect): void {
 export function scheduleEffect(effectFn: ReactiveEffect): void {
     if (effectFn === currentEffect || !effectFn.active) return;
 
-    Debug.emit("effect:schedule", {
-        effect: effectFn,
-        owner: (effectFn as any)._owner,
-        context: (effectFn as any)._context
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("effect:schedule", {
+            effect: effectFn,
+            owner: (effectFn as any)._owner,
+            context: (effectFn as any)._context
+        });
+    }
 
     if (effectFn.scheduler) {
         effectFn.scheduler();

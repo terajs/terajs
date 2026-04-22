@@ -7,9 +7,12 @@
  */
 
 import type { ASTNode } from "@terajs/renderer";
-import type { IRModule, IRNode, IRFlags } from "./irTypes.js";
+import type { IRBindingHint, IRModule, IRNode, IRFlags } from "./irTypes.js";
 import { parseTemplateToAst } from "./parseTemplateToAst.js";
 import type { ParsedSFC } from "./sfcTypes.js";
+
+const SIMPLE_PATH_RE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
+const RESERVED_LITERAL_RE = /^(?:true|false|null|undefined|NaN|Infinity)$/;
 
 /**
  * Tiny deterministic hash for generating scope IDs.
@@ -77,6 +80,30 @@ export function generateIRModule(sfc: ParsedSFC): IRModule {
   };
 }
 
+function areStaticProps(props: Array<{ kind: string }>): boolean {
+  return props.every((prop) => prop.kind === "static");
+}
+
+function isStaticIRNode(node: IRNode): boolean {
+  return node.flags?.static === true;
+}
+
+function getBindingHint(value: unknown): IRBindingHint | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  if (!SIMPLE_PATH_RE.test(normalized) || RESERVED_LITERAL_RE.test(normalized)) {
+    return undefined;
+  }
+
+  return {
+    kind: "simple-path",
+    segments: normalized.split(".")
+  };
+}
+
 /**
  * Normalizes an ASTNode into an IRNode.
  *
@@ -99,7 +126,8 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
       return {
         ...base,
         type: "text",
-        value: node.value
+        value: node.value,
+        flags: { static: true }
       };
 
     case "interp":
@@ -107,12 +135,27 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
         ...base,
         type: "interp",
         expression: node.expression,
+        binding: getBindingHint(node.expression),
         flags: { dynamic: true }
       };
 
     case "element": {
       // Copy props from AST
-      const props = node.props.map(p => ({ ...p }));
+      const props = node.props.map((p) => {
+        const prop = { ...p };
+
+        if (prop.kind === "bind") {
+          const binding = getBindingHint(prop.value);
+          if (binding) {
+            return {
+              ...prop,
+              binding
+            };
+          }
+        }
+
+        return prop;
+      });
 
       // Inject scoped style attribute
       if (scopeId) {
@@ -123,16 +166,18 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
         });
       }
 
+      const children = node.children.map(child => normalizeNode(child, scopeId));
+      const hasDirectives = node.props.some(p => p.kind === "directive");
+
       return {
         ...base,
         type: "element",
         tag: node.tag,
         props,
-        children: node.children.map(child =>
-          normalizeNode(child, scopeId)
-        ),
+        children,
         flags: {
-          hasDirectives: node.props.some(p => p.kind === "directive")
+          hasDirectives,
+          static: !hasDirectives && areStaticProps(props) && children.every(isStaticIRNode)
         }
       };
     }

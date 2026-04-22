@@ -12,6 +12,7 @@
 import type { ReactiveEffect } from "../deps.js";
 import { scheduleEffect } from "../effect.js";
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
 
 let batchDepth = 0;
 const batchQueue = new Set<ReactiveEffect>();
@@ -23,9 +24,11 @@ const batchQueue = new Set<ReactiveEffect>();
 export function startBatch(): void {
     batchDepth++;
 
-    Debug.emit("batch:start", {
-        depth: batchDepth
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("batch:start", {
+            depth: batchDepth
+        });
+    }
 }
 
 /**
@@ -35,18 +38,22 @@ export function startBatch(): void {
 export function endBatch(): void {
     batchDepth--;
 
-    Debug.emit("batch:end", {
-        depth: batchDepth
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("batch:end", {
+            depth: batchDepth
+        });
+    }
 
     if (batchDepth === 0) {
         const effects = Array.from(batchQueue);
         batchQueue.clear();
 
-        Debug.emit("batch:flush", {
-            count: effects.length,
-            effects
-        });
+        if (debugInstrumentationEnabled) {
+            Debug.emit("batch:flush", {
+                count: effects.length,
+                effects
+            });
+        }
 
         for (const eff of effects) {
             scheduleEffect(eff);
@@ -77,9 +84,11 @@ export function shouldBatch(): boolean {
  * Queue an effect to run when the batch flushes.
  */
 export function queueEffect(eff: ReactiveEffect): void {
-    Debug.emit("batch:queue", {
-        effect: eff
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("batch:queue", {
+            effect: eff
+        });
+    }
 
     batchQueue.add(eff);
 }

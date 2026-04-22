@@ -21,7 +21,7 @@ describe("IRModule Generator (integration)", () => {
       meta: {},
       route: null,
       template: [
-        { type: "text", value: "Hello", flags: {}, loc: undefined }
+        { type: "text", value: "Hello", flags: { static: true }, loc: undefined }
       ]
     };
 
@@ -81,9 +81,68 @@ describe("IRModule Generator (integration)", () => {
     expect(ir.template[0]).toMatchObject({
       type: "element",
       tag: "div",
+      flags: {
+        static: false
+      },
       children: [
-        { type: "interp", expression: "msg" }
+        {
+          type: "interp",
+          expression: "msg",
+          binding: {
+            kind: "simple-path",
+            segments: ["msg"]
+          }
+        }
       ]
+    });
+  });
+
+  it("adds simple-path hints to bound props", () => {
+    const sfc: ParsedSFC = {
+      filePath: "/pages/props.tera",
+      template: `<div :title="user.name"></div>`,
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
+
+    const ir = generateIRModule(sfc);
+
+    expect(ir.template[0]).toMatchObject({
+      type: "element",
+      props: [
+        {
+          kind: "bind",
+          name: "title",
+          value: "user.name",
+          binding: {
+            kind: "simple-path",
+            segments: ["user", "name"]
+          }
+        }
+      ]
+    });
+  });
+
+  it("marks fully static element subtrees as static", () => {
+    const sfc: ParsedSFC = {
+      filePath: "/pages/static.tera",
+      template: "<section><h1>Hello</h1><p>World</p></section>",
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
+
+    const ir = generateIRModule(sfc);
+
+    expect(ir.template[0]).toMatchObject({
+      type: "element",
+      tag: "section",
+      flags: {
+        static: true
+      }
     });
   });
 

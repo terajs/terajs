@@ -29,8 +29,7 @@ import {
     bindStyle,
     bindEvent,
 } from "./bindings.js";
-
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 /**
  * Special symbol used by JSX to represent a fragment.
@@ -43,9 +42,9 @@ export const Fragment = Symbol("Terajs.Fragment");
 function normalizeChild(child: any): Node {
     child = unwrap(child);
 
-    Debug.emit("jsx:normalize", {
+    emitRendererDebug("jsx:normalize", () => ({
         value: child
-    });
+    }));
 
     if (child == null || child === false || child === true) {
         return createText("");
@@ -142,10 +141,10 @@ function prepareComponentProps(props: Record<string, any>): Record<string, any> 
  * Apply JSX props to a DOM element.
  */
 function applyProps(el: Element, props: Record<string, any>) {
-    Debug.emit("jsx:props", {
+    emitRendererDebug("jsx:props", () => ({
         el,
         props
-    });
+    }));
 
     for (const key in props) {
         const value = props[key];
@@ -202,19 +201,19 @@ export function jsxs(type: any, props: any): Node {
 function createVNode(type: any, props: any): Node {
     props = props || {};
 
-    Debug.emit("jsx:create", {
+    emitRendererDebug("jsx:create", () => ({
         type,
         props
-    });
+    }));
 
     // Fragment
     if (type === Fragment) {
         const frag = createFragment();
 
-        Debug.emit("jsx:fragment", {
+        emitRendererDebug("jsx:fragment", () => ({
             fragment: frag,
             children: props.children
-        });
+        }));
 
         const children = props.children;
 
@@ -231,10 +230,10 @@ function createVNode(type: any, props: any): Node {
 
     // Component
     if (typeof type === "function") {
-        Debug.emit("jsx:component", {
+        emitRendererDebug("jsx:component", () => ({
             component: type,
             props
-        });
+        }));
 
         return type(prepareComponentProps(props));
     }
@@ -242,19 +241,19 @@ function createVNode(type: any, props: any): Node {
     // Native DOM element
     const el = createElement(type);
 
-    Debug.emit("jsx:element", {
+    emitRendererDebug("jsx:element", () => ({
         tag: type,
         el
-    });
+    }));
 
     applyProps(el, props);
 
     const children = props.children;
 
-    Debug.emit("jsx:children", {
+    emitRendererDebug("jsx:children", () => ({
         parent: el,
         children
-    });
+    }));
 
     withHydrationParent(el, () => {
         if (Array.isArray(children)) {

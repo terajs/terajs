@@ -16,7 +16,7 @@
 import { effect } from "@terajs/reactivity";
 import { createFragment, insert, remove } from "./dom.js";
 import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 export interface ForProps<T> {
     /** Reactive getter returning the array to iterate over */
@@ -38,11 +38,11 @@ export interface ForProps<T> {
 export function For<T>(props: ForProps<T>): Node {
     const parent = createFragment();
 
-    Debug.emit("list:create", {
+    emitRendererDebug("list:create", () => ({
         type: "For",
         props,
         parent
-    });
+    }));
 
     let oldItems: KeyedItem[] = [];
 
@@ -50,10 +50,10 @@ export function For<T>(props: ForProps<T>): Node {
         const array = props.each();
         const getKey = props.key ?? ((item: any, i: number) => item.key ?? i);
 
-        Debug.emit("list:update", {
+        emitRendererDebug("list:update", () => ({
             type: "For",
             arrayLength: array.length
-        });
+        }));
 
         const newItems: KeyedItem[] = array.map((item, i) => {
             const node = props.children(item, () => i);
@@ -64,11 +64,11 @@ export function For<T>(props: ForProps<T>): Node {
             };
         });
 
-        Debug.emit("list:reconcile", {
+        emitRendererDebug("list:reconcile", () => ({
             type: "For",
             oldCount: oldItems.length,
             newCount: newItems.length
-        });
+        }));
 
         updateKeyedList(
             parent,
@@ -77,22 +77,22 @@ export function For<T>(props: ForProps<T>): Node {
 
             // mount
             (item, p, anchor) => {
-                Debug.emit("list:mount", {
+                emitRendererDebug("list:mount", () => ({
                     type: "For",
                     key: item.key,
                     node: item.node,
                     anchor
-                });
+                }));
                 insert(p, item.node, anchor);
             },
 
             // unmount
             (item, p) => {
-                Debug.emit("list:unmount", {
+                emitRendererDebug("list:unmount", () => ({
                     type: "For",
                     key: item.key,
                     node: item.node
-                });
+                }));
                 remove(item.node);
             }
         );

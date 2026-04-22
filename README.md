@@ -17,6 +17,25 @@ Terajs is strongest where these pieces reinforce each other:
 - **Integrated diagnostics:** DevTools can inspect components, router activity, queue health, performance, and structured AI/debug context, with an optional live bridge into the companion VS Code tooling.
 - **Framework-agnostic core:** neutral packages stay neutral, while React and Vue wrappers exist as integration seams rather than as design centers.
 
+## Performance claims and benchmarks
+
+Terajs is designed around compiler-produced DOM bindings and fine-grained reactive updates, but that is not a blanket claim that every Terajs workload beats every React or Vue workload.
+
+This repo now includes a reproducible local comparison harness:
+
+```bash
+npm run bench:frameworks
+```
+
+The current benchmark compares production builds of Terajs, Vue 3, and React 18 on the same jsdom workload:
+
+- 1,000 rendered rows
+- 200 targeted single-row updates
+- 20 full-list updates
+- 5 warmup runs and 25 timed runs per scenario
+
+On the local verification run used for this README update, Terajs was fastest in the targeted-update scenario, slower than React and Vue on initial mount, and slower than React on the bulk full-list update scenario. Treat those numbers as workload-specific microbenchmarks, not a universal application ranking.
+
 ## Start with a scaffold
 
 For most apps, start with the official project generator.

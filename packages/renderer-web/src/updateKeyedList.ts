@@ -17,7 +17,7 @@
  * It is the ONLY diffing Terajs performs.
  */
 
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 export interface KeyedItem {
     /** Unique identity for the item. Determines DOM preservation. */
@@ -43,11 +43,11 @@ export function updateKeyedList(
     mount: MountFn,
     unmount: UnmountFn
 ) {
-    Debug.emit("list:diff:start", {
+    emitRendererDebug("list:diff:start", () => ({
         parent,
         oldCount: oldItems.length,
         newCount: newItems.length
-    });
+    }));
 
     let i = 0;
     let oldEnd = oldItems.length - 1;
@@ -55,20 +55,20 @@ export function updateKeyedList(
 
     // 1. Sync from start
     while (i <= oldEnd && i <= newEnd && oldItems[i].key === newItems[i].key) {
-        Debug.emit("list:diff:sync-start", {
+        emitRendererDebug("list:diff:sync-start", () => ({
             index: i,
             key: oldItems[i].key
-        });
+        }));
         i++;
     }
 
     // 2. Sync from end
     while (i <= oldEnd && i <= newEnd && oldItems[oldEnd].key === newItems[newEnd].key) {
-        Debug.emit("list:diff:sync-end", {
+        emitRendererDebug("list:diff:sync-end", () => ({
             oldIndex: oldEnd,
             newIndex: newEnd,
             key: oldItems[oldEnd].key
-        });
+        }));
         oldEnd--;
         newEnd--;
     }
@@ -79,11 +79,11 @@ export function updateKeyedList(
             newEnd + 1 < newItems.length ? newItems[newEnd + 1].node : null;
 
         while (i <= newEnd) {
-            Debug.emit("list:diff:mount", {
+            emitRendererDebug("list:diff:mount", () => ({
                 index: i,
                 key: newItems[i].key,
                 anchor
-            });
+            }));
             mount(newItems[i], parent, anchor);
             i++;
         }
@@ -93,10 +93,10 @@ export function updateKeyedList(
     // 4. Unmount old items (old list is longer)
     if (i > newEnd) {
         while (i <= oldEnd) {
-            Debug.emit("list:diff:unmount", {
+            emitRendererDebug("list:diff:unmount", () => ({
                 index: i,
                 key: oldItems[i].key
-            });
+            }));
             unmount(oldItems[i], parent);
             i++;
         }
@@ -121,10 +121,10 @@ export function updateKeyedList(
         const newIndex = keyToNewIndex.get(oldItem.key);
 
         if (newIndex == null) {
-            Debug.emit("list:diff:unmount", {
+            emitRendererDebug("list:diff:unmount", () => ({
                 index: j,
                 key: oldItem.key
-            });
+            }));
             unmount(oldItem, parent);
         } else {
             toMove[newIndex - newStart] = j;
@@ -139,16 +139,16 @@ export function updateKeyedList(
 
     // If no movement is needed, only mount missing items
     if (!moved) {
-        for (let j = newStart; j <= newEnd; j++) {
+        for (let j = newEnd; j >= newStart; j--) {
             if (toMove[j - newStart] === -1) {
                 const anchor =
                     j + 1 < newItems.length ? newItems[j + 1].node : null;
 
-                Debug.emit("list:diff:mount", {
+                emitRendererDebug("list:diff:mount", () => ({
                     index: j,
                     key: newItems[j].key,
                     anchor
-                });
+                }));
 
                 mount(newItems[j], parent, anchor);
             }
@@ -159,10 +159,10 @@ export function updateKeyedList(
     // 6. Move items using LIS to minimize DOM operations
     const seq = longestIncreasingSubsequence(toMove);
 
-    Debug.emit("list:diff:lis", {
+    emitRendererDebug("list:diff:lis", () => ({
         toMove,
         lis: seq
-    });
+    }));
 
     let seqIdx = seq.length - 1;
 
@@ -172,18 +172,18 @@ export function updateKeyedList(
             j + 1 < newItems.length ? newItems[j + 1].node : null;
 
         if (toMove[j - newStart] === -1) {
-            Debug.emit("list:diff:mount", {
+            emitRendererDebug("list:diff:mount", () => ({
                 index: j,
                 key: newItem.key,
                 anchor
-            });
+            }));
             mount(newItem, parent, anchor);
         } else if (seqIdx < 0 || j - newStart !== seq[seqIdx]) {
-            Debug.emit("list:diff:move", {
+            emitRendererDebug("list:diff:move", () => ({
                 index: j,
                 key: newItem.key,
                 anchor
-            });
+            }));
             parent.insertBefore(newItem.node, anchor);
         } else {
             seqIdx--;

@@ -1,10 +1,12 @@
 {
   "name": "terajs",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
     "build": "npm run clean && tsc -b",
+    "bench:direct-text": "npm run build && node scripts/benchmark-direct-text.mjs",
+    "bench:frameworks": "npm run build && node scripts/benchmark-frameworks.mjs",
     "clean": "node scripts/clean-workspace.mjs",
     "changeset": "changeset",
     "test": "vitest",
@@ -32,8 +34,11 @@
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "jsdom": "^29.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "vue": "^3.5.22"
   },
   "workspaces": [
     "packages/*"

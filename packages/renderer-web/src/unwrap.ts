@@ -13,7 +13,7 @@
  * concrete values, not reactive wrappers.
  */
 
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 /**
  * Normalizes a value by resolving signals, refs, or accessors.
@@ -26,10 +26,10 @@ export function unwrap(value: any): any {
     if (value && typeof value === "object" && "_sig" in value) {
         const out = value._sig();
 
-        Debug.emit("unwrap:ref", {
+        emitRendererDebug("unwrap:ref", () => ({
             input: value,
             output: out
-        });
+        }));
 
         return out;
     }
@@ -38,10 +38,10 @@ export function unwrap(value: any): any {
     if (typeof value === "function" && "_dep" in value && "_value" in value) {
         const out = value();
 
-        Debug.emit("unwrap:signal", {
+        emitRendererDebug("unwrap:signal", () => ({
             input: value,
             output: out
-        });
+        }));
 
         return out;
     }
@@ -50,19 +50,19 @@ export function unwrap(value: any): any {
     if (typeof value === "function") {
         const out = value();
 
-        Debug.emit("unwrap:accessor", {
+        emitRendererDebug("unwrap:accessor", () => ({
             input: value,
             output: out
-        });
+        }));
 
         return out;
     }
 
     // Raw value
-    Debug.emit("unwrap:raw", {
+    emitRendererDebug("unwrap:raw", () => ({
         input: value,
         output: value
-    });
+    }));
 
     return value;
 }

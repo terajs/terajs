@@ -8,6 +8,7 @@
 
 import { ref } from "../ref.js";
 import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
 
 /**
  * Creates an explicit contract object.
@@ -20,10 +21,12 @@ import { Debug } from "@terajs/shared";
  * @returns A frozen contract object.
  */
 export function contract<T extends object>(shape: T): Readonly<T> {
-    Debug.emit("contract:create", {
-        kind: "explicit",
-        shape
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("contract:create", {
+            kind: "explicit",
+            shape
+        });
+    }
 
     return Object.freeze(shape);
 }
@@ -36,9 +39,11 @@ export function contract<T extends object>(shape: T): Readonly<T> {
  * @returns A frozen contract object with reactive primitives.
  */
 contract.reactive = function <T extends object>(shape: T): Readonly<any> {
-    Debug.emit("contract:reactive:create", {
-        shape
-    });
+    if (debugInstrumentationEnabled) {
+        Debug.emit("contract:reactive:create", {
+            shape
+        });
+    }
 
     const out: any = {};
 
@@ -48,11 +53,13 @@ contract.reactive = function <T extends object>(shape: T): Readonly<any> {
         if (isPrimitive(value)) {
             const wrapped = ref(value);
 
-            Debug.emit("contract:reactive:wrap", {
-                key,
-                original: value,
-                wrapped
-            });
+            if (debugInstrumentationEnabled) {
+                Debug.emit("contract:reactive:wrap", {
+                    key,
+                    original: value,
+                    wrapped
+                });
+            }
 
             out[key] = wrapped;
         } else {

@@ -1,5 +1,5 @@
 import type { TemplateFn } from "./template.js";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 /**
  * A value or a function that returns a value.
@@ -40,35 +40,35 @@ function resolveNode(value: Node | (() => Node)): Node {
  * @returns A reactive template function.
  */
 export function Show<T = any>(props: ShowProps<T>): TemplateFn {
-    Debug.emit("template:create", {
+    emitRendererDebug("template:create", () => ({
         type: "Show",
         props
-    });
+    }));
 
     return () => {
         const condition = resolve(props.when);
 
-        Debug.emit("template:update", {
+        emitRendererDebug("template:update", () => ({
             type: "Show",
             condition
-        });
+        }));
 
         if (condition) {
-            Debug.emit("template:branch", {
+            emitRendererDebug("template:branch", () => ({
                 type: "Show",
                 branch: "children"
-            });
+            }));
             return resolveNode(props.children);
         }
 
         if (props.fallback) {
-            Debug.emit("template:fallback", {
+            emitRendererDebug("template:fallback", () => ({
                 type: "Show"
-            });
+            }));
             return resolveNode(props.fallback);
         }
 
-        Debug.emit("template:empty", { type: "Show" });
+        emitRendererDebug("template:empty", () => ({ type: "Show" }));
         return document.createTextNode("");
     };
 }
@@ -113,10 +113,10 @@ export interface SwitchProps<T = any> {
  * @returns A reactive template function.
  */
 export function Switch<T = any>(props: SwitchProps<T>): TemplateFn {
-    Debug.emit("template:create", {
+    emitRendererDebug("template:create", () => ({
         type: "Switch",
         props
-    });
+    }));
 
     return () => {
         const children = Array.isArray(props.children)
@@ -127,10 +127,10 @@ export function Switch<T = any>(props: SwitchProps<T>): TemplateFn {
             ? resolve(props.value)
             : undefined;
 
-        Debug.emit("template:update", {
+        emitRendererDebug("template:update", () => ({
             type: "Switch",
             value
-        });
+        }));
 
         for (const child of children) {
             if (!child || typeof child !== "object" || !("when" in child)) {
@@ -142,33 +142,33 @@ export function Switch<T = any>(props: SwitchProps<T>): TemplateFn {
 
             if (value !== undefined) {
                 if (cond === value) {
-                    Debug.emit("template:branch", {
+                    emitRendererDebug("template:branch", () => ({
                         type: "Switch",
                         branch: "match",
                         match
-                    });
+                    }));
                     return resolveNode(match.children);
                 }
             } else {
                 if (cond) {
-                    Debug.emit("template:branch", {
+                    emitRendererDebug("template:branch", () => ({
                         type: "Switch",
                         branch: "match",
                         match
-                    });
+                    }));
                     return resolveNode(match.children);
                 }
             }
         }
 
         if (props.fallback) {
-            Debug.emit("template:fallback", {
+            emitRendererDebug("template:fallback", () => ({
                 type: "Switch"
-            });
+            }));
             return resolveNode(props.fallback);
         }
 
-        Debug.emit("template:empty", { type: "Switch" });
+        emitRendererDebug("template:empty", () => ({ type: "Switch" }));
         return document.createTextNode("");
     };
 }
