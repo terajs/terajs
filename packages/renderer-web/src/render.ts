@@ -21,7 +21,7 @@ import {
 } from "@terajs/runtime";
 import type { ComponentContext } from "@terajs/runtime";
 import { template, type TemplateFn } from "./template.js";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 // AST to JSX adapter
 import { renderAst } from "./astToJsx.js";
@@ -69,11 +69,11 @@ export function renderComponent(
     const prev = getCurrentContext();
     ctx.errorBoundary = prev?.errorBoundary;
 
-    Debug.emit("component:render:start", {
+    emitRendererDebug("component:render:start", () => ({
         component,
         props,
         parentContext: prev
-    });
+    }));
 
     setCurrentContext(ctx);
 
@@ -83,10 +83,10 @@ export function renderComponent(
 
     // AST support
     if (isAst(out)) {
-        Debug.emit("component:render:template", {
+        emitRendererDebug("component:render:template", () => ({
             component,
             templateFn: "AST"
-        });
+        }));
 
         // TemplateFn MUST be () => Node
         // So we close over ctx instead of passing it
@@ -98,17 +98,17 @@ export function renderComponent(
         node = template(fn);
     }
     else if (out instanceof Node) {
-        Debug.emit("component:render:static", {
+        emitRendererDebug("component:render:static", () => ({
             component,
             node: out
-        });
+        }));
         node = out;
     }
     else if (typeof out === "function") {
-        Debug.emit("component:render:template", {
+        emitRendererDebug("component:render:template", () => ({
             component,
             templateFn: out
-        });
+        }));
 
         node = template(out);
     }
@@ -116,12 +116,12 @@ export function renderComponent(
         const componentName = describeComponentName(component);
         const returnType = describeReturnValue(out);
 
-        Debug.emit("error:renderer", {
+        emitRendererDebug("error:renderer", () => ({
             message: "Invalid component return value.",
             component: componentName,
             returnType,
             value: out
-        });
+        }));
 
         throw new Error(`Invalid component return value for ${componentName} (${returnType}).`);
     }
@@ -133,11 +133,11 @@ export function renderComponent(
     // Restore previous context AFTER template() has run
     setCurrentContext(prev);
 
-    Debug.emit("component:render:end", {
+    emitRendererDebug("component:render:end", () => ({
         component,
         node,
         context: ctx
-    });
+    }));
 
     return { node, ctx };
 }
@@ -228,14 +228,14 @@ export function renderIntoRoot(
     root: HTMLElement,
     props?: any
 ): ComponentContext {
-    Debug.emit("component:render:root", {
+    emitRendererDebug("component:render:root", () => ({
         component,
         root,
         props
-    });
+    }));
 
     // Clear root and notify debug
-    Debug.emit("dom:clear", { el: root });
+    emitRendererDebug("dom:clear", () => ({ el: root }));
     clear(root);
 
     const { node, ctx } = renderComponent(component, props);

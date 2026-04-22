@@ -7,7 +7,7 @@
 
 import { jsx, jsxs, Fragment } from "./jsx-runtime.js";
 import { Portal as WebPortal } from "./portal.js";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 import type {
   ASTNode,
@@ -25,7 +25,7 @@ function assertNever(x: never): never {
 }
 
 export function renderAst(node: ASTNode, ctx: any): any {
-  Debug.emit("template:ast:render", { node });
+  emitRendererDebug("template:ast:render", () => ({ node }));
 
   switch (node.type) {
     case "text":
@@ -50,10 +50,10 @@ export function renderAst(node: ASTNode, ctx: any): any {
       return renderFor(node, ctx);
 
     default:
-      Debug.emit("error:renderer", {
+      emitRendererDebug("error:renderer", () => ({
         message: `Unknown AST node type`,
         node
-      });
+      }));
       return assertNever(node);
   }
 }
@@ -63,7 +63,7 @@ export function renderAst(node: ASTNode, ctx: any): any {
 /* -------------------------------------------------------------------------- */
 
 function renderText(node: TextNode) {
-  Debug.emit("template:ast:text", { value: node.value });
+  emitRendererDebug("template:ast:text", () => ({ value: node.value }));
   return node.value;
 }
 
@@ -74,10 +74,10 @@ function renderText(node: TextNode) {
 function renderInterpolation(node: InterpolationNode, ctx: any) {
   const value = ctx[node.expression];
 
-  Debug.emit("template:ast:interp", {
+  emitRendererDebug("template:ast:interp", () => ({
     expression: node.expression,
     value
-  });
+  }));
 
   return value ?? "";
 }
@@ -87,10 +87,10 @@ function renderInterpolation(node: InterpolationNode, ctx: any) {
 /* -------------------------------------------------------------------------- */
 
 function renderElement(node: ElementNode, ctx: any) {
-  Debug.emit("template:ast:element", {
+  emitRendererDebug("template:ast:element", () => ({
     tag: node.tag,
     props: node.props
-  });
+  }));
 
   const props: Record<string, any> = {};
 
@@ -107,11 +107,11 @@ function renderElement(node: ElementNode, ctx: any) {
       const handler = ctx[p.value];
 
       if (typeof handler !== "function") {
-        Debug.emit("error:renderer", {
+        emitRendererDebug("error:renderer", () => ({
           message: `Event handler '${p.value}' is not a function`,
           tag: node.tag,
           prop: p
-        });
+        }));
       }
 
       props["on" + capitalize(p.name)] = handler;
@@ -126,9 +126,9 @@ function renderElement(node: ElementNode, ctx: any) {
 function renderPortal(node: PortalNode, ctx: any) {
   const target = resolvePortalTarget(node.target, ctx);
 
-  Debug.emit("template:ast:portal", {
+  emitRendererDebug("template:ast:portal", () => ({
     hasTarget: target != null
-  });
+  }));
 
   return jsx(WebPortal, {
     to: target,
@@ -140,10 +140,10 @@ function renderSlot(node: SlotNode, ctx: any) {
   const slotName = node.name ?? "default";
   const slotValue = ctx?.slots?.[slotName];
 
-  Debug.emit("template:ast:slot", {
+  emitRendererDebug("template:ast:slot", () => ({
     name: slotName,
     hasSlot: slotValue != null
-  });
+  }));
 
   if (typeof slotValue === "function") {
     return slotValue();
@@ -163,10 +163,10 @@ function renderSlot(node: SlotNode, ctx: any) {
 function renderIf(node: IfNode, ctx: any) {
   const conditionValue = ctx[node.condition];
 
-  Debug.emit("template:ast:if", {
+  emitRendererDebug("template:ast:if", () => ({
     condition: node.condition,
     value: conditionValue
-  });
+  }));
 
   if (conditionValue) {
     return flatten(node.then.map((n) => renderAst(n, ctx)));
@@ -182,16 +182,16 @@ function renderIf(node: IfNode, ctx: any) {
 function renderFor(node: ForNode, ctx: any) {
   const list = ctx[node.each] ?? [];
 
-  Debug.emit("template:ast:for", {
+  emitRendererDebug("template:ast:for", () => ({
     each: node.each,
     length: Array.isArray(list) ? list.length : 0
-  });
+  }));
 
   if (!Array.isArray(list)) {
-    Debug.emit("error:renderer", {
+    emitRendererDebug("error:renderer", () => ({
       message: `v-for expected array but got ${typeof list}`,
       each: node.each
-    });
+    }));
     return null;
   }
 

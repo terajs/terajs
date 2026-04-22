@@ -1,5 +1,6 @@
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
-import { Debug, type ComponentBoundaryError } from "@terajs/shared";
+import { type ComponentBoundaryError } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 import { mount, unmount } from "./mount.js";
 import type { FrameworkComponent } from "./render.js";
@@ -77,11 +78,11 @@ export function withErrorBoundary(
           return;
         }
 
-        Debug.emit("error:component", {
+        emitRendererDebug("error:component", () => ({
           error: captured.error,
           phase: captured.phase,
           component: captured.componentName ?? "Unknown"
-        });
+        }));
         options.onError?.(captured);
         safeRenderFallback(host, options.fallback, captured.error, renderChild);
       };

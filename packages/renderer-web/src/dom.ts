@@ -7,7 +7,7 @@
  * to ensure maximum performance and minimal memory overhead.
  */
 
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 import { unwrap } from "./unwrap.js"; 
 
 const nodeCleanup = new WeakMap<Node, Array<() => void>>();
@@ -20,7 +20,7 @@ interface HydrationFrame {
 let hydrationFrames: HydrationFrame[] = [];
 let hydrationRoot: HTMLElement | null = null;
 
-function isHydrating(): boolean {
+export function isHydrating(): boolean {
     return hydrationRoot != null;
 }
 
@@ -68,9 +68,9 @@ export function startHydration(root: HTMLElement): void {
         nextChild: root.firstChild
     }];
 
-    Debug.emit("dom:hydrate:start", {
+    emitRendererDebug("dom:hydrate:start", () => ({
         root
-    });
+    }));
 }
 
 /**
@@ -90,9 +90,9 @@ export function finishHydration(): void {
     hydrationFrames = [];
     hydrationRoot = null;
 
-    Debug.emit("dom:hydrate:end", {
+    emitRendererDebug("dom:hydrate:end", () => ({
         root
-    });
+    }));
 }
 
 /**
@@ -210,11 +210,11 @@ export function createElement(type: string, svg: boolean = false): HTMLElement |
         ? document.createElementNS("http://www.w3.org/2000/svg", type)
         : document.createElement(type);
 
-    Debug.emit("dom:create", {
+    emitRendererDebug("dom:create", () => ({
         kind: "element",
         type,
         node: el
-    });
+    }));
 
     return el;
 }
@@ -235,11 +235,11 @@ export function createText(value: string): Text {
 
     const node = document.createTextNode(value);
 
-    Debug.emit("dom:create", {
+    emitRendererDebug("dom:create", () => ({
         kind: "text",
         value,
         node
-    });
+    }));
 
     return node;
 }
@@ -250,10 +250,10 @@ export function createText(value: string): Text {
 export function createFragment(): DocumentFragment {
     const frag = document.createDocumentFragment();
 
-    Debug.emit("dom:create", {
+    emitRendererDebug("dom:create", () => ({
         kind: "fragment",
         node: frag
-    });
+    }));
 
     return frag;
 }
@@ -272,11 +272,11 @@ export function insert(parent: Node, child: Node, anchor: Node | null = null): v
         }
     }
 
-    Debug.emit("dom:insert", {
+    emitRendererDebug("dom:insert", () => ({
         parent,
         child,
         anchor
-    });
+    }));
 
     parent.insertBefore(child, anchor);
 }
@@ -287,10 +287,10 @@ export function insert(parent: Node, child: Node, anchor: Node | null = null): v
 export function remove(node: Node): void {
     const parent = node.parentNode;
 
-    Debug.emit("dom:remove", {
+    emitRendererDebug("dom:remove", () => ({
         node,
         parent
-    });
+    }));
 
     disposeNodeTree(node);
     if (parent && node.parentNode === parent) {
@@ -310,11 +310,11 @@ export function clear(node: Node): void {
 export function setText(node: Text, value: any): void {
     const v = String(unwrap(value));
 
-    Debug.emit("dom:update", {
+    emitRendererDebug("dom:update", () => ({
         kind: "text",
         node,
         value: v
-    });
+    }));
 
     node.data = v;
 }
@@ -325,12 +325,12 @@ export function setText(node: Text, value: any): void {
 export function setProp(el: Element, name: string, value: any): void {
     const v = unwrap(value);
 
-    Debug.emit("dom:update", {
+    emitRendererDebug("dom:update", () => ({
         kind: "prop",
         el,
         name,
         value: v
-    });
+    }));
 
     if (v == null) {
         el.removeAttribute(name);
@@ -353,11 +353,11 @@ export function setProp(el: Element, name: string, value: any): void {
  * Apply a style object to an Element.
  */
 export function setStyle(el: Element, style: Record<string, string>): void {
-    Debug.emit("dom:update", {
+    emitRendererDebug("dom:update", () => ({
         kind: "style",
         el,
         style
-    });
+    }));
 
     const styleTarget = (el as HTMLElement | SVGElement).style;
     for (const key in style) {
@@ -369,11 +369,11 @@ export function setStyle(el: Element, style: Record<string, string>): void {
  * Set the class attribute on an element.
  */
 export function setClass(el: Element, className: string): void {
-    Debug.emit("dom:update", {
+    emitRendererDebug("dom:update", () => ({
         kind: "class",
         el,
         className
-    });
+    }));
 
     el.setAttribute("class", className);
 }
@@ -382,12 +382,12 @@ export function setClass(el: Element, className: string): void {
  * Add an event listener to an element.
  */
 export function addEvent(el: Element, name: string, handler: EventListener): void {
-    Debug.emit("dom:update", {
+    emitRendererDebug("dom:update", () => ({
         kind: "event:add",
         el,
         name,
         handler
-    });
+    }));
 
     el.addEventListener(name, handler);
 }
@@ -396,12 +396,12 @@ export function addEvent(el: Element, name: string, handler: EventListener): voi
  * Remove an event listener from an element.
  */
 export function removeEvent(el: Element, name: string, handler: EventListener): void {
-    Debug.emit("dom:update", {
+    emitRendererDebug("dom:update", () => ({
         kind: "event:remove",
         el,
         name,
         handler
-    });
+    }));
 
     el.removeEventListener(name, handler);
 }

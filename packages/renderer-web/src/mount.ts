@@ -19,7 +19,7 @@
 import { insert, clear } from "./dom.js";
 import { renderComponent, type FrameworkComponent } from "./render.js";
 import type { ComponentContext } from "@terajs/runtime";
-import { Debug } from "@terajs/shared";
+import { emitRendererDebug } from "./debug.js";
 
 declare global {
   interface HTMLElement {
@@ -174,11 +174,11 @@ export function mount(
     rootTag: options?.rootTag ?? "div"
   });
 
-  Debug.emit("component:mount", {
+  emitRendererDebug("component:mount", () => ({
     component,
     root,
     props: componentProps
-  });
+  }));
 
   if (root.__ctx) {
     unmount(root);
@@ -201,11 +201,11 @@ export function mount(
       try {
         fn();
       } catch (err) {
-        Debug.emit("error:component", {
+        emitRendererDebug("error:component", () => ({
           name: ctx.name,
           instance: ctx.instance,
           error: err
-        });
+        }));
       }
     }
   }
@@ -226,10 +226,10 @@ export function mount(
 export function unmount(root: HTMLElement): void {
   const ctx = root.__ctx;
 
-  Debug.emit("component:unmount", {
+  emitRendererDebug("component:unmount", () => ({
     root,
     context: ctx
-  });
+  }));
 
   if (ctx) {
     // Run onUnmounted lifecycle hooks
@@ -238,11 +238,11 @@ export function unmount(root: HTMLElement): void {
         try {
           fn();
         } catch (err) {
-          Debug.emit("error:component", {
+          emitRendererDebug("error:component", () => ({
             name: ctx.name,
             instance: ctx.instance,
             error: err
-          });
+          }));
         }
       }
     }
@@ -250,10 +250,10 @@ export function unmount(root: HTMLElement): void {
     // Run cleanup disposers
     for (const dispose of ctx.disposers) {
       try {
-        Debug.emit("component:dispose", {
+        emitRendererDebug("component:dispose", () => ({
           disposer: dispose,
           context: ctx
-        });
+        }));
         dispose();
       } catch {
         // swallow user cleanup errors
