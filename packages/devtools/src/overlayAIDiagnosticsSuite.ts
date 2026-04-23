@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { emitDebug } from "@terajs/shared";
-import { autoAttachVsCodeDevtoolsBridge, connectVsCodeDevtoolsBridge, mountDevtoolsOverlay } from "./overlay";
+import { connectVsCodeDevtoolsBridge, mountDevtoolsOverlay } from "./overlay";
 import { appendTestHeadNode, flushMicrotasks, installClipboardMock } from "./overlaySpecShared.js";
 
 export function registerOverlayAIDiagnosticsSuite(): void {
@@ -347,10 +347,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     });
 
     vi.stubGlobal("fetch", fetchMock);
-    mountDevtoolsOverlay();
-    autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
-
-    await flushMicrotasks();
+    mountDevtoolsOverlay({ startOpen: true });
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
@@ -379,6 +376,87 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     expect(shadowRoot?.textContent).toContain("Structured response ready");
 
     vi.unstubAllGlobals();
+  });
+
+  it("starts bridge discovery only after the visible AI tab opens", async () => {
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
+              updatedAt: 1713120000000
+            });
+          }
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay({ startOpen: true });
+      await flushMicrotasks();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+
+      await flushMicrotasks();
+
+      expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("aborts pending bridge discovery when leaving the AI tab", async () => {
+    let aborted = false;
+    const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url !== "/_terajs/devtools/bridge") {
+        return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+      }
+
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          aborted = true;
+          reject(new DOMException("Aborted", "AbortError"));
+        }, { once: true });
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+
+    try {
+      mountDevtoolsOverlay({ startOpen: true });
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+
+      await flushMicrotasks();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      const componentsTab = shadowRoot?.querySelector('[data-tab="Components"]') as HTMLButtonElement | null;
+      componentsTab?.click();
+
+      await flushMicrotasks();
+      expect(aborted).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("refreshes the manifest before an explicit bridge connect", async () => {
@@ -425,18 +503,16 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      mountDevtoolsOverlay();
-      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
+      mountDevtoolsOverlay({ startOpen: true });
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
 
       await flushMicrotasks();
 
       manifestPort = 4041;
       manifestUpdatedAt += 1000;
-
-      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
-      aiTab?.click();
-      await flushMicrotasks();
 
       const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
       connectButton?.click();
@@ -517,10 +593,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      mountDevtoolsOverlay();
-      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
-
-      await flushMicrotasks();
+      mountDevtoolsOverlay({ startOpen: true });
 
       const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
       const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
@@ -569,8 +642,11 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      mountDevtoolsOverlay();
-      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
+      mountDevtoolsOverlay({ startOpen: true });
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
 
       await flushMicrotasks();
 
@@ -591,7 +667,8 @@ export function registerOverlayAIDiagnosticsSuite(): void {
   it("coalesces repeated bridge updates before syncing the live session", async () => {
     vi.useFakeTimers();
 
-    const fetchMock = vi.fn(async (input: unknown) => {
+    const payloads: string[] = [];
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
 
       if (url === "/_terajs/devtools/bridge") {
@@ -611,6 +688,9 @@ export function registerOverlayAIDiagnosticsSuite(): void {
       }
 
       if (url === "http://127.0.0.1:4040/live/token") {
+        if (typeof init?.body === "string") {
+          payloads.push(init.body);
+        }
         return {
           ok: true,
           status: 202,
@@ -648,10 +728,24 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      mountDevtoolsOverlay();
-      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 10000, fetchImpl: fetchMock as typeof fetch });
+      mountDevtoolsOverlay({ startOpen: true });
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
 
       await flushMicrotasks();
+
+      for (let index = 0; index < 320; index += 1) {
+        emitDebug({
+          type: "reactive:updated",
+          timestamp: 1713120000000 + index,
+          payload: {
+            key: `bridge-update-${index}`
+          }
+        } as any);
+      }
+
       connectVsCodeDevtoolsBridge();
       await flushMicrotasks();
 
@@ -667,6 +761,12 @@ export function registerOverlayAIDiagnosticsSuite(): void {
       await flushMicrotasks();
 
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+      const readyPayload = JSON.parse(payloads[0] ?? "null") as { session?: { events?: unknown[] } } | null;
+      const updatePayload = JSON.parse(payloads[1] ?? "null") as { session?: { events?: unknown[] } } | null;
+      expect(Array.isArray(readyPayload?.session?.events)).toBe(true);
+      expect(Array.isArray(updatePayload?.session?.events)).toBe(true);
+      expect((readyPayload?.session?.events as unknown[] | undefined)?.length ?? 0).toBeGreaterThan((updatePayload?.session?.events as unknown[] | undefined)?.length ?? 0);
+      expect((updatePayload?.session?.events as unknown[] | undefined)?.length ?? 0).toBeLessThanOrEqual(200);
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();
@@ -733,8 +833,11 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      mountDevtoolsOverlay();
-      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
+      mountDevtoolsOverlay({ startOpen: true });
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
 
       await flushMicrotasks();
       connectVsCodeDevtoolsBridge();
@@ -804,8 +907,11 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      mountDevtoolsOverlay();
-      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
+      mountDevtoolsOverlay({ startOpen: true });
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
 
       await flushMicrotasks();
       connectVsCodeDevtoolsBridge();
@@ -819,11 +925,6 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(2);
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(1);
-
-      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
-      aiTab?.click();
-      await flushMicrotasks();
 
       const retryButton = shadowRoot?.querySelector('[data-action="retry-vscode-bridge"]') as HTMLButtonElement | null;
       retryButton?.click();

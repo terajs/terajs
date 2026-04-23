@@ -11,6 +11,7 @@ interface TerajsUserConfig {
   devtools?: {
     enabled?: boolean;
     startOpen?: boolean;
+    lazyMount?: boolean;
     position?: string;
     panelShortcut?: string;
     visibilityShortcut?: string;
@@ -190,6 +191,7 @@ export type TerajsDevtoolsPosition =
 export interface TerajsDevtoolsConfig {
   enabled: boolean;
   startOpen: boolean;
+  lazyMount: boolean;
   position: TerajsDevtoolsPosition;
   panelShortcut: string;
   visibilityShortcut: string;
@@ -261,6 +263,7 @@ export function getDevtoolsConfig(): TerajsDevtoolsConfig {
   return {
     enabled: typeof devtools?.enabled === "boolean" ? devtools.enabled : true,
     startOpen: typeof devtools?.startOpen === "boolean" ? devtools.startOpen : false,
+    lazyMount: typeof devtools?.lazyMount === "boolean" ? devtools.lazyMount : false,
     position: isDevtoolsPosition(position) ? position : "bottom-center",
     panelShortcut: normalizeShortcut(devtools?.panelShortcut, "Alt+Shift+D"),
     visibilityShortcut: normalizeShortcut(devtools?.visibilityShortcut, "Alt+Shift+H"),

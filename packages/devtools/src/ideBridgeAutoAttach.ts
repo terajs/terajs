@@ -1,4 +1,9 @@
 import { installIdeBridgeConnection } from "./ideBridgeConnection.js";
+import {
+  DEVTOOLS_BRIDGE_READY_EVENT,
+  DEVTOOLS_BRIDGE_UPDATE_EVENT,
+  getDevtoolsBridge,
+} from "./devtoolsBridge.js";
 
 const DEFAULT_AUTO_ATTACH_ENDPOINT = "/_terajs/devtools/bridge";
 const DEFAULT_POLL_MS = 2000;
@@ -49,6 +54,8 @@ let pollHandle: number | null = null;
 let polling = false;
 let activeOptions: NormalizedAutoAttachOptions | null = null;
 let activeManifest: DevtoolsIdeBridgeManifest | null = null;
+let activeManifestController: AbortController | null = null;
+let activeSessionVersion = 0;
 let activeMode: DevtoolsIdeBridgeMode = "disabled";
 let refreshRequested = false;
 let failedSignature: string | null = null;
@@ -57,6 +64,7 @@ let connectionRequested = false;
 let lastError: string | null = null;
 let lastPublishedStatusKey = "";
 let activeConnectedAt: number | null = null;
+let bridgeStateListener: EventListener | null = null;
 
 /** Returns the current local VS Code bridge controller state. */
 export function getDevtoolsIdeBridgeStatus(): DevtoolsIdeBridgeStatus {
@@ -137,24 +145,29 @@ export function autoAttachVsCodeDevtoolsBridge(
   }
 
   const normalized = normalizeAutoAttachOptions(options);
-  if (pollHandle !== null) {
+  if (activeOptions) {
     stopAutoAttachVsCodeDevtoolsBridge();
   }
 
+  activeSessionVersion += 1;
   activeOptions = normalized;
   activeManifest = null;
-  activeMode = "discovering";
+  activeMode = "disabled";
   connectionRequested = false;
   lastError = null;
   refreshRequested = false;
+  setupBridgeStateSync();
   publishBridgeStatus();
-  void syncBridgeManifest();
+  syncBridgeDiscoveryActivity();
 
   return stopAutoAttachVsCodeDevtoolsBridge;
 }
 
 export function stopAutoAttachVsCodeDevtoolsBridge(): void {
+  activeSessionVersion += 1;
+  abortActiveManifestSync();
   clearBridgeManifestSync();
+  teardownBridgeStateSync();
   activeOptions = null;
   activeManifest = null;
   activeSignature = null;
@@ -184,6 +197,71 @@ function normalizeAutoAttachOptions(options: DevtoolsIdeAutoAttachOptions): Norm
   };
 }
 
+function abortActiveManifestSync(): void {
+  activeManifestController?.abort();
+  activeManifestController = null;
+}
+
+function isAIDiagnosticsTabActive(): boolean {
+  return getDevtoolsBridge()?.getSnapshot()?.activeTab === "AI Diagnostics";
+}
+
+function setupBridgeStateSync(): void {
+  if (typeof window === "undefined" || bridgeStateListener) {
+    return;
+  }
+
+  bridgeStateListener = () => {
+    syncBridgeDiscoveryActivity();
+  };
+
+  window.addEventListener(DEVTOOLS_BRIDGE_READY_EVENT, bridgeStateListener);
+  window.addEventListener(DEVTOOLS_BRIDGE_UPDATE_EVENT, bridgeStateListener);
+}
+
+function teardownBridgeStateSync(): void {
+  if (typeof window === "undefined" || !bridgeStateListener) {
+    bridgeStateListener = null;
+    return;
+  }
+
+  window.removeEventListener(DEVTOOLS_BRIDGE_READY_EVENT, bridgeStateListener);
+  window.removeEventListener(DEVTOOLS_BRIDGE_UPDATE_EVENT, bridgeStateListener);
+  bridgeStateListener = null;
+}
+
+function syncBridgeDiscoveryActivity(): void {
+  if (!activeOptions) {
+    return;
+  }
+
+  const shouldDiscover = connectionRequested || isAIDiagnosticsTabActive();
+  if (!shouldDiscover) {
+    abortActiveManifestSync();
+    clearBridgeManifestSync();
+    refreshRequested = false;
+
+    if (!activeCleanup) {
+      activeManifest = null;
+      activeSignature = null;
+      activeManifestUpdatedAt = 0;
+      activeMode = "disabled";
+      lastError = null;
+      publishBridgeStatus();
+    }
+    return;
+  }
+
+  if (activeMode === "disabled") {
+    activeMode = activeManifest ? "available" : "discovering";
+    publishBridgeStatus();
+  }
+
+  if (!activeManifest && !polling && pollHandle === null) {
+    scheduleBridgeManifestSync(0);
+  }
+}
+
 async function syncBridgeManifest(): Promise<void> {
   if (!activeOptions) {
     return;
@@ -196,8 +274,18 @@ async function syncBridgeManifest(): Promise<void> {
 
   polling = true;
   refreshRequested = false;
+  const syncOptions = activeOptions;
+  const syncVersion = activeSessionVersion;
+  const controller = typeof AbortController === "function"
+    ? new AbortController()
+    : null;
+  activeManifestController = controller;
   try {
-    const manifest = await readBridgeManifest(activeOptions);
+    const manifest = await readBridgeManifest(syncOptions, controller?.signal);
+    if (syncVersion !== activeSessionVersion || activeOptions !== syncOptions) {
+      return;
+    }
+
     if (!manifest) {
       uninstallActiveBridge();
       activeManifest = null;
@@ -237,7 +325,15 @@ async function syncBridgeManifest(): Promise<void> {
       return;
     }
   } finally {
+    if (activeManifestController === controller) {
+      activeManifestController = null;
+    }
+
     polling = false;
+    if (syncVersion !== activeSessionVersion || activeOptions !== syncOptions) {
+      return;
+    }
+
     if (refreshRequested && activeOptions) {
       scheduleBridgeManifestSync(0);
     }
@@ -347,14 +443,16 @@ function connectActiveManifestIfAvailable(): boolean {
 }
 
 async function readBridgeManifest(
-  options: NormalizedAutoAttachOptions
+  options: NormalizedAutoAttachOptions,
+  signal?: AbortSignal
 ): Promise<DevtoolsIdeBridgeManifest | null> {
   try {
     const response = await options.fetchImpl(options.endpoint, {
       headers: {
         Accept: "application/json"
       },
-      cache: "no-store"
+      cache: "no-store",
+      signal
     });
 
     if (response.status === 204 || response.status === 404) {

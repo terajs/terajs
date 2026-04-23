@@ -48,7 +48,7 @@ export function registerOverlayShellSuite(): void {
   });
 
   it("renders events from both debug channels", () => {
-    mountDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     Debug.emit("effect:run", {});
     emitDebug({
@@ -75,7 +75,7 @@ export function registerOverlayShellSuite(): void {
       Debug.emit("effect:run", { key: `before-mount-${index}` });
     }
 
-    mountDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     expect(shadowRoot?.textContent).toContain("Events: 361");
@@ -124,6 +124,41 @@ export function registerOverlayShellSuite(): void {
     const shadowRoot = host?.shadowRoot;
     expect(shadowRoot?.textContent).toContain("AI Diagnostics");
     expect(shadowRoot?.textContent).toContain("Analysis Output");
+  });
+
+  it("queues hidden updates and flushes them when the panel opens", async () => {
+    mountDevtoolsOverlay({ startOpen: false });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+
+    expect(shadowRoot?.textContent).toContain("Events: 0");
+
+    Debug.emit("effect:run", { key: "hidden-update" });
+
+    expect(shadowRoot?.textContent).toContain("Events: 0");
+    expect(bridge?.getSnapshot()?.eventCount).toBe(1);
+
+    toggleDevtoolsOverlay();
+    await flushMicrotasks();
+
+    expect(shadowRoot?.textContent).toContain("Events: 1");
+  });
+
+  it("can defer devtools app mount until first open", async () => {
+    mountDevtoolsOverlay({ startOpen: false, lazyMount: true });
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
+    expect((window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__).toBeUndefined();
+
+    toggleDevtoolsOverlay();
+    await flushMicrotasks();
+
+    expect(panel?.classList.contains("is-hidden")).toBe(false);
+    expect((window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__).toBeTruthy();
+    expect(host?.shadowRoot?.textContent).toContain("Terajs DevTools");
   });
 
   it("opens host controls when the bridge focuses settings", () => {

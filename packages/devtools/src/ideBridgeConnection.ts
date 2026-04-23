@@ -118,7 +118,7 @@ export function installIdeBridgeConnection(
       return;
     }
 
-    const session = getDevtoolsBridge()?.exportSession();
+    const session = getDevtoolsBridge()?.exportSession(undefined, phase === "update" ? "update" : "full");
     if (!session) {
       return;
     }

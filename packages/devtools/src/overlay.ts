@@ -1,4 +1,4 @@
-﻿import { mountDevtoolsApp } from "./app.js";
+﻿import { mountDevtoolsApp, type DevtoolsAppHandle } from "./app.js";
 import {
   applyOverlayPanelSize,
   applyOverlayPosition,
@@ -86,10 +86,11 @@ function clearOverlayMountedFlag(): void {
 }
 
 let overlayEl: HTMLDivElement | null = null;
-let cleanupOverlay: (() => void) | null = null;
+let appHandle: DevtoolsAppHandle | null = null;
 let keyListener: ((event: KeyboardEvent) => void) | null = null;
 let wheelListener: EventListener | null = null;
 let layoutPreferencesListener: EventListener | null = null;
+let mountRootEl: HTMLElement | null = null;
 let panelVisible = false;
 let overlayVisible = true;
 let activeOptions: NormalizedOverlayOptions = getDefaultOverlayOptions();
@@ -177,6 +178,7 @@ function applyPanelState(): void {
   panel.classList.toggle("is-hidden", !panelVisible);
   fab.setAttribute("aria-expanded", panelVisible ? "true" : "false");
   inspectBridge.syncContext();
+  appHandle?.setVisible(panelVisible && overlayVisible);
 }
 
 function applyOverlayVisibility(): void {
@@ -186,6 +188,27 @@ function applyOverlayVisibility(): void {
 
   overlayEl.style.display = overlayVisible ? "block" : "none";
   inspectBridge.syncContext();
+  appHandle?.setVisible(panelVisible && overlayVisible);
+}
+
+function ensureOverlayAppMounted(): void {
+  if (appHandle || !mountRootEl) {
+    return;
+  }
+
+  inspectBridge.setup();
+  setupLayoutPreferencesBridge();
+
+  appHandle = mountDevtoolsApp(mountRootEl, {
+    ai: activeOptions.ai,
+    bridge: activeOptions.bridge,
+    layout: {
+      position: activeOptions.position,
+      panelSize: activeOptions.panelSize,
+      persistPreferences: activeOptions.persistPreferences
+    },
+    isVisible: () => panelVisible && overlayVisible
+  });
 }
 
 /**
@@ -246,19 +269,11 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   if (!mountRoot) {
     throw new Error("Terajs devtools failed to create its mount root.");
   }
+  mountRootEl = mountRoot;
 
-  inspectBridge.setup();
-  setupLayoutPreferencesBridge();
-
-  cleanupOverlay = mountDevtoolsApp(mountRoot, {
-    ai: activeOptions.ai,
-    bridge: activeOptions.bridge,
-    layout: {
-      position: activeOptions.position,
-      panelSize: activeOptions.panelSize,
-      persistPreferences: activeOptions.persistPreferences
-    }
-  });
+  if (!activeOptions.lazyMount || panelVisible) {
+    ensureOverlayAppMounted();
+  }
 
   keyListener = (event: KeyboardEvent) => {
     if (matchesOverlayShortcut(event, activeOptions.panelShortcut)) {
@@ -334,7 +349,12 @@ export function toggleDevtoolsOverlay(): void {
     return;
   }
 
-  panelVisible = !panelVisible;
+  const nextVisible = !panelVisible;
+  if (nextVisible) {
+    ensureOverlayAppMounted();
+  }
+
+  panelVisible = nextVisible;
   applyPanelState();
 }
 
@@ -372,11 +392,12 @@ export function unmountDevtoolsOverlay(): void {
     keyListener = null;
   }
 
-  cleanupOverlay?.();
-  cleanupOverlay = null;
+  appHandle?.dispose();
+  appHandle = null;
 
   teardownLayoutPreferencesBridge();
   inspectBridge.teardown();
+  mountRootEl = null;
 
   if (overlayEl) {
     overlayEl.remove();

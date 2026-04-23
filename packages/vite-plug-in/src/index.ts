@@ -28,7 +28,6 @@ import {
 import { compileSfcToComponent } from "./compileSfcToComponent.js";
 import {
   createDevtoolsIdeBridgeMiddleware,
-  DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT
 } from "./devtoolsIdeBridgeManifest.js";
 import { injectAppBootstrapScript } from "./htmlBootstrap.js";
 import type { Plugin } from "vite";
@@ -56,6 +55,7 @@ export interface TerajsVitePluginOptions {
   devtools?: false | {
     enabled?: boolean;
     startOpen?: boolean;
+    lazyMount?: boolean;
     position?: "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center";
     panelShortcut?: string;
     visibilityShortcut?: string;
@@ -513,10 +513,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         `}`
       ];
 
-    const shouldAutoAttachVsCodeBridge = (config?.command ?? "serve") !== "build";
     const resolvedDevtoolsConfig = {
       enabled: (config?.command ?? "serve") !== "build" && devtoolsConfig.enabled,
       startOpen: devtoolsConfig.startOpen,
+      lazyMount: devtoolsConfig.lazyMount,
       position: devtoolsConfig.position,
       panelShortcut: devtoolsConfig.panelShortcut,
       visibilityShortcut: devtoolsConfig.visibilityShortcut,
@@ -536,12 +536,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         `    return;`,
         `  }`,
         `  try {`,
-        `    const { mountDevtoolsOverlay${shouldAutoAttachVsCodeBridge ? ", autoAttachVsCodeDevtoolsBridge" : ""} } = await import('${resolveRuntimeSpecifier(APP_DEVTOOLS_SUBPATH)}');`,
-        ...(shouldAutoAttachVsCodeBridge ? [
-        `    if (typeof autoAttachVsCodeDevtoolsBridge === 'function') {`,
-        `      autoAttachVsCodeDevtoolsBridge({ endpoint: ${JSON.stringify(DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT)} });`,
-        `    }`,
-        ] : []),
+        `    const { mountDevtoolsOverlay } = await import('${resolveRuntimeSpecifier(APP_DEVTOOLS_SUBPATH)}');`,
         `    const existingDevtoolsHost = document.getElementById('terajs-overlay-container');`,
         `    if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__ && !existingDevtoolsHost) {`,
         `      globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = false;`,
@@ -552,6 +547,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         `    if (typeof mountDevtoolsOverlay === 'function') {`,
         `      mountDevtoolsOverlay({`,
         `        startOpen: DEVTOOLS_CONFIG.startOpen,`,
+        `        lazyMount: DEVTOOLS_CONFIG.lazyMount,`,
         `        position: DEVTOOLS_CONFIG.position,`,
         `        panelShortcut: DEVTOOLS_CONFIG.panelShortcut,`,
         `        visibilityShortcut: DEVTOOLS_CONFIG.visibilityShortcut,`,

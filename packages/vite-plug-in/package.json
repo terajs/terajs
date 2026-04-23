@@ -1,6 +1,6 @@
 {
   "name": "@terajs/vite-plugin",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Vite plugin for Terajs SFC compilation, route manifest generation, and dev integration.",
   "author": "Terajs Labs",
   "type": "module",
@@ -30,7 +30,7 @@
     }
   },
   "dependencies": {
-    "@terajs/devtools": "^1.1.3",
+    "@terajs/devtools": "^1.1.4",
     "@terajs/shared": "^1.0.4",
     "@terajs/runtime": "^1.0.4",
     "@terajs/router-manifest": "^1.0.4",

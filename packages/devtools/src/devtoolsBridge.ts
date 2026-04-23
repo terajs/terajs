@@ -89,6 +89,8 @@ export interface DevtoolsBridgeSessionExport {
   events: DevtoolsBridgeEventRecord[];
 }
 
+export type DevtoolsBridgeSessionMode = "full" | "update";
+
 export type DevtoolsBridgeEventPhase = "ready" | "update" | "dispose";
 
 export interface DevtoolsBridgeEventDetail extends DevtoolsBridgeInstanceSummary {
@@ -101,7 +103,7 @@ export interface DevtoolsGlobalBridge {
   readonly version: 1;
   listInstances(): DevtoolsBridgeInstanceSummary[];
   getSnapshot(instanceId?: string): DevtoolsBridgeSnapshot | null;
-  exportSession(instanceId?: string): DevtoolsBridgeSessionExport | null;
+  exportSession(instanceId?: string, mode?: DevtoolsBridgeSessionMode): DevtoolsBridgeSessionExport | null;
   setActiveInstance(instanceId: string): boolean;
   focusTab(tab: DevtoolsBridgeTabName, instanceId?: string): boolean;
   selectComponent(scope: string, instance: number, instanceId?: string): boolean;
@@ -128,7 +130,7 @@ interface DevtoolsBridgeSnapshotInput {
 interface DevtoolsBridgeRegistrationOptions {
   root: HTMLElement;
   getSnapshot(): DevtoolsBridgeSnapshotInput;
-  getSessionExport(): Omit<DevtoolsBridgeSessionExport, "snapshot">;
+  getSessionExport(mode?: DevtoolsBridgeSessionMode): Omit<DevtoolsBridgeSessionExport, "snapshot">;
   focusTab(tab: DevtoolsBridgeTabName): boolean;
   selectComponent(scope: string, instance: number): boolean;
   reveal(): boolean;
@@ -140,7 +142,7 @@ interface RegisteredDevtoolsBridge {
   hostId: string | null;
   readyDispatched: boolean;
   getSnapshot(): DevtoolsBridgeSnapshot;
-  getSessionExport(): DevtoolsBridgeSessionExport;
+  getSessionExport(mode?: DevtoolsBridgeSessionMode): DevtoolsBridgeSessionExport;
   focusTab(tab: DevtoolsBridgeTabName): boolean;
   selectComponent(scope: string, instance: number): boolean;
   reveal(): boolean;
@@ -259,9 +261,9 @@ function ensureGlobalBridge(): void {
       const entry = resolveBridgeEntry(instanceId);
       return entry ? buildBridgeSnapshot(entry) : null;
     },
-    exportSession(instanceId) {
+    exportSession(instanceId, mode = "full") {
       const entry = resolveBridgeEntry(instanceId);
-      return entry ? entry.getSessionExport() : null;
+      return entry ? entry.getSessionExport(mode) : null;
     },
     setActiveInstance(instanceId) {
       if (!registeredBridges.has(instanceId)) {
@@ -324,10 +326,10 @@ export function registerDevtoolsBridgeInstance(
         ...snapshot
       };
     },
-    getSessionExport() {
+    getSessionExport(mode = "full") {
       return {
         snapshot: buildBridgeSnapshot(entry),
-        ...options.getSessionExport()
+        ...options.getSessionExport(mode)
       };
     },
     focusTab: options.focusTab,
@@ -384,7 +386,7 @@ export function getDevtoolsBridge(): DevtoolsGlobalBridge | null {
  * Reads a structured DevTools session export without scraping the overlay DOM.
  */
 export function readDevtoolsBridgeSession(instanceId?: string): DevtoolsBridgeSessionExport | null {
-  return getDevtoolsBridge()?.exportSession(instanceId) ?? null;
+  return getDevtoolsBridge()?.exportSession(instanceId, "full") ?? null;
 }
 
 /**

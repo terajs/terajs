@@ -8,6 +8,7 @@ export type DevtoolsOverlaySize = "normal" | "large";
  */
 export interface DevtoolsOverlayOptions {
   startOpen?: boolean;
+  lazyMount?: boolean;
   position?: DevtoolsOverlayPosition;
   panelSize?: DevtoolsOverlaySize;
   persistPreferences?: boolean;
@@ -19,6 +20,7 @@ export interface DevtoolsOverlayOptions {
 
 export interface NormalizedOverlayOptions {
   startOpen: boolean;
+  lazyMount: boolean;
   position: DevtoolsOverlayPosition;
   panelSize: DevtoolsOverlaySize;
   persistPreferences: boolean;
@@ -51,6 +53,7 @@ const OVERLAY_PREFERENCES_STORAGE_KEY = "terajs:devtools:overlay-preferences";
 
 const DEFAULT_OPTIONS: NormalizedOverlayOptions = {
   startOpen: false,
+  lazyMount: false,
   position: "bottom-center",
   panelSize: "normal",
   persistPreferences: true,
@@ -191,6 +194,9 @@ export function normalizeOverlayOptions(options?: DevtoolsOverlayOptions): Norma
   const startOpen = typeof options?.startOpen === "boolean"
     ? options.startOpen
     : DEFAULT_OPTIONS.startOpen;
+  const lazyMount = typeof options?.lazyMount === "boolean"
+    ? options.lazyMount
+    : DEFAULT_OPTIONS.lazyMount;
   const position = isOverlayPosition(options?.position)
     ? options.position
     : DEFAULT_OPTIONS.position;
@@ -207,6 +213,7 @@ export function normalizeOverlayOptions(options?: DevtoolsOverlayOptions): Norma
 
   return {
     startOpen,
+    lazyMount,
     position,
     panelSize,
     persistPreferences,
