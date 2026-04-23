@@ -16,7 +16,7 @@ export type ShadowComponentsDrilldownRenderer<TState extends ShadowComponentsAre
   drilldown: ReturnType<typeof collectComponentDrilldown>
 ) => string;
 
-interface ComponentsScrollSnapshot {
+export interface ComponentsScrollSnapshot {
   treeTop: number;
   treeLeft: number;
   inspectorBodyTop: number;
@@ -169,7 +169,7 @@ function restoreComponentsScrollPositions(root: HTMLElement, snapshot: Component
   }
 }
 
-function scheduleComponentsScrollRestore(root: HTMLElement, snapshot: ComponentsScrollSnapshot): void {
+export function scheduleComponentsScrollRestore(root: HTMLElement, snapshot: ComponentsScrollSnapshot): void {
   restoreComponentsScrollPositions(root, snapshot);
   if (typeof requestAnimationFrame === "function") {
     requestAnimationFrame(() => {

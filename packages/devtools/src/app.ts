@@ -87,7 +87,7 @@ import {
   getDevtoolsIdeBridgeStatus,
   stopAutoAttachVsCodeDevtoolsBridge,
 } from "./ideBridgeAutoAttach.js";
-import { patchShadowComponentsArea, captureComponentsScrollPositions } from "./areas/shadow/components/render.js";
+import { patchShadowComponentsArea, captureComponentsScrollPositions, scheduleComponentsScrollRestore } from "./areas/shadow/components/render.js";
 import { createClickHandler } from "./appClickHandler.js";
 import { renderAppShell } from "./appShell.js";
 import { createAutomaticIdeBridgeDiagnosisHandler } from "./areas/shadow/ai/requestExecution.js";
@@ -743,42 +743,6 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   const handleChange = createChangeHandler(render);
   const { handleMouseOver, handleMouseOut } = createHoverHandlers(notifyComponentHover);
 
-  const captureScrollPositions = () => {
-    const treeBody = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-body");
-    const inspectorBody = root.querySelector<HTMLElement>(".components-screen-inspector .components-screen-body");
-    const inspectorSurface = root.querySelector<HTMLElement>(".components-screen-inspector .inspector-surface");
-
-    return {
-      treeTop: treeBody?.scrollTop ?? 0,
-      treeLeft: treeBody?.scrollLeft ?? 0,
-      inspectorBodyTop: inspectorBody?.scrollTop ?? 0,
-      inspectorBodyLeft: inspectorBody?.scrollLeft ?? 0,
-      inspectorSurfaceTop: inspectorSurface?.scrollTop ?? 0,
-      inspectorSurfaceLeft: inspectorSurface?.scrollLeft ?? 0
-    };
-  };
-
-  const restoreScrollPositions = (snapshot: ReturnType<typeof captureScrollPositions>) => {
-    const treeBody = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-body");
-    const inspectorBody = root.querySelector<HTMLElement>(".components-screen-inspector .components-screen-body");
-    const inspectorSurface = root.querySelector<HTMLElement>(".components-screen-inspector .inspector-surface");
-
-    if (treeBody) {
-      treeBody.scrollTop = snapshot.treeTop;
-      treeBody.scrollLeft = snapshot.treeLeft;
-    }
-
-    if (inspectorBody) {
-      inspectorBody.scrollTop = snapshot.inspectorBodyTop;
-      inspectorBody.scrollLeft = snapshot.inspectorBodyLeft;
-    }
-
-    if (inspectorSurface) {
-      inspectorSurface.scrollTop = snapshot.inspectorSurfaceTop;
-      inspectorSurface.scrollLeft = snapshot.inspectorSurfaceLeft;
-    }
-  };
-
   root.addEventListener("click", handleClick);
   root.addEventListener("input", handleInput);
   root.addEventListener("change", handleChange);
@@ -862,60 +826,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       return;
     }
 
-    patchShadowComponentsArea;
-    if (scrollSnapshot) {
-      const treeBody = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-body");
-      const inspectorBody = root.querySelector<HTMLElement>(".components-screen-inspector .components-screen-body");
-      const inspectorSurface = root.querySelector<HTMLElement>(".components-screen-inspector .inspector-surface");
-
-      if (treeBody) {
-        treeBody.scrollTop = scrollSnapshot.treeTop;
-        treeBody.scrollLeft = scrollSnapshot.treeLeft;
-      }
-
-      if (inspectorBody) {
-        inspectorBody.scrollTop = scrollSnapshot.inspectorBodyTop;
-        inspectorBody.scrollLeft = scrollSnapshot.inspectorBodyLeft;
-      }
-
-      if (inspectorSurface) {
-        inspectorSurface.scrollTop = scrollSnapshot.inspectorSurfaceTop;
-        inspectorSurface.scrollLeft = scrollSnapshot.inspectorSurfaceLeft;
-      }
-
-      if (typeof requestAnimationFrame === "function") {
-        requestAnimationFrame(() => {
-          if (treeBody) {
-            treeBody.scrollTop = scrollSnapshot.treeTop;
-            treeBody.scrollLeft = scrollSnapshot.treeLeft;
-          }
-          if (inspectorBody) {
-            inspectorBody.scrollTop = scrollSnapshot.inspectorBodyTop;
-            inspectorBody.scrollLeft = scrollSnapshot.inspectorBodyLeft;
-          }
-          if (inspectorSurface) {
-            inspectorSurface.scrollTop = scrollSnapshot.inspectorSurfaceTop;
-            inspectorSurface.scrollLeft = scrollSnapshot.inspectorSurfaceLeft;
-          }
-        });
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (treeBody) {
-              treeBody.scrollTop = scrollSnapshot.treeTop;
-              treeBody.scrollLeft = scrollSnapshot.treeLeft;
-            }
-            if (inspectorBody) {
-              inspectorBody.scrollTop = scrollSnapshot.inspectorBodyTop;
-              inspectorBody.scrollLeft = scrollSnapshot.inspectorBodyLeft;
-            }
-            if (inspectorSurface) {
-              inspectorSurface.scrollTop = scrollSnapshot.inspectorSurfaceTop;
-              inspectorSurface.scrollLeft = scrollSnapshot.inspectorSurfaceLeft;
-            }
-          });
-        });
-      }
-    }
+    scheduleComponentsScrollRestore(root, scrollSnapshot);
     notifyInspectMode(state.activeTab === "Components");
     devtoolsBridge?.sync();
   }
