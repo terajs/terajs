@@ -20,6 +20,7 @@ import { shouldBatch, queueEffect } from "./dx/batch.js";
 import {
     Debug,
     createReactiveMetadata,
+    getCurrentComposable,
     getCurrentContext,
     removeDependencyNode
 } from "@terajs/shared";
@@ -102,7 +103,8 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
         ? createReactiveMetadata({
             type: "effect",
             scope: owner?.scope ?? "Effect",
-            instance: owner?.instance ?? 0
+            instance: owner?.instance ?? 0,
+            composable: getCurrentComposable() ?? undefined,
         })
         : getProductionMetadataPlaceholder("effect");
     (effectFn as any)._owner = owner;
@@ -136,7 +138,8 @@ function cleanup(effectFn: ReactiveEffect): void {
         Debug.emit("effect:cleanup", {
             effect: effectFn,
             owner: (effectFn as any)._owner,
-            context: (effectFn as any)._context
+            context: (effectFn as any)._context,
+            composable: (effectFn as any)._meta?.composable
         });
     }
 
@@ -167,7 +170,8 @@ function disposeEffect(effectFn: ReactiveEffect): void {
         Debug.emit("effect:dispose", {
             effect: effectFn,
             owner: (effectFn as any)._owner,
-            context: (effectFn as any)._context
+            context: (effectFn as any)._context,
+            composable: (effectFn as any)._meta?.composable
         });
     }
 
@@ -200,7 +204,8 @@ export function scheduleEffect(effectFn: ReactiveEffect): void {
         Debug.emit("effect:schedule", {
             effect: effectFn,
             owner: (effectFn as any)._owner,
-            context: (effectFn as any)._context
+            context: (effectFn as any)._context,
+            composable: (effectFn as any)._meta?.composable
         });
     }
 

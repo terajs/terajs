@@ -10,6 +10,13 @@ const metadataPlaceholders: Record<ReactiveType, ReactiveMetadata> = {
     instance: 0,
     createdAt: 0
   }),
+  signal: Object.freeze({
+    rid: "",
+    type: "signal",
+    scope: "",
+    instance: 0,
+    createdAt: 0
+  }),
   reactive: Object.freeze({
     rid: "",
     type: "reactive",

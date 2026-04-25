@@ -1,3 +1,4 @@
+import { getCurrentComposable } from "./core/registry.js";
 import type { ReactiveMetadata, ReactiveType } from "./types/metadata.js";
 import { buildRid, nextReactiveIndex } from "./utils/id.js";
 
@@ -13,6 +14,8 @@ export function createReactiveMetadata(options: {
   file?: string;
   line?: number;
   column?: number;
+  composable?: string;
+  group?: string;
 }): ReactiveMetadata {
   const index = nextReactiveIndex(options.scope, options.instance, options.type);
   const rid = buildRid(options.scope, options.instance, options.type, index, options.key);
@@ -26,6 +29,8 @@ export function createReactiveMetadata(options: {
     file: options.file,
     line: options.line,
     column: options.column,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    composable: options.composable ?? getCurrentComposable() ?? undefined,
+    group: options.group
   };
 }

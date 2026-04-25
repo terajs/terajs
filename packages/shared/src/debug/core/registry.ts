@@ -2,6 +2,24 @@ import type { ComponentInstanceInfo, ReactiveInstanceInfo } from "../types/regis
 import type { ReactiveMetadata } from "../types/metadata.js";
 
 /**
+ * Debug registry for tracking composable instances and reactive primitives.
+ */
+let currentComposable: string | null = null;
+
+export function setCurrentComposable(name: string) {
+  currentComposable = name;
+}
+
+export function clearCurrentComposable() {
+  currentComposable = null;
+}
+
+export function getCurrentComposable() {
+  return currentComposable;
+}
+
+
+/**
  * In-memory registry of all active component instances.
  * Keyed by "scope#instance", e.g. "Counter#1".
  */

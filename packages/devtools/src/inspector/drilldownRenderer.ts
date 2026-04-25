@@ -1,7 +1,7 @@
 import { escapeHtml, normalizeInspectorQuery } from "./shared.js";
 import type { MountedComponentEntry } from "./componentData.js";
 
-export type InspectorSectionKey = "overview" | "props" | "reactive" | "route" | "meta" | "ai" | "dom" | "activity";
+export type InspectorSectionKey = "overview" | "props" | "reactive" | "route" | "composables" | "meta" | "ai" | "dom" | "activity";
 
 export interface InspectorDrilldownState {
   events: Array<{ type: string; payload?: Record<string, unknown> }>;
@@ -22,6 +22,11 @@ export interface InspectorDrilldownSnapshot {
   reactiveState: Array<{ key: string; preview: string }>;
   domPreview: string[];
   recent: Array<{ type: string; summary: string }>;
+  composablesSnapshot: Array<{
+    name: string;
+    state: Record<string, unknown>;
+  }>;
+
 }
 
 export interface InspectorSectionRenderers {
@@ -30,6 +35,7 @@ export interface InspectorSectionRenderers {
   dom(drilldown: InspectorDrilldownSnapshot, query: string): string;
   reactive(state: InspectorDrilldownState, selected: MountedComponentEntry, drilldown: InspectorDrilldownSnapshot, query: string): string;
   route(state: InspectorDrilldownState, drilldown: InspectorDrilldownSnapshot, query: string): string;
+  composables(state: InspectorDrilldownState, selected: MountedComponentEntry, drilldown: InspectorDrilldownSnapshot, query: string): string;
   meta(state: InspectorDrilldownState, drilldown: InspectorDrilldownSnapshot, query: string): string;
   ai(state: InspectorDrilldownState, drilldown: InspectorDrilldownSnapshot, query: string): string;
   activity(drilldown: InspectorDrilldownSnapshot, query: string): string;
@@ -43,6 +49,7 @@ export function isInspectorSectionKey(value: unknown): value is InspectorSection
     || value === "meta"
     || value === "ai"
     || value === "dom"
+    || value === "composables"
     || value === "activity";
 }
 
@@ -91,6 +98,11 @@ export function renderComponentDrilldownInspector(
       key: "ai",
       label: "ai",
       body: renderers.ai(state, drilldown, query)
+    },
+    {
+      key: "composables",
+      label: "composables",
+      body: renderers.composables(state, selected, drilldown, query)
     },
     {
       key: "activity",

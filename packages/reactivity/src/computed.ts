@@ -17,6 +17,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
 import {
   addDependency,
   createReactiveMetadata,
+  getCurrentComposable,
   registerReactiveInstance,
   updateReactiveValue,
   Debug,
@@ -88,7 +89,8 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
         type: "computed",
         scope,
         instance,
-        key
+        key,
+        composable: getCurrentComposable() ?? undefined,
       })
     : getProductionMetadataPlaceholder("computed");
 
