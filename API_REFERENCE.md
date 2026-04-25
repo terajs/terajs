@@ -49,7 +49,7 @@ It re-exports the main web-first surface from:
 - selected `@terajs/renderer-web` exports
 
 It also re-exports route-manifest helpers:
-- `buildRouteManifest(...)`
+- `buildRouteManifest(inputs, options?)`
 - `RouteConfigInput`
 - `RouteManifestOptions`
 - `RouteSourceInput`
@@ -63,15 +63,14 @@ It also re-exports route-manifest helpers:
 
 `@terajs/app/devtools` re-exports the public DevTools overlay and bridge helpers:
 
-- overlay controls: `mountDevtoolsApp(...)`, `mountDevtoolsOverlay(...)`, `toggleDevtoolsOverlay()`, `toggleDevtoolsVisibility()`, `unmountDevtoolsOverlay()`
-- browser bridge helpers: `getDevtoolsBridge()`, `readDevtoolsBridgeSession(instanceId?)`, `waitForDevtoolsBridge(options?)`, `subscribeToDevtoolsBridge(listener, options?)`
-- bridge events: `DEVTOOLS_BRIDGE_READY_EVENT`, `DEVTOOLS_BRIDGE_UPDATE_EVENT`, `DEVTOOLS_BRIDGE_DISPOSE_EVENT`
-- bridge types: `DevtoolsBridgeSnapshot`, `DevtoolsBridgeSessionExport`, `DevtoolsBridgeEventDetail`, `DevtoolsBridgeEventRecord`, `DevtoolsBridgeInstanceSummary`, `DevtoolsBridgeTabName`, `DevtoolsGlobalBridge`, `SubscribeToDevtoolsBridgeOptions`, `WaitForDevtoolsBridgeOptions`
+- overlay controls: `mountDevtoolsApp(root, options?)`, `mountDevtoolsOverlay(options?)`, `toggleDevtoolsOverlay()`, `toggleDevtoolsVisibility()`, `unmountDevtoolsOverlay()`
 - development-only VS Code bridge helpers: `autoAttachVsCodeDevtoolsBridge(options?)`, `connectVsCodeDevtoolsBridge()`, `disconnectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, `getDevtoolsIdeBridgeStatus()`, `stopAutoAttachVsCodeDevtoolsBridge()`, `DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT`, `DevtoolsIdeAutoAttachOptions`, `DevtoolsIdeBridgeManifest`, `DevtoolsIdeBridgeMode`, `DevtoolsIdeBridgeStatus`
 
 With the stock overlay defaults, DevTools mounts open in development, `Alt+Shift+D` toggles the panel, and `Alt+Shift+H` hides or restores the full shell. Apps can override those defaults through `devtools.startOpen`, `devtools.panelShortcut`, and `devtools.visibilityShortcut`.
 
-The browser global bridge surface is structured and imperative rather than DOM-based:
+For structured bridge-session APIs such as `getDevtoolsBridge()`, `readDevtoolsBridgeSession(instanceId?)`, `waitForDevtoolsBridge(options?)`, `subscribeToDevtoolsBridge(listener, options?)`, and the related bridge event/types surface, import `@terajs/devtools` directly.
+
+At the leaf-package level, the browser global bridge surface is structured and imperative rather than DOM-based:
 
 - `listInstances()`
 - `getSnapshot(instanceId?)`
@@ -117,7 +116,7 @@ The shipped SFC block model supports:
 
 ### 1.2 `parseSFC(source, filePath)` (`@terajs/sfc`)
 
-`parseSFC(...)` returns a `ParsedSFC` with these fields:
+`parseSFC()` returns a `ParsedSFC` with these fields:
 
 - `filePath`
 - `template`
@@ -227,10 +226,10 @@ const handle = effect(() => {
 
 - cleanup and disposal: `onEffectCleanup(fn)`, `dispose(effectHandle)`
 - watch layer: `watch(source, callback)`, `watchEffect(fn)`
-- additional primitives: `ref(...)`, `reactive(...)`, `model(...)`
-- memo helpers: `memo(...)`, `markStatic(...)`, `shallowRef(...)`
-- runtime mode helpers: `isServer()`, `setRuntimeMode(...)`
-- DX contract helper: `contract(...)`
+- additional primitives: `ref()`, `reactive()`, `model()`
+- memo helpers: `memo()`, `markStatic()`, `shallowRef()`
+- runtime mode helpers: `isServer()`, `setRuntimeMode()`
+- DX contract helper: `contract()`
 
 ## 3. Runtime (`@terajs/runtime`)
 
@@ -244,7 +243,7 @@ const App = component({ name: "App" }, () => () => {
 });
 ```
 
-`component(...)` can carry `meta`, `ai`, and `route` on the component wrapper for routing, metadata resolution, and tooling.
+`component()` can carry `meta`, `ai`, and `route` on the component wrapper for routing, metadata resolution, and tooling.
 
 ### 3.2 Lifecycle and cleanup
 
@@ -267,8 +266,9 @@ Built-in runtime components include `Portal(props)` and `Suspense(props)`.
 
 ### 3.4 Async data and local-first runtime
 
-- `createAction(...)`
-- `createResource(...)`
+- `createAction(handler, options?)`
+- `createResource(fetcher, options?)`
+- `createResource(source, fetcher, options?)`
 - `invalidateResources(keys)`
 - `registerResourceInvalidation(keys, handler)`
 - `createMutationQueue(options?)`
@@ -280,7 +280,7 @@ These are shipped local-first runtime primitives, not app-specific conventions.
 
 ### 3.5 Hydration helpers
 
-- `setHydrationState(...)`
+- `setHydrationState()`
 - `getHydratedResource(key)`
 - `consumeHydratedResource(key)`
 - `scheduleHydration(mode, mount, element)`
@@ -299,18 +299,20 @@ Associated public types include:
 
 ### 3.7 Server-function APIs
 
-- `server(...)`
-- `executeServerFunction(...)`
-- `executeServerFunctionCall(...)`
-- `executeServerFunctionCallWithMetadata(...)`
-- `setServerFunctionTransport(...)`
+- `server()`
+- `executeServerFunction()`
+- `executeServerFunctionCall()`
+- `executeServerFunctionCallWithMetadata()`
+- `setServerFunctionTransport()`
 - `getServerFunctionTransport()`
 - `hasServerFunction(id)`
-- `createFetchServerFunctionTransport(...)`
-- `createServerContextFromRequest(...)`
-- `createServerFunctionRequestHandler(...)`
-- `handleServerFunctionRequest(...)`
-- `readServerFunctionCall(...)`
+- `createFetchServerFunctionTransport()`
+- `createServerContextFromRequest()`
+- `createServerFunctionRequestHandler()`
+- `handleServerFunctionRequest()`
+- `readServerFunctionCall()`
+
+The common app-facing wrapper shape is `server(handler, options?)`.
 
 Use these for app-owned server boundaries. They do not replace external API design.
 
@@ -335,7 +337,7 @@ Hydration uses in-place reconciliation when SSR DOM shape matches and falls back
 
 - JSX runtime exports: `jsx`, `jsxs`, `Fragment`
 - control-flow exports: `Switch`, `Match`, `Show`, `For`
-- portal primitive: `Portal(...)`
+- portal primitive: `Portal()`
 
 ### 4.3 Route-aware web primitives
 
@@ -388,7 +390,7 @@ This is where resolved route `meta` and `ai` can feed browser head updates and d
 
 - `resolveLoadedRouteMetadata(loaded)`
 
-`resolveLoadedRouteMetadata(...)` merges `meta`, `ai`, and route carrier data from:
+`resolveLoadedRouteMetadata()` merges `meta`, `ai`, and route carrier data from:
 
 - ordered layouts
 - the route definition
@@ -452,28 +454,28 @@ The leaf-package entrypoint for:
 
 Public exports include:
 
-- `parseSFC(...)`
-- `compileTemplate(...)`
-- `compileScript(...)`
+- `parseSFC()`
+- `compileTemplate()`
+- `compileScript()`
 - SFC types and structured SFC errors
 
 ### 7.4 `@terajs/compiler`
 
 Public exports include:
 
-- `parseTemplateToAst(...)`
+- `parseTemplateToAst()`
 - `templateTokenizer`
 - IR generator/types exports
-- `rewriteScopedCss(...)`
-- `compileStyle(...)`
+- `rewriteScopedCss()`
+- `compileStyle()`
 - compiler-side SFC types
 
 ### 7.5 `@terajs/shared`
 
 Shared exports include:
 
-- debug event APIs: `Debug`, `subscribeDebug(...)`, `emitDebug(...)`, `readDebugHistory()`
-- dependency graph APIs: `addDependency(...)`, `removeDependencyNode(...)`, `getDependencyGraphSnapshot()`, `getDependencyNode(...)`
+- debug event APIs: `Debug`, `subscribeDebug()`, `emitDebug()`, `readDebugHistory()`
+- dependency graph APIs: `addDependency()`, `removeDependencyNode()`, `getDependencyGraphSnapshot()`, `getDependencyNode()`
 - `DevtoolsBridge` read-only graph helpers
 - metadata and registry types
 - `MetaConfig` and `RouteOverride`
@@ -520,20 +522,20 @@ Public exports include:
 - `AIActionsDefinition`
 - `AIStateSnapshot`
 
-`captureStateSnapshot(...)` emits a sanitized reactive-state snapshot intended for tooling and assistant-style integrations. Sensitive keys are filtered rather than blindly serialized.
+`captureStateSnapshot()` emits a sanitized reactive-state snapshot intended for tooling and assistant-style integrations. Sensitive keys are filtered rather than blindly serialized.
 
-`createAIChatbot(...)` provides a higher-level chatbot request client for apps. It defaults to same-origin endpoints, blocks absolute external endpoints unless `allowExternalEndpoint: true` is set, omits ambient credentials when external transport is explicitly enabled, and only includes state snapshots when the caller explicitly provides signals and opts in with `includeStateSnapshot: true`.
+`createAIChatbot()` provides a higher-level chatbot request client for apps. It defaults to same-origin endpoints, blocks absolute external endpoints unless `allowExternalEndpoint: true` is set, omits ambient credentials when external transport is explicitly enabled, and only includes state snapshots when the caller explicitly provides signals and opts in with `includeStateSnapshot: true`.
 
 ### 7.10 React and Vue adapters
 
-- `@terajs/adapter-react`: `TerajsWrapper`, `useTerajsResource(...)`
-- `@terajs/adapter-vue`: `TerajsDirective`, `mountTerajs(...)`, `useTerajsResource(...)`, `injectTerajsResource(...)`
+- `@terajs/adapter-react`: `TerajsWrapper`, `useTerajsResource()`
+- `@terajs/adapter-vue`: `TerajsDirective`, `mountTerajs()`, `useTerajsResource()`, `injectTerajsResource()`
 
 ### 7.11 First-party hub adapters
 
-- `@terajs/hub-signalr`: `createSignalRHubTransport(...)`
-- `@terajs/hub-socketio`: `createSocketIoHubTransport(...)`
-- `@terajs/hub-websockets`: `createWebSocketHubTransport(...)`
+- `@terajs/hub-signalr`: `createSignalRHubTransport()`
+- `@terajs/hub-socketio`: `createSocketIoHubTransport()`
+- `@terajs/hub-websockets`: `createWebSocketHubTransport()`
 
 All three implement the runtime `ServerFunctionTransport` contract and expose connect/disconnect/subscription semantics plus `hub:*` diagnostics.
 

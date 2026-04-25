@@ -54,9 +54,9 @@ const response = await chatbot.sendMessage("Help this shopper find a gift");
 
 ## Notes
 
-- `captureStateSnapshot(...)` filters sensitive keys such as password, token, credential, and API-key style fields instead of serializing them blindly.
+- `captureStateSnapshot()` filters sensitive keys such as password, token, credential, and API-key style fields instead of serializing them blindly.
 - Snapshot output is normalized for tooling consumption and avoids leaking raw non-serializable values.
-- `createAIChatbot(...)` only sends state when you explicitly opt in with `includeStateSnapshot: true` and provide signals.
+- `createAIChatbot()` only sends state when you explicitly opt in with `includeStateSnapshot: true` and provide signals.
 - Absolute external endpoints are blocked by default; set `allowExternalEndpoint: true` if you intentionally want to call an external AI service.
 - External endpoint opt-in omits ambient credentials instead of forwarding cookies by default.
 - This package complements Terajs metadata and DevTools workflows; it is not a model-provider SDK.

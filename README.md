@@ -253,13 +253,13 @@ Those blocks are real runtime and tooling inputs, not documentation-only ideas. 
 
 The app-facing surface includes fine-grained reactivity and runtime primitives for real application work:
 
-- `signal(...)`, `state(...)`, `computed(...)`, `effect(...)`, `watch(...)`, and related helpers
-- `component(...)` for Terajs-native components
-- lifecycle hooks such as `onMounted(...)`, `onUpdated(...)`, `onUnmounted(...)`, and `onCleanup(...)`
-- context and dependency injection through `provide(...)` and `inject(...)`
-- async data and mutation primitives through `createResource(...)`, `createAction(...)`, and invalidation helpers
-- durable mutation queues and retry/conflict handling through `createMutationQueue(...)`, queue storage, and `MutationConflictResolver`
-- validation through `createSchemaValidator(...)`
+- `signal()`, `state()`, `computed()`, `effect()`, `watch()`, and related helpers
+- `component()` for Terajs-native components
+- lifecycle hooks such as `onMounted()`, `onUpdated()`, `onUnmounted()`, and `onCleanup()`
+- context and dependency injection through `provide()` and `inject()`
+- async data and mutation primitives through `createResource()`, `createAction()`, and invalidation helpers
+- durable mutation queues and retry/conflict handling through `createMutationQueue()`, queue storage, and `MutationConflictResolver`
+- validation through `createSchemaValidator()`
 - server-function transport contracts and helpers for app-owned server boundaries
 
 ### 4. Routing, metadata, and browser primitives
@@ -269,9 +269,9 @@ The route layer is part of the runtime story, not bolted on beside it.
 - file-based routes and ordered layout chains
 - middleware discovery through the configured middleware directory
 - metadata resolution that merges `meta`, `ai`, and route carrier data from layouts, route definitions, and page modules
-- browser-aware route helpers such as `createBrowserHistory(...)`, `createRouteView(...)`, `Link(...)`, `RoutePending(...)`, and pending-state hooks
-- forms and submit helpers through `Form(...)`, `SubmitButton(...)`, `FormStatus(...)`, and `formDataToObject(...)`
-- error boundaries and browser-native custom elements through `withErrorBoundary(...)` and `defineCustomElement(...)`
+- browser-aware route helpers such as `createBrowserHistory()`, `createRouteView()`, `Link()`, `RoutePending()`, and pending-state hooks
+- forms and submit helpers through `Form()`, `SubmitButton()`, `FormStatus()`, and `formDataToObject()`
+- error boundaries and browser-native custom elements through `withErrorBoundary()` and `defineCustomElement()`
 
 ### 5. SSR, hydration, and server functions
 
@@ -279,8 +279,8 @@ The shipped web-first surface includes both client and server paths:
 
 - `@terajs/renderer-ssr` for string and stream rendering
 - route execution helpers for SSR route modules
-- hydration helpers in runtime plus `hydrateRoot(...)` in the web renderer
-- server-function helpers such as `server(...)`, `executeServerFunction(...)`, request handlers, and fetch-based or custom transports
+- hydration helpers in runtime plus `hydrateRoot()` in the web renderer
+- server-function helpers such as `server()`, `executeServerFunction()`, request handlers, and fetch-based or custom transports
 
 SSR results carry route state, metadata, optional AI context, and serialized resource data so client hydration and diagnostics can reuse structured state instead of reconstructing it from DOM guesses.
 
@@ -347,6 +347,8 @@ autoAttachVsCodeDevtoolsBridge();
 ```
 
 `autoAttachVsCodeDevtoolsBridge()` enables receiver discovery. In the stock overlay, AI Diagnostics exposes `Connect VS Code Bridge` when a receiver is available. Custom shells can drive the same explicit lifecycle with `connectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, and `disconnectVsCodeDevtoolsBridge()`.
+
+If you need lower-level structured bridge-session APIs such as `waitForDevtoolsBridge()`, `subscribeToDevtoolsBridge()`, or `readDevtoolsBridgeSession()`, import `@terajs/devtools` directly. `@terajs/app/devtools` intentionally stays focused on overlay controls and the VS Code bridge lifecycle used by normal app code.
 
 Once connected, the companion extension can inspect the same sanitized snapshot directly through `Terajs: Inspect Attached Site`, the attached-site status bar entry, or the sticky `@terajs` chat participant. The mirrored live panel is still available, but it is no longer required for the direct AI workflow.
 

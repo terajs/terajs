@@ -55,7 +55,7 @@ await router.start();
 
 ## Metadata and AI resolution
 
-`resolveLoadedRouteMetadata(...)` merges route-facing metadata from three places:
+`resolveLoadedRouteMetadata()` merges route-facing metadata from three places:
 
 - outer-to-inner layout components
 - the route definition itself

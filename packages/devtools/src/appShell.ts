@@ -35,7 +35,7 @@ export function renderAppShell<TState extends AppShellState>(
             data-host-controls-toggle="true"
             aria-expanded="${state.hostControlsOpen ? "true" : "false"}"
             type="button"
-          >Overlay</button>
+          >Settings</button>
           <button class="toolbar-button" data-theme-toggle="true" type="button">${state.theme === "dark" ? "Light Theme" : "Dark Theme"}</button>
         </div>
       </div>

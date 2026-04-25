@@ -13,7 +13,7 @@ npm install @terajs/adapter-vue @terajs/runtime @terajs/renderer-web @terajs/rea
 ## Primary surface
 
 - `TerajsDirective`: Vue directive for declarative mounting
-- `mountTerajs(...)`: programmatic mount helper
+- `mountTerajs()`: programmatic mount helper
 - `useTerajsResource(resource)`: Vue composable bridge for Terajs resources
 - `injectTerajsResource(resource)`: alias for dependency-injection-oriented naming
 

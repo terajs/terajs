@@ -21,9 +21,9 @@ Those blocks are all part of the shipped surface. `meta`, `ai`, and `route` are 
 
 ## What this package exports
 
-- `parseSFC(...)` for turning source text into a parsed descriptor
-- `compileTemplate(...)` for template compilation work
-- `compileScript(...)` for script transformation work
+- `parseSFC()` for turning source text into a parsed descriptor
+- `compileTemplate()` for template compilation work
+- `compileScript()` for script transformation work
 - SFC types and structured error helpers
 
 ## Minimal parse example

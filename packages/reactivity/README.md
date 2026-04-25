@@ -6,21 +6,21 @@ Most application code can import these APIs through `@terajs/app`, but this pack
 
 ## Core surface
 
-- `signal(initialValue, options?)`: callable reactive accessor with `.set(...)` and `.update(...)`
+- `signal(initialValue, options?)`: callable reactive accessor with `.set()` and `.update()`
 - `state(initialValue)`: explicit `.get()` / `.set()` state container
 - `computed(fn, options?)`: lazy derived value with `.get()`
 - `effect(fn)`: tracked side effect
-- `reactive(object)`, `ref(value)`, `model(...)`
-- DX helpers: `watch(...)`, `watchEffect(...)`, `onEffectCleanup(...)`, `dispose(...)`, `contract(...)`
-- memo helpers: `memo(...)`, `markStatic(...)`, `shallowRef(...)`
-- runtime mode helpers: `isServer()`, `setRuntimeMode(...)`
+- `reactive(object)`, `ref(value)`, `model()`
+- DX helpers: `watch()`, `watchEffect()`, `onEffectCleanup()`, `dispose()`, `contract()`
+- memo helpers: `memo()`, `markStatic()`, `shallowRef()`
+- runtime mode helpers: `isServer()`, `setRuntimeMode()`
 
-## `signal(...)` vs `state(...)`
+## `signal()` vs `state()`
 
 Terajs ships both forms on purpose:
 
-- `signal(...)` is a callable accessor and is the common app-facing primitive
-- `state(...)` is an explicit getter/setter container used where that shape is clearer or already established
+- `signal()` is a callable accessor and is the common app-facing primitive
+- `state()` is an explicit getter/setter container used where that shape is clearer or already established
 
 ```ts
 import { computed, effect, signal, state } from "@terajs/reactivity";
@@ -48,7 +48,7 @@ The reactivity package is wired into the shared debug core.
 
 ## Notes
 
-- `computed(...)` currently returns an object with `.get()`, not a callable accessor.
-- `signal(...)` can carry metadata options such as `scope`, `instance`, `key`, and source location for diagnostics.
+- `computed()` currently returns an object with `.get()`, not a callable accessor.
+- `signal()` can carry metadata options such as `scope`, `instance`, `key`, and source location for diagnostics.
 - For app-level docs, prefer the `@terajs/app` import path unless you are deliberately working at the leaf-package level.
 

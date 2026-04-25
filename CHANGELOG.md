@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Backfilled the public docs story around `@terajs/app`: the reactivity guide now covers `ref`, `reactive`, and `shallowRef` alongside `signal`, `state`, and `computed`, and the API reference now documents `withErrorBoundary()` plus the `web.*` router context helpers accurately.
+- Hardened the docs-site code-highlighting path by switching the public site from Prism globals to Refractor-backed HTML rendering, removing the production `Prism is not defined` failure path from deployed docs pages.
+- Tightened docs, examples, and API-reference route metadata so live search and AI summaries describe the current shipped surface instead of older single-transport or signal-only wording.
+- Add debugging support for composables
+
 ## 1.1.4
 
 - Reduced production overhead across core reactive and renderer hot paths by gating debug instrumentation out of production runtime work.
