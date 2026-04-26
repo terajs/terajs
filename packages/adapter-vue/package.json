@@ -1,6 +1,6 @@
 {
   "name": "@terajs/adapter-vue",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Vue interoperability adapter for mounting Terajs components in Vue applications.",
   "author": "Terajs Labs",
   "type": "module",
@@ -31,8 +31,8 @@
     "vue": "^3.0.0"
   },
   "dependencies": {
-    "@terajs/reactivity": "^1.0.4",
-    "@terajs/renderer-web": "^1.0.4",
+    "@terajs/reactivity": "^1.0.6",
+    "@terajs/renderer-web": "^1.0.6",
     "@terajs/runtime": "^1.0.4"
   },
   "publishConfig": {

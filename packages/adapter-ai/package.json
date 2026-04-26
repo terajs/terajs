@@ -1,6 +1,6 @@
 {
   "name": "@terajs/adapter-ai",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,9 +11,9 @@
     }
   },
   "dependencies": {
-    "@terajs/reactivity": "^1.0.4",
+    "@terajs/reactivity": "^1.0.6",
     "@terajs/runtime": "^1.0.4",
-    "@terajs/shared": "^1.0.4"
+    "@terajs/shared": "^1.0.6"
   },
   "license": "Apache-2.0",
   "repository": {

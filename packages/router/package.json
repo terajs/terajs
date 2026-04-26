@@ -1,6 +1,6 @@
 {
   "name": "@terajs/router",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,7 @@
     }
   },
   "dependencies": {
-    "@terajs/shared": "^1.0.4"
+    "@terajs/shared": "^1.0.6"
   },
   "license": "Apache-2.0",
   "repository": {
