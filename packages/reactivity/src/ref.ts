@@ -24,6 +24,7 @@ import { signal, type Signal } from "./signal.js";
 import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 import {
   createReactiveMetadata,
+  getCurrentComposable,   
   registerReactiveInstance,
   updateReactiveValue,
   Debug
@@ -74,6 +75,8 @@ export function ref<T>(
     file?: string;
     line?: number;
     column?: number;
+    composable?: string;
+    group?: string;
   }
 ): Ref<T> {
   const scope = options?.scope ?? "UnknownScope";
@@ -88,7 +91,9 @@ export function ref<T>(
         key: options?.key,
         file: options?.file,
         line: options?.line,
-        column: options?.column
+        column: options?.column,
+        composable: options?.composable ?? getCurrentComposable() ?? undefined,
+        group: options?.group
       })
     : getProductionMetadataPlaceholder("ref");
 
@@ -99,7 +104,9 @@ export function ref<T>(
     key: options?.key,
     file: options?.file,
     line: options?.line,
-    column: options?.column
+    column: options?.column,
+    composable: options?.composable,
+    group: options?.group
   });
 
   const refObj = { _sig: sig } as Ref<T>;

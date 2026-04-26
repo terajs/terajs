@@ -41,4 +41,4 @@ mount(App, root);
 
 - Hydration expects server-rendered markup and consumes matching nodes in place.
 - Browser-specific integrations stay in this package, not in runtime-neutral layers.
-- `defineCustomElement(...)` is useful when you want to cross framework boundaries with browser-native custom elements.
+- `defineCustomElement()` is useful when you want to cross framework boundaries with browser-native custom elements.

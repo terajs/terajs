@@ -114,12 +114,12 @@ async function main() {
   const requiredApiTopics = [
     "@terajs/app/devtools",
     "<ai>",
-    "server(...)",
+    "server()",
     "hydrateRoot(component, root, props?)",
     "defineCustomElement(name, component)",
-    "createSignalRHubTransport(...)",
-    "createSocketIoHubTransport(...)",
-    "createWebSocketHubTransport(...)"
+    "createSignalRHubTransport()",
+    "createSocketIoHubTransport()",
+    "createWebSocketHubTransport()"
   ];
 
   for (const topic of requiredApiTopics) {

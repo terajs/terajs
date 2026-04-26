@@ -100,11 +100,11 @@ That is why route pages, layouts, and feature components all fit into the same c
 
 Terajs components are built on explicit reactive primitives.
 
-- `signal(...)` for callable reactive values
-- `state(...)` for explicit getter/setter state
-- `computed(...)` for derived values
-- `effect(...)` for side effects
-- `onCleanup(...)` and lifecycle hooks for mount/unmount behavior
+- `signal()` for callable reactive values
+- `state()` for explicit getter/setter state
+- `computed()` for derived values
+- `effect()` for side effects
+- `onCleanup()` and lifecycle hooks for mount/unmount behavior
 
 Example:
 
@@ -145,7 +145,7 @@ The route system is component-driven.
 - route metadata is component-adjacent
 - route loading follows component and route boundaries
 
-The shipped surface supports route and module-level async loading, but a standalone public `lazy(...)` helper is not part of the current API.
+The shipped surface supports route and module-level async loading, but a standalone public `lazy()` helper is not part of the current API.
 
 ## 7. Metadata and AI are part of the component model
 
@@ -185,7 +185,7 @@ Those wrappers are integration seams, not the center of the component model. Ter
 
 ## 10. Web Components are supported too
 
-For browser-native composition, `@terajs/app` also exposes `defineCustomElement(...)` through the web renderer surface.
+For browser-native composition, `@terajs/app` also exposes `defineCustomElement()` through the web renderer surface.
 
 That makes it possible to ship Terajs components across framework boundaries without forcing React-specific or Vue-specific wrapper usage.
 

@@ -71,7 +71,7 @@ Scoped styles are optional and require no build step.
 
 ## **5. Async Components**
 
-Route and module-level async loading are shipped; a standalone public `lazy(...)` helper is not part of the current shipped API surface.
+Route and module-level async loading are shipped; a standalone public `lazy()` helper is not part of the current shipped API surface.
 
 - route and module-level async loading follow component and route boundaries
 - SSR‑friendly  

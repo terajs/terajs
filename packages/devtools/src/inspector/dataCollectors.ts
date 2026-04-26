@@ -146,6 +146,34 @@ export function collectMetaEntries(events: DevtoolsEventLike[]) {
   return Array.from(metaMap.values());
 }
 
+
+export function collectComponentComposables(scope: string, instance: number) {
+  const composables = new Map<string, { name: string; state: Record<string, unknown> }>();
+
+  for (const entry of getAllReactives()) {
+    if (entry.owner?.scope !== scope || entry.owner.instance !== instance) {
+      continue;
+    }
+
+    // Composable name = the "group" of reactives
+    const name = entry.meta.composable ?? entry.meta.group ?? "unknown";
+
+    const existing = composables.get(name);
+    if (!existing) {
+      composables.set(name, { name, state: {} });
+    }
+
+    const target = composables.get(name)!;
+
+    // Key inside the composable
+    const key = entry.meta.key ?? entry.meta.rid ?? entry.meta.type;
+
+    target.state[key] = entry.currentValue;
+  }
+
+  return Array.from(composables.values());
+}
+
 export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
   let currentRoute: string | null = null;
   let from: string | null = null;

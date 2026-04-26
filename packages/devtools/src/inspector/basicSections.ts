@@ -1,6 +1,7 @@
 import { escapeHtml, matchesInspectorQuery } from "./shared.js";
 import { renderValueExplorer } from "./valueExplorer.js";
 
+
 export interface InspectorSelectedComponent {
   scope: string;
   instance: number;
@@ -17,6 +18,10 @@ export interface InspectorDrilldownSnapshot {
   aiSnapshot?: unknown;
   domPreview: string[];
   recent: Array<{ type: string; summary: string }>;
+  composablesSnapshot: Array<{
+    name: string;
+    state: Record<string, unknown>;
+  }>;
 }
 
 export function renderInspectorOverviewPanel(
@@ -221,3 +226,7 @@ export function renderInspectorActivityPanel(drilldown: InspectorDrilldownSnapsh
       </ul>
     `;
 }
+
+
+
+

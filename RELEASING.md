@@ -17,26 +17,37 @@ Trusted publishing is strict about exact matches. The package settings on npm mu
 
 Trusted publishing is configured on npm, not as a GitHub secret. Once it is enabled on the published packages, the workflow can publish without storing a long-lived npm token. The release workflow uses Node 24 and npm 11.5.1 or newer so the npm CLI can perform the OIDC exchange required by trusted publishing.
 
-## Recommended GitHub Actions flow
 
-Prerequisites:
+## Release Checklist (GitHub Actions)
 
-- Trusted publishing is configured on npm for the published packages and points to this repository's `release.yml` workflow.
-- `.changeset/*.md` release notes are committed on `main`.
+**Prerequisites:**
 
-Flow:
+- Trusted publishing is configured on npm for all published `@terajs/*` packages and points to this repo's `release.yml` workflow.
+- All intended changes are merged to `main` and `.changeset/*.md` files are committed.
 
-1. Open the `Release` workflow in GitHub Actions.
-2. Run it against `main`.
-3. If pending Changesets exist, the workflow pushes or updates the `changeset-release/main` branch and prints a compare URL in the workflow summary.
-4. Open or refresh the version PR from that branch and merge it.
-5. Run the `Release` workflow again against `main` to publish the packages.
+**Release Steps:**
 
-This keeps publishing explicit while removing the need to run `changeset version` and `changeset publish` by hand on a local machine.
+1. Run the local release check:
+	```bash
+	npm run release:check
+	```
+	- This validates tests, typecheck, docs, exports, and pending Changesets.
+2. Open the `Release` workflow in GitHub Actions.
+3. Run it against `main`.
+4. If pending Changesets exist, the workflow pushes or updates the `changeset-release/main` branch and prints a compare URL in the workflow summary.
+5. Open or refresh the version PR from that branch and merge it.
+6. Run the `Release` workflow again against `main` to publish the packages.
 
-Terajs also maintains a repo-level release marker in the root `package.json`. The custom `version-packages` wrapper advances that root version on every publishable package release, keeps it at least as high as the highest public package version, and the publish workflow pushes a matching annotated repo tag like `v1.1.2` after npm publish succeeds.
+**What happens automatically:**
+- All affected package versions are bumped and changelogs updated.
+- The root `package.json` version is synced to the highest public package version.
+- An annotated git tag (e.g., `v1.1.2`) is created and pushed.
+- A GitHub Release entry is created if configured in `release.yml`.
+- Packages are published to npm via trusted publishing.
 
-The release workflow already includes the GitHub Actions permission npm needs for OIDC: `id-token: write`.
+**You do NOT need to manually bump versions, changelogs, or tags.**
+
+---
 
 If you later enable `Allow GitHub Actions to create and approve pull requests` in GitHub repository settings, you can add automated PR creation back on top of this flow. It is not required for publishing.
 
@@ -53,34 +64,35 @@ Add explicit VS Code bridge lifecycle helpers and app-facing re-exports.
 
 ## Local fallback flow
 
+If GitHub Actions is unavailable or you need to recover a release manually:
+
 1. Add a release note after package changes:
-
-```bash
-npm run changeset
-```
-
+	```bash
+	npm run changeset
+	```
 2. Inspect the pending package plan:
-
-```bash
-npm run release:status
-```
-
+	```bash
+	npm run release:status
+	```
 3. Cut versions, sync the repo release version, and refresh the workspace lockfile:
-
-```bash
-npm run version-packages
-```
-
+	```bash
+	npm run version-packages
+	```
 4. Publish the release and create the local repo tag:
-
-```bash
-npm run release:publish
-```
-
+	```bash
+	npm run release:publish
+	```
 5. Push the release tag once the publish succeeds:
+	```bash
+	npm run release:tag:push
+	```
 
+---
+
+## One-step local release check
+
+You can run all local release validation and status checks with:
 ```bash
-npm run release:tag:push
+npm run release:check
 ```
-
-Use the local flow if GitHub Actions is unavailable or if you need to recover a release manually.
+This runs tests, typecheck, docs, exports, and shows pending Changesets. Fix any errors before running the GitHub Actions workflow.

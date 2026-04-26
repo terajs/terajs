@@ -31,7 +31,9 @@ npm install @terajs/app vite
 It also exposes two app-facing subpaths:
 
 - `@terajs/app/vite` for the Vite plugin
-- `@terajs/app/devtools` for the DevTools overlay and VS Code bridge helpers
+- `@terajs/app/devtools` for the DevTools overlay and VS Code bridge lifecycle helpers
+
+If you need structured bridge-session APIs for custom tooling, import `@terajs/devtools` directly instead of widening the app-facing subpath.
 
 ## Quickstart
 
@@ -85,6 +87,6 @@ The facade is the default application path, not a replacement for the modular pa
 ## Related packages
 
 - `@terajs/vite-plugin`: the same Vite integration exposed through `@terajs/app/vite`
-- `@terajs/devtools`: the same DevTools surface exposed through `@terajs/app/devtools`
+- `@terajs/devtools`: the lower-level DevTools package, including structured bridge-session APIs beyond the app-facing `@terajs/app/devtools` facade
 - `@terajs/adapter-react` and `@terajs/adapter-vue`: host-framework integration seams
 - `@terajs/hub-signalr`, `@terajs/hub-socketio`, `@terajs/hub-websockets`: realtime transport adapters

@@ -9,7 +9,7 @@ import {
   shortJson
 } from "./shared.js";
 import { resolveLiveComponentSnapshots } from "./liveEditing.js";
-import { isSignalLikeUpdate, summarizeLog, type DevtoolsEventLike } from "./dataCollectors.js";
+import { isSignalLikeUpdate, summarizeLog, collectComponentComposables, type DevtoolsEventLike } from "./dataCollectors.js";
 
 export interface MountedComponentEntry {
   key: string;
@@ -313,6 +313,7 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
     reactiveState: Array.from(reactiveStateMap.entries()).map(([key, preview]) => ({ key, preview })).slice(0, 16),
     reactiveKeys: Array.from(reactiveKeys).slice(0, 8),
     domPreview: collectDomSubtreePreview(scope, instance),
+    composablesSnapshot: collectComponentComposables(scope, instance),
     recent
   };
 }

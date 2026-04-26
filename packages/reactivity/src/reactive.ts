@@ -32,6 +32,7 @@ import { signal, type Signal } from "./signal.js";
 import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 import {
   createReactiveMetadata,
+  getCurrentComposable,
   registerReactiveInstance,
   updateReactiveValue,
   Debug
@@ -56,6 +57,8 @@ interface WrapContext {
   file?: string;
   line?: number;
   column?: number;
+  composable?: string;
+  group?: string;
 }
 
 /**
@@ -93,7 +96,9 @@ function createTrackedSignal<T>(
         key,
         file: ctx.file,
         line: ctx.line,
-        column: ctx.column
+        column: ctx.column,
+        composable: ctx.composable ?? getCurrentComposable() ?? undefined,
+        group: ctx.group,
       })
     : getProductionMetadataPlaceholder("reactive");
 
@@ -103,7 +108,9 @@ function createTrackedSignal<T>(
     key,
     file: ctx.file,
     line: ctx.line,
-    column: ctx.column
+    column: ctx.column,
+    composable: ctx.composable ?? getCurrentComposable() ?? undefined,
+    group: ctx.group
   });
 
   (sig as any)._meta = meta;

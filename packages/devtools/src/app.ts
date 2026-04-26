@@ -32,6 +32,7 @@ import {
 import {
   renderInspectorPropsPanel,
   renderInspectorReactivePanel,
+  renderInspectorComposablesPanel,
   type InspectorInteractiveSectionDeps
 } from "./inspector/interactiveSections.js";
 import {
@@ -307,7 +308,17 @@ const inspectorSectionRenderers: InspectorSectionRenderers = {
   ai: (state, drilldown, query) => {
     return renderInspectorAiPanel(drilldown, query, state.expandedValuePaths);
   },
-  activity: renderInspectorActivityPanel
+  activity: renderInspectorActivityPanel,
+  composables: (state, selected, drilldown, query) => {
+    return renderInspectorComposablesPanel(
+      state.expandedValuePaths,
+      selected,
+      drilldown.composablesSnapshot,
+      query,
+    inspectorInteractiveSectionDeps
+  );
+}
+
 };
 
 export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions = {}): DevtoolsAppHandle {

@@ -6,10 +6,10 @@ This is a core package. Most app code should not depend on it directly unless yo
 
 ## Core areas
 
-- debug events: `Debug`, `subscribeDebug(...)`, `emitDebug(...)`, `readDebugHistory()`, `clearDebugHistory()`
-- metadata helpers: `createReactiveMetadata(...)` and related debug/registry types
-- dependency graph: `addDependency(...)`, `removeDependencyNode(...)`, `getDependencyNode(...)`, `getDependencyGraphSnapshot()`
-- DevTools graph bridge: `DevtoolsBridge.getGraph()`, `getNode(...)`, `getDependencies(...)`, `getDependents(...)`, `traceUpdate(...)`
+- debug events: `Debug`, `subscribeDebug()`, `emitDebug()`, `readDebugHistory()`, `clearDebugHistory()`
+- metadata helpers: `createReactiveMetadata()` and related debug/registry types
+- dependency graph: `addDependency()`, `removeDependencyNode()`, `getDependencyNode()`, `getDependencyGraphSnapshot()`
+- DevTools graph bridge: `DevtoolsBridge.getGraph()`, `getNode()`, `getDependencies()`, `getDependents()`, `traceUpdate()`
 - shared route and metadata types: `MetaConfig`, `RouteOverride`
 - shared component-context and hydration types
 

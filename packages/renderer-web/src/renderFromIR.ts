@@ -355,34 +355,48 @@ function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
   emitRendererDebug("ir:render:if", () => ({ condition: node.condition }));
 
   const anchor = document.createComment("if");
-  const parent = createFragment();
-  parent.appendChild(anchor);
+  const fragment = createFragment();
+  fragment.appendChild(anchor);
+
+  // We explicitly track the nodes this v-if owns
+  const ownedNodes: ChildNode[] = [];
 
   const effectFn = effect(() => {
     const condition = !!resolveExpr(ctx, node.condition);
     const branch = condition ? node.then : node.else ?? [];
 
-    let next = anchor.nextSibling;
-    while (next) {
-      const toRemove = next;
-      next = next.nextSibling;
-      remove(toRemove);
-    }
+    const container = anchor.parentNode as ParentNode | null;
+    if (!container) return; // not mounted / already cleaned up
 
+    // Remove only nodes previously created by this v-if
+    for (const n of ownedNodes) {
+      remove(n);
+    }
+    ownedNodes.length = 0;
+
+    // Insert new branch right after the anchor
     let ref: ChildNode | null = anchor.nextSibling;
     for (const child of branch) {
       const dom = renderIRNode(child, ctx, isSvg);
-      if (dom) {
-        insert(parent, dom, ref ?? null);
+      if (dom && dom instanceof Node && 'remove' in dom) {
+        insert(container as any, dom as ChildNode, ref ?? null);
+        ownedNodes.push(dom as ChildNode);
         ref = null;
       }
     }
   });
 
-  addNodeCleanup(anchor, () => dispose(effectFn));
+  addNodeCleanup(anchor, () => {
+    dispose(effectFn);
+    for (const n of ownedNodes) {
+      remove(n);
+    }
+    ownedNodes.length = 0;
+  });
 
-  return parent;
+  return fragment;
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*                               COMPONENTS                                   */

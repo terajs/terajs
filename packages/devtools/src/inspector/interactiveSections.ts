@@ -262,3 +262,68 @@ function renderPrimitiveEditorControl(
     />
   `;
 }
+
+export function renderInspectorComposablesPanel(
+  expandedValuePaths: Set<string>,
+  selected: InspectorMountedComponent,
+  composablesSnapshot: Array<{ name: string; state: Record<string, unknown> }>,
+  query: string,
+  deps: InspectorInteractiveSectionDeps
+): string {
+  if (!composablesSnapshot || composablesSnapshot.length === 0) return "";
+
+  return `
+    <div class="inspector-control-list">
+      ${composablesSnapshot.map(c => `
+        <details class="inspector-dropdown">
+          <summary class="inspector-dropdown-summary">
+            <span class="inspector-dropdown-label">
+              <span class="inspector-dropdown-origin">composable</span>
+              <span class="inspector-dropdown-key">${deps.escapeHtml(c.name)}</span>
+            </span>
+          </summary>
+
+          <div class="inspector-dropdown-body">
+            ${Object.entries(c.state).map(([key, value]) => {
+              const resolved = deps.unwrapInspectableValue(value);
+              const editable = deps.describeEditablePrimitive(resolved);
+              const typeLabel = deps.describeInspectableValueType(value);
+
+              const editorMarkup =
+                editable && editable.type === "boolean"
+                  ? `<div class="inspector-inline-edit-row">${renderPrimitiveEditorControl({
+                      kind: "reactive",
+                      rid: `${c.name}.${key}`,
+                      value: editable.value,
+                      valueType: editable.type
+                    }, deps)}</div>`
+                  : "";
+
+              const valueMarkup = deps.isExpandableValue(resolved)
+                ? deps.renderValueExplorer(resolved, `composables.${c.name}.${key}`, expandedValuePaths)
+                : editable && editable.type === "boolean"
+                  ? ""
+                  : `<div class="inspector-inline-value">${deps.escapeHtml(deps.formatPrimitiveValue(resolved))}</div>`;
+
+              return `
+                <details class="inspector-dropdown">
+                  <summary class="inspector-dropdown-summary">
+                    <span class="inspector-dropdown-label">
+                      <span class="inspector-dropdown-key">${deps.escapeHtml(key)}</span>
+                      <span class="inspector-dropdown-type">: ${deps.escapeHtml(typeLabel)}</span>
+                    </span>
+                  </summary>
+                  <div class="inspector-dropdown-body">
+                    ${editorMarkup}
+                    ${valueMarkup}
+                  </div>
+                </details>
+              `;
+            }).join("")}
+          </div>
+        </details>
+      `).join("")}
+    </div>
+  `;
+}
+

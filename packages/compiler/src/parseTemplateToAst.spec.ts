@@ -118,6 +118,53 @@ describe("parseTemplateToAst", () => {
     ])
   })
 
+  it("parses v-if with else", () => {
+    const ast = parseTemplateToAst(`<div v-if="ok">Yes</div><div v-else>No</div>`)
+
+    expect(ast).toEqual([
+      {
+        type: "if",
+        condition: "ok",
+        then: [
+          { type: "text", value: "Yes" }
+        ],
+        else: [
+          { type: "text", value: "No" }
+        ]
+      }
+    ])
+  })
+
+  it("parses v-if with else-if", () => {
+    const ast = parseTemplateToAst(`<div v-if="ok">Yes</div><div v-else-if="maybe">Maybe</div><div v-else>No</div>`)
+
+    expect(ast).toEqual([
+      {
+        type: "if",
+        condition: "ok",
+        then: [
+          { type: "text", value: "Yes" }
+        ],
+        else: [
+          {
+            type: "if",
+            condition: "maybe",
+            then: [
+              { type: "text", value: "Maybe" }
+            ],
+            else: [
+              { type: "text", value: "No" }
+            ]
+          }
+        ]
+      }
+    ])
+  })
+
+  it("throws on v-else with missing v-if condition", () => {
+    expect(() => parseTemplateToAst(`<div v-else>No</div>`)).toThrowError("v-else used without a preceding v-if");
+  })
+
   it("parses v-for into ForNode", () => {
     const ast = parseTemplateToAst(`<li v-for="item in items">{{ item }}</li>`)
 

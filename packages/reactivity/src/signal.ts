@@ -16,6 +16,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
 
 import {
   createReactiveMetadata,
+  getCurrentComposable,
   registerReactiveInstance,
   updateReactiveValue,
   emitDebug,
@@ -91,6 +92,8 @@ export function signal<T>(
     file?: string;
     line?: number;
     column?: number;
+    composable?: string;
+    group?: string;
   }
 ): Signal<T> {
   const scope = options?.scope ?? "UnknownScope";
@@ -99,15 +102,17 @@ export function signal<T>(
   // Create metadata for this signal
   const meta: ReactiveMetadata = debugInstrumentationEnabled
     ? createReactiveMetadata({
-        type: "ref",
+        type: "signal",
         scope,
         instance,
         key: options?.key,
         file: options?.file,
         line: options?.line,
-        column: options?.column
+        column: options?.column,
+        composable: options?.composable ?? getCurrentComposable() ?? undefined,
+        group: options?.group
       })
-    : getProductionMetadataPlaceholder("ref");
+    : getProductionMetadataPlaceholder("signal");
 
   const sig = function () {
     // Track dependency if inside an effect

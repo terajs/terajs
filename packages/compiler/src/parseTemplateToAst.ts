@@ -38,10 +38,59 @@ class ParserContext {
 
   parseChildren(stopOnTagClose?: string): ASTNode[] {
     const nodes: ASTNode[] = [];
+    let lastIfNode: IfNode | null = null;
 
     while (!this.eof()) {
       const token = this.peek();
       if (!token) break;
+
+      // FIRST: detect v-else / v-else-if
+      if (token.type === "tagOpen") {
+        const attrToken = this.peek(1);
+
+        if (attrToken?.type === "attrName" && (attrToken.value === "v-else" || attrToken.value === "v-else-if")) {
+          if (!lastIfNode) {
+            throw new Error(`${attrToken.value} used without a preceding v-if`);
+          }
+
+          // Capture v-else-if condition BEFORE parseElement strips directives
+          let elseIfCondition = "";
+          if (attrToken.value === "v-else-if") {
+            const valueToken = this.peek(2);
+            if (valueToken?.type === "attrValue") {
+              elseIfCondition = valueToken.value;
+            }
+          }
+
+          // Parse the element normally
+          const elseNode = this.parseElement() as ElementNode;
+
+          if (attrToken.value === "v-else") {
+            // Simple else: attach children
+            lastIfNode.else = elseNode.children;
+          } else {
+            // v-else-if: create nested IfNode
+            const nestedIf: IfNode = {
+              type: "if",
+              condition: elseIfCondition,
+              then: elseNode.children,
+              else: undefined
+            };
+
+            lastIfNode.else = [nestedIf];
+            lastIfNode = nestedIf;
+          }
+
+          continue; // IMPORTANT: do NOT push this element into nodes[]
+        }
+
+        // Normal element
+        const node = this.parseElement();
+        nodes.push(node);
+
+        lastIfNode = node.type === "if" ? node : null;
+        continue;
+      }
 
       if (token.type === "tagClose" && stopOnTagClose && token.value === stopOnTagClose) {
         this.next(); // consume close
@@ -57,18 +106,14 @@ class ParserContext {
         nodes.push(this.parseInterpolation());
         continue;
       }
-
-      if (token.type === "tagOpen") {
-        nodes.push(this.parseElement());
-        continue;
-      }
-
+      
       // Skip comments and unknowns
       this.next();
     }
 
     return nodes;
   }
+
 
   private parseText(): TextNode {
     const token = this.next()!;

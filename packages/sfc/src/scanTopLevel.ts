@@ -51,7 +51,7 @@ export function scanTopLevel(tokens: Token[]): TopLevelScanResult {
         }
       }
 
-      // function IDENT(...)
+      // function IDENT()
       if (tok.value === "function") {
         const next = at(1);
         if (next.type === "identifier") {

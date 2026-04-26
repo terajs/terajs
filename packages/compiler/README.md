@@ -7,10 +7,10 @@ Most apps consume this functionality through `@terajs/app/vite` or `@terajs/vite
 ## What this package exports
 
 - template tokenizer helpers
-- `parseTemplateToAst(...)`
+- `parseTemplateToAst()`
 - IR generator and IR types
-- `rewriteScopedCss(...)`
-- `compileStyle(...)`
+- `rewriteScopedCss()`
+- `compileStyle()`
 - compiler-side SFC types
 
 ## Minimal example

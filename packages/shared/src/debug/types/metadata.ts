@@ -4,6 +4,7 @@
  */
 export type ReactiveType =
   | "ref"
+  | "signal"
   | "reactive"
   | "shallowReactive"
   | "readonly"
@@ -29,4 +30,8 @@ export interface ReactiveMetadata {
   column?: number;
   /** Creation timestamp (ms since epoch). */
   createdAt: number;
+  /** Optional composable information for this reactive. */
+  composable?: string;
+  /** Optional group name for this reactive. */
+  group?: string;
 }
