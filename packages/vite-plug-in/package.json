@@ -36,7 +36,7 @@
     "@terajs/router-manifest": "^1.0.4",
     "@terajs/router": "^1.0.5",
     "@terajs/sfc": "^1.0.5",
-    "@terajs/compiler": "^1.0.6"
+    "@terajs/compiler": "^1.0.7"
   },
   "peerDependencies": {
     "vite": "^8.0.0",
