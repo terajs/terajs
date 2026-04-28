@@ -216,9 +216,17 @@ class ParserContext {
         each,
         item,
         index,
-        body: children
-      } as ForNode;
+        body: [
+          {
+            type: "element",
+            tag,
+            props: props.filter((p) => p.kind !== "directive"),
+            children
+          }
+        ]
+      }
     }
+
 
     return {
       type: "element",

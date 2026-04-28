@@ -165,7 +165,7 @@ describe("parseTemplateToAst", () => {
     expect(() => parseTemplateToAst(`<div v-else>No</div>`)).toThrowError("v-else used without a preceding v-if");
   })
 
-  it("parses v-for into ForNode", () => {
+  it("parses v-for into ForNode and preserves element wrapper", () => {
     const ast = parseTemplateToAst(`<li v-for="item in items">{{ item }}</li>`)
 
     expect(ast).toEqual([
@@ -175,13 +175,20 @@ describe("parseTemplateToAst", () => {
         item: "item",
         index: undefined,
         body: [
-          { type: "interp", expression: "item" }
+          {
+            type: "element",
+            tag: "li",
+            props: [],
+            children: [
+              { type: "interp", expression: "item" }
+            ]
+          }
         ]
       }
     ])
   })
 
-  it("parses v-for with index", () => {
+  it("parses v-for with index and preserves element wrapper", () => {
     const ast = parseTemplateToAst(`<li v-for="(item, i) in items">{{ i }} - {{ item }}</li>`)
 
     expect(ast).toEqual([
@@ -191,9 +198,16 @@ describe("parseTemplateToAst", () => {
         item: "item",
         index: "i",
         body: [
-          { type: "interp", expression: "i" },
-          { type: "text", value: " - " },
-          { type: "interp", expression: "item" }
+          {
+            type: "element",
+            tag: "li",
+            props: [],
+            children: [
+              { type: "interp", expression: "i" },
+              { type: "text", value: " - " },
+              { type: "interp", expression: "item" }
+            ]
+          }
         ]
       }
     ])
