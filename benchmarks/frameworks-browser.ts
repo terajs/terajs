@@ -2,9 +2,14 @@ import { mount, renderIRModuleToFragment, unmount } from "@terajs/renderer-web";
 import { signal } from "@terajs/reactivity";
 import { parseSFC, compileTemplateFromSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
+import { html as htmlLit, nothing as litNothing, render as renderLit } from "lit";
+import { h as hPreact, render as renderPreact } from "preact";
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
+import { createSignal as createSolidSignal, indexArray, type Accessor } from "solid-js";
+import htmlSolid from "solid-js/html";
+import { render as renderSolid } from "solid-js/web";
 import { createApp, h, nextTick, ref } from "vue";
 
 type BenchmarkResult = {
@@ -22,6 +27,8 @@ type BenchState = {
   results?: BenchmarkResult[];
   error?: string;
 };
+
+type ElementFactory = (type: string, props: Record<string, unknown> | null, ...children: unknown[]) => unknown;
 
 const ROW_COUNT = readPositiveInt("rows", 1000);
 const WARMUP_RUNS = readPositiveInt("warmup", 5);
@@ -61,6 +68,15 @@ async function run(): Promise<void> {
   statusEl.innerHTML = "<strong>Running…</strong> This can take a minute in a real browser.";
 
   results.push(await benchmarkFramework("Terajs", () => createTerajsHarness(terajsIrModule)));
+  renderResults(results);
+
+  results.push(await benchmarkFramework("Solid", () => createSolidHarness()));
+  renderResults(results);
+
+  results.push(await benchmarkFramework("Preact", () => createPreactHarness()));
+  renderResults(results);
+
+  results.push(await benchmarkFramework("Lit", () => createLitHarness()));
   renderResults(results);
 
   results.push(await benchmarkFramework("Vue", () => createVueHarness()));
@@ -112,6 +128,26 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
+function renderListVNode(createElement: ElementFactory, values: number[]) {
+  return createElement(
+    "ul",
+    null,
+    values.map((value, index) => createElement(
+      "li",
+      {
+        key: index,
+        "data-row": String(index)
+      },
+      String(value)
+    ))
+  );
+}
+
+function renderSolidList(values: Accessor<readonly number[]>) {
+  const rows = indexArray(values, (value, index) => htmlSolid`<li data-row=${String(index)}>${value}</li>`);
+  return htmlSolid`<ul>${rows}</ul>`;
+}
+
 function createTerajsBenchmarkIR() {
   const rows = Array.from({ length: ROW_COUNT }, (_, index) => `<li data-row="${index}">{{ row${index} }}</li>`).join("");
   const source = `<template><ul>${rows}</ul></template>`;
@@ -160,14 +196,7 @@ function createReactHarness() {
     const [values, assignValues] = useState(() => Array.from({ length: ROW_COUNT }, (_, index) => index));
     setValues = assignValues;
 
-    return React.createElement(
-      "ul",
-      null,
-      values.map((value, index) => React.createElement("li", {
-        key: index,
-        "data-row": String(index)
-      }, String(value)))
-    );
+    return renderListVNode(React.createElement as ElementFactory, values);
   }
 
   const root = createRoot(rootElement);
@@ -195,6 +224,90 @@ function createReactHarness() {
       flushSync(() => {
         root.unmount();
       });
+      rootElement.remove();
+    }
+  };
+}
+
+function createSolidHarness() {
+  const rootElement = createMountTarget();
+  const [values, setValues] = createSolidSignal(Array.from({ length: ROW_COUNT }, (_, index) => index));
+  const dispose = renderSolid(() => renderSolidList(values), rootElement);
+
+  return {
+    updateOne(iteration: number) {
+      const rowIndex = iteration % ROW_COUNT;
+      setValues((previous) => {
+        const next = previous.slice();
+        next[rowIndex] += 1;
+        return next;
+      });
+    },
+    updateAll() {
+      setValues((previous) => previous.map((value) => value + 1));
+    },
+    destroy() {
+      dispose();
+      rootElement.remove();
+    }
+  };
+}
+
+function createPreactHarness() {
+  const rootElement = createMountTarget();
+  let values = Array.from({ length: ROW_COUNT }, (_, index) => index);
+
+  const renderApp = () => {
+    renderPreact(renderListVNode(hPreact as ElementFactory, values), rootElement);
+  };
+
+  renderApp();
+
+  return {
+    updateOne(iteration: number) {
+      const rowIndex = iteration % ROW_COUNT;
+      values = values.slice();
+      values[rowIndex] += 1;
+      renderApp();
+    },
+    updateAll() {
+      values = values.map((value) => value + 1);
+      renderApp();
+    },
+    destroy() {
+      renderPreact(null, rootElement);
+      rootElement.remove();
+    }
+  };
+}
+
+function renderLitList(values: number[]) {
+  return htmlLit`<ul>${values.map((value, index) => htmlLit`<li data-row=${String(index)}>${String(value)}</li>`)}</ul>`;
+}
+
+function createLitHarness() {
+  const rootElement = createMountTarget();
+  let values = Array.from({ length: ROW_COUNT }, (_, index) => index);
+
+  const renderApp = () => {
+    renderLit(renderLitList(values), rootElement);
+  };
+
+  renderApp();
+
+  return {
+    updateOne(iteration: number) {
+      const rowIndex = iteration % ROW_COUNT;
+      values = values.slice();
+      values[rowIndex] += 1;
+      renderApp();
+    },
+    updateAll() {
+      values = values.map((value) => value + 1);
+      renderApp();
+    },
+    destroy() {
+      renderLit(litNothing, rootElement);
       rootElement.remove();
     }
   };

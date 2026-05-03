@@ -173,6 +173,7 @@ describe("parseTemplateToAst", () => {
         type: "for",
         each: "items",
         item: "item",
+        isStructural: true,
         index: undefined,
         body: [
           {
@@ -195,6 +196,7 @@ describe("parseTemplateToAst", () => {
       {
         type: "for",
         each: "items",
+        isStructural: true,
         item: "item",
         index: "i",
         body: [

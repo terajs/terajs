@@ -1,6 +1,6 @@
 {
   "name": "@terajs/compiler",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -12,7 +12,7 @@
     }
   },
   "dependencies": {
-    "@terajs/renderer": "^1.0.5",
+    "@terajs/renderer": "^1.0.6",
     "@terajs/shared": "^1.0.7"
   },
   "license": "Apache-2.0",

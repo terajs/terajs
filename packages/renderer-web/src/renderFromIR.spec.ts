@@ -454,6 +454,68 @@ describe("IR -> DOM Renderer", () => {
     expect(root.children[1]).toBe(firstNode);
   });
 
+  it("renders structural for nodes with plain loop locals and preserved wrappers", async () => {
+    const items = signal([
+      { id: "a", label: "A" },
+      { id: "b", label: "B" }
+    ]);
+
+    const node: IRForNode = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      isStructural: true,
+      body: [
+        {
+          type: "element",
+          tag: "li",
+          props: [],
+          children: [
+            {
+              type: "interp",
+              expression: "typeof item === 'function' && typeof item.set === 'function' ? 'signal' : item.label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode,
+            {
+              type: "text",
+              value: ":",
+              loc: undefined,
+              flags: {}
+            } as IRTextNode,
+            {
+              type: "interp",
+              expression: "typeof i === 'function' && typeof i.set === 'function' ? 'signal' : i",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const root = document.createElement("ul");
+    root.appendChild(renderIRNode(node, { items })!);
+
+    expect(Array.from(root.children).map((child) => child.tagName)).toEqual(["LI", "LI"]);
+    expect(root.textContent).toBe("A:0B:1");
+
+    items.set([
+      { id: "b", label: "B2" },
+      { id: "c", label: "C" }
+    ]);
+    await tick();
+
+    expect(Array.from(root.children).map((child) => child.tagName)).toEqual(["LI", "LI"]);
+    expect(root.textContent).toBe("B2:0C:1");
+    expect(root.textContent).not.toContain("signal");
+  });
+
   it("renders slot content before fallback", () => {
     const node: IRSlotNode = {
       type: "slot",

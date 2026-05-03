@@ -1,3 +1,10 @@
+/** 
+ * @file renderFromIRFor.ts
+ * @description
+ * Renderer for IRForNode, which represents a v-for loop in the template.
+ *
+ * This module handles both keyed and non-keyed v-for lists, with optimizations
+ */
 import type { IRForNode, IRNode } from "@terajs/compiler";
 
 import { dispose, effect, signal, withDetachedCurrentEffect, type Signal } from "@terajs/reactivity";
@@ -42,24 +49,34 @@ export function renderIRForNode(
   const anchor = document.createComment("for");
   const parent = createFragment();
   parent.appendChild(anchor);
+
   const ownerContext = getCurrentContext();
   const identityState = createIRForIdentityState();
-  const supportsKeyedReuse = node.body.length === 1;
+  const supportsKeyedReuse = node.body.length === 1 && node.isStructural !== true;
   let rows: IRForRowRecord[] = [];
 
-  const effectFn = effect(() => {
+  const run = () => {
     const array = resolveExpr(ctx, node.each) || [];
     const mountTarget = anchor.parentNode ?? parent;
+
     if (supportsKeyedReuse && Array.isArray(array)) {
-      const reusedRows = createKeyedIRForRows(node, ctx, isSvg, array, rows, ownerContext, identityState, renderNode);
+      const reusedRows = createKeyedIRForRows(
+        node,
+        ctx,
+        isSvg,
+        array,
+        rows,
+        ownerContext,
+        identityState,
+        renderNode,
+      );
+
       if (reusedRows) {
         updateKeyedList(
           mountTarget,
           rows,
           reusedRows,
-          (item, target, anchorNode) => {
-            insert(target, item.node, anchorNode);
-          },
+          (item, target, anchorNode) => insert(target, item.node, anchorNode),
           (item) => {
             remove(item.node);
             disposeIRForRowRecord(item as IRForRowRecord);
@@ -76,14 +93,22 @@ export function renderIRForNode(
       rows = [];
     }
 
-    renderIRForByRebuild(node, ctx, isSvg, Array.isArray(array) ? array : [], mountTarget, anchor, renderNode);
-  });
+    renderIRForByRebuild(
+      node,
+      ctx,
+      isSvg,
+      Array.isArray(array) ? array : [],
+      mountTarget,
+      anchor,
+      renderNode,
+    );
+  };
+
+  const effectFn = effect(run);
 
   addNodeCleanup(anchor, () => {
     dispose(effectFn);
-    for (const row of rows) {
-      disposeIRForRowRecord(row);
-    }
+    for (const row of rows) disposeIRForRowRecord(row);
     rows = [];
   });
 

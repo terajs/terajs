@@ -29,6 +29,7 @@ import { compileSfcToComponent } from "./compileSfcToComponent.js";
 import {
   createDevtoolsIdeBridgeMiddleware,
 } from "./devtoolsIdeBridgeManifest.js";
+import { generateRoutesModuleSource } from "./generatedRoutesModule.js";
 import { injectAppBootstrapScript } from "./htmlBootstrap.js";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
@@ -376,42 +377,14 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }),
       ...configuredRoutes.map((route) => route.filePath)
     ])).sort();
-
-    const routeSources = routeFiles.map((filePath) => {
-      const importPath = toProjectImportPath(filePath);
-      const assetPath = getManifestAssetPath(filePath, manifest);
-      return `  {
-    filePath: ${JSON.stringify(importPath)},
-    source: ${JSON.stringify(fs.readFileSync(filePath, "utf8"))},
-    component: () => import(${JSON.stringify(importPath)})${assetPath ? `,
-    asset: ${JSON.stringify(assetPath)}` : ""}
-  }`;
+    return generateRoutesModuleSource({
+      routeFiles,
+      configuredRoutes,
+      manifest,
+      normalizePath,
+      toProjectImportPath,
+      getManifestAssetPath
     });
-
-    const routeConfigs = configuredRoutes.map((routeConfig) => `  {
-    filePath: ${JSON.stringify(toProjectImportPath(routeConfig.filePath))},
-    ${routeConfig.path ? `path: ${JSON.stringify(routeConfig.path)},` : ""}
-    ${routeConfig.layout ? `layout: ${JSON.stringify(routeConfig.layout)},` : ""}
-    ${routeConfig.mountTarget ? `mountTarget: ${JSON.stringify(routeConfig.mountTarget)},` : ""}
-    ${routeConfig.middleware ? `middleware: ${JSON.stringify(routeConfig.middleware)},` : ""}
-    ${typeof routeConfig.prerender === "boolean" ? `prerender: ${JSON.stringify(routeConfig.prerender)},` : ""}
-    ${routeConfig.hydrate ? `hydrate: ${JSON.stringify(routeConfig.hydrate)},` : ""}
-    ${typeof routeConfig.edge === "boolean" ? `edge: ${JSON.stringify(routeConfig.edge)},` : ""}
-  }`);
-
-    const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
-
-    return [
-      `import { buildRouteManifest } from '${runtimeSpecifier}';`,
-      `const routeSources = [`,
-      routeSources.join(",\n"),
-      `];`,
-      `const routeConfigs = [`,
-      routeConfigs.join(",\n"),
-      `];`,
-      `export const routes = buildRouteManifest(routeSources, { routeConfigs });`,
-      `export default routes;`
-    ].join("\n");
   }
 
   function resolveMiddlewareModules(): {
@@ -570,7 +543,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
 
     return [
-      `import { createBrowserHistory, createRouter } from '${runtimeSpecifier}';`,
+      `import { createBrowserHistory, createRouter, prefetchRouteMatch } from '${runtimeSpecifier}';`,
       `import { createRouteView, mount } from '${runtimeSpecifier}';`,
       `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '${runtimeSpecifier}';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
@@ -637,6 +610,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       ...devtoolsBootstrap,
       `const routed = applyGlobalMiddleware(routes);`,
       `export const router = createRouter(routed, { history: createBrowserHistory(), middleware });`,
+      `const initialRouteMatch = router.resolve(router.history.getLocation());`,
+      `if (initialRouteMatch) {`,
+      `  void prefetchRouteMatch(initialRouteMatch).catch(() => undefined);`,
+      `}`,
       `const routeView = createRouteView(router, {`,
       `  autoStart: false,`,
       `  keepPreviousDuringLoading: ${routerConfig.keepPreviousDuringLoading},`,

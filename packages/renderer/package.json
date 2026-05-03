@@ -1,6 +1,6 @@
 {
   "name": "@terajs/renderer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Platform-agnostic rendering interfaces and types for the Terajs UI engine.",
   "type": "module",
   "main": "dist/index.js",

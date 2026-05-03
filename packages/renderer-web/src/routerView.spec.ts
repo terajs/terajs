@@ -315,13 +315,34 @@ describe("createRouteView", () => {
     await flush();
 
     const pageRoot = root.querySelector("#docs-page-root") as (Element & {
-      __terajsComponentContext?: { name?: string; meta?: unknown; ai?: unknown };
+      __terajsComponentContext?: {
+        name?: string;
+        meta?: unknown;
+        ai?: unknown;
+        route?: {
+          route?: { path?: string };
+          params?: Record<string, unknown>;
+          query?: Record<string, unknown>;
+          hash?: string;
+          data?: unknown;
+        };
+      };
     }) | null;
 
     expect(pageRoot?.getAttribute("data-terajs-component-scope")).toBe("DocsPage");
     expect(pageRoot?.__terajsComponentContext?.name).toBe("DocsPage");
     expect(pageRoot?.__terajsComponentContext?.meta).toEqual({ title: "Docs route" });
     expect(pageRoot?.__terajsComponentContext?.ai).toEqual({ summary: "Docs summary", tags: ["docs", "guide"] });
+    expect(pageRoot?.__terajsComponentContext?.route).toMatchObject({
+      route: {
+        pathname: "/docs",
+        route: { path: "/docs" }
+      },
+      params: {},
+      query: {},
+      hash: "",
+      data: undefined
+    });
 
     unmount(root);
   });

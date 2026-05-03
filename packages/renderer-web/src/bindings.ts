@@ -10,7 +10,7 @@
  * This is the same model used by SolidJS and Vue Vapor Mode.
  */
 
-import { dispose, effect, type ReactiveEffect, type Ref, type Signal } from "@terajs/reactivity";
+import { effect, type ReactiveEffect, type Ref, type Signal } from "@terajs/reactivity";
 import { unwrap } from "./unwrap.js";
 import {
     addNodeCleanup,
@@ -23,60 +23,65 @@ import {
 } from "./dom.js";
 import { emitRendererDebug } from "./debug.js";
 
+type DirectSubscriber = ReactiveEffect & {
+    active: boolean;
+};
+
 function isRefSource(value: unknown): value is Ref<unknown> {
     return typeof value === "object"
         && value !== null
         && "_sig" in value;
 }
 
+function disposeDirectSubscriber(dep: Set<ReactiveEffect>, subscriber: DirectSubscriber): void {
+    dep.delete(subscriber);
+    subscriber.active = false;
+}
+
 function subscribeTextSource(node: Text, source: Signal<unknown> | Ref<unknown>): void {
     const signalSource = isRefSource(source) ? source._sig : source;
+    const dep = signalSource._dep;
 
     const subscriber = (() => {
         if (subscriber.active === false) {
             return;
         }
 
-        setText(node, signalSource());
-    }) as ReactiveEffect;
+        setText(node, signalSource._value);
+    }) as DirectSubscriber;
 
-    subscriber.deps = [];
-    subscriber.cleanups = [];
     subscriber.active = true;
 
-    signalSource._dep.add(subscriber);
-    subscriber.deps.push(signalSource._dep);
+    dep.add(subscriber);
 
     addNodeCleanup(node, () => {
-        dispose(subscriber);
+        disposeDirectSubscriber(dep, subscriber);
     });
 
-    setText(node, signalSource());
+    setText(node, signalSource._value);
 }
 
 function subscribePropSource(el: Element, name: string, source: Signal<unknown> | Ref<unknown>): void {
     const signalSource = isRefSource(source) ? source._sig : source;
+    const dep = signalSource._dep;
 
     const subscriber = (() => {
         if (subscriber.active === false) {
             return;
         }
 
-        setProp(el, name, signalSource());
-    }) as ReactiveEffect;
+        setProp(el, name, signalSource._value);
+    }) as DirectSubscriber;
 
-    subscriber.deps = [];
-    subscriber.cleanups = [];
     subscriber.active = true;
 
-    signalSource._dep.add(subscriber);
-    subscriber.deps.push(signalSource._dep);
+    dep.add(subscriber);
 
     addNodeCleanup(el, () => {
-        dispose(subscriber);
+        disposeDirectSubscriber(dep, subscriber);
     });
 
-    setProp(el, name, signalSource());
+    setProp(el, name, signalSource._value);
 }
 
 /**

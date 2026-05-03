@@ -218,6 +218,7 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
         each: node.each,
         item: node.item,
         index: node.index,
+        isStructural: !!node.isStructural,
         body: node.body.map(n => normalizeNode(n, scopeId)),
         flags: { hasDirectives: true }
       };

@@ -186,7 +186,13 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
   it("shows and runs the explicit VS Code AI bridge action when the extension attaches", async () => {
     mountDevtoolsOverlay();
-
+    
+    emitDebug({
+      type: "route:changed",
+      timestamp: Date.now(),
+      to: "/" ,
+      from: null
+    });
     emitDebug({
       type: "error:component",
       timestamp: Date.now(),
@@ -666,7 +672,14 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
   it("coalesces repeated bridge updates before syncing the live session", async () => {
     vi.useFakeTimers();
-
+    
+        // Activate route so route-scoped buffer is populated
+    emitDebug({
+      type: "route:changed",
+      timestamp: Date.now(),
+      to: "/" ,
+      from: null
+    });
     const payloads: string[] = [];
     const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);

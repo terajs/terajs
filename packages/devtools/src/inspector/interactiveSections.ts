@@ -64,6 +64,7 @@ export function renderInspectorPropsPanel(
   }
 
   const entries = Object.entries(livePropsSnapshot as Record<string, unknown>);
+  const partitionedEntries = partitionScriptEntries(entries);
 
   if (entries.length === 0) {
     if (runtimeMonitorMarkup.length > 0) {
@@ -73,21 +74,108 @@ export function renderInspectorPropsPanel(
     return `<div class="empty-state">This component does not currently expose any props.</div>`;
   }
 
-  const visibleEntries = query.length === 0
-    ? entries
-    : entries.filter(([key, value]) => deps.matchesInspectorQuery(query, key, value));
+  const visibleProps = filterScriptEntries(partitionedEntries.props, query, deps);
+  const visibleRouteInputs = filterScriptEntries(partitionedEntries.routeInputs, query, deps);
 
-  if (visibleEntries.length === 0) {
+  if (visibleProps.length === 0 && visibleRouteInputs.length === 0) {
     return runtimeMonitorMarkup;
   }
 
-  const propsMarkup = `
-    <div class="inspector-control-list">
-      ${visibleEntries.map(([key, value]) => renderPropInspectorEntry(selected, key, value, expandedValuePaths, deps)).join("")}
-    </div>
-  `;
+  const propsMarkup = [
+    renderScriptEntryGroup({
+      title: partitionedEntries.routeInputs.length > 0 ? "props" : null,
+      entries: visibleProps,
+      selected,
+      expandedValuePaths,
+      deps,
+      originLabel: "prop",
+      editable: true
+    }),
+    renderScriptEntryGroup({
+      title: partitionedEntries.routeInputs.length > 0 ? "framework-injected route inputs" : null,
+      entries: visibleRouteInputs,
+      selected,
+      expandedValuePaths,
+      deps,
+      originLabel: "framework route input",
+      editable: false
+    })
+  ].filter((section) => section.length > 0).join("");
 
   return renderScriptBody(propsMarkup);
+}
+
+const ROUTE_INPUT_PROP_KEYS = new Set(["router", "route", "params", "query", "hash", "data"]);
+
+function partitionScriptEntries(entries: Array<[string, unknown]>): {
+  props: Array<[string, unknown]>;
+  routeInputs: Array<[string, unknown]>;
+} {
+  const entryMap = new Map(entries);
+  const routeInputKeys = Array.from(ROUTE_INPUT_PROP_KEYS).filter((key) => entryMap.has(key));
+  const routeEnvelopeDetected = entryMap.has("route")
+    && routeInputKeys.length >= 4
+    && (entryMap.has("params") || entryMap.has("query") || entryMap.has("hash") || entryMap.has("data"));
+
+  if (!routeEnvelopeDetected) {
+    return {
+      props: entries,
+      routeInputs: []
+    };
+  }
+
+  const props: Array<[string, unknown]> = [];
+  const routeInputs: Array<[string, unknown]> = [];
+
+  for (const entry of entries) {
+    if (ROUTE_INPUT_PROP_KEYS.has(entry[0])) {
+      routeInputs.push(entry);
+      continue;
+    }
+
+    props.push(entry);
+  }
+
+  return { props, routeInputs };
+}
+
+function filterScriptEntries(
+  entries: Array<[string, unknown]>,
+  query: string,
+  deps: InspectorInteractiveSectionDeps
+): Array<[string, unknown]> {
+  return query.length === 0
+    ? entries
+    : entries.filter(([key, value]) => deps.matchesInspectorQuery(query, key, value));
+}
+
+function renderScriptEntryGroup(options: {
+  title: string | null;
+  entries: Array<[string, unknown]>;
+  selected: InspectorMountedComponent;
+  expandedValuePaths: Set<string>;
+  deps: InspectorInteractiveSectionDeps;
+  originLabel: string;
+  editable: boolean;
+}): string {
+  if (options.entries.length === 0) {
+    return "";
+  }
+
+  return `
+    ${options.title ? `<div class="tiny-muted">${options.deps.escapeHtml(options.title)}</div>` : ""}
+    <div class="inspector-control-list">
+      ${options.entries.map(([key, value]) => renderPropInspectorEntry({
+        selected: options.selected,
+        key,
+        value,
+        expandedValuePaths: options.expandedValuePaths,
+        deps: options.deps,
+        originLabel: options.originLabel,
+        editable: options.editable
+      })).join("")}
+    </div>
+  `;
 }
 
 export function renderInspectorReactivePanel(
@@ -132,39 +220,41 @@ export function renderInspectorReactivePanel(
   `;
 }
 
-function renderPropInspectorEntry(
-  selected: InspectorMountedComponent,
-  key: string,
-  value: unknown,
-  expandedValuePaths: Set<string>,
-  deps: InspectorInteractiveSectionDeps
-): string {
-  const resolvedValue = deps.unwrapInspectableValue(value);
-  const editable = deps.describeEditablePrimitive(resolvedValue);
-  const typeLabel = deps.describeInspectableValueType(value);
-  const editorMarkup = editable && editable.type === "boolean"
+function renderPropInspectorEntry(options: {
+  selected: InspectorMountedComponent;
+  key: string;
+  value: unknown;
+  expandedValuePaths: Set<string>;
+  deps: InspectorInteractiveSectionDeps;
+  originLabel: string;
+  editable: boolean;
+}): string {
+  const resolvedValue = options.deps.unwrapInspectableValue(options.value);
+  const editableValue = options.editable ? options.deps.describeEditablePrimitive(resolvedValue) : null;
+  const typeLabel = options.deps.describeInspectableValueType(options.value);
+  const editorMarkup = editableValue && editableValue.type === "boolean"
     ? `<div class="inspector-inline-edit-row">${renderPrimitiveEditorControl({
         kind: "prop",
-        scope: selected.scope,
-        instance: selected.instance,
-        key,
-        value: editable.value,
-        valueType: editable.type
-      }, deps)}</div>`
+        scope: options.selected.scope,
+        instance: options.selected.instance,
+        key: options.key,
+        value: editableValue.value,
+        valueType: editableValue.type
+      }, options.deps)}</div>`
     : "";
-  const valueMarkup = deps.isExpandableValue(resolvedValue)
-    ? deps.renderValueExplorer(resolvedValue, `props.${key}`, expandedValuePaths)
-    : editable && editable.type === "boolean"
+  const valueMarkup = options.deps.isExpandableValue(resolvedValue)
+    ? options.deps.renderValueExplorer(resolvedValue, `props.${options.key}`, options.expandedValuePaths)
+    : editableValue && editableValue.type === "boolean"
       ? ""
-      : `<div class="inspector-inline-value">${deps.escapeHtml(deps.formatPrimitiveValue(resolvedValue))}</div>`;
+      : `<div class="inspector-inline-value">${options.deps.escapeHtml(options.deps.formatPrimitiveValue(resolvedValue))}</div>`;
 
   return `
     <details class="inspector-dropdown">
       <summary class="inspector-dropdown-summary">
         <span class="inspector-dropdown-label">
-          <span class="inspector-dropdown-origin">prop</span>
-          <span class="inspector-dropdown-key">${deps.escapeHtml(key)}</span>
-          <span class="inspector-dropdown-type">: ${deps.escapeHtml(typeLabel)}</span>
+          <span class="inspector-dropdown-origin">${options.deps.escapeHtml(options.originLabel)}</span>
+          <span class="inspector-dropdown-key">${options.deps.escapeHtml(options.key)}</span>
+          <span class="inspector-dropdown-type">: ${options.deps.escapeHtml(typeLabel)}</span>
         </span>
       </summary>
       <div class="inspector-dropdown-body">

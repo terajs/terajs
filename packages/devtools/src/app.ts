@@ -1,82 +1,29 @@
 import { clearDebugHistory, Debug, readDebugHistory, subscribeDebug } from "@terajs/shared";
 import { captureStateSnapshot } from "@terajs/adapter-ai";
 import { collectRecentCodeReferences } from "./aiDebugContext.js";
+import { renderIframePanelContent } from "./appIframePanelContent.js";
+import { renderComponentDrilldownFromState } from "./appInspectorRendering.js";
 import { computeSanityMetrics } from "./sanity.js";
+import { RouteSessions } from "./routeSessions.js";
 import { LIVE_DEVTOOLS_TABS, resolveDevtoolsAreaHostKind } from "./areas/registry.js";
 import { renderIframeAreaHost, syncIframeAreaHost } from "./areas/iframe/render.js";
-import {
-  renderInspectorRuntimeMonitor as renderRuntimeMonitorPanel,
-  type RuntimeMonitorRenderUtils
-} from "./inspector/runtimeMonitor.js";
-import {
-  buildComponentKey,
-  describeValueType,
-  escapeHtml,
-  matchesInspectorQuery,
-  readComponentIdentity,
-  readNumber,
-  readString,
-  readUnknown,
-  safeString,
-  shortJson
-} from "./inspector/shared.js";
-import { formatPrimitiveValue, isExpandableValue, renderValueExplorer } from "./inspector/valueExplorer.js";
-import {
-  renderInspectorAiPanel,
-  renderInspectorActivityPanel,
-  renderInspectorDomPanel,
-  renderInspectorMetaPanel,
-  renderInspectorOverviewPanel,
-  renderInspectorRoutePanel
-} from "./inspector/basicSections.js";
-import {
-  renderInspectorPropsPanel,
-  renderInspectorReactivePanel,
-  renderInspectorComposablesPanel,
-  type InspectorInteractiveSectionDeps
-} from "./inspector/interactiveSections.js";
-import {
-  describeEditablePrimitive,
-  describeInspectableValueType,
-  unwrapInspectableValue,
-} from "./inspector/editableValues.js";
-import {
-  collectOwnedReactiveEntries,
-  generateLikelyCause,
-} from "./inspector/dataCollectors.js";
+import { generateLikelyCause } from "./inspector/dataCollectors.js";
 import {
   applyComponentLifecycle,
   collectComponentDrilldown,
   type MountedComponentEntry
 } from "./inspector/componentData.js";
 import {
-  renderComponentDrilldownInspector as renderDrilldownInspector,
   type InspectorSectionKey,
-  type InspectorSectionRenderers
 } from "./inspector/drilldownRenderer.js";
-import {
-  resolveLivePropsSnapshot,
-} from "./inspector/liveEditing.js";
 import {
   DEFAULT_AI_DIAGNOSTICS_SECTION,
   type AIDiagnosticsSectionKey
 } from "./panels/diagnosticsPanels.js";
-import {
-  renderIssuesPanel,
-  renderLogsPanel,
-  renderMetaPanel,
-  renderSignalsPanel,
-  renderTimelinePanel,
-} from "./panels/primaryPanels.js";
-import {
-  renderPerformancePanel,
-  renderQueuePanel,
-  renderRouterPanel,
-  renderSanityPanel,
-} from "./panels/diagnosticsPanels.js";
 import { renderShadowAIArea } from "./areas/shadow/ai/render.js";
 import { normalizeEvent } from "./eventNormalization.js";
 import { appendPrioritizedDevtoolsEvent, retainPrioritizedDevtoolsEvents } from "./eventRetention.js";
+import { buildComponentKey } from "./inspector/shared.js";
 import {
   normalizeAIAssistantOptions,
   type AIAssistantStructuredResponse,
@@ -250,79 +197,9 @@ const DEVTOOLS_COMPONENT_PICKED_EVENT = "terajs:devtools:component-picked";
 const DEVTOOLS_COMPONENT_HOVER_EVENT = "terajs:devtools:component-hover";
 const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
 
-const runtimeMonitorRenderUtils: RuntimeMonitorRenderUtils = {
-  buildComponentKey,
-  readComponentIdentity,
-  matchesInspectorQuery,
-  readUnknown,
-  readString,
-  readNumber,
-  shortJson,
-  safeString,
-  escapeHtml,
-  describeValueType
-};
-
-const inspectorInteractiveSectionDeps: InspectorInteractiveSectionDeps = {
-  resolveLivePropsSnapshot,
-  renderInspectorRuntimeMonitor,
-  matchesInspectorQuery,
-  collectOwnedReactiveEntries,
-  renderValueExplorer,
-  escapeHtml,
-  isExpandableValue,
-  formatPrimitiveValue,
-  describeEditablePrimitive,
-  describeInspectableValueType,
-  unwrapInspectableValue
-};
-
-const inspectorSectionRenderers: InspectorSectionRenderers = {
-  overview: renderInspectorOverviewPanel,
-  props: (state, selected, drilldown, query) => {
-    return renderInspectorPropsPanel(
-      state.events,
-      state.expandedValuePaths,
-      selected,
-      drilldown.propsSnapshot,
-      query,
-      inspectorInteractiveSectionDeps
-    );
-  },
-  dom: renderInspectorDomPanel,
-  reactive: (state, selected, drilldown, query) => {
-    return renderInspectorReactivePanel(
-      state.expandedValuePaths,
-      selected,
-      drilldown.reactiveState,
-      query,
-      inspectorInteractiveSectionDeps
-    );
-  },
-  route: (state, drilldown, query) => {
-    return renderInspectorRoutePanel(drilldown, query, state.expandedValuePaths);
-  },
-  meta: (state, drilldown, query) => {
-    return renderInspectorMetaPanel(drilldown, query, state.expandedValuePaths);
-  },
-  ai: (state, drilldown, query) => {
-    return renderInspectorAiPanel(drilldown, query, state.expandedValuePaths);
-  },
-  activity: renderInspectorActivityPanel,
-  composables: (state, selected, drilldown, query) => {
-    return renderInspectorComposablesPanel(
-      state.expandedValuePaths,
-      selected,
-      drilldown.composablesSnapshot,
-      query,
-    inspectorInteractiveSectionDeps
-  );
-}
-
-};
-
 export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions = {}): DevtoolsAppHandle {
   const aiOptions = normalizeAIAssistantOptions(options.ai);
+  const routeSessions = new RouteSessions();
   const layoutOptions = normalizeLayoutOptions(options.layout);
   const bridgeEnabled = isBridgeEnabled(options.bridge);
   const isVisible = () => options.isVisible?.() !== false;
@@ -374,6 +251,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     .reduce<DevtoolsEvent[]>((events, event) => {
       return appendPrioritizedDevtoolsEvent(events, event, MAX_DEVTOOLS_EVENTS);
     }, []);
+  routeSessions.hydrate(hydratedEvents);
 
   const state: DevtoolsState = {
     activeTab: "Components",
@@ -445,7 +323,9 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   const updateHeaderEventCount = () => {
     const subtitle = root.querySelector<HTMLElement>(".devtools-subtitle");
     if (subtitle) {
-      subtitle.textContent = `Events: ${state.eventCount}`;
+      const routeEvents = state.events;
+
+      subtitle.textContent = `Events: ${routeEvents.length}`;
     }
   };
 
@@ -457,7 +337,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       theme: state.theme,
       updateHeaderEventCount,
       renderAIPanel: () => renderShadowAIArea(state, documentContext),
-      renderIframeMarkup: () => renderIframePanelContent(state, documentContext),
+      renderIframeMarkup: () => renderIframePanelContent(state, routeSessions, documentContext),
       renderFallback: render,
       syncBridge: () => {
         devtoolsBridge?.sync();
@@ -481,13 +361,22 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     const event = normalizeEvent(rawEvent);
     if (!event) return;
 
+    // Hydration
     const hydratedEvent = hydrateEvent(event);
+    routeSessions.handle(hydratedEvent);
     const previousLikelyCause = state.aiLikelyCause;
     const componentTreeAffected = eventAffectsComponentTree(hydratedEvent);
-    const selectedComponentAffected = eventTouchesSelectedComponent(hydratedEvent, state.selectedComponentKey);
+    const selectedComponentAffected = eventTouchesSelectedComponent(
+      hydratedEvent,
+      state.selectedComponentKey
+    );
 
     const previousSelection = state.selectedComponentKey;
-    applyComponentLifecycle(state.mountedComponents, state.expandedComponentNodeKeys, hydratedEvent);
+    applyComponentLifecycle(
+      state.mountedComponents,
+      state.expandedComponentNodeKeys,
+      hydratedEvent
+    );
 
     if (componentTreeAffected) {
       state.componentTreeVersion += 1;
@@ -508,15 +397,24 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 
     const aiLikelyCauseChanged = previousLikelyCause !== state.aiLikelyCause;
 
-    state.events = appendPrioritizedDevtoolsEvent(state.events, hydratedEvent, MAX_DEVTOOLS_EVENTS);
-    state.eventCount += 1;
-    state.timelineCursor = state.events.length - 1;
+    state.events = appendPrioritizedDevtoolsEvent(
+      state.events,
+      hydratedEvent,
+      MAX_DEVTOOLS_EVENTS
+    );
 
+    const routeEvents = state.events;
+
+    state.eventCount = routeEvents.length;
+    state.timelineCursor = routeEvents.length - 1;
+
+    // Visibility gating
     if (!visible) {
       pendingVisibleRefresh = true;
       return;
     }
 
+    // Components tab refresh logic
     if (state.activeTab === "Components") {
       const refreshTree = componentTreeAffected;
       const refreshInspector = refreshTree || selectedComponentAffected;
@@ -535,11 +433,17 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       return;
     }
 
-    if (state.activeTab === "AI Diagnostics" && !aiLikelyCauseChanged && state.aiStatus === "idle") {
+    // AI Diagnostics refresh logic
+    if (
+      state.activeTab === "AI Diagnostics" &&
+      !aiLikelyCauseChanged &&
+      state.aiStatus === "idle"
+    ) {
       patchActiveStandardTab();
       return;
     }
 
+    // Default refresh
     patchActiveStandardTab();
   };
 
@@ -817,12 +721,12 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       (nextState) => renderPanel(nextState, documentContext),
       renderComponentDrilldownInspector
     );
-
+    updateHeaderEventCount();
     if (resolveDevtoolsAreaHostKind(state.activeTab) === "iframe") {
       syncIframeAreaHost(root, {
         title: state.activeTab,
         theme: state.theme,
-        markup: renderIframePanelContent(state, documentContext),
+        markup: renderIframePanelContent(state, routeSessions, documentContext),
         eventBridge: {
           click: handleClick,
           input: handleInput,
@@ -858,46 +762,12 @@ function renderPanel(state: DevtoolsState, documentContext = captureSafeDocument
   }
 }
 
-function renderIframePanelContent(state: DevtoolsState, documentContext = captureSafeDocumentContext()): string {
-  switch (state.activeTab) {
-    case "Signals":
-      return renderSignalsPanel(state);
-    case "Meta":
-      return renderMetaPanel(state, documentContext);
-    case "Issues":
-      return renderIssuesPanel(state);
-    case "Logs":
-      return renderLogsPanel(state);
-    case "Timeline":
-      return renderTimelinePanel(state);
-    case "Router":
-      return renderRouterPanel(state.events);
-    case "Queue":
-      return renderQueuePanel(state.events);
-    case "Performance":
-      return renderPerformancePanel(state.events);
-    case "Sanity Check":
-      return renderSanityPanel(state.events);
-    default:
-      return "";
-  }
-}
-
 function renderComponentDrilldownInspector(
   state: DevtoolsState,
   selected: MountedComponentEntry,
   drilldown: ReturnType<typeof collectComponentDrilldown>
 ): string {
-  return renderDrilldownInspector(state, selected, drilldown, inspectorSectionRenderers);
-}
-
-function renderInspectorRuntimeMonitor(
-  events: DevtoolsEvent[],
-  scope: string,
-  instance: number,
-  query: string
-): string {
-  return renderRuntimeMonitorPanel(events, scope, instance, query, runtimeMonitorRenderUtils);
+  return renderComponentDrilldownFromState(state, selected, drilldown);
 }
 
 function isOverlayPosition(value: unknown): value is DevtoolsOverlayPosition {

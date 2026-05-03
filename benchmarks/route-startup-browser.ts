@@ -2,9 +2,14 @@ import { mount, renderIRModuleToFragment, unmount } from "@terajs/renderer-web";
 import { signal } from "@terajs/reactivity";
 import { parseSFC, compileTemplateFromSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
+import { html as htmlLit, nothing as litNothing, render as renderLit } from "lit";
+import { h as hPreact, render as renderPreact } from "preact";
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
+import { createSignal as createSolidSignal, type Accessor } from "solid-js";
+import htmlSolid from "solid-js/html";
+import { render as renderSolid } from "solid-js/web";
 import { createApp, h, nextTick, ref } from "vue";
 
 type BenchmarkResult = {
@@ -22,6 +27,7 @@ type BenchState = {
 };
 
 type RouteRecord = Record<string, string>;
+type ElementFactory = (type: string, props: Record<string, unknown> | null, ...children: unknown[]) => unknown;
 
 const LINK_COUNT = readPositiveInt("links", 12);
 const METRIC_COUNT = readPositiveInt("metrics", 16);
@@ -89,6 +95,15 @@ async function run(): Promise<void> {
   statusEl.innerHTML = "<strong>Running…</strong> Measuring a route-like app shell in a production browser bundle.";
 
   results.push(await benchmarkFramework("Terajs", () => createTerajsHarness(terajsIrModule)));
+  renderResults(results);
+
+  results.push(await benchmarkFramework("Solid", () => createSolidHarness()));
+  renderResults(results);
+
+  results.push(await benchmarkFramework("Preact", () => createPreactHarness()));
+  renderResults(results);
+
+  results.push(await benchmarkFramework("Lit", () => createLitHarness()));
   renderResults(results);
 
   results.push(await benchmarkFramework("Vue", () => createVueHarness()));
@@ -296,101 +311,180 @@ function readRouteField(route: RouteRecord, key: string): string {
   return route[key] ?? "";
 }
 
-function renderRouteShellReact(route: RouteRecord) {
-  return React.createElement(
+function renderSolidRouteLinks(route: Accessor<RouteRecord>) {
+  return () => Array.from({ length: LINK_COUNT }, (_, index) => htmlSolid`<a class="shell-link" href=${readRouteField(route(), `link${index}Href`)}>${readRouteField(route(), `link${index}Label`)}</a>`);
+}
+
+function renderSolidRouteMetrics(route: Accessor<RouteRecord>) {
+  return () => Array.from({ length: METRIC_COUNT }, (_, index) => htmlSolid`
+    <article class="metric-pill">
+      <span>${readRouteField(route(), `metric${index}Label`)}</span>
+      <strong>${readRouteField(route(), `metric${index}Value`)}</strong>
+      <small>${readRouteField(route(), `metric${index}Trend`)}</small>
+    </article>
+  `);
+}
+
+function renderSolidRouteCards(route: Accessor<RouteRecord>) {
+  return () => Array.from({ length: CARD_COUNT }, (_, index) => htmlSolid`
+    <article class="content-card" data-meta=${readRouteField(route(), `card${index}Meta`)}>
+      <p>${readRouteField(route(), `card${index}Eyebrow`)}</p>
+      <h3>${readRouteField(route(), `card${index}Title`)}</h3>
+      <p>${readRouteField(route(), `card${index}Excerpt`)}</p>
+      <footer>${readRouteField(route(), `card${index}Meta`)}</footer>
+    </article>
+  `);
+}
+
+function renderSolidRouteSteps(route: Accessor<RouteRecord>) {
+  return () => Array.from({ length: STEP_COUNT }, (_, index) => htmlSolid`
+    <li class="timeline-step">
+      <div>
+        <strong>${readRouteField(route(), `step${index}Label`)}</strong>
+        <p>${readRouteField(route(), `step${index}Detail`)}</p>
+      </div>
+      <span>${readRouteField(route(), `step${index}Time`)}</span>
+    </li>
+  `);
+}
+
+function renderSolidRouteShell(route: Accessor<RouteRecord>) {
+  return htmlSolid`
+    <div class="route-shell">
+      <header class="shell-header">
+        <div class="brand-lockup">
+          <strong>${() => readRouteField(route(), "brandName")}</strong>
+          <p>${() => readRouteField(route(), "brandTagline")}</p>
+        </div>
+        <nav class="shell-nav">${renderSolidRouteLinks(route)}</nav>
+      </header>
+      <main class="route-main">
+        <section class="route-hero">
+          <p>${() => readRouteField(route(), "pageKicker")}</p>
+          <h1>${() => readRouteField(route(), "pageTitle")}</h1>
+          <p>${() => readRouteField(route(), "pageSummary")}</p>
+          <div class="hero-actions">
+            <button>${() => readRouteField(route(), "primaryAction")}</button>
+            <button>${() => readRouteField(route(), "secondaryAction")}</button>
+          </div>
+        </section>
+        <section class="metrics-strip">${renderSolidRouteMetrics(route)}</section>
+        <section class="content-grid">
+          <div class="cards-panel">${renderSolidRouteCards(route)}</div>
+          <aside class="route-sidebar">
+            <h2>${() => readRouteField(route(), "asideTitle")}</h2>
+            <p>${() => readRouteField(route(), "asideSummary")}</p>
+            <ol class="timeline-list">${renderSolidRouteSteps(route)}</ol>
+          </aside>
+        </section>
+      </main>
+      <footer class="route-footer">
+        <strong>${() => readRouteField(route(), "footerLead")}</strong>
+        <p>${() => readRouteField(route(), "footerNote")}</p>
+      </footer>
+    </div>
+  `;
+}
+
+function renderRouteShellVNode(createElement: ElementFactory, route: RouteRecord) {
+  return createElement(
     "div",
     { className: "route-shell" },
-    React.createElement(
+    createElement(
       "header",
       { className: "shell-header" },
-      React.createElement(
+      createElement(
         "div",
         { className: "brand-lockup" },
-        React.createElement("strong", null, readRouteField(route, "brandName")),
-        React.createElement("p", null, readRouteField(route, "brandTagline"))
+        createElement("strong", null, readRouteField(route, "brandName")),
+        createElement("p", null, readRouteField(route, "brandTagline"))
       ),
-      React.createElement(
+      createElement(
         "nav",
         { className: "shell-nav" },
-        Array.from({ length: LINK_COUNT }, (_, index) => React.createElement(
+        Array.from({ length: LINK_COUNT }, (_, index) => createElement(
           "a",
           { key: `link-${index}`, href: readRouteField(route, `link${index}Href`) },
           readRouteField(route, `link${index}Label`)
         ))
       )
     ),
-    React.createElement(
+    createElement(
       "main",
       { className: "route-main" },
-      React.createElement(
+      createElement(
         "section",
         { className: "route-hero" },
-        React.createElement("p", null, readRouteField(route, "pageKicker")),
-        React.createElement("h1", null, readRouteField(route, "pageTitle")),
-        React.createElement("p", null, readRouteField(route, "pageSummary")),
-        React.createElement(
+        createElement("p", null, readRouteField(route, "pageKicker")),
+        createElement("h1", null, readRouteField(route, "pageTitle")),
+        createElement("p", null, readRouteField(route, "pageSummary")),
+        createElement(
           "div",
           { className: "hero-actions" },
-          React.createElement("button", null, readRouteField(route, "primaryAction")),
-          React.createElement("button", null, readRouteField(route, "secondaryAction"))
+          createElement("button", null, readRouteField(route, "primaryAction")),
+          createElement("button", null, readRouteField(route, "secondaryAction"))
         )
       ),
-      React.createElement(
+      createElement(
         "section",
         { className: "metrics-strip" },
-        Array.from({ length: METRIC_COUNT }, (_, index) => React.createElement(
+        Array.from({ length: METRIC_COUNT }, (_, index) => createElement(
           "article",
           { key: `metric-${index}`, className: "metric-pill" },
-          React.createElement("span", null, readRouteField(route, `metric${index}Label`)),
-          React.createElement("strong", null, readRouteField(route, `metric${index}Value`)),
-          React.createElement("small", null, readRouteField(route, `metric${index}Trend`))
+          createElement("span", null, readRouteField(route, `metric${index}Label`)),
+          createElement("strong", null, readRouteField(route, `metric${index}Value`)),
+          createElement("small", null, readRouteField(route, `metric${index}Trend`))
         ))
       ),
-      React.createElement(
+      createElement(
         "section",
         { className: "content-grid" },
-        React.createElement(
+        createElement(
           "div",
           { className: "cards-panel" },
-          Array.from({ length: CARD_COUNT }, (_, index) => React.createElement(
+          Array.from({ length: CARD_COUNT }, (_, index) => createElement(
             "article",
             { key: `card-${index}`, className: "content-card", "data-meta": readRouteField(route, `card${index}Meta`) },
-            React.createElement("p", null, readRouteField(route, `card${index}Eyebrow`)),
-            React.createElement("h3", null, readRouteField(route, `card${index}Title`)),
-            React.createElement("p", null, readRouteField(route, `card${index}Excerpt`)),
-            React.createElement("footer", null, readRouteField(route, `card${index}Meta`))
+            createElement("p", null, readRouteField(route, `card${index}Eyebrow`)),
+            createElement("h3", null, readRouteField(route, `card${index}Title`)),
+            createElement("p", null, readRouteField(route, `card${index}Excerpt`)),
+            createElement("footer", null, readRouteField(route, `card${index}Meta`))
           ))
         ),
-        React.createElement(
+        createElement(
           "aside",
           { className: "route-sidebar" },
-          React.createElement("h2", null, readRouteField(route, "asideTitle")),
-          React.createElement("p", null, readRouteField(route, "asideSummary")),
-          React.createElement(
+          createElement("h2", null, readRouteField(route, "asideTitle")),
+          createElement("p", null, readRouteField(route, "asideSummary")),
+          createElement(
             "ol",
             { className: "timeline-list" },
-            Array.from({ length: STEP_COUNT }, (_, index) => React.createElement(
+            Array.from({ length: STEP_COUNT }, (_, index) => createElement(
               "li",
               { key: `step-${index}`, className: "timeline-step" },
-              React.createElement(
+              createElement(
                 "div",
                 null,
-                React.createElement("strong", null, readRouteField(route, `step${index}Label`)),
-                React.createElement("p", null, readRouteField(route, `step${index}Detail`))
+                createElement("strong", null, readRouteField(route, `step${index}Label`)),
+                createElement("p", null, readRouteField(route, `step${index}Detail`))
               ),
-              React.createElement("span", null, readRouteField(route, `step${index}Time`))
+              createElement("span", null, readRouteField(route, `step${index}Time`))
             ))
           )
         )
       )
     ),
-    React.createElement(
+    createElement(
       "footer",
       { className: "route-footer" },
-      React.createElement("strong", null, readRouteField(route, "footerLead")),
-      React.createElement("p", null, readRouteField(route, "footerNote"))
+      createElement("strong", null, readRouteField(route, "footerLead")),
+      createElement("p", null, readRouteField(route, "footerNote"))
     )
   );
+}
+
+function renderRouteShellReact(route: RouteRecord) {
+  return renderRouteShellVNode(React.createElement as ElementFactory, route);
 }
 
 function createReactHarness() {
@@ -418,6 +512,133 @@ function createReactHarness() {
       flushSync(() => {
         root.unmount();
       });
+      rootElement.remove();
+    }
+  };
+}
+
+function createSolidHarness() {
+  const rootElement = createMountTarget();
+  const [route, setRoute] = createSolidSignal<RouteRecord>(routeLaunch);
+  const dispose = renderSolid(() => renderSolidRouteShell(route), rootElement);
+
+  return {
+    async navigate(iteration: number) {
+      setRoute(iteration % 2 === 0 ? routeDiagnostics : routeLaunch);
+    },
+    async destroy() {
+      dispose();
+      rootElement.remove();
+    }
+  };
+}
+
+function createPreactHarness() {
+  const rootElement = createMountTarget();
+  let route = routeLaunch;
+
+  const renderApp = () => {
+    renderPreact(renderRouteShellVNode(hPreact as ElementFactory, route), rootElement);
+  };
+
+  renderApp();
+
+  return {
+    async navigate(iteration: number) {
+      route = iteration % 2 === 0 ? routeDiagnostics : routeLaunch;
+      renderApp();
+    },
+    async destroy() {
+      renderPreact(null, rootElement);
+      rootElement.remove();
+    }
+  };
+}
+
+function renderRouteShellLit(route: RouteRecord) {
+  return htmlLit`
+    <div class="route-shell">
+      <header class="shell-header">
+        <div class="brand-lockup">
+          <strong>${readRouteField(route, "brandName")}</strong>
+          <p>${readRouteField(route, "brandTagline")}</p>
+        </div>
+        <nav class="shell-nav">
+          ${Array.from({ length: LINK_COUNT }, (_, index) => htmlLit`<a class="shell-link" href=${readRouteField(route, `link${index}Href`)}>${readRouteField(route, `link${index}Label`)}</a>`)}
+        </nav>
+      </header>
+      <main class="route-main">
+        <section class="route-hero">
+          <p>${readRouteField(route, "pageKicker")}</p>
+          <h1>${readRouteField(route, "pageTitle")}</h1>
+          <p>${readRouteField(route, "pageSummary")}</p>
+          <div class="hero-actions">
+            <button>${readRouteField(route, "primaryAction")}</button>
+            <button>${readRouteField(route, "secondaryAction")}</button>
+          </div>
+        </section>
+        <section class="metrics-strip">
+          ${Array.from({ length: METRIC_COUNT }, (_, index) => htmlLit`
+            <article class="metric-pill">
+              <span>${readRouteField(route, `metric${index}Label`)}</span>
+              <strong>${readRouteField(route, `metric${index}Value`)}</strong>
+              <small>${readRouteField(route, `metric${index}Trend`)}</small>
+            </article>
+          `)}
+        </section>
+        <section class="content-grid">
+          <div class="cards-panel">
+            ${Array.from({ length: CARD_COUNT }, (_, index) => htmlLit`
+              <article class="content-card" data-meta=${readRouteField(route, `card${index}Meta`)}>
+                <p>${readRouteField(route, `card${index}Eyebrow`)}</p>
+                <h3>${readRouteField(route, `card${index}Title`)}</h3>
+                <p>${readRouteField(route, `card${index}Excerpt`)}</p>
+                <footer>${readRouteField(route, `card${index}Meta`)}</footer>
+              </article>
+            `)}
+          </div>
+          <aside class="route-sidebar">
+            <h2>${readRouteField(route, "asideTitle")}</h2>
+            <p>${readRouteField(route, "asideSummary")}</p>
+            <ol class="timeline-list">
+              ${Array.from({ length: STEP_COUNT }, (_, index) => htmlLit`
+                <li class="timeline-step">
+                  <div>
+                    <strong>${readRouteField(route, `step${index}Label`)}</strong>
+                    <p>${readRouteField(route, `step${index}Detail`)}</p>
+                  </div>
+                  <span>${readRouteField(route, `step${index}Time`)}</span>
+                </li>
+              `)}
+            </ol>
+          </aside>
+        </section>
+      </main>
+      <footer class="route-footer">
+        <strong>${readRouteField(route, "footerLead")}</strong>
+        <p>${readRouteField(route, "footerNote")}</p>
+      </footer>
+    </div>
+  `;
+}
+
+function createLitHarness() {
+  const rootElement = createMountTarget();
+  let route = routeLaunch;
+
+  const renderApp = () => {
+    renderLit(renderRouteShellLit(route), rootElement);
+  };
+
+  renderApp();
+
+  return {
+    async navigate(iteration: number) {
+      route = iteration % 2 === 0 ? routeDiagnostics : routeLaunch;
+      renderApp();
+    },
+    async destroy() {
+      renderLit(litNothing, rootElement);
       rootElement.remove();
     }
   };

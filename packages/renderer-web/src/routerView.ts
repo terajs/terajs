@@ -92,6 +92,14 @@ function composeLoadedMatch<TData>(
 
 function renderRouteComponent(component: FrameworkComponent, props: Record<string, unknown>): Node {
   const rendered = renderComponent(component, props);
+  rendered.ctx.route = {
+    router: props.router,
+    route: props.route,
+    params: props.params,
+    query: props.query,
+    hash: props.hash,
+    data: props.data
+  };
   const cleanup = createRouteComponentCleanup(rendered.ctx);
 
   queueMicrotask(() => {

@@ -213,6 +213,7 @@ class ParserContext {
       const { each, item, index } = parseForExpression(forDir.value);
       return {
         type: "for",
+        isStructural: true,
         each,
         item,
         index,

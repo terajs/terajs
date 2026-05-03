@@ -89,18 +89,20 @@ export async function loadRouteMatch<TData = unknown>(
     hydrated: hydrationSnapshot !== undefined
   });
 
-  const routeModule = await match.route.component();
   try {
-    const layoutModules = await Promise.all(
-      match.route.layouts.map(async (layoutDefinition) => {
-        const layoutModule = await layoutDefinition.component();
-        return {
-          definition: layoutDefinition,
-          module: layoutModule,
-          component: hasDefaultExport(layoutModule) ? layoutModule.default : layoutModule
-        } satisfies LoadedLayoutModule;
-      })
-    );
+    const [routeModule, layoutModules] = await Promise.all([
+      match.route.component(),
+      Promise.all(
+        match.route.layouts.map(async (layoutDefinition) => {
+          const layoutModule = await layoutDefinition.component();
+          return {
+            definition: layoutDefinition,
+            module: layoutModule,
+            component: hasDefaultExport(layoutModule) ? layoutModule.default : layoutModule
+          } satisfies LoadedLayoutModule;
+        })
+      )
+    ]);
 
     let data: TData | undefined = hydrationSnapshot?.data;
 

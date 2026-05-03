@@ -10,7 +10,9 @@
 import { emitRendererDebug } from "./debug.js";
 import { unwrap } from "./unwrap.js"; 
 
-const nodeCleanup = new WeakMap<Node, Array<() => void>>();
+type NodeCleanupEntry = (() => void) | Array<() => void>;
+
+const nodeCleanup = new WeakMap<Node, NodeCleanupEntry>();
 
 interface HydrationFrame {
     parent: Node;
@@ -122,21 +124,38 @@ export function withHydrationParent<T>(parent: Node, run: () => T): T {
 
 export function addNodeCleanup(node: Node, cleanup: () => void): void {
     const existing = nodeCleanup.get(node);
-    if (existing) {
+    if (Array.isArray(existing)) {
         existing.push(cleanup);
         return;
     }
 
-    nodeCleanup.set(node, [cleanup]);
+    if (typeof existing === "function") {
+        nodeCleanup.set(node, [existing, cleanup]);
+        return;
+    }
+
+    nodeCleanup.set(node, cleanup);
 }
 
 export function removeNodeCleanup(node: Node, cleanup: () => void): void {
     const existing = nodeCleanup.get(node);
     if (!existing) return;
 
+    if (typeof existing === "function") {
+        if (existing === cleanup) {
+            nodeCleanup.delete(node);
+        }
+        return;
+    }
+
     const index = existing.indexOf(cleanup);
     if (index !== -1) {
         existing.splice(index, 1);
+    }
+
+    if (existing.length === 1) {
+        nodeCleanup.set(node, existing[0]);
+        return;
     }
 
     if (existing.length === 0) {
@@ -148,8 +167,12 @@ function disposeNode(node: Node): void {
     const cleanups = nodeCleanup.get(node);
     if (cleanups) {
         try {
-            for (const cleanup of cleanups) {
-                cleanup();
+            if (typeof cleanups === "function") {
+                cleanups();
+            } else {
+                for (const cleanup of cleanups) {
+                    cleanup();
+                }
             }
         } finally {
             nodeCleanup.delete(node);

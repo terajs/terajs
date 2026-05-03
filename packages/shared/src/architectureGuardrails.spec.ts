@@ -40,8 +40,11 @@ const allowedRootDevDependencies = new Set([
   "@types/react-dom",
   "@types/vue",
   "jsdom",
+  "lit",
+  "preact",
   "react",
   "react-dom",
+  "solid-js",
   "typescript",
   "vitest",
   "vue"

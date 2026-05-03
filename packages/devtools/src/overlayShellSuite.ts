@@ -50,6 +50,13 @@ export function registerOverlayShellSuite(): void {
   it("renders events from both debug channels", () => {
     mountDevtoolsOverlay({ startOpen: true });
 
+    // Activate route so route-scoped buffer is populated
+    emitDebug({
+      type: "route:changed",
+      timestamp: Date.now(),
+      to: "/" ,
+      from: null
+    });
     Debug.emit("effect:run", {});
     emitDebug({
       type: "component:mounted",
@@ -59,7 +66,7 @@ export function registerOverlayShellSuite(): void {
     });
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    expect(shadowRoot?.textContent).toContain("Events: 2");
+    expect(shadowRoot?.textContent).toContain("Events: 3");
     expect(shadowRoot?.textContent).toContain("Counter");
   });
 
@@ -310,6 +317,45 @@ export function registerOverlayShellSuite(): void {
     }
 
     expect(bridge?.getSnapshot()?.activeTab).toBe("Sanity Check");
+  });
+
+  it("hydrates route-scoped iframe tabs from retained debug history", async () => {
+    emitDebug({
+      type: "route:changed",
+      timestamp: Date.now(),
+      to: "/docs",
+      from: "/"
+    });
+
+    emitDebug({
+      type: "queue:enqueue",
+      timestamp: Date.now() + 1,
+      payload: {
+        operation: "prefetch:/docs"
+      }
+    } as any);
+
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    expect(bridge?.focusTab("Router")).toBe(true);
+    await flushMicrotasks();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const routerIframe = shadowRoot?.querySelector('[data-devtools-iframe-area="Router"]') as HTMLIFrameElement | null;
+    const routerDocument = routerIframe?.getAttribute("srcdoc") ?? "";
+
+    expect(routerIframe).toBeTruthy();
+    expect(routerDocument).toContain("Current route: /docs");
+
+    expect(bridge?.focusTab("Queue")).toBe(true);
+    await flushMicrotasks();
+
+    const queueIframe = shadowRoot?.querySelector('[data-devtools-iframe-area="Queue"]') as HTMLIFrameElement | null;
+    const queueDocument = queueIframe?.getAttribute("srcdoc") ?? "";
+
+    expect(queueIframe).toBeTruthy();
+    expect(queueDocument).toContain("prefetch:/docs");
   });
 
   it("provides bridge helpers for readiness, subscriptions, and session export", async () => {

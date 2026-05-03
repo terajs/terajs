@@ -1,9 +1,25 @@
-import { describe, it, expect } from "vitest";
-import { bindText, bindProp, bindClass, bindStyle } from "./bindings";
-import { createText, createElement } from "./dom";
+import { describe, expect, it } from "vitest";
+import { bindDirectTextSource, bindText, bindProp, bindClass, bindStyle } from "./bindings";
+import { createText, createElement, disposeNodeTree } from "./dom";
 import { signal } from "@terajs/reactivity";
 
 describe("bindings", () => {
+        it("bindDirectTextSource updates when signal changes and stops after disposal", () => {
+                const value = signal("one");
+                const node = createText("");
+
+                bindDirectTextSource(node, value);
+
+                expect(node.data).toBe("one");
+
+                value.set("two");
+                expect(node.data).toBe("two");
+
+                disposeNodeTree(node);
+                value.set("three");
+                expect(node.data).toBe("two");
+        });
+
     it("bindText updates when signal changes", () => {
         const count = signal(1);
         const node = createText("");

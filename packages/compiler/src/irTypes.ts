@@ -115,6 +115,7 @@ export interface IRIfNode extends IRNodeBase {
  */
 export interface IRForNode extends IRNodeBase {
   type: "for"
+  isStructural?: boolean // Indicates if this node should be treated as a structural directive
   each: string
   item: string
   index?: string

@@ -364,6 +364,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
         if (value === productDir) {
           return [
+            { name: "layout.tera", isDirectory: () => false, isFile: () => true },
             { name: "[id].tera", isDirectory: () => false, isFile: () => true }
           ] as any;
         }
@@ -388,9 +389,13 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(resolved).toBe("\0virtual:terajs-routes");
     expect(typeof code).toBe("string");
-    expect(code).toContain("buildRouteManifest(routeSources, { routeConfigs })");
+    expect(code).not.toContain("buildRouteManifest(routeSources, { routeConfigs })");
+    expect(code).not.toContain("source:");
     expect(code).toContain('filePath: "/src/routes/index.tera"');
     expect(code).toContain('filePath: "/src/routes/products/[id].tera"');
+    expect(code).toContain('filePath: "/src/routes/products/layout.tera"');
+    expect(code).toContain('id: "index"');
+    expect(code).toContain('path: "/"');
   });
 
   it("resolves hashed asset paths from the build manifest in build mode", async () => {
@@ -436,6 +441,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof code).toBe("string");
     expect(code).toContain('asset: "assets/index-123.js"');
+    expect(code).not.toContain("source:");
   });
 
   it("passes config-defined route overrides into the virtual route module", async () => {
@@ -597,9 +603,12 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(typeof code).toBe("string");
     expect(code).toContain("createBrowserHistory");
     expect(code).toContain("createRouteView");
+    expect(code).toContain("prefetchRouteMatch");
     expect(code).toContain('const ROOT_TARGET_ID = "app"');
     expect(code).toContain("autoStart: false");
     expect(code).toContain("keepPreviousDuringLoading: true");
+    expect(code).toContain("const initialRouteMatch = router.resolve(router.history.getLocation())");
+    expect(code).toContain("void prefetchRouteMatch(initialRouteMatch).catch(() => undefined)");
     expect(code).toContain("document.addEventListener('click'");
     expect(code).toContain("initializeDevtoolsOverlay");
     expect(code).toContain("export function bootstrapTerajsApp()");
@@ -627,6 +636,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof code).toBe("string");
     expect(code).toContain("/@fs/");
+    expect(code).toContain("prefetchRouteMatch");
     expect(code).toContain("mountDevtoolsOverlay");
     expect(code).not.toContain("autoAttachVsCodeDevtoolsBridge");
     expect(code).toContain("document.getElementById('terajs-overlay-container')");
@@ -718,8 +728,9 @@ describe("Terajs Vite Plugin (integration)", () => {
     const code = load("\0virtual:terajs-routes");
 
     expect(typeof code).toBe("string");
-    expect(code).toContain("const routeSources = [");
-    expect(code).toContain("buildRouteManifest(routeSources, { routeConfigs })");
+    expect(code).toContain("const routes = [");
+    expect(code).not.toContain("buildRouteManifest(routeSources, { routeConfigs })");
+    expect(code).not.toContain("source:");
 
     existsSpy.mockRestore();
     routesSpy.mockRestore();

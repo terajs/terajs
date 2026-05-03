@@ -1,6 +1,6 @@
 {
   "name": "@terajs/renderer-web",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,11 +16,11 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@terajs/router": "^1.0.6",
+    "@terajs/router": "^1.0.7",
     "@terajs/shared": "^1.0.7",
     "@terajs/runtime": "^1.0.5",
     "@terajs/reactivity": "^1.0.7",
-    "@terajs/renderer": "^1.0.5"
+    "@terajs/renderer": "^1.0.6"
   },
   "license": "Apache-2.0",
   "repository": {

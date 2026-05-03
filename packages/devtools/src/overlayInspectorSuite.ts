@@ -161,6 +161,79 @@ export function registerOverlayInspectorSuite(): void {
     expect(metaJson).toContain("}");
   });
 
+  it("groups framework-injected route inputs separately inside the script section", () => {
+    const componentRoot = document.createElement("div") as HTMLDivElement & {
+      __terajsComponentContext?: { props: Record<string, unknown> };
+    };
+    componentRoot.setAttribute("data-terajs-component-scope", "DocsPage");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    componentRoot.__terajsComponentContext = {
+      props: {
+        title: "Docs",
+        route: {
+          pathname: "/docs"
+        },
+        params: {
+          slug: "intro"
+        },
+        query: {
+          mode: "live"
+        },
+        hash: "#start",
+        data: true,
+        router: {
+          push: "[function]"
+        }
+      }
+    };
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "DocsPage",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="DocsPage#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const scriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    if (scriptSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      scriptSectionToggle?.click();
+    }
+
+    const scriptSection = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]')
+      ?.closest(".inspector-section") as HTMLElement | null;
+    const scriptText = scriptSection?.textContent ?? "";
+    const dropdowns = Array.from(scriptSection?.querySelectorAll(".inspector-dropdown") ?? []);
+    const titleDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "title";
+    }) as HTMLElement | undefined;
+    const routeDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "route";
+    }) as HTMLElement | undefined;
+    const dataDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "data";
+    }) as HTMLElement | undefined;
+
+    expect(scriptText).toContain("props");
+    expect(scriptText).toContain("framework-injected route inputs");
+    expect(titleDropdown?.querySelector(".inspector-dropdown-origin")?.textContent?.trim()).toBe("prop");
+    expect(routeDropdown?.querySelector(".inspector-dropdown-origin")?.textContent?.trim()).toBe("framework route input");
+    expect(dataDropdown?.querySelector('[data-action="toggle-live-prop"]')).toBeNull();
+    expect(scriptText).toContain("pathname");
+    expect(scriptText).toContain("slug");
+    expect(scriptText).toContain("#start");
+  });
+
   it("shows late route, meta, and ai snapshots in the component inspector", () => {
     const componentRoot = document.createElement("div");
     componentRoot.setAttribute("data-terajs-component-scope", "Counter");

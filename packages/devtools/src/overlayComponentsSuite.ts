@@ -493,7 +493,13 @@ export function registerOverlayComponentsSuite(): void {
 
   it("updates the components header count without remounting tree rows for unrelated churn", () => {
     mountDevtoolsOverlay({ startOpen: true });
-
+    // Activate route so route-scoped buffer is populated
+    emitDebug({
+      type: "route:changed",
+      timestamp: Date.now(),
+      to: "/" ,
+      from: null
+    });
     emitDebug({
       type: "component:mounted",
       timestamp: Date.now(),
@@ -505,12 +511,12 @@ export function registerOverlayComponentsSuite(): void {
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
 
     expect(componentButton).toBeTruthy();
-    expect(shadowRoot?.textContent).toContain("Events: 1");
+    expect(shadowRoot?.textContent).toContain("Events: 2");
 
     Debug.emit("effect:run", { key: "global:effect" });
 
     const stableComponentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
-    expect(shadowRoot?.textContent).toContain("Events: 2");
+    expect(shadowRoot?.textContent).toContain("Events: 3");
     expect(stableComponentButton).toBe(componentButton);
   });
 

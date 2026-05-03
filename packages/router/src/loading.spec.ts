@@ -96,6 +96,51 @@ describe("loadRouteMatch", () => {
     expect(loaded.resolved.route.layouts).toEqual(["root", "products"]);
   });
 
+  it("starts layout imports before the route component resolves", async () => {
+    let releaseRouteModule: ((value: { default: string }) => void) | undefined;
+    const routeStarted = vi.fn();
+    const layoutStarted = vi.fn();
+    const matched = matchRoute(
+      [
+        route({
+          path: "/products/:id",
+          filePath: "/pages/products/[id].tera",
+          component: () => {
+            routeStarted();
+            return new Promise<{ default: string }>((resolve) => {
+              releaseRouteModule = resolve;
+            });
+          },
+          layouts: [
+            {
+              id: "root",
+              filePath: "/pages/layout.tera",
+              component: async () => {
+                layoutStarted();
+                return { default: "RootLayout" };
+              }
+            }
+          ]
+        })
+      ],
+      "/products/42"
+    );
+
+    expect(matched).not.toBeNull();
+
+    const pending = loadRouteMatch(matched!);
+    await Promise.resolve();
+
+    expect(routeStarted).toHaveBeenCalledTimes(1);
+    expect(layoutStarted).toHaveBeenCalledTimes(1);
+
+    releaseRouteModule?.({ default: "ProductPage" });
+
+    const loaded = await pending;
+    expect(loaded.component).toBe("ProductPage");
+    expect(loaded.layouts.map((layout) => layout.component)).toEqual(["RootLayout"]);
+  });
+
   it("reuses a hydration snapshot instead of rerunning the route loader", async () => {
     const loadSpy = vi.fn(({ params }: RouteLoadContext) => ({ id: params.id, hydrated: false }));
     const matched = matchRoute(
