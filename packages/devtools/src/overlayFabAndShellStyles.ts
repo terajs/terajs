@@ -55,38 +55,6 @@ export const overlayFabAndShellStyles = `
   }
 
   .overlay-frame {
-    --tera-black: #05070f;
-    --tera-carbon: #0d1320;
-    --tera-graphite: #1d2940;
-    --tera-blue: #2f6dff;
-    --tera-cyan: #32d7ff;
-    --tera-purple: #6f6dff;
-    --tera-mist: #93a7cb;
-    --tera-cloud: #f2f7ff;
-    --tera-body-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --tera-heading-font: "Space Grotesk", "Inter", sans-serif;
-    --tera-code-font: "JetBrains Mono", "Fira Code", monospace;
-    --tera-surface: var(--tera-carbon);
-    --tera-border: rgba(147, 167, 203, 0.18);
-    --tera-panel-glow: linear-gradient(145deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.11) 44%, rgba(111, 109, 255, 0.1));
-    --tera-shadow: 0 24px 60px rgba(2, 8, 20, 0.52);
-    --tera-surface-page: linear-gradient(180deg, rgba(8, 15, 27, 0.98), rgba(5, 9, 18, 0.98));
-    --tera-surface-pane: rgba(11, 20, 36, 0.88);
-    --tera-surface-pane-muted: rgba(9, 17, 31, 0.78);
-    --tera-surface-pane-strong: rgba(13, 24, 43, 0.94);
-    --tera-surface-row-hover: rgba(24, 39, 63, 0.52);
-    --tera-surface-row-active: rgba(30, 48, 78, 0.78);
-    --tera-surface-raised: rgba(14, 26, 45, 0.92);
-    --tera-surface-section: rgba(12, 22, 38, 0.72);
-    --tera-surface-section-strong: rgba(10, 19, 33, 0.94);
-    --tera-separator: rgba(145, 173, 214, 0.12);
-    --tera-separator-strong: rgba(145, 173, 214, 0.18);
-    --tera-tone-accent: rgba(53, 198, 255, 0.78);
-    --tera-tone-accent-soft: rgba(53, 198, 255, 0.16);
-    --tera-tone-warn: rgba(232, 136, 62, 0.84);
-    --tera-tone-warn-soft: rgba(232, 136, 62, 0.18);
-    --tera-tone-error: rgba(255, 107, 139, 0.84);
-    --tera-tone-error-soft: rgba(255, 107, 139, 0.16);
     position: relative;
     width: min(var(--terajs-overlay-panel-width, 1040px), calc(100vw - 12px));
     max-width: calc(100vw - 12px);
@@ -143,59 +111,8 @@ export const overlayFabAndShellStyles = `
     overflow: hidden;
   }
 
+  #terajs-devtools-shell[data-theme="light"],
   #terajs-devtools-root[data-theme="light"] {
-    --tera-light-text-strong: var(--tera-light-cyan-ink);
-    --tera-light-text-soft: #5f5ed9;
-    --tera-light-text-muted: #746fe8;
-    --tera-light-accent: #2f6dff;
-    --tera-light-accent-strong: #1f58d6;
-    --tera-light-accent-violet: #5a4fd4;
-    --tera-light-accent-soft: rgba(47, 109, 255, 0.14);
-    --tera-light-accent-soft-strong: rgba(47, 109, 255, 0.22);
-    --tera-light-border: rgba(79, 140, 255, 0.28);
-    --tera-light-border-strong: rgba(88, 201, 255, 0.34);
-    --tera-light-shell-bg:
-      radial-gradient(circle at 0% 0%, rgba(47, 109, 255, 0.24), transparent 30%),
-      radial-gradient(circle at 92% 8%, rgba(90, 79, 212, 0.2), transparent 26%),
-      radial-gradient(circle at 70% 32%, rgba(50, 215, 255, 0.16), transparent 24%),
-      linear-gradient(180deg, rgba(251, 254, 255, 0.99), rgba(230, 242, 255, 0.98));
-    --tera-light-panel-bg:
-      radial-gradient(circle at top left, rgba(47, 109, 255, 0.12), transparent 34%),
-      radial-gradient(circle at top right, rgba(90, 79, 212, 0.11), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.98));
-    --tera-light-panel-alt:
-      radial-gradient(circle at top left, rgba(47, 109, 255, 0.14), transparent 32%),
-      radial-gradient(circle at top right, rgba(50, 215, 255, 0.1), transparent 28%),
-      linear-gradient(180deg, rgba(247, 252, 255, 0.99), rgba(226, 238, 255, 0.97));
-    --tera-light-panel-emphasis:
-      radial-gradient(circle at top left, rgba(47, 109, 255, 0.18), transparent 38%),
-      radial-gradient(circle at top right, rgba(90, 79, 212, 0.14), transparent 30%),
-      linear-gradient(180deg, rgba(238, 246, 255, 0.99), rgba(216, 225, 255, 0.97));
-    --tera-light-panel-raised: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 246, 255, 0.96));
-    --tera-light-panel-raised-soft: linear-gradient(180deg, rgba(248, 252, 255, 0.98), rgba(231, 241, 255, 0.97));
-    --tera-light-shadow: 0 18px 38px rgba(47, 109, 255, 0.16), 0 0 26px rgba(90, 79, 212, 0.12);
-    --tera-light-cyan-ink: #0b7ea6;
-    --tera-light-purple-ink: #5647c8;
-    --tera-light-red-ink: #b2204f;
-    --tera-light-amber-ink: #9a4d17;
-    --tera-light-mint-ink: #0f8d77;
-    --tera-surface-page: linear-gradient(180deg, rgba(250, 253, 255, 0.99), rgba(232, 241, 255, 0.98));
-    --tera-surface-pane: rgba(255, 255, 255, 0.88);
-    --tera-surface-pane-muted: rgba(246, 250, 255, 0.82);
-    --tera-surface-pane-strong: rgba(240, 247, 255, 0.96);
-    --tera-surface-row-hover: rgba(73, 126, 255, 0.08);
-    --tera-surface-row-active: rgba(73, 126, 255, 0.14);
-    --tera-surface-raised: rgba(255, 255, 255, 0.94);
-    --tera-surface-section: rgba(248, 251, 255, 0.86);
-    --tera-surface-section-strong: rgba(242, 248, 255, 0.96);
-    --tera-separator: rgba(112, 148, 214, 0.12);
-    --tera-separator-strong: rgba(112, 148, 214, 0.18);
-    --tera-tone-accent: rgba(63, 124, 255, 0.82);
-    --tera-tone-accent-soft: rgba(63, 124, 255, 0.14);
-    --tera-tone-warn: rgba(214, 115, 42, 0.84);
-    --tera-tone-warn-soft: rgba(214, 115, 42, 0.16);
-    --tera-tone-error: rgba(178, 32, 79, 0.84);
-    --tera-tone-error-soft: rgba(178, 32, 79, 0.14);
     color: var(--tera-light-text-strong);
   }
 
@@ -755,23 +672,29 @@ export const overlayFabAndShellStyles = `
 
   .devtools-fab {
     min-width: 128px;
-    height: 40px;
-    padding: 0 16px;
+    height: 42px;
+    padding: 0 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    border-color: rgba(122, 174, 255, 0.34);
-    background: linear-gradient(135deg, rgba(8, 20, 43, 0.98), rgba(16, 42, 82, 0.94));
+    border-color: rgba(144, 214, 255, 0.28);
+    background:
+      radial-gradient(circle at 18% 20%, rgba(83, 235, 255, 0.16), transparent 34%),
+      radial-gradient(circle at 82% 76%, rgba(255, 122, 168, 0.12), transparent 38%),
+      linear-gradient(135deg, rgba(9, 16, 28, 0.98), rgba(17, 29, 48, 0.96));
     color: #f8fbff;
-    font-weight: 650;
-    letter-spacing: 0.01em;
+    font-weight: 760;
+    letter-spacing: 0.02em;
     text-shadow: none;
-    box-shadow: 0 10px 22px rgba(8, 24, 52, 0.34), 0 0 18px rgba(76, 123, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 24px rgba(8, 24, 52, 0.28), 0 0 20px rgba(76, 123, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .devtools-fab-label {
-    background: linear-gradient(120deg, #83ebff 0%, #4c7bff 36%, #8a7dff 68%, #ff7aa8 100%);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(120deg, #dbfbff 0%, #83ebff 22%, #8fe1ff 48%, #ffd0de 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -780,9 +703,12 @@ export const overlayFabAndShellStyles = `
 
   .devtools-fab:hover {
     transform: translateY(-1px);
-    border-color: rgba(137, 191, 255, 0.42);
-    background: linear-gradient(135deg, rgba(11, 27, 56, 0.98), rgba(20, 50, 96, 0.94));
-    box-shadow: 0 14px 28px rgba(8, 24, 52, 0.4), 0 0 22px rgba(76, 123, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-color: rgba(164, 223, 255, 0.36);
+    background:
+      radial-gradient(circle at 18% 20%, rgba(83, 235, 255, 0.2), transparent 36%),
+      radial-gradient(circle at 82% 76%, rgba(255, 122, 168, 0.16), transparent 40%),
+      linear-gradient(135deg, rgba(12, 20, 34, 0.99), rgba(21, 35, 58, 0.97));
+    box-shadow: 0 14px 28px rgba(8, 24, 52, 0.34), 0 0 22px rgba(76, 123, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     filter: none;
   }
 
@@ -835,114 +761,71 @@ export const overlayFabAndShellStyles = `
     filter: drop-shadow(0 0 10px rgba(53, 198, 255, 0.22));
   }
 
-  .overlay-frame {
-    --tera-black: #07101d;
-    --tera-carbon: #0f192a;
-    --tera-graphite: #18263d;
-    --tera-blue: #4c7bff;
-    --tera-cyan: #35c6ff;
-    --tera-purple: #7a63ff;
-    --tera-mint: #39d3b0;
-    --tera-amber: #ffbf66;
-    --tera-rose: #ff7196;
-    --tera-title-ink: var(--tera-cyan);
-    --tera-tone-primary: #9cb8ff;
-    --tera-tone-primary-soft: rgba(156, 184, 255, 0.16);
-    --tera-tone-primary-muted: rgba(156, 184, 255, 0.8);
-    --tera-tone-info: #8ddfff;
-    --tera-tone-info-soft: rgba(53, 198, 255, 0.16);
-    --tera-tone-info-muted: rgba(141, 223, 255, 0.78);
-    --tera-tone-tertiary: #c7b8ff;
-    --tera-tone-tertiary-soft: rgba(122, 99, 255, 0.16);
-    --tera-tone-tertiary-muted: rgba(199, 184, 255, 0.8);
-    --tera-tone-success: #7fe2c4;
-    --tera-tone-success-soft: rgba(57, 211, 176, 0.16);
-    --tera-tone-success-muted: rgba(127, 226, 196, 0.78);
-    --tera-tone-warn-muted: rgba(255, 198, 129, 0.82);
-    --tera-tone-error-muted: rgba(255, 158, 184, 0.82);
-    --tera-tone-label: rgba(157, 193, 243, 0.82);
-    --tera-mist: #9db3d6;
-    --tera-cloud: #eef5ff;
-    --tera-border: rgba(145, 173, 214, 0.14);
-    --tera-border-strong: rgba(108, 147, 255, 0.22);
-    --tera-shell-bg:
-      radial-gradient(circle at 0% 0%, rgba(76, 123, 255, 0.18), transparent 30%),
-      radial-gradient(circle at 100% 8%, rgba(122, 99, 255, 0.14), transparent 26%),
-      radial-gradient(circle at 74% 28%, rgba(57, 211, 176, 0.08), transparent 22%),
-      linear-gradient(180deg, rgba(7, 16, 29, 0.98), rgba(10, 18, 31, 0.97));
-    --tera-panel-glow: linear-gradient(145deg, rgba(76, 123, 255, 0.08), rgba(53, 198, 255, 0.04) 48%, rgba(122, 99, 255, 0.05));
-    --tera-shadow: 0 28px 62px rgba(2, 8, 20, 0.48);
-    background: var(--tera-shell-bg);
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab-cluster {
+    border-color: var(--tera-separator-strong);
+    background:
+      radial-gradient(circle at 16% 18%, rgba(63, 124, 255, 0.12), transparent 36%),
+      radial-gradient(circle at 84% 74%, rgba(106, 84, 215, 0.08), transparent 38%),
+      linear-gradient(135deg, rgba(246, 249, 253, 0.96), rgba(229, 236, 245, 0.94));
+    box-shadow: 0 14px 28px rgba(88, 109, 145, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.72);
   }
 
-  #terajs-devtools-root[data-theme="light"] {
-    --tera-light-text-strong: #17396a;
-    --tera-light-text-soft: #526ea7;
-    --tera-light-text-muted: #6780af;
-    --tera-light-accent: #3f7cff;
-    --tera-light-accent-strong: #265dcb;
-    --tera-light-accent-violet: #6a54d7;
-    --tera-light-accent-soft: rgba(63, 124, 255, 0.12);
-    --tera-light-accent-soft-strong: rgba(63, 124, 255, 0.2);
-    --tera-light-border: rgba(112, 148, 214, 0.24);
-    --tera-light-border-strong: rgba(63, 124, 255, 0.32);
-    --tera-light-shell-bg:
-      radial-gradient(circle at 0% 0%, rgba(63, 124, 255, 0.18), transparent 30%),
-      radial-gradient(circle at 100% 8%, rgba(106, 84, 215, 0.14), transparent 26%),
-      radial-gradient(circle at 74% 28%, rgba(57, 211, 176, 0.08), transparent 24%),
-      linear-gradient(180deg, rgba(249, 252, 255, 0.99), rgba(232, 241, 252, 0.98));
-    --tera-light-panel-bg:
-      radial-gradient(circle at top left, rgba(63, 124, 255, 0.1), transparent 34%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 246, 255, 0.96));
-    --tera-light-panel-alt:
-      radial-gradient(circle at top left, rgba(63, 124, 255, 0.11), transparent 34%),
-      radial-gradient(circle at top right, rgba(106, 84, 215, 0.08), transparent 28%),
-      linear-gradient(180deg, rgba(245, 250, 255, 0.98), rgba(233, 242, 255, 0.97));
-    --tera-light-panel-emphasis:
-      radial-gradient(circle at top left, rgba(63, 124, 255, 0.14), transparent 38%),
-      radial-gradient(circle at top right, rgba(53, 198, 255, 0.1), transparent 28%),
-      linear-gradient(180deg, rgba(237, 245, 255, 0.98), rgba(221, 233, 252, 0.97));
-    --tera-light-panel-raised: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.95));
-    --tera-light-panel-raised-soft: linear-gradient(180deg, rgba(248, 252, 255, 0.96), rgba(238, 245, 255, 0.95));
-    --tera-light-shadow: 0 20px 40px rgba(63, 124, 255, 0.12);
-    --tera-light-cyan-ink: #0b7a99;
-    --tera-light-purple-ink: #5c44c9;
-    --tera-light-red-ink: #ae2d58;
-    --tera-light-amber-ink: #a5541a;
-    --tera-light-mint-ink: #0f8570;
-    --tera-title-ink: var(--tera-light-cyan-ink);
-    --tera-tone-primary: #265dcb;
-    --tera-tone-primary-soft: rgba(38, 93, 203, 0.1);
-    --tera-tone-primary-muted: rgba(38, 93, 203, 0.78);
-    --tera-tone-info: var(--tera-light-cyan-ink);
-    --tera-tone-info-soft: rgba(11, 122, 153, 0.1);
-    --tera-tone-info-muted: rgba(11, 122, 153, 0.76);
-    --tera-tone-tertiary: var(--tera-light-purple-ink);
-    --tera-tone-tertiary-soft: rgba(92, 68, 201, 0.1);
-    --tera-tone-tertiary-muted: rgba(92, 68, 201, 0.76);
-    --tera-tone-success: var(--tera-light-mint-ink);
-    --tera-tone-success-soft: rgba(15, 133, 112, 0.1);
-    --tera-tone-success-muted: rgba(15, 133, 112, 0.76);
-    --tera-tone-warn-muted: rgba(165, 84, 26, 0.78);
-    --tera-tone-error-muted: rgba(174, 45, 88, 0.78);
-    --tera-tone-label: #4b79bf;
-    --tera-surface-page: linear-gradient(180deg, rgba(250, 253, 255, 0.99), rgba(232, 241, 255, 0.98));
-    --tera-surface-pane: rgba(255, 255, 255, 0.88);
-    --tera-surface-pane-muted: rgba(246, 250, 255, 0.82);
-    --tera-surface-pane-strong: rgba(240, 247, 255, 0.96);
-    --tera-surface-row-hover: rgba(73, 126, 255, 0.08);
-    --tera-surface-row-active: rgba(73, 126, 255, 0.14);
-    --tera-surface-raised: rgba(255, 255, 255, 0.94);
-    --tera-surface-section: rgba(248, 251, 255, 0.86);
-    --tera-surface-section-strong: rgba(242, 248, 255, 0.96);
-    --tera-separator: rgba(112, 148, 214, 0.12);
-    --tera-separator-strong: rgba(112, 148, 214, 0.18);
-    --tera-tone-accent: rgba(63, 124, 255, 0.82);
-    --tera-tone-accent-soft: rgba(63, 124, 255, 0.14);
-    --tera-tone-warn: rgba(214, 115, 42, 0.84);
-    --tera-tone-warn-soft: rgba(214, 115, 42, 0.16);
-    --tera-tone-error: rgba(178, 32, 79, 0.84);
-    --tera-tone-error-soft: rgba(178, 32, 79, 0.14);
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab-cluster::before {
+    background:
+      radial-gradient(circle at 18% 20%, rgba(63, 124, 255, 0.18), transparent 36%),
+      radial-gradient(circle at 82% 78%, rgba(106, 84, 215, 0.12), transparent 40%);
+    opacity: 0.28;
+  }
+
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab {
+    border-color: var(--tera-separator-strong);
+    background:
+      radial-gradient(circle at 18% 20%, rgba(63, 124, 255, 0.12), transparent 34%),
+      radial-gradient(circle at 82% 76%, rgba(11, 122, 153, 0.08), transparent 38%),
+      linear-gradient(135deg, rgba(251, 253, 255, 0.96), rgba(236, 242, 249, 0.94));
+    color: var(--tera-light-text-strong);
+    box-shadow: 0 12px 24px rgba(88, 109, 145, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab-label {
+    background: linear-gradient(120deg, #1f4a8a 0%, #2f6ec7 48%, #0b7a99 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab:hover {
+    border-color: rgba(101, 130, 172, 0.28);
+    background:
+      radial-gradient(circle at 18% 20%, rgba(63, 124, 255, 0.15), transparent 36%),
+      radial-gradient(circle at 82% 76%, rgba(11, 122, 153, 0.1), transparent 40%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 245, 251, 0.96));
+    box-shadow: 0 14px 28px rgba(88, 109, 145, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  }
+
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab-switch {
+    border-color: var(--tera-separator-strong);
+    background: linear-gradient(140deg, rgba(246, 249, 253, 0.96), rgba(230, 237, 246, 0.94));
+    color: var(--tera-light-accent-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 8px 18px rgba(88, 109, 145, 0.14);
+  }
+
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab-switch:hover {
+    border-color: rgba(101, 130, 172, 0.28);
+    background: linear-gradient(140deg, rgba(251, 253, 255, 0.98), rgba(236, 242, 249, 0.96));
+  }
+
+  #terajs-devtools-shell[data-theme="light"] .devtools-fab-switch.is-active {
+    border-color: rgba(63, 124, 255, 0.32);
+    background:
+      linear-gradient(135deg, rgba(63, 124, 255, 0.22), rgba(11, 122, 153, 0.14), rgba(106, 84, 215, 0.12)),
+      linear-gradient(140deg, rgba(246, 249, 253, 0.96), rgba(232, 239, 247, 0.94));
+    color: var(--tera-light-accent-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 0 18px rgba(63, 124, 255, 0.14);
+  }
+
+  .overlay-frame {
+    background: var(--tera-shell-bg);
   }
 
   .devtools-shell {
@@ -1106,12 +989,17 @@ export const overlayFabAndShellStyles = `
     min-height: 0;
     display: flex;
     position: relative;
-    background: var(--tera-surface-pane-muted);
+    background: var(--tera-surface-sidebar);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-sidebar-frame,
   #terajs-devtools-root[data-theme="light"] .components-screen-sidebar {
-    background: var(--tera-surface-pane-muted);
+    background: var(--tera-surface-sidebar);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .components-screen-tree {
+    background: var(--tera-surface-pane);
+    border-bottom-color: var(--tera-separator);
   }
 
   .devtools-sidebar-frame::after,

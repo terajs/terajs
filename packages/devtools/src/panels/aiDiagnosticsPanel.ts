@@ -341,6 +341,8 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
     canConnectExtensionBridge,
     canRetryExtensionBridge,
     canDisconnectExtensionBridge,
+    canShowBridgeConnectAction,
+    bridgeConnectActionDisabled,
     vscodeRequestPending,
     debuggingPromptStatusLabel,
     extensionBridgeStatusLabel,
@@ -662,8 +664,7 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
             <span class="ai-connection-pill ai-bridge-live-pill ${(canQueryExtensionAssistant || canConnectExtensionBridge) ? "is-ready" : "is-idle"}">${escapeHtml(extensionBridgeStatusLabel)}</span>
           </div>
           <div class="button-row ai-bridge-actions">
-            ${canRetryExtensionBridge ? `<button class="toolbar-button ai-bridge-primary-action" data-action="retry-vscode-bridge" type="button">${renderDevtoolsButtonLabel(bridgeConnectActionLabel, "ai")}</button>` : ""}
-            ${canConnectExtensionBridge ? `<button class="toolbar-button ai-bridge-primary-action" data-action="connect-vscode-bridge" type="button">${renderDevtoolsButtonLabel(bridgeConnectActionLabel, "ai")}</button>` : ""}
+            ${canShowBridgeConnectAction ? `<button class="toolbar-button ai-bridge-primary-action ai-bridge-connect-action ${bridgeConnectActionDisabled ? "is-disabled" : ""}" data-action="${canRetryExtensionBridge ? "retry-vscode-bridge" : "connect-vscode-bridge"}" type="button" ${bridgeConnectActionDisabled ? "disabled" : ""}>${renderDevtoolsButtonLabel(bridgeConnectActionLabel, "ai")}</button>` : ""}
             ${canQueryExtensionAssistant ? `<button class="toolbar-button ai-bridge-primary-action ${vscodeRequestPending ? "is-loading" : ""}" data-action="ask-vscode-ai" type="button" ${state.aiStatus === "loading" ? "disabled" : ""} ${vscodeRequestPending ? 'aria-busy="true"' : ""}>${renderDevtoolsButtonLabel(extensionActionLabel, "ai")}</button>` : ""}
             ${canDisconnectExtensionBridge ? `<button class="toolbar-button" data-action="disconnect-vscode-bridge" type="button">${renderDevtoolsButtonLabel("Disconnect Bridge", "settings")}</button>` : ""}
           </div>

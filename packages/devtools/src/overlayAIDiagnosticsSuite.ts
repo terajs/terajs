@@ -455,7 +455,34 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
       await flushMicrotasks();
 
+      const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+      expect(connectButton?.textContent).toContain("Connect VS Code Bridge");
+      expect(connectButton?.disabled).toBe(false);
+
       expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps the bridge action visible but disabled while discovery is still in flight", async () => {
+    const fetchMock = vi.fn((_input: unknown) => new Promise<Response>(() => {}));
+
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+
+    try {
+      mountDevtoolsOverlay({ startOpen: true });
+      await flushMicrotasks();
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+
+      await flushMicrotasks();
+
+      const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+      expect(connectButton?.textContent).toContain("Connect VS Code Bridge");
+      expect(connectButton?.disabled).toBe(true);
     } finally {
       vi.unstubAllGlobals();
     }

@@ -55,25 +55,18 @@ export const overlayPanelAndContentStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen {
-    background: var(--tera-light-shell-bg);
+    background: var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-tree,
   #terajs-devtools-root[data-theme="light"] .components-screen-inspector {
-    background: var(--tera-light-panel-bg);
+    background: var(--tera-surface-pane);
     color: var(--tera-light-text-strong);
   }
 
-  #terajs-devtools-root[data-theme="light"] .components-screen-tree {
-    background: var(--tera-light-panel-alt);
-  }
-
   #terajs-devtools-root[data-theme="light"] .components-screen-header {
-    background:
-      radial-gradient(circle at top left, rgba(47, 109, 255, 0.12), transparent 34%),
-      radial-gradient(circle at top right, rgba(50, 215, 255, 0.08), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(239, 246, 255, 0.88));
-    border-bottom-color: var(--tera-light-border);
+    background: var(--tera-surface-pane-muted);
+    border-bottom-color: var(--tera-separator);
   }
 
   .components-screen-tree .components-screen-header {
@@ -82,11 +75,8 @@ export const overlayPanelAndContentStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .components-screen-tree .components-screen-header {
-    background:
-      radial-gradient(circle at top left, rgba(47, 109, 255, 0.14), transparent 42%),
-      radial-gradient(circle at top right, rgba(90, 79, 212, 0.12), transparent 32%),
-      var(--tera-light-panel-emphasis);
-    border-bottom-color: var(--tera-light-border-strong);
+    background: var(--tera-surface-pane-muted);
+    border-bottom-color: var(--tera-separator);
   }
 
   .devtools-tabs {
@@ -106,7 +96,7 @@ export const overlayPanelAndContentStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-tabs {
-    background: linear-gradient(180deg, rgba(243, 248, 255, 0.99), rgba(230, 240, 255, 0.97));
+    background: var(--tera-surface-sidebar);
     border-right-color: var(--tera-light-border);
     border-bottom-color: var(--tera-light-border);
     scrollbar-color: rgba(47, 109, 255, 0.5) rgba(214, 226, 246, 0.85);
@@ -261,7 +251,14 @@ export const overlayPanelAndContentStyles = `
   }
 
   .tab-button-label,
-  .toolbar-button-label,
+  .toolbar-button-label {
+    color: inherit;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .devtools-heading-text {
     color: var(--tera-tone-label);
     min-width: 0;
@@ -603,29 +600,29 @@ export const overlayPanelAndContentStyles = `
 
   #terajs-devtools-root[data-theme="light"] .ai-workbench-shell {
     background:
-      radial-gradient(circle at top left, rgba(47, 109, 255, 0.14), transparent 26%),
-      radial-gradient(circle at top right, rgba(90, 79, 212, 0.1), transparent 24%),
-      radial-gradient(circle at center right, rgba(50, 215, 255, 0.08), transparent 24%),
-      linear-gradient(180deg, rgba(247, 252, 255, 0.99), rgba(226, 238, 255, 0.97));
+      radial-gradient(circle at top left, rgba(63, 124, 255, 0.08), transparent 26%),
+      radial-gradient(circle at top right, rgba(106, 84, 215, 0.06), transparent 24%),
+      radial-gradient(circle at center right, rgba(11, 122, 153, 0.05), transparent 24%),
+      var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-workbench-pane {
-    background: var(--tera-light-panel-bg);
+    background: var(--tera-surface-pane);
     color: var(--tera-light-text-strong);
-    border-bottom-color: var(--tera-light-border);
+    border-bottom-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-workbench-rail {
-    background: var(--tera-light-panel-alt);
+    background: var(--tera-surface-pane-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-workbench-main {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.94));
+    background: var(--tera-surface-pane-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-workbench-details {
-    background: var(--tera-light-panel-raised-soft);
-    border-color: var(--tera-light-border);
+    background: var(--tera-surface-section-strong);
+    border-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-workbench-details summary {
@@ -634,9 +631,9 @@ export const overlayPanelAndContentStyles = `
 
   #terajs-devtools-root[data-theme="light"] .panel-hero {
     background:
-      linear-gradient(135deg, rgba(47, 109, 255, 0.14), rgba(90, 79, 212, 0.1) 42%, rgba(50, 215, 255, 0.08) 68%),
-      rgba(255, 255, 255, 0.97);
-    border-color: var(--tera-light-border);
+      linear-gradient(135deg, rgba(63, 124, 255, 0.08), rgba(106, 84, 215, 0.06) 42%, rgba(11, 122, 153, 0.05) 68%),
+      var(--tera-surface-section-strong);
+    border-color: var(--tera-separator);
     box-shadow: var(--tera-light-shadow);
   }
 
@@ -1044,13 +1041,33 @@ export const overlayPanelAndContentStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .panel-hero {
-    background: transparent;
-    border-bottom-color: rgba(106, 84, 215, 0.18);
+    background: var(--tera-surface-section-strong);
+    border-bottom-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-panel,
   #terajs-devtools-root[data-theme="light"] .ai-panel {
-    background: rgba(255, 255, 255, 0.72);
+    background: var(--tera-surface-pane);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-shell {
+    background:
+      radial-gradient(circle at top left, rgba(63, 124, 255, 0.08), transparent 26%),
+      radial-gradient(circle at top right, rgba(106, 84, 215, 0.06), transparent 24%),
+      var(--tera-surface-page);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-pane {
+    background: var(--tera-surface-pane);
+    border-bottom-color: var(--tera-separator);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-rail {
+    background: var(--tera-surface-pane-strong);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-workbench-main {
+    background: var(--tera-surface-pane-muted);
   }
 
   .panel-hero .panel-subtitle {
@@ -1245,21 +1262,38 @@ export const overlayPanelAndContentStyles = `
   }
 
   .ai-bridge-primary-action {
-    border-color: rgba(83, 203, 255, 0.24);
-    background: linear-gradient(135deg, rgba(47, 109, 255, 0.94), rgba(50, 215, 255, 0.58));
-    color: #ffffff;
-    box-shadow: 0 16px 28px rgba(47, 109, 255, 0.2);
+    border-color: rgba(110, 190, 255, 0.26);
+    background:
+      radial-gradient(circle at 18% 22%, rgba(83, 235, 255, 0.2), transparent 34%),
+      radial-gradient(circle at 82% 74%, rgba(255, 122, 168, 0.14), transparent 38%),
+      linear-gradient(135deg, rgba(11, 22, 39, 0.96), rgba(16, 34, 61, 0.94));
+    color: #f7fbff;
+    box-shadow: 0 16px 28px rgba(8, 24, 52, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .ai-bridge-primary-action:hover {
-    border-color: rgba(83, 203, 255, 0.32);
-    background: linear-gradient(135deg, rgba(56, 119, 255, 0.98), rgba(58, 221, 255, 0.64));
+    border-color: rgba(144, 214, 255, 0.34);
+    background:
+      radial-gradient(circle at 16% 20%, rgba(83, 235, 255, 0.24), transparent 36%),
+      radial-gradient(circle at 80% 72%, rgba(255, 122, 168, 0.18), transparent 40%),
+      linear-gradient(135deg, rgba(14, 28, 48, 0.98), rgba(20, 42, 74, 0.96));
     color: #ffffff;
   }
 
   .ai-bridge-primary-action .toolbar-button-label {
-    font-weight: 650;
-    letter-spacing: -0.01em;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+  }
+
+  .ai-bridge-connect-action:disabled,
+  .ai-bridge-connect-action:disabled:hover,
+  .ai-bridge-connect-action.is-disabled,
+  .ai-bridge-connect-action.is-disabled:hover {
+    border-color: rgba(92, 123, 168, 0.22);
+    background:
+      linear-gradient(135deg, rgba(11, 18, 31, 0.92), rgba(16, 24, 39, 0.9));
+    color: rgba(188, 206, 233, 0.64);
+    box-shadow: none;
   }
 
   .ai-diagnostics-section-block .toolbar-button {
@@ -1286,16 +1320,32 @@ export const overlayPanelAndContentStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-bridge-primary-action {
-    border-color: rgba(38, 93, 203, 0.16);
-    background: linear-gradient(135deg, rgba(38, 93, 203, 0.96), rgba(63, 124, 255, 0.86));
+    border-color: rgba(38, 93, 203, 0.22);
+    background:
+      radial-gradient(circle at 18% 20%, rgba(83, 235, 255, 0.18), transparent 34%),
+      radial-gradient(circle at 82% 76%, rgba(255, 122, 168, 0.12), transparent 36%),
+      linear-gradient(135deg, rgba(16, 31, 57, 0.96), rgba(28, 54, 92, 0.94));
     color: #ffffff;
-    box-shadow: 0 14px 24px rgba(38, 93, 203, 0.16);
+    box-shadow: 0 16px 28px rgba(26, 63, 124, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-bridge-primary-action:hover {
-    border-color: rgba(38, 93, 203, 0.22);
-    background: linear-gradient(135deg, rgba(44, 102, 216, 0.98), rgba(73, 132, 255, 0.92));
+    border-color: rgba(144, 214, 255, 0.3);
+    background:
+      radial-gradient(circle at 16% 20%, rgba(83, 235, 255, 0.22), transparent 36%),
+      radial-gradient(circle at 80% 72%, rgba(255, 122, 168, 0.16), transparent 40%),
+      linear-gradient(135deg, rgba(18, 35, 64, 0.98), rgba(31, 60, 102, 0.96));
     color: #ffffff;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .ai-bridge-connect-action:disabled,
+  #terajs-devtools-root[data-theme="light"] .ai-bridge-connect-action:disabled:hover,
+  #terajs-devtools-root[data-theme="light"] .ai-bridge-connect-action.is-disabled,
+  #terajs-devtools-root[data-theme="light"] .ai-bridge-connect-action.is-disabled:hover {
+    border-color: rgba(103, 130, 172, 0.24);
+    background: linear-gradient(135deg, rgba(31, 46, 71, 0.84), rgba(44, 62, 92, 0.82));
+    color: rgba(237, 245, 255, 0.72);
+    box-shadow: none;
   }
 
 `;

@@ -8,6 +8,8 @@ export interface AIDiagnosticsBridgeState {
   canConnectExtensionBridge: boolean;
   canRetryExtensionBridge: boolean;
   canDisconnectExtensionBridge: boolean;
+  canShowBridgeConnectAction: boolean;
+  bridgeConnectActionDisabled: boolean;
   vscodeRequestPending: boolean;
   debuggingPromptStatusLabel: string;
   extensionBridgeStatusLabel: string;
@@ -45,6 +47,8 @@ export function buildAIDiagnosticsBridgeState(
   const canConnectExtensionBridge = state.aiAssistantEnabled && ideBridgeStatus.mode === "available";
   const canRetryExtensionBridge = state.aiAssistantEnabled && (ideBridgeStatus.mode === "recovering" || ideBridgeStatus.mode === "error");
   const canDisconnectExtensionBridge = ideBridgeStatus.mode === "connecting" || ideBridgeStatus.mode === "connected";
+  const canShowBridgeConnectAction = state.aiAssistantEnabled && !canQueryExtensionAssistant && !canDisconnectExtensionBridge;
+  const bridgeConnectActionDisabled = !canConnectExtensionBridge && !canRetryExtensionBridge;
   const vscodeRequestPending = state.aiStatus === "loading" && state.activeAIRequestTarget === "vscode";
   const debuggingPromptStatusLabel = state.aiPrompt
     ? "Debugging prompt ready"
@@ -136,6 +140,8 @@ export function buildAIDiagnosticsBridgeState(
     canConnectExtensionBridge,
     canRetryExtensionBridge,
     canDisconnectExtensionBridge,
+    canShowBridgeConnectAction,
+    bridgeConnectActionDisabled,
     vscodeRequestPending,
     debuggingPromptStatusLabel,
     extensionBridgeStatusLabel,

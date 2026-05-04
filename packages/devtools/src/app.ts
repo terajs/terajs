@@ -819,6 +819,10 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       : null;
 
     root.dataset.theme = state.theme;
+    const panel = root.parentElement as HTMLElement | null;
+    panel?.setAttribute("data-theme", state.theme);
+    const shell = panel?.parentElement as HTMLElement | null;
+    shell?.setAttribute("data-theme", state.theme);
     const documentContext = readDocumentContext();
     root.innerHTML = renderAppShell(
       state,

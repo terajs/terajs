@@ -1118,28 +1118,28 @@ export const overlayInnerWorkbenchStyles = `
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench,
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel {
-    background: linear-gradient(180deg, #fafcff, #f0f6ff);
+    background: var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-sidebar {
-    border-color: #bfd2ee;
-    background: #f8fbff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-pane-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-main,
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel {
-    background: #ffffff;
+    background: var(--tera-surface-pane);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-main {
-    border-color: #bfd2ee;
-    background: #ffffff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-pane);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-header,
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel-header {
-    border-bottom-color: #d7e2f3;
-    background: #ffffff;
+    border-bottom-color: var(--tera-separator);
+    background: var(--tera-surface-pane-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-title {
@@ -1160,26 +1160,26 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-list-item:hover {
-    background: #eef4ff;
-    border-color: #bfd2ee;
+    background: var(--tera-surface-row-hover);
+    border-color: var(--tera-separator-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-list-item.is-active {
-    background: linear-gradient(180deg, rgba(235, 244, 255, 0.98), rgba(228, 239, 255, 0.96));
-    border-color: #4f8dff;
-    border-left-color: #2d8dd6;
+    background: var(--tera-surface-row-active);
+    border-color: var(--tera-tone-accent-soft);
+    border-left-color: var(--tera-tone-accent);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-list-item.is-warn {
-    border-color: rgba(214, 115, 42, 0.28);
-    border-left-color: rgba(214, 115, 42, 0.82);
-    background: linear-gradient(180deg, rgba(255, 247, 239, 0.98), rgba(255, 251, 245, 0.96));
+    border-color: rgba(214, 115, 42, 0.22);
+    border-left-color: var(--tera-tone-warn);
+    background: linear-gradient(180deg, rgba(214, 115, 42, 0.08), rgba(242, 246, 251, 0.9));
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-list-item.is-error {
-    border-color: rgba(178, 32, 79, 0.24);
-    border-left-color: rgba(178, 32, 79, 0.82);
-    background: linear-gradient(180deg, rgba(255, 243, 247, 0.98), rgba(255, 249, 251, 0.96));
+    border-color: rgba(178, 32, 79, 0.2);
+    border-left-color: var(--tera-tone-error);
+    background: linear-gradient(180deg, rgba(178, 32, 79, 0.08), rgba(242, 246, 251, 0.9));
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-list-item-title,
@@ -1189,13 +1189,13 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-list-item-badge {
-    background: #e1ebff;
-    color: var(--tera-light-text-soft);
+    background: var(--tera-surface-row-active);
+    color: var(--tera-light-text-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-intro {
-    border-color: #bfd2ee;
-    background: #ffffff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-section-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-intro-title,
@@ -1221,8 +1221,8 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-metric {
-    border-color: #bfd2ee;
-    background: #f7faff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-section);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-metric.is-warn {
@@ -1250,21 +1250,21 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-step::before {
-    background: #e1ebff;
+    background: var(--tera-surface-row-active);
     color: var(--tera-light-accent-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-note {
-    border-top-color: #d7e2f3;
+    border-top-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-disclosure {
-    border-color: #bfd2ee;
-    background: #ffffff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-section-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench-disclosure-label {
-    background: #e1ebff;
+    background: var(--tera-surface-row-active);
     color: var(--tera-light-text-strong);
   }
 
@@ -1278,24 +1278,24 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-value-surface {
-    border-color: #bfd2ee;
-    background: #f7faff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-section-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-workbench .iframe-panel-section-block,
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel .iframe-panel-section-block {
-    border-bottom-color: #d7e2f3;
+    border-bottom-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .workbench-filter-button {
-    border-color: #bfd2ee;
-    background: #f7faff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-section);
     color: var(--tera-light-text-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .workbench-search-input {
-    border-color: #bfd2ee;
-    background: #f7faff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-raised);
     color: var(--tera-light-text-strong);
   }
 
@@ -1304,13 +1304,13 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .workbench-search-input:focus {
-    border-color: #6c98ff;
-    background: #ffffff;
+    border-color: var(--tera-tone-accent);
+    background: var(--tera-surface-pane);
     box-shadow: none;
   }
 
   #terajs-devtools-root[data-theme="light"] .workbench-filter-button:hover {
-    background: #eef4ff;
+    background: var(--tera-surface-row-hover);
     color: var(--tera-light-text-strong);
   }
 
@@ -1329,18 +1329,18 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .signals-layout .devtools-workbench-list-item {
-    border-color: #bfd2ee;
-    background: #f7faff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-section);
   }
 
   #terajs-devtools-root[data-theme="light"] .signals-layout .devtools-workbench-list-item:hover {
-    background: #eef4ff;
-    border-color: #6c98ff;
+    background: var(--tera-surface-row-hover);
+    border-color: var(--tera-tone-accent-soft);
   }
 
   #terajs-devtools-root[data-theme="light"] .signals-layout .devtools-workbench-list-item.is-active {
-    background: linear-gradient(180deg, #e8f1ff, #dfeeff);
-    border-color: #6c98ff;
+    background: var(--tera-surface-row-active);
+    border-color: var(--tera-tone-accent);
     box-shadow: none;
   }
 
@@ -1353,26 +1353,26 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .signals-selection-note {
-    border-color: #6c98ff;
-    background: #eef4ff;
+    border-color: var(--tera-tone-accent-soft);
+    background: var(--tera-surface-section-strong);
     color: var(--tera-light-text-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.investigation-journal {
-    background: linear-gradient(180deg, #fafcff, #f0f6ff);
+    background: var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.investigation-journal .devtools-utility-panel-header {
-    background: #ffffff;
-    border-bottom-color: #bfd2ee;
+    background: var(--tera-surface-pane-strong);
+    border-bottom-color: var(--tera-separator-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.investigation-journal .devtools-utility-panel-body {
-    background: #ffffff;
+    background: var(--tera-surface-pane-muted);
   }
 
   #terajs-devtools-root[data-theme="light"] .investigation-journal-hero {
-    background: #ffffff;
+    background: var(--tera-surface-pane);
   }
 
   #terajs-devtools-root[data-theme="light"] .investigation-journal-kicker,
@@ -1387,12 +1387,12 @@ export const overlayInnerWorkbenchStyles = `
 
   #terajs-devtools-root[data-theme="light"] .investigation-journal-feed,
   #terajs-devtools-root[data-theme="light"] .investigation-journal-detail {
-    border-color: #bfd2ee;
-    background: #ffffff;
+    border-color: var(--tera-separator-strong);
+    background: var(--tera-surface-pane);
   }
 
   #terajs-devtools-root[data-theme="light"] .investigation-journal-section-header {
-    border-bottom-color: #d7e2f3;
+    border-bottom-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .investigation-journal .devtools-workbench-list-item {
@@ -1415,7 +1415,7 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .investigation-journal .iframe-panel-section-block {
-    border-bottom-color: #d7e2f3;
+    border-bottom-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck {
@@ -1424,8 +1424,8 @@ export const overlayInnerWorkbenchStyles = `
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--performance {
     background:
-      radial-gradient(circle at top right, rgba(47, 109, 255, 0.08), transparent 26%),
-      linear-gradient(180deg, #f8fbff, #edf5ff);
+      radial-gradient(circle at top right, rgba(63, 124, 255, 0.06), transparent 26%),
+      var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck .devtools-utility-panel-header {
@@ -1434,8 +1434,8 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--performance .devtools-utility-panel-header {
-    background: rgba(244, 249, 255, 0.96);
-    border-bottom-color: rgba(191, 210, 238, 0.86);
+    background: var(--tera-surface-pane-strong);
+    border-bottom-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck .devtools-utility-panel-body {
@@ -1443,7 +1443,7 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--performance .devtools-utility-panel-body {
-    background: linear-gradient(180deg, #fdfefe, #f1f7ff);
+    background: var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .diagnostics-deck-hero {
@@ -1452,7 +1452,7 @@ export const overlayInnerWorkbenchStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--performance .diagnostics-note {
-    background: rgba(239, 247, 255, 0.96);
+    background: var(--tera-surface-section-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .diagnostics-feed-item {
@@ -2000,7 +2000,7 @@ export const overlayInnerWorkbenchStyles = `
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--router,
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--sanity {
-    background: var(--tera-surface-pane-muted);
+    background: var(--tera-surface-page);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-utility-panel.diagnostics-deck--router .devtools-utility-panel-body,

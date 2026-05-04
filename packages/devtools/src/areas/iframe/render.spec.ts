@@ -2,6 +2,27 @@ import { describe, expect, it, vi } from "vitest";
 import { attachIframeAreaEventBridge, renderIframeAreaHost, syncIframeAreaHost } from "./render.js";
 
 describe("syncIframeAreaHost", () => {
+  it("uses the shared DevTools theme tokens in iframe srcdoc", () => {
+    const root = document.createElement("div");
+    root.innerHTML = renderIframeAreaHost("Logs");
+    document.body.append(root);
+
+    syncIframeAreaHost(root, {
+      title: "Logs",
+      theme: "dark",
+      markup: `<div class="devtools-workbench">shared palette</div>`,
+    });
+
+    const iframe = root.querySelector("iframe");
+    const iframeDocument = iframe?.getAttribute("srcdoc") ?? "";
+
+    expect(iframeDocument).toContain("--tera-black: #07101d");
+    expect(iframeDocument).toContain("--tera-surface-pane-strong: rgba(13, 24, 43, 0.94)");
+    expect(iframeDocument).not.toContain("--tera-black: #05070f");
+
+    root.remove();
+  });
+
   it("restores known iframe scroll regions after rerendering markup", () => {
     const root = document.createElement("div");
     root.innerHTML = renderIframeAreaHost("Logs");

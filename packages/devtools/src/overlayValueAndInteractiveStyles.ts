@@ -119,8 +119,8 @@ export const overlayValueAndInteractiveStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-panel {
-    background: var(--tera-light-panel-alt);
-    border-color: var(--tera-light-border);
+    background: var(--tera-surface-pane-strong);
+    border-color: var(--tera-separator-strong);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-title {
@@ -142,12 +142,12 @@ export const overlayValueAndInteractiveStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-item {
-    background: var(--tera-light-panel-raised);
-    border-color: var(--tera-light-border);
+    background: var(--tera-surface-raised);
+    border-color: var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-badge {
-    background: var(--tera-light-accent-soft);
+    background: var(--tera-surface-row-active);
     color: var(--tera-light-accent-strong);
   }
 
@@ -156,8 +156,8 @@ export const overlayValueAndInteractiveStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .runtime-history-empty {
-    background: var(--tera-light-panel-raised-soft);
-    border-color: var(--tera-light-border);
+    background: var(--tera-surface-section);
+    border-color: var(--tera-separator);
     color: var(--tera-light-text-muted);
   }
 

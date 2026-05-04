@@ -67,6 +67,21 @@ export function registerOverlayComponentsSuite(): void {
     expect(styleText).toMatch(/\.components-screen-sidebar \.tab-button\s*\{[^}]*flex: 0 0 56px;/);
   });
 
+  it("keeps light Components surfaces aligned across the Components workspace", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.components-screen\s*\{[^}]*background: var\(--tera-surface-page\);/);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.components-screen-sidebar\s*\{[^}]*background: var\(--tera-surface-sidebar\);/);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.components-screen-tree,\s*#terajs-devtools-root\[data-theme="light"\] \.components-screen-inspector\s*\{[^}]*background: var\(--tera-surface-pane\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.components-screen-tree\s*\{[^}]*background: var\(--tera-surface-pane\);/);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.components-screen-header\s*\{[^}]*background: var\(--tera-surface-pane-muted\);[^}]*border-bottom-color: var\(--tera-separator\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.components-screen-tree \.components-screen-header\s*\{[^}]*background: var\(--tera-surface-pane-muted\);[^}]*border-bottom-color: var\(--tera-separator\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-sidebar \.tab-button\.is-active,\s*#terajs-devtools-root\[data-theme="light"\] \.components-screen-sidebar \.tab-button\.is-active\s*\{[^}]*background: var\(--tera-surface-row-active\);/s);
+  });
+
   it("highlights component roots when hovering tree rows", () => {
     const componentRoot = document.createElement("div");
     componentRoot.setAttribute("data-terajs-component-scope", "Counter");

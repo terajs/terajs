@@ -51,6 +51,30 @@ export function registerOverlayShellSuite(): void {
     expect(styleText).toMatch(/\.devtools-subtitle,\s*\.panel-subtitle,\s*\.muted-text,\s*\.tiny-muted,\s*\.metric-label\s*\{[^}]*color: rgba\(207, 223, 247, 0\.82\);/);
   });
 
+  it("raises shared label contrast and lets controls inherit readable colors", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/--tera-tone-label: #b4d4ff;/);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\]\s*\{[\s\S]*--tera-tone-label: #1f4a8a;/);
+    expect(styleText).toMatch(/\.tab-button-label,\s*\.toolbar-button-label\s*\{[^}]*color: inherit;/);
+    expect(styleText).toMatch(/\.devtools-heading-text\s*\{[^}]*color: var\(--tera-tone-label\);/);
+  });
+
+  it("defines the shared light surface tokens once", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+    const strongSurfaceMatches = styleText.match(/--tera-surface-pane-strong: rgba\(13, 24, 43, 0\.94\);/g) ?? [];
+
+    expect(strongSurfaceMatches).toHaveLength(1);
+    expect(styleText).not.toContain("--tera-surface-pane-strong: rgba(240, 247, 255, 0.96);");
+    expect(styleText).not.toContain("--tera-light-text-strong: var(--tera-light-cyan-ink);");
+  });
+
   it("keeps AI bridge titles cyan on the AI surface", () => {
     mountDevtoolsOverlay();
 
@@ -66,8 +90,19 @@ export function registerOverlayShellSuite(): void {
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
 
-    expect(styleText).toMatch(/\.devtools-fab\s*\{[^}]*background: linear-gradient\(135deg, rgba\(8, 20, 43, 0\.98\), rgba\(16, 42, 82, 0\.94\)\);/);
-    expect(styleText).toMatch(/\.devtools-fab-label\s*\{[^}]*background: linear-gradient\(120deg, #83ebff 0%, #4c7bff 36%, #8a7dff 68%, #ff7aa8 100%\);[^}]*background-clip: text;[^}]*color: transparent;/s);
+    expect(styleText).toMatch(/\.devtools-fab\s*\{[^}]*radial-gradient\(circle at 18% 20%, rgba\(83, 235, 255, 0\.16\), transparent 34%\)[^}]*linear-gradient\(135deg, rgba\(9, 16, 28, 0\.98\), rgba\(17, 29, 48, 0\.96\)\);/s);
+    expect(styleText).toMatch(/\.devtools-fab-label\s*\{[^}]*font-size: 14px;[^}]*font-weight: 800;[^}]*background: linear-gradient\(120deg, #dbfbff 0%, #83ebff 22%, #8fe1ff 48%, #ffd0de 100%\);[^}]*background-clip: text;[^}]*color: transparent;/s);
+  });
+
+  it("switches the Tera Lens opener to the light palette", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-shell\[data-theme="light"\] \.devtools-fab-cluster\s*\{[^}]*linear-gradient\(135deg, rgba\(246, 249, 253, 0\.96\), rgba\(229, 236, 245, 0\.94\)\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-shell\[data-theme="light"\] \.devtools-fab\s*\{[^}]*linear-gradient\(135deg, rgba\(251, 253, 255, 0\.96\), rgba\(236, 242, 249, 0\.94\)\);[^}]*color: var\(--tera-light-text-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-shell\[data-theme="light"\] \.devtools-fab-switch\s*\{[^}]*linear-gradient\(140deg, rgba\(246, 249, 253, 0\.96\), rgba\(230, 237, 246, 0\.94\)\);[^}]*color: var\(--tera-light-accent-strong\);/s);
   });
 
   it("keeps the centered top-bar heading slightly larger and white", () => {
@@ -77,6 +112,45 @@ export function registerOverlayShellSuite(): void {
     const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
 
     expect(styleText).toMatch(/\.devtools-active-view\s*\{[^}]*color: var\(--tera-cloud\);[^}]*font-size: 14px;/s);
+  });
+
+  it("keeps the light AI bridge CTA white on a dark primary surface", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-bridge-primary-action\s*\{[^}]*linear-gradient\(135deg, rgba\(16, 31, 57, 0\.96\), rgba\(28, 54, 92, 0\.94\)\);[^}]*color: #ffffff;/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-bridge-connect-action:disabled,[\s\S]*?color: rgba\(237, 245, 255, 0\.72\);/);
+  });
+
+  it("keeps light workbench families on the shared gray-blue surfaces", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-workbench,\s*#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\s*\{[^}]*background: var\(--tera-surface-page\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-workbench-sidebar\s*\{[^}]*background: var\(--tera-surface-pane-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-workbench-header,\s*#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel-header\s*\{[^}]*background: var\(--tera-surface-pane-muted\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.workbench-filter-button\s*\{[^}]*background: var\(--tera-surface-section\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.workbench-search-input\s*\{[^}]*background: var\(--tera-surface-raised\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.investigation-journal \.devtools-utility-panel-body\s*\{[^}]*background: var\(--tera-surface-pane-muted\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.diagnostics-deck--performance\s*\{[^}]*var\(--tera-surface-page\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.diagnostics-deck--router,\s*#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.diagnostics-deck--sanity\s*\{[^}]*var\(--tera-surface-page\);/s);
+  });
+
+  it("rebases remaining light AI and runtime surfaces onto the shared palette", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-workbench-pane\s*\{[^}]*background: var\(--tera-surface-pane\);[^}]*border-bottom-color: var\(--tera-separator\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-workbench-rail\s*\{[^}]*background: var\(--tera-surface-pane-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.panel-hero\s*\{[^}]*background: var\(--tera-surface-section-strong\);[^}]*border-bottom-color: var\(--tera-separator\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.runtime-history-panel\s*\{[^}]*background: var\(--tera-surface-pane-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.runtime-history-item\s*\{[^}]*background: var\(--tera-surface-raised\);/s);
   });
 
   it("renders Components inside the shared workbench shell", () => {
@@ -291,7 +365,7 @@ export function registerOverlayShellSuite(): void {
     expect(iframeDocument).toContain("components-screen--iframe");
     expect(iframeDocument).toContain("Recent updates");
     expect(iframeDocument).toContain("count");
-    expect(iframeDocument).toContain("--tera-black: #05070f");
+    expect(iframeDocument).toContain("--tera-black: #07101d");
     expect(bridge?.getSnapshot()?.activeTab).toBe("Signals");
   });
 
@@ -692,7 +766,9 @@ export function registerOverlayShellSuite(): void {
     const host = document.getElementById("terajs-overlay-container");
     const shadowRoot = host?.shadowRoot;
     const mountRoot = shadowRoot?.getElementById("terajs-devtools-root") as HTMLDivElement | null;
+    const shell = shadowRoot?.getElementById("terajs-devtools-shell") as HTMLDivElement | null;
     expect(mountRoot?.dataset.theme).toBe("dark");
+    expect(shell?.dataset.theme).toBe("dark");
 
     expect(shadowRoot?.querySelector('.devtools-status-rail')).toBeNull();
     expect(shadowRoot?.querySelector('.devtools-header [data-theme-toggle="true"]')).toBeNull();
@@ -703,6 +779,7 @@ export function registerOverlayShellSuite(): void {
     const themeButton = shadowRoot?.querySelector('.devtools-host-controls-panel [data-theme-toggle="true"]') as HTMLButtonElement | null;
     themeButton?.click();
     expect(mountRoot?.dataset.theme).toBe("light");
+    expect(shell?.dataset.theme).toBe("light");
 
     const clearButton = shadowRoot?.querySelector('[data-clear-events="true"]') as HTMLButtonElement | null;
     clearButton?.click();

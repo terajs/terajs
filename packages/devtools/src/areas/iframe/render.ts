@@ -1,43 +1,7 @@
 import { escapeHtml } from "../../inspector/shared.js";
-import { overlayStyles } from "../../overlayStyles.js";
+import { overlayStyles } from "../../overlayRuntimeStyles.js";
 
 const IFRAME_DOCUMENT_CHROME = `
-  :root {
-    --tera-black: #05070f;
-    --tera-carbon: #0d1320;
-    --tera-graphite: #1d2940;
-    --tera-blue: #2f6dff;
-    --tera-cyan: #32d7ff;
-    --tera-title-ink: var(--tera-cyan);
-    --tera-purple: #6f6dff;
-    --tera-mist: #93a7cb;
-    --tera-cloud: #f2f7ff;
-    --tera-body-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --tera-heading-font: "Space Grotesk", "Inter", sans-serif;
-    --tera-code-font: "JetBrains Mono", "Fira Code", monospace;
-    --tera-surface: var(--tera-carbon);
-    --tera-border: rgba(147, 167, 203, 0.18);
-    --tera-panel-glow: linear-gradient(145deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.11) 44%, rgba(111, 109, 255, 0.1));
-    --tera-shadow: 0 24px 60px rgba(2, 8, 20, 0.52);
-    --tera-surface-page: linear-gradient(180deg, rgba(8, 15, 27, 0.98), rgba(5, 9, 18, 0.98));
-    --tera-surface-pane: rgba(11, 20, 36, 0.88);
-    --tera-surface-pane-muted: rgba(9, 17, 31, 0.78);
-    --tera-surface-pane-strong: rgba(13, 24, 43, 0.94);
-    --tera-surface-row-hover: rgba(24, 39, 63, 0.52);
-    --tera-surface-row-active: rgba(30, 48, 78, 0.78);
-    --tera-surface-raised: rgba(14, 26, 45, 0.92);
-    --tera-surface-section: rgba(12, 22, 38, 0.72);
-    --tera-surface-section-strong: rgba(10, 19, 33, 0.94);
-    --tera-separator: rgba(145, 173, 214, 0.12);
-    --tera-separator-strong: rgba(145, 173, 214, 0.18);
-    --tera-tone-accent: rgba(53, 198, 255, 0.78);
-    --tera-tone-accent-soft: rgba(53, 198, 255, 0.16);
-    --tera-tone-warn: rgba(232, 136, 62, 0.84);
-    --tera-tone-warn-soft: rgba(232, 136, 62, 0.18);
-    --tera-tone-error: rgba(255, 107, 139, 0.84);
-    --tera-tone-error-soft: rgba(255, 107, 139, 0.16);
-  }
-
   html, body {
     margin: 0;
     width: 100%;

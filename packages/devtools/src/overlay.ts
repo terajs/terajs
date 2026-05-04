@@ -7,7 +7,7 @@ import {
   resolveOverlayShellClass
 } from "./overlayHost.js";
 import { createInspectBridge } from "./overlayInspectBridge.js";
-import { overlayStyles } from "./overlayStyles.js";
+import { overlayStyles } from "./overlayRuntimeStyles.js";
 import {
   applyPersistedOverlayOptions,
   clearPersistedOverlayPreferences,
@@ -324,7 +324,7 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   const shellClass = resolveOverlayShellClass(activeOptions.position);
   shadowRoot.innerHTML = `
     <style>${overlayStyles}</style>
-    <div class="${shellClass}">
+    <div id="terajs-devtools-shell" class="${shellClass}">
       <div id="terajs-devtools-panel" class="overlay-frame is-hidden">
         <div id="terajs-devtools-root"></div>
       </div>
