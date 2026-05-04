@@ -342,6 +342,73 @@ describe("Terajs Vite Plugin (integration)", () => {
     });
   });
 
+  it("reloads when a new auto-imported component file is added", () => {
+    const plugin = terajsPlugin();
+    const configureServer = requireServerHook(plugin.configureServer);
+    const use = vi.fn();
+    const on = vi.fn();
+    const autoImportModule = { id: "\0virtual:terajs-auto-imports" };
+    const getModuleById = vi.fn((id: string) => id === autoImportModule.id ? autoImportModule : null);
+    const invalidateModule = vi.fn();
+    const send = vi.fn();
+
+    configureServer({
+      middlewares: { use },
+      watcher: { on },
+      moduleGraph: { getModuleById, invalidateModule },
+      ws: { send }
+    } as any);
+
+    const addHandler = on.mock.calls.find(([eventName]) => eventName === "add")?.[1] as ((filePath: string) => void) | undefined;
+    expect(typeof addHandler).toBe("function");
+
+    addHandler?.(path.resolve(process.cwd(), "packages/devtools/src/components/NewPanel.tera"));
+
+    expect(getModuleById).toHaveBeenCalledWith("\0virtual:terajs-auto-imports");
+    expect(invalidateModule).toHaveBeenCalledWith(autoImportModule);
+    expect(send).toHaveBeenCalledWith({ type: "full-reload" });
+  });
+
+  it("reloads when a new route file is added", () => {
+    const plugin = terajsPlugin();
+    const configureServer = requireServerHook(plugin.configureServer);
+    const use = vi.fn();
+    const on = vi.fn();
+    const routesModule = { id: "\0virtual:terajs-routes" };
+    const appModule = { id: "\0virtual:terajs-app" };
+    const getModuleById = vi.fn((id: string) => {
+      if (id === routesModule.id) {
+        return routesModule;
+      }
+
+      if (id === appModule.id) {
+        return appModule;
+      }
+
+      return null;
+    });
+    const invalidateModule = vi.fn();
+    const send = vi.fn();
+
+    configureServer({
+      middlewares: { use },
+      watcher: { on },
+      moduleGraph: { getModuleById, invalidateModule },
+      ws: { send }
+    } as any);
+
+    const addHandler = on.mock.calls.find(([eventName]) => eventName === "add")?.[1] as ((filePath: string) => void) | undefined;
+    expect(typeof addHandler).toBe("function");
+
+    addHandler?.(path.resolve(process.cwd(), "src/routes/new-page.tera"));
+
+    expect(getModuleById).toHaveBeenCalledWith("\0virtual:terajs-routes");
+    expect(getModuleById).toHaveBeenCalledWith("\0virtual:terajs-app");
+    expect(invalidateModule).toHaveBeenCalledWith(routesModule);
+    expect(invalidateModule).toHaveBeenCalledWith(appModule);
+    expect(send).toHaveBeenCalledWith({ type: "full-reload" });
+  });
+
   it("generates a virtual route manifest module", () => {
     const routesDir = path.resolve(process.cwd(), "src/routes");
     const productDir = path.join(routesDir, "products");

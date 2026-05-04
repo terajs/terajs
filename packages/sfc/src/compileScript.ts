@@ -43,6 +43,18 @@ interface HoistedScript {
   body: string;
 }
 
+interface IdentifierMatch {
+  start: number;
+  end: number;
+  value: string;
+}
+
+interface VariableDeclaratorTransform {
+  start: number;
+  end: number;
+  replacement: string;
+}
+
 function extractImportedBindings(imports: string[]): string[] {
   const bindings = new Set<string>();
 
@@ -103,6 +115,10 @@ function isIdentifierChar(value: string | undefined): boolean {
   return Boolean(value && /[A-Za-z0-9_$]/.test(value));
 }
 
+function isIdentifierStart(value: string | undefined): boolean {
+  return Boolean(value && /[A-Za-z_$]/.test(value));
+}
+
 function skipStringLiteral(source: string, start: number): number {
   const quote = source[start];
   let index = start + 1;
@@ -143,6 +159,715 @@ function skipBlockComment(source: string, start: number): number {
   }
 
   return index;
+}
+
+function skipTrivia(source: string, start: number): number {
+  let index = start;
+
+  while (index < source.length) {
+    const ch = source[index];
+
+    if (/\s/.test(ch)) {
+      index += 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "/") {
+      index = skipLineComment(source, index);
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "*") {
+      index = skipBlockComment(source, index);
+      continue;
+    }
+
+    break;
+  }
+
+  return index;
+}
+
+function readIdentifier(source: string, start: number): IdentifierMatch | null {
+  const index = skipTrivia(source, start);
+  if (!isIdentifierStart(source[index])) {
+    return null;
+  }
+
+  let end = index + 1;
+  while (isIdentifierChar(source[end])) {
+    end += 1;
+  }
+
+  return {
+    start: index,
+    end,
+    value: source.slice(index, end)
+  };
+}
+
+function isWordBoundary(source: string, start: number, end: number): boolean {
+  return !isIdentifierChar(source[start - 1]) && !isIdentifierChar(source[end]);
+}
+
+function matchKeyword(source: string, index: number, keyword: string): boolean {
+  return source.slice(index, index + keyword.length) === keyword && isWordBoundary(source, index, index + keyword.length);
+}
+
+function findMatchingDelimiter(source: string, start: number, open: string, close: string): number {
+  let depth = 0;
+
+  for (let index = start; index < source.length; index += 1) {
+    const ch = source[index];
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      index = skipStringLiteral(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "/") {
+      index = skipLineComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "*") {
+      index = skipBlockComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === open) {
+      depth += 1;
+      continue;
+    }
+
+    if (ch === close) {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function previousSignificantChar(source: string, start: number): string | null {
+  let index = start - 1;
+
+  while (index >= 0) {
+    const ch = source[index];
+    if (/\s/.test(ch)) {
+      index -= 1;
+      continue;
+    }
+
+    return ch;
+  }
+
+  return null;
+}
+
+function isLikelyStatementBreak(source: string, start: number): boolean {
+  const next = skipTrivia(source, start);
+  if (next >= source.length) {
+    return true;
+  }
+
+  const previous = previousSignificantChar(source, start);
+  if (previous && ",.?+-*/%&|^=<>:([]".includes(previous)) {
+    return false;
+  }
+
+  const nextChar = source[next];
+  if (nextChar === "}" || nextChar === ";") {
+    return true;
+  }
+
+  if (nextChar === "," || nextChar === "." || nextChar === "?" || nextChar === ":") {
+    return false;
+  }
+
+  return isIdentifierStart(nextChar) || nextChar === "{" || nextChar === "[";
+}
+
+function findStatementEnd(source: string, start: number): number {
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+
+  for (let index = start; index < source.length; index += 1) {
+    const ch = source[index];
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      index = skipStringLiteral(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "/") {
+      index = skipLineComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "*") {
+      index = skipBlockComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "(") {
+      parenDepth += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+      continue;
+    }
+
+    if (ch === "[") {
+      bracketDepth += 1;
+      continue;
+    }
+
+    if (ch === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+
+    if (ch === "{") {
+      braceDepth += 1;
+      continue;
+    }
+
+    if (ch === "}") {
+      if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+        return index;
+      }
+
+      braceDepth = Math.max(0, braceDepth - 1);
+      continue;
+    }
+
+    if (ch === ";" && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      return index + 1;
+    }
+
+    if ((ch === "\n" || ch === "\r") && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      const newlineEnd = ch === "\r" && source[index + 1] === "\n"
+        ? index + 2
+        : index + 1;
+
+      if (isLikelyStatementBreak(source, newlineEnd)) {
+        return newlineEnd;
+      }
+    }
+  }
+
+  return source.length;
+}
+
+function splitTopLevelArguments(source: string): string[] {
+  const parts: string[] = [];
+  let lastIndex = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const ch = source[index];
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      index = skipStringLiteral(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "/") {
+      index = skipLineComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "*") {
+      index = skipBlockComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "(") {
+      parenDepth += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+      continue;
+    }
+
+    if (ch === "[") {
+      bracketDepth += 1;
+      continue;
+    }
+
+    if (ch === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+
+    if (ch === "{") {
+      braceDepth += 1;
+      continue;
+    }
+
+    if (ch === "}") {
+      braceDepth = Math.max(0, braceDepth - 1);
+      continue;
+    }
+
+    if (ch === "," && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      parts.push(source.slice(lastIndex, index));
+      lastIndex = index + 1;
+    }
+  }
+
+  parts.push(source.slice(lastIndex));
+  return parts;
+}
+
+function hasTopLevelObjectProperty(source: string, propertyName: string): boolean {
+  const trimmed = source.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return false;
+  }
+
+  let index = 1;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+
+  while (index < trimmed.length - 1) {
+    index = skipTrivia(trimmed, index);
+    if (index >= trimmed.length - 1) {
+      break;
+    }
+
+    const ch = trimmed[index];
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      index = skipStringLiteral(trimmed, index);
+      continue;
+    }
+
+    if (ch === "/" && trimmed[index + 1] === "/") {
+      index = skipLineComment(trimmed, index);
+      continue;
+    }
+
+    if (ch === "/" && trimmed[index + 1] === "*") {
+      index = skipBlockComment(trimmed, index);
+      continue;
+    }
+
+    if (ch === "(") {
+      parenDepth += 1;
+      index += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+      index += 1;
+      continue;
+    }
+
+    if (ch === "[") {
+      bracketDepth += 1;
+      index += 1;
+      continue;
+    }
+
+    if (ch === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      index += 1;
+      continue;
+    }
+
+    if (ch === "{") {
+      braceDepth += 1;
+      index += 1;
+      continue;
+    }
+
+    if (ch === "}") {
+      braceDepth = Math.max(0, braceDepth - 1);
+      index += 1;
+      continue;
+    }
+
+    if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      const identifier = readIdentifier(trimmed, index);
+      if (identifier) {
+        const afterIdentifier = skipTrivia(trimmed, identifier.end);
+        if (trimmed[afterIdentifier] === ":" && identifier.value === propertyName) {
+          return true;
+        }
+        index = identifier.end;
+        continue;
+      }
+    }
+
+    index += 1;
+  }
+
+  return false;
+}
+
+function mergeOptionArgument(source: string, additions: Array<[string, string]>): string {
+  if (additions.length === 0) {
+    return source;
+  }
+
+  const trimmed = source.trim();
+  const missing = additions.filter(([key]) => !hasTopLevelObjectProperty(trimmed, key));
+  if (missing.length === 0) {
+    return source;
+  }
+
+  const additionSource = missing.map(([key, value]) => `${key}: ${value}`).join(", ");
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    const inner = trimmed.slice(1, -1).trim();
+    return inner.length === 0
+      ? `{ ${additionSource} }`
+      : `{ ${inner}, ${additionSource} }`;
+  }
+
+  return `Object.assign({}, ${trimmed}, { ${additionSource} })`;
+}
+
+function injectCallOptions(callSource: string, calleeName: string, variableName: string, composableName: string | null): string {
+  const openParenIndex = callSource.indexOf("(");
+  if (openParenIndex < 0) {
+    return callSource;
+  }
+
+  const closeParenIndex = findMatchingDelimiter(callSource, openParenIndex, "(", ")");
+  if (closeParenIndex < 0) {
+    return callSource;
+  }
+
+  const argumentSource = callSource.slice(openParenIndex + 1, closeParenIndex);
+  const args = splitTopLevelArguments(argumentSource);
+
+  let optionIndex = -1;
+  const additions: Array<[string, string]> = [];
+
+  if (calleeName === "signal" || calleeName === "ref") {
+    optionIndex = 1;
+    additions.push(["key", JSON.stringify(variableName)]);
+    if (composableName) {
+      additions.push(["composable", JSON.stringify(composableName)]);
+    }
+  } else if (calleeName === "reactive") {
+    optionIndex = 1;
+    additions.push(["group", JSON.stringify(variableName)]);
+    if (composableName) {
+      additions.push(["composable", JSON.stringify(composableName)]);
+    }
+  } else if (calleeName === "computed") {
+    optionIndex = 1;
+    additions.push(["key", JSON.stringify(variableName)]);
+    if (composableName) {
+      additions.push(["composable", JSON.stringify(composableName)]);
+    }
+  } else if (calleeName === "watch") {
+    optionIndex = 2;
+    additions.push(["debugName", JSON.stringify(variableName)]);
+  } else if (calleeName === "watchEffect") {
+    optionIndex = 1;
+    additions.push(["debugName", JSON.stringify(variableName)]);
+  } else {
+    return callSource;
+  }
+
+  while (args.length < optionIndex) {
+    args.push("");
+  }
+
+  if (optionIndex >= args.length || args[optionIndex].trim().length === 0) {
+    args[optionIndex] = `{ ${additions.map(([key, value]) => `${key}: ${value}`).join(", ")} }`;
+  } else {
+    args[optionIndex] = mergeOptionArgument(args[optionIndex], additions);
+  }
+
+  return `${callSource.slice(0, openParenIndex + 1)}${args.map((arg) => arg.trim()).join(", ")}${callSource.slice(closeParenIndex)}`;
+}
+
+function findTopLevelArrowIndex(source: string, start: number, end: number): number {
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+
+  for (let index = start; index < end - 1; index += 1) {
+    const ch = source[index];
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      index = skipStringLiteral(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "/") {
+      index = skipLineComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "*") {
+      index = skipBlockComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "(") {
+      parenDepth += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+      continue;
+    }
+
+    if (ch === "[") {
+      bracketDepth += 1;
+      continue;
+    }
+
+    if (ch === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+
+    if (ch === "{") {
+      braceDepth += 1;
+      continue;
+    }
+
+    if (ch === "}") {
+      braceDepth = Math.max(0, braceDepth - 1);
+      continue;
+    }
+
+    if (ch === "=" && source[index + 1] === ">" && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function transformScriptBlock(source: string, composableName: string | null = null): string {
+  const transforms: VariableDeclaratorTransform[] = [];
+  let depth = 0;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const ch = source[index];
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      index = skipStringLiteral(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "/") {
+      index = skipLineComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "/" && source[index + 1] === "*") {
+      index = skipBlockComment(source, index) - 1;
+      continue;
+    }
+
+    if (ch === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (ch === "}") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (depth !== 0) {
+      continue;
+    }
+
+    if (matchKeyword(source, index, "function")) {
+      const name = readIdentifier(source, index + "function".length);
+      if (!name) {
+        continue;
+      }
+
+      let bodyStart = name.end;
+      while (bodyStart < source.length && source[bodyStart] !== "{") {
+        if (source[bodyStart] === '"' || source[bodyStart] === "'" || source[bodyStart] === "`") {
+          bodyStart = skipStringLiteral(source, bodyStart);
+          continue;
+        }
+
+        if (source[bodyStart] === "/" && source[bodyStart + 1] === "/") {
+          bodyStart = skipLineComment(source, bodyStart);
+          continue;
+        }
+
+        if (source[bodyStart] === "/" && source[bodyStart + 1] === "*") {
+          bodyStart = skipBlockComment(source, bodyStart);
+          continue;
+        }
+
+        bodyStart += 1;
+      }
+
+      if (source[bodyStart] !== "{") {
+        continue;
+      }
+
+      const bodyEnd = findMatchingDelimiter(source, bodyStart, "{", "}");
+      if (bodyEnd < 0) {
+        continue;
+      }
+
+      const transformedBody = transformScriptBlock(source.slice(bodyStart + 1, bodyEnd), name.value);
+      transforms.push({
+        start: bodyStart + 1,
+        end: bodyEnd,
+        replacement: transformedBody
+      });
+      index = bodyEnd;
+      continue;
+    }
+
+    if (!(matchKeyword(source, index, "const") || matchKeyword(source, index, "let") || matchKeyword(source, index, "var"))) {
+      continue;
+    }
+
+    const statementEnd = findStatementEnd(source, index);
+    let cursor = index + (matchKeyword(source, index, "const") ? 5 : 3);
+
+    while (cursor < statementEnd) {
+      const declaratorName = readIdentifier(source, cursor);
+      if (!declaratorName) {
+        break;
+      }
+
+      let declaratorCursor = skipTrivia(source, declaratorName.end);
+      if (source[declaratorCursor] !== "=") {
+        cursor = declaratorCursor + 1;
+        continue;
+      }
+
+      declaratorCursor = skipTrivia(source, declaratorCursor + 1);
+
+      const asyncInitializer = matchKeyword(source, declaratorCursor, "async")
+        ? readIdentifier(source, declaratorCursor + 5)
+        : null;
+
+      const functionInitializer = matchKeyword(source, declaratorCursor, "function")
+        || Boolean(asyncInitializer && asyncInitializer.value === "function");
+
+      if (functionInitializer) {
+        const functionKeywordStart = matchKeyword(source, declaratorCursor, "function")
+          ? declaratorCursor
+          : skipTrivia(source, declaratorCursor + 5);
+
+        let bodyStart = functionKeywordStart + "function".length;
+        while (bodyStart < statementEnd && source[bodyStart] !== "{") {
+          if (source[bodyStart] === '"' || source[bodyStart] === "'" || source[bodyStart] === "`") {
+            bodyStart = skipStringLiteral(source, bodyStart);
+            continue;
+          }
+
+          if (source[bodyStart] === "/" && source[bodyStart + 1] === "/") {
+            bodyStart = skipLineComment(source, bodyStart);
+            continue;
+          }
+
+          if (source[bodyStart] === "/" && source[bodyStart + 1] === "*") {
+            bodyStart = skipBlockComment(source, bodyStart);
+            continue;
+          }
+
+          bodyStart += 1;
+        }
+
+        const bodyEnd = source[bodyStart] === "{"
+          ? findMatchingDelimiter(source, bodyStart, "{", "}")
+          : -1;
+
+        if (bodyEnd >= 0) {
+          transforms.push({
+            start: bodyStart + 1,
+            end: bodyEnd,
+            replacement: transformScriptBlock(source.slice(bodyStart + 1, bodyEnd), declaratorName.value)
+          });
+          cursor = bodyEnd + 1;
+          continue;
+        }
+      }
+
+      const directCallee = readIdentifier(source, declaratorCursor);
+      const directCallOpen = directCallee ? skipTrivia(source, directCallee.end) : -1;
+      if (directCallee && source[directCallOpen] === "(") {
+        const callEnd = findMatchingDelimiter(source, directCallOpen, "(", ")");
+        if (callEnd >= 0) {
+          transforms.push({
+            start: directCallee.start,
+            end: callEnd + 1,
+            replacement: injectCallOptions(source.slice(directCallee.start, callEnd + 1), directCallee.value, declaratorName.value, composableName)
+          });
+          cursor = callEnd + 1;
+          continue;
+        }
+      }
+
+      const arrowIndex = findTopLevelArrowIndex(source, declaratorCursor, statementEnd);
+      if (arrowIndex >= 0) {
+        const bodyStart = skipTrivia(source, arrowIndex + 2);
+        if (source[bodyStart] === "{") {
+          const bodyEnd = findMatchingDelimiter(source, bodyStart, "{", "}");
+          if (bodyEnd >= 0) {
+            transforms.push({
+              start: bodyStart + 1,
+              end: bodyEnd,
+              replacement: transformScriptBlock(source.slice(bodyStart + 1, bodyEnd), declaratorName.value)
+            });
+            cursor = bodyEnd + 1;
+            continue;
+          }
+        }
+      }
+
+      cursor = declaratorCursor + 1;
+    }
+
+    index = Math.max(index, statementEnd - 1);
+  }
+
+  if (transforms.length === 0) {
+    return source;
+  }
+
+  transforms.sort((left, right) => left.start - right.start);
+
+  let result = "";
+  let lastIndex = 0;
+
+  for (const transform of transforms) {
+    if (transform.start < lastIndex) {
+      continue;
+    }
+
+    result += source.slice(lastIndex, transform.start);
+    result += transform.replacement;
+    lastIndex = transform.end;
+  }
+
+  result += source.slice(lastIndex);
+  return result;
 }
 
 function isTopLevelImportDeclarationStart(source: string, index: number): boolean {
@@ -321,6 +1046,7 @@ export function compileScript(script: string): CompiledScript {
 
   // 1.5 Hoist top-level imports so setup() remains valid JavaScript.
   const { imports, body } = hoistTopLevelImports(jsLike);
+  const namedBody = transformScriptBlock(body);
   const importedBindings = extractImportedBindings(imports);
 
   // 2. Tokenize
@@ -337,7 +1063,7 @@ export function compileScript(script: string): CompiledScript {
 ${imports.join("\n")}
 function __ssfc(ctx) {
   const { props, slots, emit } = ctx;
-  ${body}
+  ${namedBody}
   return { ${identifiers.join(", ")} };
 }
 `.trim();

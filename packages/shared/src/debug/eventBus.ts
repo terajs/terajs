@@ -1,5 +1,6 @@
 import type { DebugEvent } from "./types/events.js";
 import { clearDebugHistory, readDebugHistory, recordDebugHistory } from "./history.js";
+import { getSharedDebugState } from "./store.js";
 
 /**
  * Simple in-memory pub/sub for debug events.
@@ -11,7 +12,9 @@ export interface SubscribeDebugOptions {
   replay?: boolean;
 }
 
-const listeners = new Set<DebugEventListener>();
+function listeners(): Set<DebugEventListener> {
+  return getSharedDebugState().listeners as Set<DebugEventListener>;
+}
 
 /**
  * Subscribes a listener to all debug events.
@@ -22,7 +25,8 @@ export function subscribeDebug(listener: DebugEventListener, options?: Subscribe
     return () => {};
   }
 
-  listeners.add(listener);
+  const activeListeners = listeners();
+  activeListeners.add(listener);
 
   if (options?.replay) {
     for (const event of readDebugHistory()) {
@@ -34,7 +38,7 @@ export function subscribeDebug(listener: DebugEventListener, options?: Subscribe
     }
   }
 
-  return () => listeners.delete(listener);
+  return () => activeListeners.delete(listener);
 }
 
 /**
@@ -44,8 +48,9 @@ export function subscribeDebug(listener: DebugEventListener, options?: Subscribe
 export function emitDebug(event: DebugEvent): void {
   if (process.env.NODE_ENV === "production") return;
   recordDebugHistory(event);
-  if (listeners.size === 0) return;
-  for (const listener of listeners) {
+  const activeListeners = listeners();
+  if (activeListeners.size === 0) return;
+  for (const listener of activeListeners) {
     try {
       listener(event);
     } catch {
@@ -55,10 +60,10 @@ export function emitDebug(event: DebugEvent): void {
 }
 
 export function getDebugListenerCount(): number {
-  return listeners.size;
+  return listeners().size;
 }
 
 export function resetDebugListeners(): void {
-  listeners.clear();
+  listeners().clear();
   clearDebugHistory();
 }

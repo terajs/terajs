@@ -8,18 +8,22 @@ export interface PersistedDebugEvent {
   column?: number;
 }
 
+import { getSharedDebugState } from "./store.js";
+
 const MAX_PERSISTED_DEBUG_EVENTS = 4000;
 const MAX_SERIALIZATION_DEPTH = 5;
 const MAX_ARRAY_ITEMS = 40;
 const MAX_OBJECT_KEYS = 40;
 
-const historyCache: PersistedDebugEvent[] = [];
+function historyCache(): PersistedDebugEvent[] {
+  return getSharedDebugState().history as PersistedDebugEvent[];
+}
 
 /**
  * Returns a snapshot of the shared debug archive for overlay hydration.
  */
 export function readDebugHistory(): PersistedDebugEvent[] {
-  return historyCache.map(clonePersistedDebugEvent);
+  return historyCache().map(clonePersistedDebugEvent);
 }
 
 /**
@@ -31,9 +35,10 @@ export function recordDebugHistory(rawEvent: unknown): void {
     return;
   }
 
-  historyCache.push(normalized);
-  if (historyCache.length > MAX_PERSISTED_DEBUG_EVENTS) {
-    historyCache.splice(0, historyCache.length - MAX_PERSISTED_DEBUG_EVENTS);
+  const history = historyCache();
+  history.push(normalized);
+  if (history.length > MAX_PERSISTED_DEBUG_EVENTS) {
+    history.splice(0, history.length - MAX_PERSISTED_DEBUG_EVENTS);
   }
 }
 
@@ -41,7 +46,7 @@ export function recordDebugHistory(rawEvent: unknown): void {
  * Clears the shared debug archive.
  */
 export function clearDebugHistory(): void {
-  historyCache.length = 0;
+  historyCache().length = 0;
 }
 
 function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | null {

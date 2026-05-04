@@ -700,6 +700,44 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     }
   }
 
+  function isWithinConfiguredDir(filePath: string, dirPath: string): boolean {
+    const normalizedFilePath = normalizePath(filePath);
+    const normalizedDirPath = normalizePath(dirPath);
+    return normalizedFilePath === normalizedDirPath || normalizedFilePath.startsWith(`${normalizedDirPath}/`);
+  }
+
+  function triggerFullReload(server: { ws?: { send?(payload: { type: string }): void } }): void {
+    server.ws?.send?.({ type: "full-reload" });
+  }
+
+  function handleWatchedSurfaceChange(server: {
+    moduleGraph: { getModuleById(id: string): any; invalidateModule(mod: any): void; };
+    ws?: { send?(payload: { type: string }): void };
+  }, filePath: string): void {
+    const normalizedFile = normalizePath(filePath);
+    const normalizedMiddlewareDir = normalizePath(routerConfig.middlewareDir);
+
+    if (normalizedFile.endsWith(".tera")) {
+      if (routeDirs.some((dir) => isWithinConfiguredDir(normalizedFile, dir))) {
+        invalidateVirtualModule(server, RESOLVED_ROUTES_VIRTUAL_ID);
+        invalidateVirtualModule(server, RESOLVED_APP_VIRTUAL_ID);
+        triggerFullReload(server);
+        return;
+      }
+
+      if (autoImportDirs.some((dir) => isWithinConfiguredDir(normalizedFile, dir))) {
+        invalidateVirtualModule(server, RESOLVED_AUTO_IMPORT_VIRTUAL_ID);
+        triggerFullReload(server);
+        return;
+      }
+    }
+
+    if (isMiddlewareSourceFile(normalizedFile) && isWithinConfiguredDir(normalizedFile, normalizedMiddlewareDir)) {
+      invalidateVirtualModule(server, RESOLVED_APP_VIRTUAL_ID);
+      triggerFullReload(server);
+    }
+  }
+
   return {
     name: "terajs",
     enforce: "pre",
@@ -734,6 +772,15 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     configureServer(server) {
       const rootDir = config?.root ?? process.cwd();
       server.middlewares.use(createDevtoolsIdeBridgeMiddleware(rootDir));
+
+      if (server.watcher && typeof server.watcher.on === "function") {
+        server.watcher.on("add", (filePath: string) => {
+          handleWatchedSurfaceChange(server, filePath);
+        });
+        server.watcher.on("unlink", (filePath: string) => {
+          handleWatchedSurfaceChange(server, filePath);
+        });
+      }
 
       if (serverFunctionOptions === false) {
         return;
