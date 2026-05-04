@@ -77,13 +77,19 @@ export function applyOverlayPanelSize(
   }
 
   if (panelSize === "large") {
-    overlayEl.style.setProperty("--terajs-overlay-panel-width", "1120px");
-    overlayEl.style.setProperty("--terajs-overlay-panel-height", "860px");
+    overlayEl.style.setProperty("--terajs-overlay-panel-width", "1480px");
+    overlayEl.style.setProperty("--terajs-overlay-panel-height", "720px");
     return;
   }
 
-  overlayEl.style.setProperty("--terajs-overlay-panel-width", "920px");
-  overlayEl.style.setProperty("--terajs-overlay-panel-height", "760px");
+  if (panelSize === "fullscreen") {
+    overlayEl.style.setProperty("--terajs-overlay-panel-width", "calc(100vw - 24px)");
+    overlayEl.style.setProperty("--terajs-overlay-panel-height", "calc(100vh - 24px)");
+    return;
+  }
+
+  overlayEl.style.setProperty("--terajs-overlay-panel-width", "1040px");
+  overlayEl.style.setProperty("--terajs-overlay-panel-height", "720px");
 }
 
 export function matchesOverlayShortcut(event: KeyboardEvent, shortcut: string): boolean {

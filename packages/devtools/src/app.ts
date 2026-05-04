@@ -17,9 +17,27 @@ import {
   type InspectorSectionKey,
 } from "./inspector/drilldownRenderer.js";
 import {
+  DEFAULT_AI_ANALYSIS_OUTPUT_VIEW,
+  DEFAULT_AI_DOCUMENT_CONTEXT_VIEW,
+  DEFAULT_AI_SESSION_MODE_VIEW,
   DEFAULT_AI_DIAGNOSTICS_SECTION,
-  type AIDiagnosticsSectionKey
+  DEFAULT_ROUTER_PANEL_VIEW,
+  DEFAULT_SANITY_PANEL_VIEW,
+  type AIAnalysisOutputView,
+  type AIDocumentContextView,
+  type AISessionModeView,
+  type AIDiagnosticsSectionKey,
+  type RouterPanelView,
+  type SanityPanelView,
 } from "./panels/diagnosticsPanels.js";
+import {
+  DEFAULT_PERFORMANCE_PANEL_VIEW,
+  type PerformancePanelView,
+} from "./panels/diagnosticsPanels.js";
+import {
+  DEFAULT_TIMELINE_PANEL_FILTER,
+  type TimelinePanelFilter,
+} from "./panels/primaryPanels.js";
 import { renderShadowAIArea } from "./areas/shadow/ai/render.js";
 import { normalizeEvent } from "./eventNormalization.js";
 import { appendPrioritizedDevtoolsEvent, retainPrioritizedDevtoolsEvents } from "./eventRetention.js";
@@ -75,7 +93,7 @@ export interface DevtoolsBridgeOptions {
 }
 
 type DevtoolsOverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
-type DevtoolsOverlaySize = "normal" | "large";
+type DevtoolsOverlaySize = "normal" | "large" | "fullscreen";
 
 interface DevtoolsLayoutOptions {
   position?: DevtoolsOverlayPosition;
@@ -145,7 +163,105 @@ type TabName =
   | "Sanity Check"
   | "Settings";
 
+export type DevtoolsIssueFilter = "all" | "error" | "warn";
+export type DevtoolsLogFilter = "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
+export type DevtoolsSignalsViewMode = "active" | "recent";
+
+export interface SignalsPanelState {
+  selectedKey: string | null;
+  searchQuery: string;
+  viewMode: DevtoolsSignalsViewMode;
+}
+
+export interface MetaPanelState {
+  selectedKey: string | null;
+  searchQuery: string;
+}
+
+export interface IssuesPanelState {
+  filter: DevtoolsIssueFilter;
+  selectedKey: string | null;
+}
+
+export interface LogsPanelState {
+  filter: DevtoolsLogFilter;
+  selectedEntryKey: string | null;
+  searchQuery: string;
+}
+
+export interface TimelinePanelState {
+  filter: TimelinePanelFilter;
+  expandedDetailKeys: Set<string>;
+}
+
+export interface RouterPanelState {
+  activeView: RouterPanelView;
+}
+
+export interface QueuePanelState {
+  selectedEntryKey: string | null;
+}
+
+export interface PerformancePanelState {
+  activeView: PerformancePanelView;
+}
+
+export interface SanityPanelState {
+  activeView: SanityPanelView;
+}
+
+export interface IframePanelsState {
+  signals: SignalsPanelState;
+  meta: MetaPanelState;
+  issues: IssuesPanelState;
+  logs: LogsPanelState;
+  timeline: TimelinePanelState;
+  router: RouterPanelState;
+  queue: QueuePanelState;
+  performance: PerformancePanelState;
+  sanity: SanityPanelState;
+}
+
 type AIAssistantRequestTarget = "configured" | "vscode" | null;
+
+function createIframePanelsState(): IframePanelsState {
+  return {
+    signals: {
+      selectedKey: null,
+      searchQuery: "",
+      viewMode: "active",
+    },
+    meta: {
+      selectedKey: null,
+      searchQuery: "",
+    },
+    issues: {
+      filter: "all",
+      selectedKey: null,
+    },
+    logs: {
+      filter: "all",
+      selectedEntryKey: null,
+      searchQuery: "",
+    },
+    timeline: {
+      filter: DEFAULT_TIMELINE_PANEL_FILTER,
+      expandedDetailKeys: new Set<string>(),
+    },
+    router: {
+      activeView: DEFAULT_ROUTER_PANEL_VIEW,
+    },
+    queue: {
+      selectedEntryKey: null,
+    },
+    performance: {
+      activeView: DEFAULT_PERFORMANCE_PANEL_VIEW,
+    },
+    sanity: {
+      activeView: DEFAULT_SANITY_PANEL_VIEW,
+    },
+  };
+}
 
 interface DevtoolsState {
   activeTab: TabName;
@@ -158,14 +274,11 @@ interface DevtoolsState {
   expandedInspectorSections: Set<InspectorSectionKey>;
   expandedValuePaths: Set<string>;
   eventCount: number;
-  selectedMetaKey: string | null;
+  iframePanels: IframePanelsState;
   selectedComponentKey: string | null;
   selectedComponentActivityVersion: number;
   componentSearchQuery: string;
   componentInspectorQuery: string;
-  issueFilter: "all" | "error" | "warn";
-  logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
-  timelineCursor: number;
   theme: "dark" | "light";
   aiPrompt: string | null;
   aiLikelyCause: string | null;
@@ -175,6 +288,9 @@ interface DevtoolsState {
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
   activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
+  activeAIDocumentContextView: AIDocumentContextView;
+  activeAISessionModeView: AISessionModeView;
+  activeAIAnalysisOutputView: AIAnalysisOutputView;
   aiAssistantEnabled: boolean;
   aiAssistantEndpoint: string | null;
   aiAssistantModel: string;
@@ -191,11 +307,11 @@ const DEFAULT_EXPANDED_INSPECTOR_SECTIONS: InspectorSectionKey[] = [];
 const MAX_DEVTOOLS_EVENTS = 4000;
 const MAX_LIVE_BRIDGE_UPDATE_EVENTS = 200;
 
-const DEVTOOLS_INSPECT_MODE_EVENT = "terajs:devtools:inspect-mode";
 const DEVTOOLS_COMPONENT_SELECT_EVENT = "terajs:devtools:component-select";
 const DEVTOOLS_COMPONENT_PICKED_EVENT = "terajs:devtools:component-picked";
 const DEVTOOLS_COMPONENT_HOVER_EVENT = "terajs:devtools:component-hover";
 const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
+const DEVTOOLS_SHELL_WINDOW_ACTION_EVENT = "terajs:devtools:shell-window-action";
 
 export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions = {}): DevtoolsAppHandle {
   const aiOptions = normalizeAIAssistantOptions(options.ai);
@@ -264,14 +380,11 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     expandedInspectorSections: new Set(DEFAULT_EXPANDED_INSPECTOR_SECTIONS),
     expandedValuePaths: new Set(),
     eventCount: hydratedEvents.length,
-    selectedMetaKey: null,
+    iframePanels: createIframePanelsState(),
     selectedComponentKey: null,
     selectedComponentActivityVersion: 0,
     componentSearchQuery: "",
     componentInspectorQuery: "",
-    issueFilter: "all",
-    logFilter: "all",
-    timelineCursor: hydratedEvents.length - 1,
     theme: "dark",
     aiPrompt: null,
     aiLikelyCause: hydratedLikelyCause,
@@ -281,6 +394,9 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     aiStructuredResponse: null,
     aiError: null,
     activeAIDiagnosticsSection: DEFAULT_AI_DIAGNOSTICS_SECTION,
+    activeAIDocumentContextView: DEFAULT_AI_DOCUMENT_CONTEXT_VIEW,
+    activeAISessionModeView: DEFAULT_AI_SESSION_MODE_VIEW,
+    activeAIAnalysisOutputView: DEFAULT_AI_ANALYSIS_OUTPUT_VIEW,
     aiAssistantEnabled: aiOptions.enabled,
     aiAssistantEndpoint: aiOptions.endpoint,
     aiAssistantModel: aiOptions.model,
@@ -406,8 +522,6 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     const routeEvents = state.events;
 
     state.eventCount = routeEvents.length;
-    state.timelineCursor = routeEvents.length - 1;
-
     // Visibility gating
     if (!visible) {
       pendingVisibleRefresh = true;
@@ -458,19 +572,6 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     window.dispatchEvent(new CustomEvent(name, { detail }));
   };
 
-  let lastInspectModeState: boolean | null = null;
-
-  const notifyInspectMode = (enabled: boolean) => {
-    if (lastInspectModeState === enabled) {
-      return;
-    }
-
-    lastInspectModeState = enabled;
-    dispatchWindowEvent(DEVTOOLS_INSPECT_MODE_EVENT, {
-      enabled
-    });
-  };
-
   const notifyComponentSelection = (scope: string | null, instance: number | null, source: "panel" | "picker" | "clear") => {
     dispatchWindowEvent(DEVTOOLS_COMPONENT_SELECT_EVENT, {
       scope,
@@ -494,6 +595,12 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     });
   };
 
+  const notifyShellWindowAction = (action: "minimize") => {
+    dispatchWindowEvent(DEVTOOLS_SHELL_WINDOW_ACTION_EVENT, {
+      action,
+    });
+  };
+
   const focusBridgeTab = (tab: DevtoolsBridgeTabName): boolean => {
     if (tab === "Settings") {
       state.hostControlsOpen = true;
@@ -506,7 +613,6 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     }
 
     state.activeTab = tab;
-    notifyInspectMode(tab === "Components");
     if (tab !== "Components") {
       notifyComponentSelection(null, null, "clear");
     }
@@ -562,7 +668,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
           eventCount: state.eventCount,
           mountedComponentCount: state.mountedComponents.size,
           selectedComponentKey: state.selectedComponentKey,
-          selectedMetaKey: state.selectedMetaKey,
+          selectedMetaKey: state.iframePanels.meta.selectedKey,
           componentSearchQuery: state.componentSearchQuery,
           componentInspectorQuery: state.componentInspectorQuery,
           ai: {
@@ -649,9 +755,9 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     clearPersistedEvents: clearDebugHistory,
     emitDevtoolsEvent: appendEvent,
     render,
-    notifyInspectMode,
     notifyComponentSelection,
-    notifyLayoutPreferences
+    notifyLayoutPreferences,
+    notifyShellWindowAction
   });
 
   const handleInput = createInputHandler(state, render);
@@ -676,7 +782,6 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       window.removeEventListener(DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT, handleIdeBridgeStatusChange as EventListener);
     }
     devtoolsBridge?.dispose();
-    notifyInspectMode(false);
     notifyComponentSelection(null, null, "clear");
     notifyComponentHover(null, null);
     root.removeEventListener("click", handleClick);
@@ -719,7 +824,8 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       state,
       TABS,
       (nextState) => renderPanel(nextState, documentContext),
-      renderComponentDrilldownInspector
+      renderComponentDrilldownInspector,
+      resolveDevtoolsAreaHostKind(state.activeTab)
     );
     updateHeaderEventCount();
     if (resolveDevtoolsAreaHostKind(state.activeTab) === "iframe") {
@@ -736,13 +842,11 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     }
 
     if (!scrollSnapshot) {
-      notifyInspectMode(state.activeTab === "Components");
       devtoolsBridge?.sync();
       return;
     }
 
     scheduleComponentsScrollRestore(root, scrollSnapshot);
-    notifyInspectMode(state.activeTab === "Components");
     devtoolsBridge?.sync();
   }
 }
@@ -781,7 +885,7 @@ function isOverlayPosition(value: unknown): value is DevtoolsOverlayPosition {
 }
 
 function isOverlaySize(value: unknown): value is DevtoolsOverlaySize {
-  return value === "normal" || value === "large";
+  return value === "normal" || value === "large" || value === "fullscreen";
 }
 
 function normalizeLayoutOptions(options?: DevtoolsLayoutOptions): NormalizedLayoutOptions {

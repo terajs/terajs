@@ -8,12 +8,12 @@ export const componentTreeStyles = `
     --component-tree-meta-light: var(--tera-light-text-muted);
     --component-tree-bracket-dark: rgba(120, 177, 255, 0.84);
     --component-tree-bracket-light: rgba(88, 201, 255, 0.96);
-    --component-tree-accent-dark: rgba(97, 156, 255, 0.88);
-    --component-tree-accent-light: rgba(73, 126, 255, 0.96);
-    --component-tree-hover-dark: rgba(20, 40, 82, 0.52);
-    --component-tree-hover-light: linear-gradient(90deg, rgba(47, 109, 255, 0.18), rgba(90, 79, 212, 0.12), rgba(50, 215, 255, 0.1));
-    --component-tree-active-dark: rgba(34, 66, 124, 0.58);
-    --component-tree-active-light: linear-gradient(90deg, rgba(47, 109, 255, 0.26), rgba(90, 79, 212, 0.16), rgba(50, 215, 255, 0.14));
+    --component-tree-accent-dark: var(--tera-tone-accent);
+    --component-tree-accent-light: var(--tera-tone-accent);
+    --component-tree-hover-dark: var(--tera-surface-row-hover);
+    --component-tree-hover-light: var(--tera-surface-row-hover);
+    --component-tree-active-dark: var(--tera-surface-row-active);
+    --component-tree-active-light: var(--tera-surface-row-active);
     --component-tree-toggle-dark: #8fb9ff;
     --component-tree-toggle-light: var(--tera-light-accent-strong);
     --component-tree-toggle-hover-dark: rgba(29, 51, 95, 0.64);
@@ -23,11 +23,11 @@ export const componentTreeStyles = `
   }
 
   .components-tree-pane {
-    border-right: 1px solid rgba(50, 215, 255, 0.26);
+    border-right: 1px solid var(--tera-separator);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-tree-pane {
-    border-right-color: var(--tera-light-border);
+    border-right-color: var(--tera-separator);
   }
 
   .component-tree-toolbar {
@@ -40,6 +40,7 @@ export const componentTreeStyles = `
     margin: 0;
     padding: 0;
     display: grid;
+    align-content: start;
     gap: 1px;
   }
 
@@ -345,10 +346,10 @@ export const componentTreeStyles = `
     justify-content: center;
     min-height: 18px;
     padding: 0 7px;
-    border-radius: 999px;
-    background: rgba(50, 215, 255, 0.12);
-    border: 1px solid rgba(50, 215, 255, 0.16);
-    color: var(--tera-cyan);
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(53, 198, 255, 0.18), rgba(76, 123, 255, 0.08));
+    border: 0;
+    color: #eef5ff;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -357,8 +358,7 @@ export const componentTreeStyles = `
   }
 
   .component-tree-badge.is-root {
-    background: rgba(47, 109, 255, 0.18);
-    border-color: rgba(116, 160, 255, 0.22);
+    background: linear-gradient(90deg, rgba(76, 123, 255, 0.2), rgba(122, 99, 255, 0.1));
     color: #cfe0ff;
   }
 

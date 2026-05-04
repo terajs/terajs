@@ -1,5 +1,5 @@
 import { captureStateSnapshot } from "@terajs/adapter-ai";
-import { getAllReactives } from "@terajs/shared";
+import { getAllReactives, getReactiveByRid, type ReactiveInstanceInfo } from "@terajs/shared";
 import {
   readComponentIdentity,
   readNumber,
@@ -26,6 +26,34 @@ export interface LiveReactiveEntry {
   currentValue: unknown;
 }
 
+function formatReactiveLabel(entry: Pick<ReactiveInstanceInfo, "meta">, fallback: string): string {
+  const group = typeof entry.meta.group === "string" && entry.meta.group.trim().length > 0
+    ? entry.meta.group.trim()
+    : null;
+  const key = typeof entry.meta.key === "string" && entry.meta.key.trim().length > 0
+    ? entry.meta.key.trim()
+    : null;
+
+  if (group && key && group !== key) {
+    return `${group}.${key}`;
+  }
+
+  return key ?? group ?? fallback;
+}
+
+function resolveReactiveLabel(rid: string, fallback?: string): string {
+  const reactive = getReactiveByRid(rid);
+  return reactive ? formatReactiveLabel(reactive, fallback ?? rid) : (fallback ?? rid);
+}
+
+function resolveComposableBucketName(entry: Pick<ReactiveInstanceInfo, "meta">): string {
+  const composable = typeof entry.meta.composable === "string" && entry.meta.composable.trim().length > 0
+    ? entry.meta.composable.trim()
+    : null;
+
+  return composable ?? "script";
+}
+
 export function isSignalLikeUpdate(type: string): boolean {
   return (
     type === "signal:update" ||
@@ -38,11 +66,14 @@ export function isSignalLikeUpdate(type: string): boolean {
 }
 
 export function collectSignalUpdates(events: DevtoolsEventLike[]) {
-  const signalMap = new Map<string, { key: string; preview: string }>();
+  const signalMap = new Map<string, { key: string; preview: string; value: unknown }>();
 
   for (const event of events) {
     if (!isSignalLikeUpdate(event.type)) continue;
-    const key = readString(event.payload, "key") ?? readString(event.payload, "rid") ?? event.type;
+    const rid = readString(event.payload, "rid");
+    const key = rid
+      ? resolveReactiveLabel(rid, readString(event.payload, "key") ?? rid)
+      : readString(event.payload, "key") ?? event.type;
     const previewValue =
       readUnknown(event.payload, "next") ??
       readUnknown(event.payload, "value") ??
@@ -52,7 +83,8 @@ export function collectSignalUpdates(events: DevtoolsEventLike[]) {
 
     signalMap.set(key, {
       key,
-      preview: safeString(previewValue).slice(0, 60)
+      preview: safeString(previewValue).slice(0, 60),
+      value: previewValue
     });
   }
 
@@ -69,7 +101,8 @@ export function collectSignalRegistrySnapshot() {
       type: entry.type,
       scope: entry.scope,
       label: entry.key ?? `${entry.scope} (${entry.type})`,
-      valuePreview: shortJson(entry.value)
+      valuePreview: shortJson(entry.value),
+      value: entry.value
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
 }
@@ -82,8 +115,8 @@ export function collectOwnedReactiveEntries(scope: string, instance: number): Li
       continue;
     }
 
-    const label = entry.meta.key ?? entry.meta.rid;
-    const dedupeKey = entry.meta.key ? `${scope}#${instance}:${entry.meta.key}` : entry.meta.rid;
+    const label = formatReactiveLabel(entry, entry.meta.rid);
+    const dedupeKey = `${scope}#${instance}:${label}`;
     const current = deduped.get(dedupeKey);
     const nextEntry: LiveReactiveEntry = {
       rid: entry.meta.rid,
@@ -155,8 +188,7 @@ export function collectComponentComposables(scope: string, instance: number) {
       continue;
     }
 
-    // Composable name = the "group" of reactives
-    const name = entry.meta.composable ?? entry.meta.group ?? "unknown";
+    const name = resolveComposableBucketName(entry);
 
     const existing = composables.get(name);
     if (!existing) {
@@ -165,8 +197,7 @@ export function collectComponentComposables(scope: string, instance: number) {
 
     const target = composables.get(name)!;
 
-    // Key inside the composable
-    const key = entry.meta.key ?? entry.meta.rid ?? entry.meta.type;
+    const key = formatReactiveLabel(entry, entry.meta.rid ?? entry.meta.type);
 
     target.state[key] = entry.currentValue;
   }
@@ -271,11 +302,102 @@ export function collectRouteTimeline(events: DevtoolsEventLike[]) {
 
 export function summarizeLog(event: DevtoolsEventLike): string {
   const payload = event.payload ?? {};
+
+  if (event.type.startsWith("route:") || event.type === "error:router") {
+    return routeEventSummary(event);
+  }
+
+  if (event.type.startsWith("hub:")) {
+    const transport = readString(payload, "transport");
+    const message = readString(payload, "message");
+    const reason = readString(payload, "reason");
+    const type = readString(payload, "type");
+    const keys = readUnknown(payload, "keys");
+    const keySummary = Array.isArray(keys) && keys.length > 0
+      ? `keys=${keys.map((key) => safeString(key)).join(",")}`
+      : undefined;
+
+    const parts = [transport, type ? `type=${type}` : undefined, reason ? `reason=${reason}` : undefined, message, keySummary]
+      .filter((part): part is string => typeof part === "string" && part.length > 0);
+
+    return parts.length > 0 ? parts.join(" | ") : shortJson(payload);
+  }
+
+  if (isSignalLikeUpdate(event.type)) {
+    const target = readString(payload, "key") ?? readString(payload, "rid") ?? readString(payload, "name");
+    const nextValue =
+      readUnknown(payload, "next") ??
+      readUnknown(payload, "value") ??
+      readUnknown(payload, "newValue");
+
+    if (target && nextValue !== undefined) {
+      return `${target} updated to ${safeString(nextValue)}`;
+    }
+
+    if (target) {
+      return `${target} updated`;
+    }
+  }
+
+  if (event.type.startsWith("effect:")) {
+    const target = readString(payload, "name") ?? readString(payload, "key") ?? readString(payload, "rid") ?? readString(payload, "scope");
+    const action = event.type.endsWith(":cleanup")
+      ? "cleaned up"
+      : event.type.endsWith(":registered")
+        ? "registered"
+        : event.type.endsWith(":run")
+          ? "ran"
+          : "updated";
+
+    if (target) {
+      return `${target} ${action}`;
+    }
+  }
+
+  if (event.type.startsWith("component:")) {
+    const identity = readComponentIdentity(event);
+    const target = identity?.scope ?? readString(payload, "scope") ?? readString(payload, "name");
+    const action = event.type.split(":").slice(1).join(" ").replace(/-/g, " ").trim();
+
+    if (target) {
+      return `${target} ${action || "updated"}`;
+    }
+  }
+
   const scope = readString(payload, "scope") ?? readString(payload, "name");
   const message = readString(payload, "message");
   if (message) return message;
   if (scope) return scope;
-  return shortJson(payload);
+
+  const structuredSummary = summarizePayloadFields(payload);
+  if (structuredSummary) {
+    return structuredSummary;
+  }
+
+  return "Structured event payload captured.";
+}
+
+function summarizePayloadFields(payload: Record<string, unknown>): string | null {
+  const parts = Object.entries(payload)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .slice(0, 3)
+    .map(([key, value]) => {
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        return `${key}=${safeString(value)}`;
+      }
+
+      if (Array.isArray(value)) {
+        return `${key}=${value.length} items`;
+      }
+
+      if (typeof value === "object") {
+        return `${key}=object`;
+      }
+
+      return `${key}=${safeString(value)}`;
+    });
+
+  return parts.length > 0 ? parts.join(" | ") : null;
 }
 
 export function issueMessage(event: DevtoolsEventLike): string {

@@ -4,11 +4,12 @@ import {
   handleShadowComponentsAreaChange,
   handleShadowComponentsAreaInput
 } from "./areas/shadow/components/domHandlers.js";
+import type { IframePanelsState } from "./app.js";
 
 type InputState = {
   componentSearchQuery: string;
   componentInspectorQuery: string;
-  timelineCursor: number;
+  iframePanels: IframePanelsState;
 };
 
 function isHTMLInputElement(value: EventTarget | null): value is HTMLInputElement {
@@ -38,12 +39,25 @@ export function createInputHandler<TState extends InputState>(state: TState, ren
       return;
     }
 
-    if (target.dataset.timelineCursor !== "true") {
+    if (target.dataset.metaSearch === "true") {
+      state.iframePanels.meta.searchQuery = target.value;
+      state.iframePanels.meta.selectedKey = null;
+      render();
       return;
     }
 
-    state.timelineCursor = Number(target.value);
-    render();
+    if (target.dataset.signalSearch === "true") {
+      state.iframePanels.signals.searchQuery = target.value;
+      render();
+      return;
+    }
+
+    if (target.dataset.logSearch === "true") {
+      state.iframePanels.logs.searchQuery = target.value;
+      state.iframePanels.logs.selectedEntryKey = null;
+      render();
+      return;
+    }
   };
 }
 

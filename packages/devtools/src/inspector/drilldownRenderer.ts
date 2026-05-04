@@ -1,7 +1,19 @@
 import { escapeHtml, normalizeInspectorQuery } from "./shared.js";
 import type { MountedComponentEntry } from "./componentData.js";
 
-export type InspectorSectionKey = "overview" | "props" | "reactive" | "route" | "composables" | "meta" | "ai" | "dom" | "activity";
+export type InspectorSectionKey =
+  | "overview"
+  | "props"
+  | "reactive"
+  | "route"
+  | "composables"
+  | "meta"
+  | "ai"
+  | "dom"
+  | "activity"
+  | "signals-overview"
+  | "signals-value"
+  | "signals-activity";
 
 export interface InspectorDrilldownState {
   events: Array<{ type: string; payload?: Record<string, unknown> }>;
@@ -50,7 +62,10 @@ export function isInspectorSectionKey(value: unknown): value is InspectorSection
     || value === "ai"
     || value === "dom"
     || value === "composables"
-    || value === "activity";
+    || value === "activity"
+    || value === "signals-overview"
+    || value === "signals-value"
+    || value === "signals-activity";
 }
 
 export function renderComponentDrilldownInspector(

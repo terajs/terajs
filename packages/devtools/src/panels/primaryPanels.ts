@@ -1,257 +1,184 @@
-import { buildTimeline, replayEventsAtIndex } from "../analytics.js";
+import { buildTimeline } from "../analytics.js";
 import {
   collectMetaEntries,
-  collectSignalRegistrySnapshot,
-  collectSignalUpdates,
   issueMessage,
-  summarizeLog,
   type DevtoolsEventLike
 } from "../inspector/dataCollectors.js";
 import type { SafeDocumentContext } from "../documentContext.js";
-import { escapeHtml } from "../inspector/shared.js";
+import { escapeHtml, safeString } from "../inspector/shared.js";
 import { renderValueExplorer } from "../inspector/valueExplorer.js";
 import {
-  renderIframeFlatSection,
-  renderIframeNavList,
-  renderIframeSinglePanel,
-  renderIframeSplitPanel,
+  renderInvestigationJournal,
+  renderIframeComponentsScreen,
+  renderWorkbenchFacts,
+  renderWorkbenchIntroState,
+  renderWorkbenchMetrics,
+  type WorkbenchListItem,
+  renderWorkbenchList,
 } from "./iframeShells.js";
+import { buildMetaPanelItems, findSelectedMetaPanelItem, type MetaPanelItem } from "./metaPanelItems.js";
+import {
+  buildLogWorkbenchModel,
+  type LogWorkbenchEntry,
+  type LogWorkbenchModel,
+} from "./runtimeWorkbenchModels.js";
+import { renderDevtoolsHeadingRow } from "../devtoolsIcons.js";
+export { renderSignalsPanel } from "./signalsPanel.js";
 
 type IssueFilter = "all" | "error" | "warn";
 type LogFilter = "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
+export type TimelinePanelFilter = "all" | "issues" | "route" | "component" | "signal" | "effect" | "dom" | "queue" | "hub" | "other";
 
-interface SignalsStateLike {
-  events: DevtoolsEventLike[];
-}
+export const DEFAULT_TIMELINE_PANEL_FILTER: TimelinePanelFilter = "all";
 
 interface MetaStateLike {
   events: DevtoolsEventLike[];
   selectedMetaKey: string | null;
+  metaSearchQuery?: string;
   expandedValuePaths: Set<string>;
 }
 
 interface IssuesStateLike {
   events: DevtoolsEventLike[];
   issueFilter: IssueFilter;
+  selectedIssueKey: string | null;
+  expandedValuePaths: Set<string>;
 }
 
 interface LogsStateLike {
   events: DevtoolsEventLike[];
   logFilter: LogFilter;
+  selectedLogEntryKey: string | null;
+  logSearchQuery?: string;
+  expandedValuePaths: Set<string>;
 }
 
 interface TimelineStateLike {
   events: DevtoolsEventLike[];
-  timelineCursor: number;
+  timelineFilter?: TimelinePanelFilter;
+  expandedValuePaths: Set<string>;
+  expandedDetailKeys: Set<string>;
 }
 
-export function renderSignalsPanel(state: SignalsStateLike): string {
-  const updates = collectSignalUpdates(state.events);
-  const effectRuns = state.events.filter((event) => event.type === "effect:run").length;
-  const registry = collectSignalRegistrySnapshot();
-  const registryById = new Map(registry.map((entry) => [entry.id, entry]));
-  const registryByKey = new Map(
-    registry
-      .filter((entry) => Boolean(entry.key))
-      .map((entry) => [entry.key as string, entry])
-  );
+const TIMELINE_FILTER_ORDER: TimelinePanelFilter[] = ["all", "issues", "route", "component", "signal", "effect", "dom", "queue", "hub", "other"];
 
-  const resolvedUpdates = updates.map((update) => {
-    const match = registryById.get(update.key) ?? registryByKey.get(update.key);
-    return {
-      ...update,
-      label: match?.label ?? update.key,
-      type: match?.type
-    };
-  });
-
-  const updatesMarkup = resolvedUpdates.length === 0
-    ? `<div class="empty-state">No recent reactive updates in the buffered event window.</div>`
-    : `
-      <ul class="signals-list">
-        ${resolvedUpdates.map((update) => `
-          <li class="signals-list-item">
-            <div class="signals-list-row">
-              <span class="accent-text is-cyan">${escapeHtml(update.label)}</span>
-              ${update.type ? `<span class="muted-text">(${escapeHtml(update.type)})</span>` : ""}
-            </div>
-            <div class="signals-list-preview">${escapeHtml(update.preview)}</div>
-          </li>
-        `).join("")}
-      </ul>
-    `;
-
-  const registryMarkup = registry.length === 0
-    ? `<div class="empty-state">No active refs/signals/reactive values registered.</div>`
-    : `
-      <ul class="signals-list signals-list-compact">
-        ${registry.slice(0, 36).map((entry) => `
-          <li class="signals-list-item">
-            <div class="signals-list-row">
-              <span class="accent-text is-cyan">${escapeHtml(entry.label)}</span>
-              <span class="muted-text">${escapeHtml(entry.type)}</span>
-            </div>
-            <div class="signals-list-preview">${escapeHtml(entry.valuePreview)}</div>
-          </li>
-        `).join("")}
-      </ul>
-    `;
-
-  return `
-    <div class="signals-layout">
-      <aside class="components-tree-pane signals-summary-pane" aria-label="Reactive summary">
-        <div class="components-screen-header">
-          <div class="components-screen-header-row">
-            <div>
-              <div class="panel-title is-cyan">Signal summary</div>
-              <div class="panel-subtitle">Live reactive activity for the current session.</div>
-            </div>
-          </div>
-        </div>
-        <div class="components-screen-body">
-          <div class="signals-summary-list">
-            <section class="signals-summary-row">
-              <div class="signals-summary-label">Recent updates</div>
-              <div class="signals-summary-value">${escapeHtml(String(resolvedUpdates.length))}</div>
-              <div class="signals-summary-note">Buffered signal/ref updates in the current event window.</div>
-            </section>
-            <section class="signals-summary-row">
-              <div class="signals-summary-label">Effect runs</div>
-              <div class="signals-summary-value">${escapeHtml(String(effectRuns))}</div>
-              <div class="signals-summary-note">Observed effect executions across the retained session stream.</div>
-            </section>
-            <section class="signals-summary-row">
-              <div class="signals-summary-label">Active values</div>
-              <div class="signals-summary-value">${escapeHtml(String(registry.length))}</div>
-              <div class="signals-summary-note">Currently registered refs, signals, and derived reactive values.</div>
-            </section>
-          </div>
-        </div>
-      </aside>
-
-      <section class="components-inspector-pane signals-detail-pane" aria-label="Reactive detail">
-        <div class="components-screen-header">
-          <div class="components-screen-header-row">
-            <div>
-              <div class="panel-title is-cyan">Ref / Reactive Inspector</div>
-              <div class="panel-subtitle">Reactive updates: ${escapeHtml(String(resolvedUpdates.length))} | Active reactive values: ${escapeHtml(String(registry.length))}</div>
-            </div>
-          </div>
-        </div>
-        <div class="components-screen-body">
-          <div class="signals-detail-stack">
-            <section class="signals-section-block">
-              <div class="signals-section-heading">Recent updates</div>
-              ${updatesMarkup}
-            </section>
-            <section class="signals-section-block">
-              <div class="signals-section-heading">Active reactive registry</div>
-              ${registryMarkup}
-            </section>
-          </div>
-        </div>
-      </section>
-    </div>
-  `;
-}
+const TIMELINE_FILTER_LABELS: Record<TimelinePanelFilter, string> = {
+  all: "All Events",
+  issues: "Issues",
+  route: "Router",
+  component: "Components",
+  signal: "Signals",
+  effect: "Effects",
+  dom: "DOM",
+  queue: "Queue",
+  hub: "Hub",
+  other: "Other",
+};
 
 export function renderMetaPanel(state: MetaStateLike, documentContext: SafeDocumentContext | null = null): string {
-  const entries = collectMetaEntries(state.events);
-  const selected = entries.find((entry) => entry.key === state.selectedMetaKey) ?? entries[0] ?? null;
-  const documentSnapshotMarkup = documentContext
-    ? renderValueExplorer(documentContext, "meta-panel.document", state.expandedValuePaths)
-    : `<div class="empty-state">No safe document head context captured yet.</div>`;
+  const searchQuery = state.metaSearchQuery ?? "";
+  const items = filterMetaPanelItems(buildMetaPanelItems(collectMetaEntries(state.events), documentContext), searchQuery);
+  const selected = findSelectedMetaPanelItem(items, state.selectedMetaKey);
+  const selectionMarkup = items.length === 0
+    ? `<div class="empty-state">${searchQuery.trim().length > 0 ? `No metadata sources match "${escapeHtml(searchQuery)}".` : "No component or route metadata has been observed yet."}</div>`
+    : renderWorkbenchList(items.map((item) => ({
+      title: item.title,
+      summary: item.summary,
+      meta: item.detailSubtitle,
+      badge: formatMetaSurfaceLabel(item),
+      iconName: item.iconName,
+      active: selected?.key === item.key,
+      group: item.groupLabel,
+      attributes: { "data-meta-key": item.key }
+    })));
 
-  const selectionMarkup = entries.length === 0
-    ? `<div class="empty-state">No component or route metadata has been observed yet.</div>`
-    : `
-      <div class="ai-diagnostics-nav-list">
-        ${entries.map((entry) => `
-          <button
-            class="ai-diagnostics-nav-button ${selected?.key === entry.key ? "is-active" : ""}"
-            data-meta-key="${escapeHtml(entry.key)}"
-            type="button"
-          >
-            <span class="ai-diagnostics-nav-title">${escapeHtml(entry.scope)}</span>
-            <span class="ai-diagnostics-nav-summary">${escapeHtml(describeMetaEntry(entry))}</span>
-          </button>
-        `).join("")}
-      </div>
-    `;
+  const detailMarkup = selected
+    ? renderSelectedDataStage(renderValueExplorer(selected.value, `meta-panel.${selected.key}`, state.expandedValuePaths))
+    : renderWorkbenchIntroState({
+      title: "Select one metadata surface",
+      description: "Keep document head, resolved routes, component metadata, and AI snapshots separate so you can compare what each surface contributed without flattening them into one report.",
+      metrics: buildMetaMetrics(items),
+      steps: [
+        "Use search to narrow routes, document head, component metadata, or AI surfaces.",
+        "Choose one surface from the left before reading the structured snapshot on the right.",
+        "Compare neighboring surfaces one at a time so you can see which source actually won on the page."
+      ],
+      note: searchQuery.trim().length > 0
+        ? `Search is currently narrowing the metadata rail to ${items.length} captured surfaces.`
+        : "The right pane stays empty until you choose one surface, which keeps the comparison target stable."
+    });
 
-  const metaSnapshotMarkup = selected
-    ? renderValueExplorer(selected.meta ?? {}, "meta-panel.meta", state.expandedValuePaths)
-    : `<div class="empty-state">Select a metadata source to inspect component or route snapshots.</div>`;
-  const aiSnapshotMarkup = selected
-    ? renderValueExplorer(selected.ai ?? {}, "meta-panel.ai", state.expandedValuePaths)
-    : `<div class="empty-state">AI metadata appears here when a selected entry exposes it.</div>`;
-  const routeSnapshotMarkup = selected
-    ? renderValueExplorer(selected.route ?? {}, "meta-panel.route", state.expandedValuePaths)
-    : `<div class="empty-state">Route metadata appears here when a selected entry exposes it.</div>`;
-
-  return `
-    <div class="ai-diagnostics-layout meta-panel-layout">
-      <aside class="components-tree-pane ai-diagnostics-nav-pane meta-panel-nav-pane" aria-label="Observed metadata">
-        <div class="components-screen-body">
-          ${selectionMarkup}
-        </div>
-      </aside>
-
-      <section class="components-inspector-pane ai-diagnostics-detail-pane meta-panel-detail-pane" aria-label="Metadata detail">
-        <div class="components-screen-header">
-          <div class="components-screen-header-row">
-            <div>
-              <div class="panel-title is-cyan">Meta / AI / Route Inspector</div>
-              <div class="panel-subtitle">${escapeHtml(selected ? `${selected.scope} | ${describeMetaEntry(selected)}` : "Metadata currently available on the debug stream")}</div>
-            </div>
-          </div>
-        </div>
-        <div class="components-screen-body">
-          <div class="meta-panel-detail-stack">
-            <section class="meta-panel-section-block">
-              <div class="meta-panel-section-heading">Document head snapshot</div>
-              ${documentSnapshotMarkup}
-            </section>
-            <section class="meta-panel-section-block">
-              <div class="meta-panel-section-heading">Meta snapshot</div>
-              ${metaSnapshotMarkup}
-            </section>
-            <section class="meta-panel-section-block">
-              <div class="meta-panel-section-heading">AI snapshot</div>
-              ${aiSnapshotMarkup}
-            </section>
-            <section class="meta-panel-section-block">
-              <div class="meta-panel-section-heading">Route snapshot</div>
-              ${routeSnapshotMarkup}
-            </section>
-          </div>
-        </div>
-      </section>
-    </div>
-  `;
-}
-
-function describeMetaEntry(entry: { instance: number; key: string; meta: unknown; ai: unknown; route: unknown }): string {
-  const surfaces: string[] = [];
-  if (entry.meta !== undefined) {
-    surfaces.push("meta");
-  }
-  if (entry.ai !== undefined) {
-    surfaces.push("ai");
-  }
-  if (entry.route !== undefined) {
-    surfaces.push("route");
-  }
-
-  const source = entry.key.startsWith("route:") ? "route snapshot" : `instance ${entry.instance}`;
-  return surfaces.length > 0 ? `${source} | ${surfaces.join(" / ")}` : source;
+  return renderIframeComponentsScreen({
+    className: "meta-panel-screen",
+    treeAriaLabel: "Observed metadata",
+    treeToolbar: renderWorkbenchSearchInput(searchQuery, "Search routes, document head, or AI snapshots", 'data-meta-search="true"'),
+    treeBody: selectionMarkup,
+    detailAriaLabel: "Metadata detail",
+    detailTitle: "Metadata inspector",
+    detailSubtitle: selected?.title ?? "Pick a metadata source from the left to inspect its captured snapshot.",
+    detailBody: detailMarkup,
+    detailIconName: "meta"
+  });
 }
 
 interface IframeResultItem {
+  kicker?: string;
   title: string;
   summary?: string;
   meta?: string;
+  detail?: string;
+  detailLabel?: string;
+  detailKey?: string;
+  detailOpen?: boolean;
   tone?: "error" | "warn" | "neutral";
+  variant?: "event";
+}
+
+interface IssueWorkbenchEntry {
+  key: string;
+  issue: DevtoolsEventLike;
+  title: string;
+  summary: string;
+  meta: string;
+  badge: string;
+  tone: "warn" | "error";
+  group: string;
+  payload: Record<string, unknown> | unknown[] | undefined;
+}
+
+function resolveSeverityToneClass(
+  tone: "warn" | "error" | "neutral" | undefined,
+  neutralToneClass: string
+): string {
+  if (tone === "error") {
+    return "is-red";
+  }
+
+  if (tone === "warn") {
+    return "is-amber";
+  }
+
+  return neutralToneClass;
+}
+
+function toSoftToneClass(toneClass: string): string {
+  return `${toneClass}-soft`;
+}
+
+function resolveTimelineFilterToneClass(filter: TimelinePanelFilter): string {
+  if (filter === "issues") {
+    return "is-amber";
+  }
+
+  if (filter === "signal" || filter === "hub") {
+    return "is-cyan";
+  }
+
+  if (filter === "effect" || filter === "queue") {
+    return "is-green";
+  }
+
+  return "is-blue";
 }
 
 function formatEventTime(timestamp: number): string {
@@ -270,6 +197,204 @@ function joinMetaParts(parts: Array<string | null | undefined>): string {
   return parts.filter((part): part is string => Boolean(part && part.length > 0)).join(" | ");
 }
 
+function renderWorkbenchSearchInput(value: string, placeholder: string, dataAttribute: string): string {
+  return `
+    <label class="workbench-search">
+      <input class="workbench-search-input" type="search" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" ${dataAttribute} />
+    </label>
+  `;
+}
+
+function renderCompactSubrouteControls<TView extends string>(
+  activeView: TView,
+  ariaLabel: string,
+  dataAttribute: string,
+  views: Array<{ key: TView; label: string; title?: string }>
+): string {
+  return `
+    <div class="devtools-section-subcontrols" role="tablist" aria-label="${escapeHtml(ariaLabel)}">
+      ${views.map((view) => `
+        <button
+          class="select-button select-button--compact ${activeView === view.key ? "is-selected" : ""}"
+          type="button"
+          ${dataAttribute}="${view.key}"
+          role="tab"
+          aria-selected="${activeView === view.key ? "true" : "false"}"
+          ${view.title ? `title="${escapeHtml(view.title)}"` : ""}
+        >${escapeHtml(view.label)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function filterMetaPanelItems(items: ReturnType<typeof buildMetaPanelItems>, searchQuery: string) {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  if (normalizedQuery.length === 0) {
+    return items;
+  }
+
+  return items.filter((item) => [item.title, item.summary, item.detailSubtitle, item.sectionTitle, item.groupLabel]
+    .some((value) => value.toLowerCase().includes(normalizedQuery)));
+}
+
+function toIssueWorkbenchEntry(issue: DevtoolsEventLike): IssueWorkbenchEntry {
+  const tone = issue.level === "error" || issue.type.startsWith("error:") ? "error" : "warn";
+  return {
+    key: buildFeedEntryKey(issue.timestamp, issue.type, issueMessage(issue)),
+    issue,
+    title: issueMessage(issue),
+    summary: summarizePayloadFields(issue.payload, ["message", "likelyCause"]),
+    meta: joinMetaParts([issue.type, formatEventTime(issue.timestamp)]),
+    badge: tone === "error" ? "Error" : "Warn",
+    tone,
+    group: tone === "error" ? "Critical failures" : "Warnings",
+    payload: issue.payload,
+  };
+}
+
+function toLogWorkbenchListItem(entry: LogWorkbenchEntry, selectedKey: string | null, activeFilter: LogFilter): WorkbenchListItem {
+  return {
+    title: entry.title,
+    summary: entry.summary,
+    meta: joinMetaParts([
+      entry.eventType,
+      entry.level ? entry.level.toUpperCase() : undefined,
+      formatEventTime(entry.timestamp)
+    ]),
+    badge: entry.level === "error"
+      ? "Error"
+      : entry.level === "warn"
+        ? "Warn"
+        : activeFilter === "all"
+          ? undefined
+          : formatLogFilterLabel(activeFilter),
+    active: selectedKey === entry.key,
+    group: activeFilter === "all" ? entry.group : undefined,
+    tone: entry.level === "error" ? "error" : entry.level === "warn" ? "warn" : "neutral",
+    attributes: { "data-log-entry-key": entry.key }
+  };
+}
+
+function buildMetaMetrics(items: readonly MetaPanelItem[]) {
+  const counts = {
+    document: 0,
+    metadata: 0,
+    ai: 0,
+    routes: 0,
+  };
+
+  for (const item of items) {
+    if (item.groupLabel === "Document") {
+      counts.document += 1;
+      continue;
+    }
+
+    if (item.groupLabel === "Routes") {
+      counts.routes += 1;
+      continue;
+    }
+
+    if (item.groupLabel === "AI") {
+      counts.ai += 1;
+      continue;
+    }
+
+    counts.metadata += 1;
+  }
+
+  return [
+    { label: "Document", value: String(counts.document) },
+    { label: "Metadata", value: String(counts.metadata) },
+    { label: "AI", value: String(counts.ai) },
+    { label: "Routes", value: String(counts.routes) },
+  ] as const;
+}
+
+function buildLogMetrics(model: LogWorkbenchModel) {
+  return [
+    { label: "Shown", value: String(model.filteredCount) },
+    { label: "Buffered", value: String(model.totalCount) },
+    { label: "Errors", value: String(model.errorCount), tone: model.errorCount > 0 ? "error" : "neutral" },
+    { label: "Warnings", value: String(model.warnCount), tone: model.warnCount > 0 ? "warn" : "neutral" },
+  ] as const;
+}
+
+function buildIssueMetrics(visibleCount: number, errorCount: number, warnCount: number, issueFilter: IssueFilter) {
+  return [
+    { label: "Shown", value: String(visibleCount) },
+    { label: "Errors", value: String(errorCount), tone: errorCount > 0 ? "error" : "neutral" },
+    { label: "Warnings", value: String(warnCount), tone: warnCount > 0 ? "warn" : "neutral" },
+    { label: "Filter", value: formatIssueFilterLabel(issueFilter) },
+  ] as const;
+}
+
+function formatMetaSurfaceLabel(item: MetaPanelItem): string {
+  if (item.key === "document:head") {
+    return "Head";
+  }
+
+  if (item.groupLabel === "Routes") {
+    return "Route";
+  }
+
+  if (item.groupLabel === "AI") {
+    return "AI";
+  }
+
+  return "Meta";
+}
+function formatLogFilterLabel(filter: LogFilter): string {
+  if (filter === "all") {
+    return "All";
+  }
+
+  if (filter === "hub") {
+    return "Hub";
+  }
+
+  return `${filter.slice(0, 1).toUpperCase()}${filter.slice(1)}`;
+}
+
+function formatIssueFilterLabel(filter: IssueFilter): string {
+  switch (filter) {
+    case "error":
+      return "Errors";
+    case "warn":
+      return "Warnings";
+    default:
+      return "All issues";
+  }
+}
+
+function buildFeedEntryKey(timestamp: number, type: string, summary: string): string {
+  return `${String(timestamp)}:${type}:${summary}`;
+}
+
+function renderSelectedDataStage(content: string): string {
+  return `<div class="devtools-value-surface">${content}</div>`;
+}
+
+function renderSelectedPayloadStage(payload: unknown, rootPath: string, fallbackSummary: string, expandedValuePaths: Set<string>): string {
+  if (payload === undefined) {
+    return `<div class="empty-state">${escapeHtml(fallbackSummary)}</div>`;
+  }
+
+  return renderSelectedDataStage(renderValueExplorer(payload, rootPath, expandedValuePaths));
+}
+
+function summarizePayloadFields(payload: unknown, excludedKeys: readonly string[] = []): string {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return "Captured event context";
+  }
+
+  const fields = Object.entries(payload as Record<string, unknown>)
+    .filter(([key, value]) => !excludedKeys.includes(key) && value !== undefined)
+    .slice(0, 3)
+    .map(([key, value]) => `${key}=${safeString(value)}`);
+
+  return fields.length > 0 ? fields.join(" | ") : "Captured event context";
+}
+
 function renderIframeResultList(items: readonly IframeResultItem[], emptyMessage: string): string {
   if (items.length === 0) {
     return `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
@@ -279,17 +404,57 @@ function renderIframeResultList(items: readonly IframeResultItem[], emptyMessage
     <div class="iframe-results-pane">
       <ul class="iframe-results-list">
         ${items.map((item) => `
-          <li class="iframe-results-item${item.tone ? ` is-${item.tone}` : ""}">
+          <li class="iframe-results-item${item.tone ? ` is-${item.tone}` : ""}${item.variant ? ` is-${item.variant}` : ""}">
             <div class="iframe-results-item-head">
-              <div class="iframe-results-item-title">${escapeHtml(item.title)}</div>
-              ${item.meta ? `<div class="iframe-results-item-meta">${escapeHtml(item.meta)}</div>` : ""}
+              <div class="iframe-results-item-copy">
+                ${item.kicker || item.meta ? `
+                  <div class="iframe-results-item-kicker-row">
+                    ${item.kicker ? `<span class="iframe-results-item-kicker">${escapeHtml(item.kicker)}</span>` : ""}
+                    ${item.meta ? `<div class="iframe-results-item-meta">${escapeHtml(item.meta)}</div>` : ""}
+                  </div>
+                ` : ""}
+                <div class="iframe-results-item-title-row">
+                  <div class="iframe-results-item-title">${escapeHtml(item.title)}</div>
+                </div>
+                ${item.summary ? `<div class="iframe-results-item-summary">${escapeHtml(item.summary)}</div>` : ""}
+              </div>
             </div>
-            ${item.summary ? `<div class="iframe-results-item-summary">${escapeHtml(item.summary)}</div>` : ""}
+            ${item.detail ? `
+              <details class="iframe-results-item-detail"${item.detailOpen ? " open" : ""}>
+                <summary class="iframe-results-item-detail-toggle"${item.detailKey ? ` data-timeline-detail-key="${escapeHtml(item.detailKey)}"` : ""}>${escapeHtml(item.detailLabel ?? "Structured payload")}</summary>
+                <div class="iframe-results-item-detail-body">${item.detail}</div>
+              </details>
+            ` : ""}
           </li>
         `).join("")}
       </ul>
     </div>
   `;
+}
+
+function renderPayloadDetail(payload: unknown, rootPath: string, expandedValuePaths: Set<string>): string | undefined {
+  if (!hasRichPayload(payload)) {
+    return undefined;
+  }
+
+  return renderValueExplorer(payload, rootPath, expandedValuePaths);
+}
+
+function hasRichPayload(payload: unknown): payload is Record<string, unknown> | unknown[] {
+  if (Array.isArray(payload)) {
+    return payload.length > 0;
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const keys = Object.keys(payload as Record<string, unknown>);
+  if (keys.length === 0) {
+    return false;
+  }
+
+  return keys.length > 1 || keys[0] !== "message";
 }
 
 export function renderIssuesPanel(state: IssuesStateLike): string {
@@ -315,59 +480,93 @@ export function renderIssuesPanel(state: IssuesStateLike): string {
     return event.level === "warn" || event.type.includes("warn") || event.type.includes("hydration");
   });
 
-  const issueFeedMarkup = renderIframeResultList(
-    filteredIssues
-      .slice(-50)
-      .reverse()
-      .map((issue) => ({
-        title: issueMessage(issue),
-        meta: joinMetaParts([
-          issue.type,
-          formatEventTime(issue.timestamp)
-        ]),
-        tone: issue.level === "error" || issue.type.startsWith("error:") ? "error" : "warn"
-      })),
-    "No issues detected for the current filter."
-  );
+  const issueEntries = filteredIssues
+    .slice(-80)
+    .map((issue) => toIssueWorkbenchEntry(issue))
+    .reverse();
+  const selectedIssue = issueEntries.find((entry) => entry.key === state.selectedIssueKey) ?? null;
+  const issuePanelToneClass = errorCount > 0 ? "is-red" : "is-amber";
+  const selectedIssueToneClass = resolveSeverityToneClass(selectedIssue?.tone, "is-amber");
 
-  return renderIframeSplitPanel({
-    className: "issues-panel-layout",
-    navAriaLabel: "Issue filters",
-    navMarkup: renderIframeNavList([
-      {
-        title: "All issues",
-        summary: `${issues.length} surfaced events`,
-        active: state.issueFilter === "all",
-        attributes: { "data-issue-filter": "all" }
-      },
-      {
-        title: "Errors",
-        summary: `${errorCount} critical failures`,
-        active: state.issueFilter === "error",
-        attributes: { "data-issue-filter": "error" }
-      },
-      {
-        title: "Warnings",
-        summary: `${warnCount} warning signals`,
-        active: state.issueFilter === "warn",
-        attributes: { "data-issue-filter": "warn" }
-      }
-    ]),
+  const filterToolbar = renderCompactSubrouteControls(state.issueFilter, "Issue lanes", "data-issue-filter", [
+    { key: "all", label: `All ${issues.length}` },
+    { key: "error", label: `Errors ${errorCount}` },
+    { key: "warn", label: `Warnings ${warnCount}` },
+  ]);
+
+  const sidebarBody = issueEntries.length === 0
+    ? `<div class="empty-state">No surfaced issues for the current filter.</div>`
+    : renderWorkbenchList(issueEntries.map((entry) => ({
+      title: entry.title,
+      summary: entry.summary,
+      meta: entry.meta,
+      badge: entry.badge,
+      active: selectedIssue?.key === entry.key,
+      tone: entry.tone,
+      group: entry.group,
+      attributes: { "data-issue-entry-key": entry.key }
+    })));
+
+  const detailBody = selectedIssue
+    ? renderSelectedPayloadStage(
+        selectedIssue.payload,
+        `issues.${selectedIssue.key}`,
+        selectedIssue.summary || "No captured data for this issue.",
+        state.expandedValuePaths
+      )
+    : renderWorkbenchIntroState({
+      title: "Inspect one surfaced issue",
+      titleToneClass: "is-amber",
+      description: "Keep critical failures and warnings in one feed, then inspect the exact event context on the right so issue triage feels like an investigation instead of a report.",
+      metrics: buildIssueMetrics(issueEntries.length, errorCount, warnCount, state.issueFilter),
+      steps: [
+        "Pick the severity lane first if the feed is noisy.",
+        "Select one surfaced issue from the left to inspect its metadata and captured context.",
+        "Stay on the selected issue while you compare Logs and Queue so the root symptom remains stable."
+      ],
+      note: "The right pane stays empty until you choose one surfaced issue from the left rail."
+    });
+
+  return renderInvestigationJournal({
+    className: "issues-panel-layout investigation-panel investigation-panel--issues investigation-journal--issues",
+    ariaLabel: "Issue investigation",
+    title: "Issue Investigation",
+    subtitle: `${issueEntries.length} shown · ${formatIssueFilterLabel(state.issueFilter)} · ${issues.length} total surfaced`,
+    titleToneClass: issuePanelToneClass,
+    subtitleToneClass: toSoftToneClass(issuePanelToneClass),
+    heroKicker: "Surfaced issue flow",
+    heroTitle: "Focus the active issue, not the whole dump",
+    heroSummary: selectedIssue
+      ? "The selected issue stays on the right while the left rail keeps only the surfaced issue list and severity filters in view."
+      : "Use the left rail to narrow failures and warnings, then inspect the selected issue on the larger stage.",
+    toolbar: filterToolbar,
+    feedAriaLabel: "Issue investigation feed",
+    feedTitle: "Issue feed",
+    feedSubtitle: `${issueEntries.length} recent surfaced issues`,
+    feedTitleToneClass: "is-amber",
+    feedSubtitleToneClass: "is-amber-soft",
+    feedBody: sidebarBody,
     detailAriaLabel: "Issue detail",
-    title: "Issues and Warnings",
-    subtitle: `Errors: ${errorCount} | Warnings: ${warnCount}`,
-    body: issueFeedMarkup
+    detailTitle: selectedIssue?.title ?? "Issue inspector",
+    detailSubtitle: selectedIssue?.meta ?? "Select one surfaced issue from the feed to inspect its context.",
+    detailTitleToneClass: selectedIssueToneClass,
+    detailSubtitleToneClass: toSoftToneClass(selectedIssueToneClass),
+    detailBody,
   });
 }
 
 export function renderLogsPanel(state: LogsStateLike): string {
-  const logs = state.events.slice(-100).filter((event) => {
-    if (state.logFilter === "all") return true;
-    return event.type.includes(state.logFilter);
-  });
+  const searchQuery = state.logSearchQuery ?? "";
+  const model = buildLogWorkbenchModel(state.events, state.logFilter, state.selectedLogEntryKey, searchQuery);
+  const selectedLog = model.selected ?? null;
+  const selectedLogToneClass = selectedLog?.level === "error"
+    ? "is-red"
+    : selectedLog?.level === "warn"
+      ? "is-amber"
+      : "is-cyan";
 
   const filterSummaries: Record<LogFilter, string> = {
-    all: `${state.events.length} retained events`,
+    all: `${model.totalCount} retained events`,
     component: "component lifecycle and render activity",
     signal: "signal and ref updates",
     effect: "effect execution and cleanup",
@@ -376,76 +575,252 @@ export function renderLogsPanel(state: LogsStateLike): string {
     route: "router navigation and metadata"
   };
 
-  const logsMarkup = renderIframeResultList(
-    logs
-      .slice()
-      .reverse()
-      .map((log) => ({
-        title: summarizeLog(log),
-        meta: joinMetaParts([
-          log.type,
-          formatEventTime(log.timestamp)
-        ]),
-        tone: log.level === "error" ? "error" : log.level === "warn" ? "warn" : "neutral"
-      })),
-    "No events for the current filter."
-  );
+  const filterToolbar = [
+    renderWorkbenchSearchInput(searchQuery, "Search event names, summaries, or payload labels", 'data-log-search="true"'),
+    renderCompactSubrouteControls(state.logFilter, "Event lanes", "data-log-filter", (["all", "component", "signal", "effect", "error", "hub", "route"] as const).map((filter) => ({
+      key: filter,
+      label: `${formatLogFilterLabel(filter)} ${model.filterCounts[filter]}`,
+      title: filterSummaries[filter],
+    })))
+  ].join("");
 
-  return renderIframeSplitPanel({
-    className: "logs-panel-layout",
-    navAriaLabel: "Log filters",
-    navMarkup: renderIframeNavList(
-      (["all", "component", "signal", "effect", "error", "hub", "route"] as const).map((filter) => ({
-        title: filter === "all" ? "All events" : filter,
-        summary: filterSummaries[filter],
-        active: state.logFilter === filter,
-        attributes: { "data-log-filter": filter }
-      }))
-    ),
-    detailAriaLabel: "Event log detail",
-    title: "Event Logs",
-    subtitle: `Total events: ${state.events.length} | Filter: ${state.logFilter}`,
-    body: logsMarkup
+  const sidebarBody = model.entries.length === 0
+    ? `<div class="empty-state">${searchQuery.trim().length > 0 ? `No events match "${escapeHtml(searchQuery)}".` : "No events for the current filter."}</div>`
+    : renderWorkbenchList(model.entries.map((entry) => toLogWorkbenchListItem(entry, selectedLog?.key ?? null, state.logFilter)));
+
+  const detailBody = selectedLog
+    ? renderSelectedPayloadStage(
+        selectedLog.payload,
+        `logs.${selectedLog.key}`,
+        selectedLog.summary || "No captured data for this event.",
+        state.expandedValuePaths
+      )
+    : renderWorkbenchIntroState({
+      title: "Choose an event to inspect",
+      titleToneClass: "is-cyan",
+      description: "Filter the feed first, then inspect one event at a time. The left rail stays dense so you can keep temporal context while drilling into a single payload.",
+      metrics: buildLogMetrics(model),
+      steps: [
+        "Use the domain chips to narrow the feed before you select anything.",
+        "Pick one event on the left to inspect its captured fields on the right.",
+        "Use search for names, summaries, or payload text when the feed gets noisy."
+      ],
+      note: searchQuery.trim().length > 0
+        ? `Search is currently reducing the feed to ${model.filteredCount} matching events.`
+        : "The right pane stays empty until you choose one event so you do not lose your place in the feed."
+    });
+
+  return renderInvestigationJournal({
+    className: "logs-panel-layout investigation-panel investigation-panel--logs investigation-journal--logs",
+    ariaLabel: "Event investigation",
+    title: "Event Investigation",
+    subtitle: `${model.filteredCount} shown · ${formatLogFilterLabel(state.logFilter)} · ${model.totalCount} buffered`,
+    titleToneClass: "is-blue",
+    subtitleToneClass: "is-blue-soft",
+    heroKicker: "Live event journal",
+    heroTitle: "Keep the journal narrow and the stage wide",
+    heroSummary: selectedLog
+      ? "The selected event stays isolated on the right so the journal remains a lightweight submenu instead of competing with the inspection stage."
+      : "Search and filter from the top, skim the left rail, then inspect one event on the larger stage.",
+    toolbar: filterToolbar,
+    feedAriaLabel: "Event feed",
+    feedTitle: "Investigation feed",
+    feedSubtitle: `${model.filteredCount} visible events in the current stream`,
+    feedTitleToneClass: "is-blue",
+    feedSubtitleToneClass: "is-blue-soft",
+    feedBody: sidebarBody,
+    detailAriaLabel: "Event detail",
+    detailTitle: selectedLog?.title ?? "Event inspector",
+    detailSubtitle: selectedLog
+      ? joinMetaParts([selectedLog.eventType, selectedLog.level ? selectedLog.level.toUpperCase() : undefined, formatEventTime(selectedLog.timestamp)])
+      : "Select one event from the journal to inspect its payload and metadata.",
+    detailTitleToneClass: selectedLogToneClass,
+    detailSubtitleToneClass: toSoftToneClass(selectedLogToneClass),
+    detailBody,
   });
 }
 
 export function renderTimelinePanel(state: TimelineStateLike): string {
   const timeline = buildTimeline(state.events, 250);
-  const cursor = timeline.length === 0 ? -1 : Math.max(0, Math.min(state.timelineCursor, timeline.length - 1));
-  const replayedTimeline = timeline.length === 0 ? [] : replayEventsAtIndex(timeline, cursor);
-  const replayedCount = replayedTimeline.length;
-  const hiddenCount = Math.max(0, timeline.length - replayedCount);
-  const replayResultsMarkup = renderIframeResultList(
-    replayedTimeline.map((entry) => ({
-      title: entry.summary,
-      summary: entry.type,
-      meta: joinMetaParts([
-        `#${String(entry.index)}`,
-        formatEventTime(entry.timestamp)
-      ])
-    })),
-    "No replayed events are visible for the current cursor."
-  );
+  const activeFilter = state.timelineFilter ?? DEFAULT_TIMELINE_PANEL_FILTER;
+  const filteredTimeline = timeline.filter((entry) => activeFilter === "all" || resolveTimelineFilter(entry.type) === activeFilter);
+  const filteredCount = filteredTimeline.length;
+  const activeFilterToneClass = resolveTimelineFilterToneClass(activeFilter);
+  const timelineResultsMarkup = renderIframeResultList(
+    filteredTimeline.slice().reverse().map((entry) => {
+      const detailMarkup = renderPayloadDetail(entry.payload, `timeline.${entry.index}`, state.expandedValuePaths);
+      const family = resolveTimelineFilter(entry.type);
+      const detailKey = `timeline.${entry.index}`;
 
-  return renderIframeSinglePanel({
-    className: "timeline-panel-layout",
-    ariaLabel: "Timeline and replay",
-    title: "Timeline and Replay",
-    subtitle: `Replaying ${replayedCount} / ${timeline.length} events${hiddenCount > 0 ? ` | ${hiddenCount} hidden ahead` : ""}`,
-    body: [
-      renderIframeFlatSection("Replay cursor", timeline.length > 0 ? `
-        <div class="timeline-control-panel">
-          <div class="timeline-control-summary">
-            <div class="timeline-control-count">${replayedCount} visible</div>
-            <div class="timeline-control-note">${hiddenCount > 0 ? `${hiddenCount} upcoming events hidden from the feed.` : "All buffered events are visible."}</div>
+      return {
+        kicker: TIMELINE_FILTER_LABELS[family],
+        title: formatTimelineEventLabel(entry.type),
+        summary: entry.summary,
+        tone: resolveTimelineEntryTone(entry.type),
+        variant: "event",
+        meta: joinMetaParts([
+          `#${String(entry.index)}`,
+          formatEventTime(entry.timestamp)
+        ]),
+        detailLabel: detailMarkup ? "Structured context" : "Event metadata",
+        detailKey,
+        detailOpen: state.expandedDetailKeys.has(detailKey),
+        detail: `
+          <div class="timeline-event-detail-stack">
+            ${renderWorkbenchFacts([
+              { label: "Family", value: TIMELINE_FILTER_LABELS[family] },
+              { label: "Event", value: formatTimelineEventLabel(entry.type) },
+              { label: "Index", value: `#${entry.index}` },
+              { label: "Time", value: formatEventTime(entry.timestamp) || "unknown" },
+            ])}
+            ${detailMarkup
+              ? renderSelectedDataStage(detailMarkup)
+              : `<div class="empty-state timeline-event-empty-state">No structured payload was captured for this event.</div>`}
           </div>
-          <div class="range-wrap">
-            <input class="timeline-slider" type="range" min="0" max="${Math.max(0, timeline.length - 1)}" value="${Math.max(0, cursor)}" data-timeline-cursor="true" />
-            <div class="tiny-muted">Cursor: ${cursor} of ${Math.max(0, timeline.length - 1)}</div>
+        `,
+      };
+    }),
+    "No events match the current timeline filter."
+  );
+  const timelineFilterItems = buildTimelineFilterItems(timeline, activeFilter);
+  const detailBody = filteredCount > 0
+    ? [
+      `
+        <section class="iframe-panel-section-block timeline-filter-summary-section">
+          ${renderDevtoolsHeadingRow("Filter summary", "iframe-panel-section-heading")}
+          <div class="timeline-control-panel">
+            <div class="timeline-control-summary">
+              <div class="timeline-control-count">${escapeHtml(TIMELINE_FILTER_LABELS[activeFilter])} · newest first</div>
+              <div class="timeline-control-note">Filter the retained event stream from the left rail. The stage on the right keeps only the matching events instead of trying to scrub through checkpoints.</div>
+            </div>
+            ${renderWorkbenchMetrics([
+              { label: "Filter", value: TIMELINE_FILTER_LABELS[activeFilter] },
+              { label: "Shown", value: String(filteredCount), tone: filteredCount > 0 ? "accent" : "neutral" },
+              { label: "Buffered", value: String(timeline.length) },
+              { label: "Muted", value: String(Math.max(0, timeline.length - filteredCount)), tone: timeline.length > filteredCount ? "warn" : "neutral" },
+            ])}
           </div>
-        </div>
-      ` : `<div class="empty-state">No events in timeline.</div>`),
-      renderIframeFlatSection("Replay results", replayResultsMarkup, "timeline-results-section")
+        </section>
+      `,
+      `
+        <section class="iframe-panel-section-block timeline-results-section">
+          ${renderDevtoolsHeadingRow("Filtered timeline events", "iframe-panel-section-heading")}
+          ${timelineResultsMarkup}
+        </section>
+      `
     ].join("")
+    : renderWorkbenchIntroState({
+      title: "Pick one event family",
+      titleToneClass: activeFilterToneClass,
+      description: "Use the left rail to filter the retained event stream by family. The stage on the right stays reserved for matching events instead of mirroring one selected checkpoint.",
+      metrics: [
+        { label: "Buffered", value: String(timeline.length) },
+        { label: "Shown", value: String(filteredCount), tone: filteredCount > 0 ? "accent" : "neutral" },
+      ],
+      note: "The left rail is now only for filtering. All matching events stay on the right."
+    });
+
+  return renderInvestigationJournal({
+    className: "timeline-panel-layout investigation-panel investigation-panel--timeline investigation-journal--timeline",
+    ariaLabel: "Timeline and replay",
+    title: "Timeline",
+    subtitle: `${timeline.length} buffered · ${filteredCount} shown · ${TIMELINE_FILTER_LABELS[activeFilter]}`,
+    titleToneClass: "is-cyan",
+    subtitleToneClass: "is-cyan-soft",
+    heroTitle: "Event filters",
+    heroSummary: "Use the left rail to filter the retained event stream while the right side stays dedicated to the matching events.",
+    feedAriaLabel: "Timeline filters",
+    feedTitle: "Event filters",
+    feedSubtitle: timeline.length === 0
+      ? "No buffered events"
+      : `${timeline.length} buffered events grouped by family`,
+    feedTitleToneClass: "is-blue",
+    feedSubtitleToneClass: "is-blue-soft",
+    feedBody: renderWorkbenchList(timelineFilterItems),
+    detailAriaLabel: "Timeline events",
+    detailTitle: TIMELINE_FILTER_LABELS[activeFilter],
+    detailSubtitle: filteredCount === 0
+      ? "No events match the selected filter."
+      : `${filteredCount} matching events · newest first`,
+    detailTitleToneClass: activeFilterToneClass,
+    detailSubtitleToneClass: toSoftToneClass(activeFilterToneClass),
+    detailBody,
   });
+}
+
+function formatTimelineEventLabel(type: string): string {
+  return type
+    .split(":")
+    .map((segment) => segment.length > 0 ? `${segment.slice(0, 1).toUpperCase()}${segment.slice(1)}` : segment)
+    .join(" / ");
+}
+
+function buildTimelineFilterItems(timeline: ReturnType<typeof buildTimeline>, activeFilter: TimelinePanelFilter): WorkbenchListItem[] {
+  const counts = new Map<Exclude<TimelinePanelFilter, "all">, number>();
+
+  for (const entry of timeline) {
+    const key = resolveTimelineFilter(entry.type);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return TIMELINE_FILTER_ORDER
+    .filter((key) => key === "all" || (counts.get(key) ?? 0) > 0)
+    .map((key) => ({
+      title: TIMELINE_FILTER_LABELS[key],
+      badge: String(key === "all" ? timeline.length : counts.get(key) ?? 0),
+      active: key === activeFilter,
+      tone: key === "issues" && (counts.get("issues") ?? 0) > 0 ? "warn" : "neutral",
+      attributes: { "data-timeline-filter": key }
+    }));
+}
+
+function resolveTimelineFilter(type: string): Exclude<TimelinePanelFilter, "all"> {
+  const normalizedType = type.toLowerCase();
+
+  if (normalizedType.startsWith("error:") || normalizedType.includes("warn") || normalizedType.includes("hydration")) {
+    return "issues";
+  }
+
+  if (normalizedType.startsWith("route:")) {
+    return "route";
+  }
+
+  if (normalizedType.startsWith("component:")) {
+    return "component";
+  }
+
+  if (normalizedType.startsWith("signal:")) {
+    return "signal";
+  }
+
+  if (normalizedType.startsWith("effect:")) {
+    return "effect";
+  }
+
+  if (normalizedType.startsWith("dom:")) {
+    return "dom";
+  }
+
+  if (normalizedType.startsWith("queue:")) {
+    return "queue";
+  }
+
+  if (normalizedType.startsWith("hub:")) {
+    return "hub";
+  }
+
+  return "other";
+}
+
+function resolveTimelineEntryTone(type: string): IframeResultItem["tone"] | undefined {
+  const normalizedType = type.toLowerCase();
+  if (normalizedType.startsWith("error:") || normalizedType.includes("error")) {
+    return "error";
+  }
+
+  if (normalizedType.includes("warn") || normalizedType.includes("hydration")) {
+    return "warn";
+  }
+
+  return undefined;
 }

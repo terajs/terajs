@@ -1,6 +1,12 @@
 import { analyzeSafeDocumentContext, type SafeDocumentContext } from "../../../documentContext.js";
 import type { AIAssistantStructuredResponse } from "../../../aiHelpers.js";
-import { renderAIDiagnosticsPanel, type AIDiagnosticsSectionKey } from "../../../panels/diagnosticsPanels.js";
+import {
+  renderAIDiagnosticsPanel,
+  type AIAnalysisOutputView,
+  type AIDiagnosticsSectionKey,
+  type AISessionModeView,
+  type AIDocumentContextView
+} from "../../../panels/diagnosticsPanels.js";
 import type { DevtoolsEvent } from "../../../app.js";
 
 export interface ShadowAIAreaState {
@@ -18,6 +24,9 @@ export interface ShadowAIAreaState {
   aiAssistantModel: string;
   aiAssistantTimeoutMs: number;
   activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
+  activeAIDocumentContextView: AIDocumentContextView;
+  activeAISessionModeView: AISessionModeView;
+  activeAIAnalysisOutputView: AIAnalysisOutputView;
 }
 
 export function renderShadowAIArea(

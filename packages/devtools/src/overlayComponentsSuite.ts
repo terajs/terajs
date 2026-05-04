@@ -25,7 +25,7 @@ export function registerOverlayComponentsSuite(): void {
     expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
   });
 
-  it("keeps the components header search-only and hides the inspector until selection", () => {
+  it("keeps the components header search-only and keeps the inspector stage stable before selection", () => {
     mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
@@ -37,6 +37,8 @@ export function registerOverlayComponentsSuite(): void {
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     const treeHeader = shadowRoot?.querySelector(".components-screen-tree .components-screen-header") as HTMLDivElement | null;
+    const inspectorPanel = shadowRoot?.querySelector(".components-screen-inspector") as HTMLElement | null;
+    const inspectorFilter = shadowRoot?.querySelector(".components-screen-inspector .components-screen-filter") as HTMLInputElement | null;
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
 
     expect(treeHeader?.querySelector(".components-screen-search")).toBeTruthy();
@@ -44,11 +46,25 @@ export function registerOverlayComponentsSuite(): void {
     expect(treeHeader?.querySelector(".panel-subtitle")).toBeNull();
     expect(treeHeader?.querySelector(".components-screen-pill")).toBeNull();
     expect(shadowRoot?.querySelector('[data-action="clear-component-selection"]')).toBeNull();
-    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeNull();
+    expect(inspectorPanel).toBeTruthy();
+    expect(inspectorFilter?.disabled).toBe(true);
+    expect(inspectorPanel?.textContent).toContain("Select a component from the tree");
 
     componentButton?.click();
 
-    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeTruthy();
+    const activeInspectorFilter = shadowRoot?.querySelector(".components-screen-inspector .components-screen-filter") as HTMLInputElement | null;
+    expect(activeInspectorFilter?.disabled).toBe(false);
+  });
+
+  it("packs the component tree at the top and keeps sidebar tabs fixed-height", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/\.component-tree-list\s*\{[^}]*align-content: start;/);
+    expect(styleText).toMatch(/\.components-screen\s*\{[^}]*height: 100%;/);
+    expect(styleText).toMatch(/\.components-screen-sidebar \.tab-button\s*\{[^}]*flex: 0 0 56px;/);
   });
 
   it("highlights component roots when hovering tree rows", () => {
@@ -372,9 +388,12 @@ export function registerOverlayComponentsSuite(): void {
     componentButton?.click();
 
     componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    const inactiveInspectorFilter = shadowRoot?.querySelector(".components-screen-inspector .components-screen-filter") as HTMLInputElement | null;
     expect(componentButton?.classList.contains("is-active")).toBe(false);
     expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(false);
-    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeNull();
+    expect(shadowRoot?.querySelector(".components-screen-inspector")).toBeTruthy();
+    expect(inactiveInspectorFilter?.disabled).toBe(true);
+    expect(shadowRoot?.querySelector(".components-screen-inspector")?.textContent).toContain("Select a component from the tree");
   });
 
   it("uses collapsible component drill-down sections", () => {
@@ -468,6 +487,37 @@ export function registerOverlayComponentsSuite(): void {
 
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
     expect(componentButton?.classList.contains("is-active")).toBe(true);
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
+  });
+
+  it("keeps inspect pick active after minimizing and reopens to the picked component", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay({ startOpen: true });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    toggleDevtoolsOverlay();
+    expect(document.body.hasAttribute("data-terajs-inspect-mode")).toBe(true);
+
+    componentRoot.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, composed: true }));
+    componentRoot.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true, button: 0 }));
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const panel = shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+
+    expect(panel?.classList.contains("is-hidden")).toBe(false);
+    expect(componentButton?.classList.contains("is-active")).toBe(true);
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(true);
     expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
   });
 

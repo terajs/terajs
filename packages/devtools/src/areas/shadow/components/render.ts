@@ -7,6 +7,7 @@ import {
   type ComponentsPanelViewState
 } from "../../../inspector/componentsPanelView.js";
 import { escapeHtml } from "../../../inspector/shared.js";
+import { renderDevtoolsTitleRow } from "../../../devtoolsIcons.js";
 
 export interface ShadowComponentsAreaState extends ComponentsPanelViewState {}
 
@@ -32,9 +33,15 @@ export function renderShadowComponentsArea<TState extends ShadowComponentsAreaSt
   renderComponentDrilldownInspector: ShadowComponentsDrilldownRenderer<TState>
 ): string {
   const view = buildComponentsPanelView(state, renderComponentDrilldownInspector);
+  const inspectorSubtitle = view.hasSelection
+    ? view.selectedLabel
+    : "Select a component from the tree to inspect its state without shifting the layout.";
+  const inspectorPlaceholder = view.hasSelection
+    ? "Filter state..."
+    : "Select a component to filter state";
 
   return `
-    <div class="components-screen${view.hasSelection ? "" : " is-inspector-hidden"}">
+    <div class="components-screen">
       <aside class="components-screen-sidebar">
         ${renderTabRail(state, tabs)}
       </aside>
@@ -54,28 +61,27 @@ export function renderShadowComponentsArea<TState extends ShadowComponentsAreaSt
           ${view.treeMarkup}
         </div>
       </section>
-      ${view.hasSelection ? `
-        <section class="components-screen-inspector" aria-label="Component inspector">
-          <div class="components-screen-header">
-            <div class="components-screen-header-row">
-              <div>
-                <div class="panel-title is-cyan">State Inspector</div>
-                <div class="panel-subtitle">${escapeHtml(view.selectedLabel)}</div>
-              </div>
-              <input
-                class="components-screen-filter"
-                data-component-inspector-query="true"
-                type="search"
-                placeholder="Filter state..."
-                value="${escapeHtml(state.componentInspectorQuery)}"
-              />
+      <section class="components-screen-inspector" aria-label="Component inspector">
+        <div class="components-screen-header">
+          <div class="components-screen-header-row">
+            <div>
+              ${renderDevtoolsTitleRow("State Inspector", "is-cyan", "components")}
+              <div class="panel-subtitle">${escapeHtml(inspectorSubtitle)}</div>
             </div>
+            <input
+              class="components-screen-filter"
+              data-component-inspector-query="true"
+              type="search"
+              placeholder="${escapeHtml(inspectorPlaceholder)}"
+              value="${escapeHtml(state.componentInspectorQuery)}"
+              ${view.hasSelection ? "" : "disabled"}
+            />
           </div>
-          <div class="components-screen-body">
-            ${view.inspectorMarkup}
-          </div>
-        </section>
-      ` : ""}
+        </div>
+        <div class="components-screen-body">
+          ${view.inspectorMarkup}
+        </div>
+      </section>
     </div>
   `;
 }
@@ -100,16 +106,22 @@ export function patchShadowComponentsArea<TState extends ShadowComponentsAreaSta
   options.updateHeaderEventCount();
 
   const inspectorPanel = options.root.querySelector<HTMLElement>(".components-screen-inspector");
-  if (view.hasSelection !== Boolean(inspectorPanel)) {
+  if (!inspectorPanel) {
     options.renderFallback();
     return;
   }
 
-  componentsScreen.classList.toggle("is-inspector-hidden", !view.hasSelection);
-
   const inspectorSubtitle = options.root.querySelector<HTMLElement>(".components-screen-inspector .panel-subtitle");
   if (inspectorSubtitle) {
-    inspectorSubtitle.textContent = view.selectedLabel;
+    inspectorSubtitle.textContent = view.hasSelection
+      ? view.selectedLabel
+      : "Select a component from the tree to inspect its state without shifting the layout.";
+  }
+
+  const inspectorFilter = options.root.querySelector<HTMLInputElement>(".components-screen-inspector .components-screen-filter");
+  if (inspectorFilter) {
+    inspectorFilter.disabled = !view.hasSelection;
+    inspectorFilter.placeholder = view.hasSelection ? "Filter state..." : "Select a component to filter state";
   }
 
   if (options.refreshTree) {

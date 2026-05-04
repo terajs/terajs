@@ -1,5 +1,6 @@
-import type { DevtoolsEvent } from "./app.js";
+import type { DevtoolsEvent, IframePanelsState } from "./app.js";
 import type { SafeDocumentContext } from "./documentContext.js";
+import type { InspectorSectionKey } from "./inspector/drilldownRenderer.js";
 import { RouteSessions } from "./routeSessions.js";
 import {
   renderIssuesPanel,
@@ -18,11 +19,9 @@ import {
 interface IframePanelState {
   activeTab: string;
   events: DevtoolsEvent[];
-  selectedMetaKey: string | null;
+  iframePanels: IframePanelsState;
+  expandedInspectorSections: Set<InspectorSectionKey>;
   expandedValuePaths: Set<string>;
-  issueFilter: "all" | "error" | "warn";
-  logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
-  timelineCursor: number;
 }
 
 function getRouteEvents(state: IframePanelState, routeSessions: RouteSessions): DevtoolsEvent[] {
@@ -40,36 +39,64 @@ export function renderIframePanelContent(
 
   switch (state.activeTab) {
     case "Signals":
-      return renderSignalsPanel({ events: state.events });
+      return renderSignalsPanel({
+        events: state.events,
+        selectedSignalKey: state.iframePanels.signals.selectedKey,
+        signalSearchQuery: state.iframePanels.signals.searchQuery,
+        signalViewMode: state.iframePanels.signals.viewMode,
+        expandedValuePaths: state.expandedValuePaths,
+      });
     case "Meta":
       return renderMetaPanel({
         events: state.events,
-        selectedMetaKey: state.selectedMetaKey,
+        selectedMetaKey: state.iframePanels.meta.selectedKey,
+        metaSearchQuery: state.iframePanels.meta.searchQuery,
         expandedValuePaths: state.expandedValuePaths
       }, documentContext);
     case "Issues":
       return renderIssuesPanel({
         events: state.events,
-        issueFilter: state.issueFilter
+        issueFilter: state.iframePanels.issues.filter,
+        selectedIssueKey: state.iframePanels.issues.selectedKey,
+        expandedValuePaths: state.expandedValuePaths,
       });
     case "Logs":
       return renderLogsPanel({
         events: routeEvents,
-        logFilter: state.logFilter
+        logFilter: state.iframePanels.logs.filter,
+        selectedLogEntryKey: state.iframePanels.logs.selectedEntryKey,
+        logSearchQuery: state.iframePanels.logs.searchQuery,
+        expandedValuePaths: state.expandedValuePaths,
       });
     case "Timeline":
       return renderTimelinePanel({
         events: routeEvents,
-        timelineCursor: state.timelineCursor
+        timelineFilter: state.iframePanels.timeline.filter,
+        expandedValuePaths: state.expandedValuePaths,
+        expandedDetailKeys: state.iframePanels.timeline.expandedDetailKeys,
       });
     case "Router":
-      return renderRouterPanel(routeEvents);
+      return renderRouterPanel({
+        events: routeEvents,
+        expandedValuePaths: state.expandedValuePaths,
+        activeRouterView: state.iframePanels.router.activeView,
+      });
     case "Queue":
-      return renderQueuePanel(routeEvents);
+      return renderQueuePanel({
+        events: routeEvents,
+        selectedQueueEntryKey: state.iframePanels.queue.selectedEntryKey,
+        expandedValuePaths: state.expandedValuePaths,
+      });
     case "Performance":
-      return renderPerformancePanel(routeEvents);
+      return renderPerformancePanel({
+        events: routeEvents,
+        activePerformanceView: state.iframePanels.performance.activeView,
+      });
     case "Sanity Check":
-      return renderSanityPanel(routeEvents);
+      return renderSanityPanel({
+        events: routeEvents,
+        activeSanityView: state.iframePanels.sanity.activeView,
+      });
     default:
       return "";
   }

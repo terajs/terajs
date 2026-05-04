@@ -8,6 +8,7 @@ const IFRAME_DOCUMENT_CHROME = `
     --tera-graphite: #1d2940;
     --tera-blue: #2f6dff;
     --tera-cyan: #32d7ff;
+    --tera-title-ink: var(--tera-cyan);
     --tera-purple: #6f6dff;
     --tera-mist: #93a7cb;
     --tera-cloud: #f2f7ff;
@@ -18,28 +19,56 @@ const IFRAME_DOCUMENT_CHROME = `
     --tera-border: rgba(147, 167, 203, 0.18);
     --tera-panel-glow: linear-gradient(145deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.11) 44%, rgba(111, 109, 255, 0.1));
     --tera-shadow: 0 24px 60px rgba(2, 8, 20, 0.52);
+    --tera-surface-page: linear-gradient(180deg, rgba(8, 15, 27, 0.98), rgba(5, 9, 18, 0.98));
+    --tera-surface-pane: rgba(11, 20, 36, 0.88);
+    --tera-surface-pane-muted: rgba(9, 17, 31, 0.78);
+    --tera-surface-pane-strong: rgba(13, 24, 43, 0.94);
+    --tera-surface-row-hover: rgba(24, 39, 63, 0.52);
+    --tera-surface-row-active: rgba(30, 48, 78, 0.78);
+    --tera-surface-raised: rgba(14, 26, 45, 0.92);
+    --tera-surface-section: rgba(12, 22, 38, 0.72);
+    --tera-surface-section-strong: rgba(10, 19, 33, 0.94);
+    --tera-separator: rgba(145, 173, 214, 0.12);
+    --tera-separator-strong: rgba(145, 173, 214, 0.18);
+    --tera-tone-accent: rgba(53, 198, 255, 0.78);
+    --tera-tone-accent-soft: rgba(53, 198, 255, 0.16);
+    --tera-tone-warn: rgba(232, 136, 62, 0.84);
+    --tera-tone-warn-soft: rgba(232, 136, 62, 0.18);
+    --tera-tone-error: rgba(255, 107, 139, 0.84);
+    --tera-tone-error-soft: rgba(255, 107, 139, 0.16);
   }
 
   html, body {
     margin: 0;
     width: 100%;
+    height: 100%;
     min-height: 100%;
-    background: transparent;
+    background: var(--tera-surface-page);
+    overflow: hidden;
   }
 
   body {
-    overflow: auto;
+    overflow: hidden;
   }
 
   #terajs-devtools-root {
-    width: auto;
-    height: auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
     min-height: 100%;
-    padding: 12px;
+    min-width: 0;
+    padding: 0;
     box-sizing: border-box;
-    overflow: auto;
+    overflow: hidden;
     color: var(--tera-cloud);
     font-family: var(--tera-body-font);
+  }
+
+  #terajs-devtools-root > * {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
   }
 `;
 
@@ -57,6 +86,25 @@ export interface DevtoolsIframeAreaEventBridge {
 }
 
 const iframeEventBridgeRegistry = new WeakMap<Document, DevtoolsIframeAreaEventBridge>();
+const iframeFocusGuardRegistry = new WeakSet<Document>();
+const pendingIframeScrollRestoreFrames = new WeakMap<HTMLElement, number>();
+const IFRAME_SCROLL_RESTORE_SELECTORS = [
+  ".devtools-workbench-sidebar-body",
+  ".devtools-workbench-main-body",
+  ".devtools-utility-panel-body",
+  ".investigation-journal-feed",
+  ".investigation-journal-detail",
+  ".iframe-results-pane",
+  ".iframe-results-item-detail-body",
+  ".structured-value-viewer",
+] as const;
+
+interface IframeScrollSnapshot {
+  selector: string;
+  index: number;
+  top: number;
+  left: number;
+}
 
 export function renderIframeAreaHost(title: string): string {
   const escapedTitle = escapeHtml(title);
@@ -83,8 +131,11 @@ export function syncIframeAreaHost(root: HTMLElement, options: DevtoolsIframeAre
   const existingDocument = iframe.contentDocument;
   const existingRoot = existingDocument?.getElementById("terajs-devtools-root");
   if (existingDocument && existingRoot) {
+    const scrollSnapshot = captureIframeScrollSnapshot(existingRoot);
     existingRoot.setAttribute("data-theme", options.theme);
     existingRoot.innerHTML = options.markup;
+    restoreIframeScrollSnapshot(existingRoot, scrollSnapshot);
+    scheduleIframeScrollSnapshotRestore(existingRoot, scrollSnapshot);
 
     if (options.eventBridge) {
       attachIframeAreaEventBridge(existingDocument, options.eventBridge);
@@ -113,6 +164,8 @@ export function attachIframeAreaEventBridge(
   frameDocument: Document,
   eventBridge: DevtoolsIframeAreaEventBridge
 ): void {
+  ensureIframeInteractionGuards(frameDocument);
+
   const existingBridge = iframeEventBridgeRegistry.get(frameDocument);
   if (existingBridge) {
     if (
@@ -132,6 +185,97 @@ export function attachIframeAreaEventBridge(
   frameDocument.addEventListener("input", eventBridge.input);
   frameDocument.addEventListener("change", eventBridge.change);
   iframeEventBridgeRegistry.set(frameDocument, eventBridge);
+}
+
+function ensureIframeInteractionGuards(frameDocument: Document): void {
+  if (iframeFocusGuardRegistry.has(frameDocument)) {
+    return;
+  }
+
+  const preventInteractiveToggleDefault = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    if (target.closest("[data-action='toggle-value-node'], [data-timeline-detail-key]")) {
+      event.preventDefault();
+    }
+  };
+
+  frameDocument.addEventListener("mousedown", preventInteractiveToggleDefault, { capture: true });
+  frameDocument.addEventListener("pointerdown", preventInteractiveToggleDefault, { capture: true });
+  frameDocument.addEventListener("click", preventInteractiveToggleDefault, { capture: true });
+
+  iframeFocusGuardRegistry.add(frameDocument);
+}
+
+function captureIframeScrollSnapshot(root: HTMLElement): IframeScrollSnapshot[] {
+  const snapshots: IframeScrollSnapshot[] = [];
+
+  if (root.scrollTop !== 0 || root.scrollLeft !== 0) {
+    snapshots.push({
+      selector: ":root",
+      index: 0,
+      top: root.scrollTop,
+      left: root.scrollLeft,
+    });
+  }
+
+  for (const selector of IFRAME_SCROLL_RESTORE_SELECTORS) {
+    Array.from(root.querySelectorAll<HTMLElement>(selector)).forEach((element, index) => {
+      if (element.scrollTop === 0 && element.scrollLeft === 0) {
+        return;
+      }
+
+      snapshots.push({
+        selector,
+        index,
+        top: element.scrollTop,
+        left: element.scrollLeft,
+      });
+    });
+  }
+
+  return snapshots;
+}
+
+function restoreIframeScrollSnapshot(root: HTMLElement, snapshots: readonly IframeScrollSnapshot[]): void {
+  for (const snapshot of snapshots) {
+    const target = snapshot.selector === ":root"
+      ? root
+      : Array.from(root.querySelectorAll<HTMLElement>(snapshot.selector))[snapshot.index];
+
+    if (!target) {
+      continue;
+    }
+
+    target.scrollTop = snapshot.top;
+    target.scrollLeft = snapshot.left;
+  }
+}
+
+function scheduleIframeScrollSnapshotRestore(root: HTMLElement, snapshots: readonly IframeScrollSnapshot[]): void {
+  if (snapshots.length === 0) {
+    return;
+  }
+
+  const frameWindow = root.ownerDocument.defaultView;
+  if (!frameWindow) {
+    return;
+  }
+
+  const pendingFrame = pendingIframeScrollRestoreFrames.get(root);
+  if (pendingFrame !== undefined) {
+    frameWindow.cancelAnimationFrame(pendingFrame);
+  }
+
+  const frameHandle = frameWindow.requestAnimationFrame(() => {
+    pendingIframeScrollRestoreFrames.delete(root);
+    restoreIframeScrollSnapshot(root, snapshots);
+  });
+
+  pendingIframeScrollRestoreFrames.set(root, frameHandle);
 }
 
 function buildIframeAreaDocument(options: DevtoolsIframeAreaRenderOptions): string {

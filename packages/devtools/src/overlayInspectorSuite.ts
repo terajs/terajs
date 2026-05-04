@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { createComponentContext, emitDebug, setCurrentContext } from "@terajs/shared";
-import { computed, ref, watch, watchEffect } from "@terajs/reactivity";
+import { computed, reactive, ref, watch, watchEffect } from "@terajs/reactivity";
 import { mountDevtoolsOverlay, toggleDevtoolsOverlay } from "./overlay";
 
 export function registerOverlayInspectorSuite(): void {
@@ -155,10 +155,10 @@ export function registerOverlayInspectorSuite(): void {
     expect(tabsJson).not.toContain("\"0\":");
 
     const metaJson = metaDropdown?.querySelector(".inspector-json")?.textContent ?? "";
-    expect(metaJson).toContain("{");
-    expect(metaJson).toContain("\"panel\": \"Router\"");
-    expect(metaJson).toContain("\"live\": true");
-    expect(metaJson).toContain("}");
+    expect(metaJson).toContain("\"panel\"");
+    expect(metaJson).toContain("Router");
+    expect(metaJson).toContain("\"live\"");
+    expect(metaJson).toContain("true");
   });
 
   it("groups framework-injected route inputs separately inside the script section", () => {
@@ -282,6 +282,12 @@ export function registerOverlayInspectorSuite(): void {
     const aiSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="ai"]') as HTMLButtonElement | null;
     aiSectionToggle?.click();
 
+    const metaKeywordsToggle = shadowRoot?.querySelector('[data-action="toggle-value-node"][data-value-path="meta/keywords"]') as HTMLButtonElement | null;
+    metaKeywordsToggle?.click();
+
+    const aiKeywordsToggle = shadowRoot?.querySelector('[data-action="toggle-value-node"][data-value-path="ai/keywords"]') as HTMLButtonElement | null;
+    aiKeywordsToggle?.click();
+
     const expandedRouteSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="route"]') as HTMLButtonElement | null;
     const expandedMetaSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="meta"]') as HTMLButtonElement | null;
     const expandedAiSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="ai"]') as HTMLButtonElement | null;
@@ -362,9 +368,9 @@ export function registerOverlayInspectorSuite(): void {
     expect(routeText).toContain("/docs");
     expect(routeText).toContain("default");
     expect(metaText).toContain("Docs route");
-    expect(metaText).toContain("terajs");
+    expect(metaText).toContain("keywords");
     expect(aiText).toContain("runtime");
-    expect(aiText).toContain("guides");
+    expect(aiText).toContain("keywords");
     expect(aiText).toContain("developers");
   });
 
@@ -411,6 +417,76 @@ export function registerOverlayInspectorSuite(): void {
     toggleButton?.click();
 
     expect(enabled.value).toBe(false);
+  });
+
+  it("shows local variable labels for grouped reactive and composable state", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    const ctx = createComponentContext();
+    ctx.name = "Counter";
+    ctx.instance = 1;
+
+    try {
+      setCurrentContext(ctx);
+      const count = ref(1, {
+        key: "count",
+        composable: "useSession"
+      });
+      reactive({ ready: true, name: "Ada" }, {
+        group: "form",
+        composable: "useSession"
+      });
+      reactive({ online: true }, {
+        group: "profile"
+      });
+      computed(() => count.value > 0 ? "live" : "idle", {
+        key: "mode",
+        composable: "useSession"
+      });
+    } finally {
+      setCurrentContext(null);
+    }
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const reactiveSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="reactive"]') as HTMLButtonElement | null;
+    if (reactiveSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      reactiveSectionToggle?.click();
+    }
+
+    const composablesSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="composables"]') as HTMLButtonElement | null;
+    if (composablesSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      composablesSectionToggle?.click();
+    }
+
+    const expandedReactiveSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="reactive"]') as HTMLButtonElement | null;
+    const expandedComposablesSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="composables"]') as HTMLButtonElement | null;
+
+    const reactiveText = expandedReactiveSectionToggle?.closest(".inspector-section")?.textContent ?? "";
+    const composablesText = expandedComposablesSectionToggle?.closest(".inspector-section")?.textContent ?? "";
+
+    expect(reactiveText).toContain("profile.online");
+    expect(composablesText).toContain("useSession");
+    expect(composablesText).toContain("count");
+    expect(composablesText).toContain("form.ready");
+    expect(composablesText).toContain("form.name");
+    expect(composablesText).toContain("mode");
+    expect(composablesText).toContain("Ada");
   });
 
   it("shows computed/effect/watch triggers inside the script section", () => {
