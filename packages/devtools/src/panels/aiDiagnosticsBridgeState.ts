@@ -8,6 +8,8 @@ export interface AIDiagnosticsBridgeState {
   canConnectExtensionBridge: boolean;
   canRetryExtensionBridge: boolean;
   canDisconnectExtensionBridge: boolean;
+  canShowBridgeConnectAction: boolean;
+  bridgeConnectActionDisabled: boolean;
   vscodeRequestPending: boolean;
   debuggingPromptStatusLabel: string;
   extensionBridgeStatusLabel: string;
@@ -45,6 +47,8 @@ export function buildAIDiagnosticsBridgeState(
   const canConnectExtensionBridge = state.aiAssistantEnabled && ideBridgeStatus.mode === "available";
   const canRetryExtensionBridge = state.aiAssistantEnabled && (ideBridgeStatus.mode === "recovering" || ideBridgeStatus.mode === "error");
   const canDisconnectExtensionBridge = ideBridgeStatus.mode === "connecting" || ideBridgeStatus.mode === "connected";
+  const canShowBridgeConnectAction = state.aiAssistantEnabled && !canQueryExtensionAssistant && !canDisconnectExtensionBridge;
+  const bridgeConnectActionDisabled = !canConnectExtensionBridge && !canRetryExtensionBridge;
   const vscodeRequestPending = state.aiStatus === "loading" && state.activeAIRequestTarget === "vscode";
   const debuggingPromptStatusLabel = state.aiPrompt
     ? "Debugging prompt ready"
@@ -71,12 +75,12 @@ export function buildAIDiagnosticsBridgeState(
     ? "Retry VS Code Bridge"
     : "Connect VS Code Bridge";
   const debuggingPromptHint = canQueryExtensionAssistant
-    ? "Ask Copilot sends the current sanitized bundle directly through the attached extension bridge, and the connected VS Code window is ready for direct agent inspection of the same snapshot. Copy Debugging Prompt gives you the same payload for manual use."
+    ? "Ask Copilot sends the current sanitized bundle directly through the attached extension bridge, and the connected VS Code window is ready for direct agent inspection of the same snapshot. Use the prompt panel copy control when you need the same payload for manual use."
     : canConnectExtensionBridge
-    ? "A local VS Code receiver is available. Connect the bridge to stream the current sanitized diagnostics bundle directly into the editor, or copy the same bundle for manual use."
+    ? "A local VS Code receiver is available. Connect the bridge to stream the current sanitized diagnostics bundle directly into the editor, or copy the same bundle from the prompt panel for manual use."
     : canRetryExtensionBridge
-    ? "The last VS Code bridge attempt failed. Retry the bridge when the local receiver is healthy again, or copy the sanitized prompt for manual use."
-    : "Copy Debugging Prompt packages the current sanitized bundle so you can paste it into your own agent, ticket, or debugging chat while you attach the VS Code bridge.";
+    ? "The last VS Code bridge attempt failed. Retry the bridge when the local receiver is healthy again, or copy the sanitized prompt from the prompt panel for manual use."
+    : "Use the prompt panel copy control to package the current sanitized bundle so you can paste it into your own agent, ticket, or debugging chat while you attach the VS Code bridge.";
   const extensionActionHint = "The bridge is connected and ready. Ask Copilot sends the same sanitized diagnostics bundle straight through the attached extension bridge.";
   const ideBridgeHint = providerDetails.hasExtensionBridge
     ? "The local extension bridge is attached and ready. It can receive sanitized session updates plus AI diagnostics requests from this page."
@@ -136,6 +140,8 @@ export function buildAIDiagnosticsBridgeState(
     canConnectExtensionBridge,
     canRetryExtensionBridge,
     canDisconnectExtensionBridge,
+    canShowBridgeConnectAction,
+    bridgeConnectActionDisabled,
     vscodeRequestPending,
     debuggingPromptStatusLabel,
     extensionBridgeStatusLabel,

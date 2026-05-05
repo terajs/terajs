@@ -31,6 +31,9 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
     aiTab?.click();
 
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+    expect(styleText).toMatch(/\.ai-panel-screen \.components-screen-inspector \.components-screen-body\s*\{[^}]*overflow: auto;/);
+
     expect(shadowRoot?.querySelector('[data-action="ask-ai"]')).toBeNull();
 
     const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
@@ -44,7 +47,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     expect(prompt).toContain("Terajs Docs");
     expect(prompt).toContain("Docs home page");
     expect(prompt).not.toContain("secret-value");
-    expect(shadowRoot?.textContent).toContain("Prompt ready");
+    expect(shadowRoot?.querySelector('[data-ai-section="analysis-output"]')?.textContent).not.toContain("Prompt ready");
     expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Debugging prompt ready");
 
     const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
@@ -52,6 +55,12 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     const sessionModePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
     expect(sessionModePane?.textContent).toContain("Prompt-only");
     expect(sessionModePane?.textContent).toContain("Copyable prompt only");
+
+    const sessionCoverageButton = shadowRoot?.querySelector('[data-ai-session-mode-view="coverage"]') as HTMLButtonElement | null;
+    sessionCoverageButton?.click();
+    const sessionCoveragePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
+    expect(sessionCoveragePane?.textContent).toContain("Integration coverage");
+    expect(sessionCoveragePane?.textContent).toContain("Mounted AI previews");
 
     const metadataButton = shadowRoot?.querySelector('[data-ai-section="metadata-checks"]') as HTMLButtonElement | null;
     metadataButton?.click();
@@ -61,7 +70,21 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     const documentButton = shadowRoot?.querySelector('[data-ai-section="document-context"]') as HTMLButtonElement | null;
     documentButton?.click();
     const documentPane = shadowRoot?.querySelector('[data-ai-active-section="document-context"]') as HTMLElement | null;
-    expect(documentPane?.textContent).toContain("Docs home page");
+    expect(documentPane?.textContent).toContain("Document context overview");
+    expect(documentPane?.textContent).toContain("Terajs Docs");
+
+    const metaTagsViewButton = shadowRoot?.querySelector('[data-ai-document-context-view="meta-tags"]') as HTMLButtonElement | null;
+    metaTagsViewButton?.click();
+    const metaTagsPane = shadowRoot?.querySelector('[data-ai-active-section="document-context"]') as HTMLElement | null;
+    expect(metaTagsPane?.textContent).toContain("Allowlisted meta tags");
+    expect(metaTagsPane?.textContent).not.toContain("Allowlisted head links");
+    expect(metaTagsPane?.textContent).toContain("Docs home page");
+
+    const headLinksViewButton = shadowRoot?.querySelector('[data-ai-document-context-view="head-links"]') as HTMLButtonElement | null;
+    headLinksViewButton?.click();
+    const headLinksPane = shadowRoot?.querySelector('[data-ai-active-section="document-context"]') as HTMLElement | null;
+    expect(headLinksPane?.textContent).toContain("Allowlisted head links");
+    expect(headLinksPane?.textContent).not.toContain("Allowlisted meta tags");
   });
 
   it("keeps the AI tab shell stable when live diagnostics events arrive", async () => {
@@ -86,7 +109,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
     expect(shadowRoot?.querySelector('[data-tab="AI Diagnostics"]')).toBe(originalTab);
     expect(shadowRoot?.querySelector('.devtools-panel')).toBe(originalPanel);
-    expect(originalPanel?.textContent).toContain("Analysis Output");
+    expect(originalPanel?.textContent).toContain("AI Bridge");
   });
 
   it("renders structured AI analysis from the VS Code bridge response", async () => {
@@ -141,14 +164,24 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     await flushMicrotasks();
 
     expect(bridge).toHaveBeenCalledTimes(1);
-    const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
-    expect(shadowRoot?.textContent).toContain("Structured response ready");
-    expect(analysisPane?.textContent).toContain("AI summary");
-    expect(analysisPane?.textContent).toContain("Counter updates are re-entering the same effect.");
-    expect(analysisPane?.textContent).toContain("Likely causes");
-    expect(analysisPane?.textContent).toContain("This render path is the most likely write-back site.");
-    expect(analysisPane?.textContent).toContain("Suggested fixes");
-    expect(analysisPane?.textContent).toContain("src/components/Counter.tera:27:9");
+    expect(shadowRoot?.querySelector('[data-ai-section="analysis-output"]')?.textContent).not.toContain("Structured response ready");
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("AI analysis overview");
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("Counter updates are re-entering the same effect.");
+
+    const causesButton = shadowRoot?.querySelector('[data-ai-analysis-output-view="likely-causes"]') as HTMLButtonElement | null;
+    causesButton?.click();
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("Likely causes");
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("An effect mutates the same signal it reads during render.");
+
+    const codeButton = shadowRoot?.querySelector('[data-ai-analysis-output-view="code-references"]') as HTMLButtonElement | null;
+    codeButton?.click();
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("AI code references");
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("src/components/Counter.tera:27:9");
+
+    const fixesButton = shadowRoot?.querySelector('[data-ai-analysis-output-view="suggested-fixes"]') as HTMLButtonElement | null;
+    fixesButton?.click();
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("Suggested fixes");
+    expect((shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null)?.textContent).toContain("Move the write into an event handler or gate the effect on stale input.");
   });
 
   it("copies the debugging prompt even when no provider is configured", async () => {
@@ -162,14 +195,14 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     expect(shadowRoot?.querySelector('[data-action="ask-ai"]')).toBeNull();
 
     const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
-    expect(copyButton?.textContent).toContain("Copy Debugging Prompt");
+    expect(copyButton?.getAttribute("aria-label")).toBe("Copy prompt");
     copyButton?.click();
 
     await flushMicrotasks();
 
     expect(clipboard.writeText).toHaveBeenCalledTimes(1);
-    expect(shadowRoot?.textContent).toContain("Prompt ready");
-    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Copy Debugging Prompt packages the current sanitized bundle");
+    expect(shadowRoot?.querySelector('[data-ai-section="analysis-output"]')?.textContent).not.toContain("Prompt ready");
+    expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Use the prompt panel copy control to package the current sanitized bundle");
     expect(shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]')?.textContent).toContain("Debugging prompt ready");
 
     const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
@@ -235,9 +268,10 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
     expect(shadowRoot?.querySelector('[data-action="open-vscode-session"]')).toBeNull();
     expect(extensionButton?.textContent).toContain("Ask Copilot");
-    expect(copyButton?.textContent).toContain("Copy Debugging Prompt");
+    expect(extensionButton?.classList.contains("ai-bridge-primary-action")).toBe(true);
+    expect(copyButton?.getAttribute("aria-label")).toBe("Copy prompt");
     expect(shadowRoot?.textContent).toContain("Connected and ready");
-    expect(analysisPane?.textContent).toContain("Ask Copilot sends the current sanitized bundle directly through the attached extension bridge");
+    expect(analysisPane?.textContent).toContain("Use the prompt panel copy control when you need the same payload for manual use.");
 
     extensionButton?.click();
 
@@ -273,7 +307,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     await flushMicrotasks();
 
     expect(extensionHook).toHaveBeenCalledTimes(1);
-    expect(shadowRoot?.textContent).toContain("Structured response ready");
+    expect(shadowRoot?.querySelector('[data-ai-section="analysis-output"]')?.textContent).not.toContain("Structured response ready");
     const refreshedAnalysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
     const refreshedExtensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
     expect(refreshedExtensionButton?.textContent).toContain("Ask Copilot");
@@ -379,7 +413,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     await flushMicrotasks();
 
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/ai/token", expect.objectContaining({ method: "POST" }));
-    expect(shadowRoot?.textContent).toContain("Structured response ready");
+    expect(shadowRoot?.querySelector('[data-ai-section="analysis-output"]')?.textContent).not.toContain("Structured response ready");
 
     vi.unstubAllGlobals();
   });
@@ -421,7 +455,34 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
       await flushMicrotasks();
 
+      const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+      expect(connectButton?.textContent).toContain("Connect VS Code Bridge");
+      expect(connectButton?.disabled).toBe(false);
+
       expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps the bridge action visible but disabled while discovery is still in flight", async () => {
+    const fetchMock = vi.fn((_input: unknown) => new Promise<Response>(() => {}));
+
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+
+    try {
+      mountDevtoolsOverlay({ startOpen: true });
+      await flushMicrotasks();
+
+      const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+      const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+      aiTab?.click();
+
+      await flushMicrotasks();
+
+      const connectButton = shadowRoot?.querySelector('[data-action="connect-vscode-bridge"]') as HTMLButtonElement | null;
+      expect(connectButton?.textContent).toContain("Connect VS Code Bridge");
+      expect(connectButton?.disabled).toBe(true);
     } finally {
       vi.unstubAllGlobals();
     }

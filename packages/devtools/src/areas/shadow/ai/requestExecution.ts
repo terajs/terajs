@@ -15,7 +15,11 @@ import { analyzeSafeDocumentContext, type SafeDocumentContext } from "../../../d
 import { getDevtoolsIdeBridgeStatus } from "../../../ideBridgeAutoAttach.js";
 import { resolveExtensionAIAssistantResponseDetailed } from "../../../providers/extensionBridge.js";
 import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "../../../sanity.js";
-import type { AIDiagnosticsSectionKey } from "../../../panels/diagnosticsPanels.js";
+import {
+  DEFAULT_AI_ANALYSIS_OUTPUT_VIEW,
+  type AIDiagnosticsSectionKey,
+  type AIAnalysisOutputView
+} from "../../../panels/diagnosticsPanels.js";
 import type { DevtoolsEvent } from "../../../app.js";
 
 interface ShadowAIActionsState {
@@ -27,6 +31,7 @@ interface ShadowAIActionsState {
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
   activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
+  activeAIAnalysisOutputView: AIAnalysisOutputView;
 }
 
 interface ShadowAIActionsDependencies {
@@ -187,6 +192,7 @@ function prepareAIAssistantRequest(
   if (options.resetAssistantOutput) {
     dependencies.state.aiResponse = null;
     dependencies.state.aiStructuredResponse = null;
+    dependencies.state.activeAIAnalysisOutputView = DEFAULT_AI_ANALYSIS_OUTPUT_VIEW;
   }
 
   const prompt = dependencies.state.aiPrompt;
@@ -271,7 +277,8 @@ function runAIAssistantRequest(
     }
 
     dependencies.state.aiStatus = "ready";
-  dependencies.state.activeAIRequestTarget = null;
+    dependencies.state.activeAIRequestTarget = null;
+    dependencies.state.activeAIAnalysisOutputView = DEFAULT_AI_ANALYSIS_OUTPUT_VIEW;
     dependencies.state.aiResponse = response.text;
     dependencies.state.aiStructuredResponse = response.structured;
     dependencies.state.aiError = null;
@@ -305,6 +312,7 @@ function runAIAssistantRequest(
     dependencies.state.aiError = error instanceof Error ? error.message : "AI request failed.";
     dependencies.state.aiResponse = null;
     dependencies.state.aiStructuredResponse = null;
+    dependencies.state.activeAIAnalysisOutputView = DEFAULT_AI_ANALYSIS_OUTPUT_VIEW;
     dependencies.emitDevtoolsEvent({
       type: "ai:assistant:error",
       timestamp: Date.now(),

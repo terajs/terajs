@@ -17,9 +17,12 @@
 
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 import {
+    createComponentContext,
     getAllReactives,
+    getCurrentContext,
     getReactiveByRid,
     resetDebugRegistry,
+    setCurrentContext,
     setReactiveValue
 } from "@terajs/shared";
 import { effect } from "./effect";
@@ -346,10 +349,38 @@ describe("Reactivity Core", () => {
 describe("Debug registry integration", () => {
     beforeEach(() => {
         resetDebugRegistry();
+        setCurrentContext(null);
     });
 
     afterEach(() => {
         resetDebugRegistry();
+        setCurrentContext(null);
+    });
+
+    it("inherits the active component context for component-local reactives", () => {
+        const previousContext = getCurrentContext();
+        const context = createComponentContext();
+        context.name = "HomePage";
+        context.instance = 7;
+
+        setCurrentContext(context);
+
+        try {
+            signal(1, { key: "heroCount" });
+            ref("ready", { key: "status" });
+            reactive({ ready: true });
+
+            const ownedEntries = getAllReactives().filter((candidate) =>
+                candidate.owner?.scope === "HomePage"
+                && candidate.owner.instance === 7
+            );
+
+            expect(ownedEntries.some((candidate) => candidate.meta.type === "signal" && candidate.meta.key === "heroCount")).toBe(true);
+            expect(ownedEntries.some((candidate) => candidate.meta.type === "ref" && candidate.meta.key === "status")).toBe(true);
+            expect(ownedEntries.some((candidate) => candidate.meta.type === "reactive" && candidate.meta.key === "ready" && candidate.currentValue === true)).toBe(true);
+        } finally {
+            setCurrentContext(previousContext);
+        }
     });
 
     it("registers signals immediately with a live setter", () => {

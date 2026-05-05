@@ -15,6 +15,7 @@ interface InspectBridgeOptions {
   overlayElement: () => HTMLElement | null;
   isPanelVisible: () => boolean;
   isOverlayVisible: () => boolean;
+  revealPanel: () => void;
 }
 
 interface InspectBridge {
@@ -54,12 +55,13 @@ body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
 .${INSPECT_HOVER_CLASS} {
   outline: 2px solid rgba(50, 215, 255, 0.72) !important;
   outline-offset: 2px !important;
+  box-shadow: inset 0 0 0 999px rgba(50, 215, 255, 0.08) !important;
 }
 
 .${INSPECT_SELECTED_CLASS} {
   outline: 2px solid rgba(47, 109, 255, 0.96) !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 3px rgba(50, 215, 255, 0.36) !important;
+  box-shadow: inset 0 0 0 999px rgba(47, 109, 255, 0.1) !important, 0 0 0 3px rgba(50, 215, 255, 0.36) !important;
 }
 `;
 
@@ -188,7 +190,7 @@ body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
   }
 
   function syncContext(): void {
-    setInspectMode(requestedInspectMode && options.isPanelVisible() && options.isOverlayVisible());
+    setInspectMode(requestedInspectMode && options.isOverlayVisible());
   }
 
   function setup(): void {
@@ -293,6 +295,10 @@ body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
           source: "picker"
         }
       }));
+
+      if (!options.isPanelVisible()) {
+        options.revealPanel();
+      }
     };
 
     window.addEventListener(DEVTOOLS_INSPECT_MODE_EVENT, inspectModeListener);

@@ -1,4 +1,9 @@
 import { escapeHtml } from "../inspector/shared.js";
+import {
+  renderDevtoolsHeadingRow,
+  renderDevtoolsMetricLabel,
+  renderDevtoolsTitleRow,
+} from "../devtoolsIcons.js";
 
 export function renderPageShell(options: {
   title: string;
@@ -19,7 +24,7 @@ export function renderPageShell(options: {
   return `
     <div class="devtools-page ${options.className ?? ""}">
       <div class="panel-hero">
-        <div class="panel-title ${options.accentClass}">${escapeHtml(options.title)}</div>
+        ${renderDevtoolsTitleRow(options.title, options.accentClass)}
         <div class="panel-subtitle">${escapeHtml(options.subtitle)}</div>
         ${pillsMarkup}
       </div>
@@ -35,7 +40,7 @@ export function renderPageSection(title: string, content: string, className = ""
 
   return `
     <section class="${cardClass}">
-      <div class="panel-section-heading">${escapeHtml(title)}</div>
+      ${renderDevtoolsHeadingRow(title, "panel-section-heading")}
       ${content}
     </section>
   `;
@@ -44,7 +49,7 @@ export function renderPageSection(title: string, content: string, className = ""
 export function renderMetricCard(label: string, value: string): string {
   return `
     <div class="metric-card">
-      <div class="metric-label">${escapeHtml(label)}</div>
+      ${renderDevtoolsMetricLabel(label)}
       <div class="metric-value">${escapeHtml(value)}</div>
     </div>
   `;
@@ -53,7 +58,7 @@ export function renderMetricCard(label: string, value: string): string {
 export function renderEmptyPanel(title: string, subtitle: string, message: string): string {
   return `
     <div>
-      <div class="panel-title is-blue">${escapeHtml(title)}</div>
+      ${renderDevtoolsTitleRow(title, "is-blue")}
       <div class="panel-subtitle">${escapeHtml(subtitle)}</div>
       <div class="empty-state">${escapeHtml(message)}</div>
     </div>

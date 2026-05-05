@@ -24,16 +24,171 @@ export function registerOverlayShellSuite(): void {
     expect(host).toBeTruthy();
 
     const shadowRoot = host?.shadowRoot;
-    expect(shadowRoot?.textContent).toContain("Terajs DevTools");
+    expect(shadowRoot?.textContent).toContain("Tera Lens");
+    expect(shadowRoot?.textContent).not.toContain("Terajs DevTools");
     expect(shadowRoot?.textContent).not.toContain("UI will mount here");
+    expect(shadowRoot?.querySelector('.tab-button .devtools-icon')).toBeTruthy();
+  });
+
+  it("renders the tab navigation with centered accent underlines", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/\.tab-button::after\s*\{[^}]*width: 24px;/);
+    expect(styleText).toMatch(/\.tab-button\.is-active::after\s*\{[^}]*background: var\(--tera-tone-info\);/);
+  });
+
+  it("keeps titles cyan while subtitles and hints stay muted", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/--tera-title-ink: var\(--tera-cyan\);/);
+    expect(styleText).toMatch(/\.panel-title\.is-purple\s*\{[^}]*color: var\(--tera-title-ink\);/);
+    expect(styleText).toMatch(/\.devtools-subtitle,\s*\.panel-subtitle,\s*\.muted-text,\s*\.tiny-muted,\s*\.metric-label\s*\{[^}]*color: rgba\(207, 223, 247, 0\.82\);/);
+  });
+
+  it("raises shared label contrast and lets controls inherit readable colors", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/--tera-tone-label: #b4d4ff;/);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\]\s*\{[\s\S]*--tera-tone-label: #1f4a8a;/);
+    expect(styleText).toMatch(/\.tab-button-label,\s*\.toolbar-button-label\s*\{[^}]*color: inherit;/);
+    expect(styleText).toMatch(/\.devtools-heading-text\s*\{[^}]*color: var\(--tera-tone-label\);/);
+  });
+
+  it("defines the shared light surface tokens once", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+    const strongSurfaceMatches = styleText.match(/--tera-surface-pane-strong: rgba\(13, 24, 43, 0\.94\);/g) ?? [];
+
+    expect(strongSurfaceMatches).toHaveLength(1);
+    expect(styleText).not.toContain("--tera-surface-pane-strong: rgba(240, 247, 255, 0.96);");
+    expect(styleText).not.toContain("--tera-light-text-strong: var(--tera-light-cyan-ink);");
+  });
+
+  it("keeps AI bridge titles cyan on the AI surface", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/\.ai-panel-screen \.panel-title\.is-cyan\s*\{[^}]*color: var\(--tera-tone-info\);/);
+  });
+
+  it("keeps the opener dark blue and pushes the color into the label text", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/\.devtools-fab\s*\{[^}]*radial-gradient\(circle at 18% 20%, rgba\(83, 235, 255, 0\.16\), transparent 34%\)[^}]*linear-gradient\(135deg, rgba\(9, 16, 28, 0\.98\), rgba\(17, 29, 48, 0\.96\)\);/s);
+    expect(styleText).toMatch(/\.devtools-fab-label\s*\{[^}]*font-size: 14px;[^}]*font-weight: 800;[^}]*background: linear-gradient\(120deg, #dbfbff 0%, #83ebff 22%, #8fe1ff 48%, #ffd0de 100%\);[^}]*background-clip: text;[^}]*color: transparent;/s);
+  });
+
+  it("switches the Tera Lens opener to the light palette", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-shell\[data-theme="light"\] \.devtools-fab-cluster\s*\{[^}]*linear-gradient\(135deg, rgba\(246, 249, 253, 0\.96\), rgba\(229, 236, 245, 0\.94\)\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-shell\[data-theme="light"\] \.devtools-fab\s*\{[^}]*linear-gradient\(135deg, rgba\(251, 253, 255, 0\.96\), rgba\(236, 242, 249, 0\.94\)\);[^}]*color: var\(--tera-light-text-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-shell\[data-theme="light"\] \.devtools-fab-switch\s*\{[^}]*linear-gradient\(140deg, rgba\(246, 249, 253, 0\.96\), rgba\(230, 237, 246, 0\.94\)\);[^}]*color: var\(--tera-light-accent-strong\);/s);
+  });
+
+  it("keeps the centered top-bar heading slightly larger and white", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/\.devtools-active-view\s*\{[^}]*color: var\(--tera-cloud\);[^}]*font-size: 14px;/s);
+  });
+
+  it("keeps the light AI bridge CTA white on a dark primary surface", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-bridge-primary-action\s*\{[^}]*linear-gradient\(135deg, rgba\(16, 31, 57, 0\.96\), rgba\(28, 54, 92, 0\.94\)\);[^}]*color: #ffffff;/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-bridge-connect-action:disabled,[\s\S]*?color: rgba\(237, 245, 255, 0\.72\);/);
+  });
+
+  it("keeps light workbench families on the shared gray-blue surfaces", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-workbench,\s*#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\s*\{[^}]*background: var\(--tera-surface-page\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-workbench-sidebar\s*\{[^}]*background: var\(--tera-surface-pane-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-workbench-header,\s*#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel-header\s*\{[^}]*background: var\(--tera-surface-pane-muted\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.workbench-filter-button\s*\{[^}]*background: var\(--tera-surface-section\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.workbench-search-input\s*\{[^}]*background: var\(--tera-surface-raised\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.investigation-journal \.devtools-utility-panel-body\s*\{[^}]*background: var\(--tera-surface-pane-muted\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.diagnostics-deck--performance\s*\{[^}]*var\(--tera-surface-page\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.diagnostics-deck--router,\s*#terajs-devtools-root\[data-theme="light"\] \.devtools-utility-panel\.diagnostics-deck--sanity\s*\{[^}]*var\(--tera-surface-page\);/s);
+  });
+
+  it("rebases remaining light AI and runtime surfaces onto the shared palette", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-workbench-pane\s*\{[^}]*background: var\(--tera-surface-pane\);[^}]*border-bottom-color: var\(--tera-separator\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.ai-workbench-rail\s*\{[^}]*background: var\(--tera-surface-pane-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.panel-hero\s*\{[^}]*background: var\(--tera-surface-section-strong\);[^}]*border-bottom-color: var\(--tera-separator\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.runtime-history-panel\s*\{[^}]*background: var\(--tera-surface-pane-strong\);/s);
+    expect(styleText).toMatch(/#terajs-devtools-root\[data-theme="light"\] \.runtime-history-item\s*\{[^}]*background: var\(--tera-surface-raised\);/s);
+  });
+
+  it("renders Components inside the shared workbench shell", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(shadowRoot?.textContent).toContain("Components");
+    expect(shadowRoot?.textContent).not.toContain("Debug Surface");
+    expect(shadowRoot?.querySelector(".devtools-panel-shell .components-screen")).toBeTruthy();
   });
 
   it("labels the floating devtools button as Tera Lens", () => {
     mountDevtoolsOverlay();
 
-    const fab = document.getElementById("terajs-overlay-container")?.shadowRoot?.getElementById("terajs-devtools-fab") as HTMLButtonElement | null;
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const fab = shadowRoot?.getElementById("terajs-devtools-fab") as HTMLButtonElement | null;
+    const inspectToggle = shadowRoot?.getElementById("terajs-devtools-inspect-toggle") as HTMLButtonElement | null;
     expect(fab?.textContent).toBe("Tera Lens");
     expect(fab?.getAttribute("aria-label")).toBe("Toggle Tera Lens DevTools");
+    expect(inspectToggle?.getAttribute("aria-label")).toBe("Enable component inspect");
+    expect(inspectToggle?.querySelector(".devtools-icon--lg")).toBeTruthy();
+  });
+
+  it("arms inspect from the opener switch without opening the panel", () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const inspectToggle = shadowRoot?.getElementById("terajs-devtools-inspect-toggle") as HTMLButtonElement | null;
+
+    expect(document.body.hasAttribute("data-terajs-inspect-mode")).toBe(false);
+
+    inspectToggle?.click();
+    expect(document.body.hasAttribute("data-terajs-inspect-mode")).toBe(true);
+    expect(inspectToggle?.getAttribute("aria-pressed")).toBe("true");
+
+    inspectToggle?.click();
+    expect(document.body.hasAttribute("data-terajs-inspect-mode")).toBe(false);
+    expect(inspectToggle?.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("clears the global mounted flag when the overlay unmounts", () => {
@@ -129,8 +284,11 @@ export function registerOverlayShellSuite(): void {
     expect(updatedSnapshot?.activeTab).toBe("AI Diagnostics");
 
     const shadowRoot = host?.shadowRoot;
-    expect(shadowRoot?.textContent).toContain("AI Diagnostics");
-    expect(shadowRoot?.textContent).toContain("Analysis Output");
+    const aiTabButton = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    expect(aiTabButton?.textContent?.trim()).toBe("Bridge");
+    expect(aiTabButton?.getAttribute("title")).toBe("Bridge");
+    expect(aiTabButton?.querySelector("svg")?.innerHTML ?? "").toContain('M12 3l1.5 3.9');
+    expect(shadowRoot?.textContent).toContain("AI Bridge");
   });
 
   it("queues hidden updates and flushes them when the panel opens", async () => {
@@ -165,7 +323,7 @@ export function registerOverlayShellSuite(): void {
 
     expect(panel?.classList.contains("is-hidden")).toBe(false);
     expect((window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__).toBeTruthy();
-    expect(host?.shadowRoot?.textContent).toContain("Terajs DevTools");
+    expect(host?.shadowRoot?.textContent).toContain("Tera Lens");
   });
 
   it("opens host controls when the bridge focuses settings", () => {
@@ -176,7 +334,7 @@ export function registerOverlayShellSuite(): void {
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
     expect(shadowRoot?.querySelector('[data-host-controls-toggle="true"]')?.getAttribute("aria-expanded")).toBe("true");
-    expect(shadowRoot?.textContent).toContain("Overlay Controls");
+    expect(shadowRoot?.textContent).toContain("Workspace Settings");
   });
 
   it("hosts the Signals tab inside an iframe-backed panel", async () => {
@@ -201,12 +359,13 @@ export function registerOverlayShellSuite(): void {
 
     expect(iframe).toBeTruthy();
     expect(iframe?.getAttribute("sandbox")).toContain("allow-same-origin");
-    expect(iframeDocument).toContain("Ref / Reactive Inspector");
-    expect(iframeDocument).toContain("Signal summary");
-    expect(iframeDocument).toContain("signals-layout");
+    expect(iframeDocument).toContain("Signals");
+    expect(iframeDocument).toContain("Choose one reactive value");
+    expect(iframeDocument).toContain("signals-panel-screen");
+    expect(iframeDocument).toContain("components-screen--iframe");
     expect(iframeDocument).toContain("Recent updates");
     expect(iframeDocument).toContain("count");
-    expect(iframeDocument).toContain("--tera-black: #05070f");
+    expect(iframeDocument).toContain("--tera-black: #07101d");
     expect(bridge?.getSnapshot()?.activeTab).toBe("Signals");
   });
 
@@ -272,12 +431,13 @@ export function registerOverlayShellSuite(): void {
     const iframeDocument = iframe?.getAttribute("srcdoc") ?? "";
 
     expect(iframe).toBeTruthy();
-    expect(iframeDocument).toContain("Meta / AI / Route Inspector");
-    expect(iframeDocument).toContain("meta-panel-layout");
+    expect(iframeDocument).toContain("Observed metadata");
+    expect(iframeDocument).toContain("meta-panel-screen");
+    expect(iframeDocument).toContain("components-screen--iframe");
     expect(iframeDocument).toContain("Observed metadata");
     expect(iframeDocument).toContain("Route /docs");
-    expect(iframeDocument).toContain("Document head snapshot");
-    expect(iframeDocument).toContain("Route snapshot");
+    expect(iframeDocument).toContain("Metadata inspector");
+    expect(iframeDocument).not.toContain("Route snapshot | Captured from Route /docs");
     expect(bridge?.getSnapshot()?.activeTab).toBe("Meta");
   });
 
@@ -295,11 +455,11 @@ export function registerOverlayShellSuite(): void {
 
     const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
     const expectations = [
-      { tab: "Issues", title: "Issues and Warnings" },
-      { tab: "Logs", title: "Event Logs" },
-      { tab: "Timeline", title: "Timeline and Replay" },
+      { tab: "Issues", title: "Issue feed" },
+      { tab: "Logs", title: "Investigation feed" },
+      { tab: "Timeline", title: "Timeline" },
       { tab: "Router", title: "Router Diagnostics" },
-      { tab: "Queue", title: "Queue Monitor" },
+      { tab: "Queue", title: "Queue feed" },
       { tab: "Performance", title: "Performance" },
       { tab: "Sanity Check", title: "Sanity Check" }
     ] as const;
@@ -429,7 +589,7 @@ export function registerOverlayShellSuite(): void {
     expect((window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__).toBeUndefined();
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    expect(shadowRoot?.textContent).toContain("Terajs DevTools");
+    expect(shadowRoot?.textContent).toContain("Tera Lens");
   });
 
   it("supports hiding and showing the full overlay shell", () => {
@@ -476,11 +636,27 @@ export function registerOverlayShellSuite(): void {
 
     expect(styleText).toContain("max-width: calc(100vw - 12px);");
     expect(styleText).toContain("max-height: calc(100vh - 12px);");
-    expect(styleText).toContain("75vw");
-    expect(styleText).toContain("75vh");
+    expect(styleText).toContain("width: min(var(--terajs-overlay-panel-width, 1040px), calc(100vw - 24px));");
+    expect(styleText).toContain("height: min(var(--terajs-overlay-panel-height, 720px), calc(100vh - 24px));");
+    expect(styleText).toContain("max-height: calc(100vh - 24px);");
+    expect(styleText).toContain(".devtools-shell-stage");
     expect(styleText).toContain(".devtools-body");
-    expect(styleText).toContain(".devtools-panel");
-    expect(styleText).toContain("overflow: auto;");
+    expect(styleText).toContain(".devtools-panel--iframe");
+    expect(styleText).toContain("overflow: hidden;");
+    expect(styleText).toContain("@media (max-width: 720px)");
+    expect(styleText).toContain("position: fixed;");
+  });
+
+  it("keeps shared inner workbench shells square and gapless", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toMatch(/\.devtools-workbench\s*\{[^}]*gap: 0;/);
+    expect(styleText).toMatch(/\.devtools-workbench-sidebar,\s*\.devtools-workbench-main,\s*\.devtools-utility-panel\s*\{[^}]*border-radius: 0;/);
+    expect(styleText).toMatch(/\.investigation-journal-feed,\s*\.investigation-journal-detail\s*\{[^}]*border-radius: 0;/);
+    expect(styleText).toMatch(/\.signals-screen\s*\{[^}]*border-radius: 0;/);
   });
 
   it("starts from default position while still applying persisted size", () => {
@@ -497,7 +673,7 @@ export function registerOverlayShellSuite(): void {
     expect(host?.style.left).toBe("50%");
     expect(host?.style.bottom).toBe("16px");
     expect(host?.style.transform).toBe("translateX(-50%)");
-    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1120px");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1480px");
     expect(shell?.classList.contains("is-center")).toBe(true);
   });
 
@@ -506,11 +682,19 @@ export function registerOverlayShellSuite(): void {
 
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const shadowRoot = host?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
 
     expect(shadowRoot?.querySelector('[data-tab="Settings"]')).toBeNull();
 
     const hostControlsToggle = shadowRoot?.querySelector('[data-host-controls-toggle="true"]') as HTMLButtonElement | null;
     hostControlsToggle?.click();
+
+    expect(shadowRoot?.querySelector(".devtools-host-controls-panel")).not.toBeNull();
+    expect(shadowRoot?.querySelector(".devtools-host-controls-scroll")).not.toBeNull();
+    expect(shadowRoot?.querySelector(".select-button--compact")).not.toBeNull();
+    expect(styleText).toContain("position: absolute;");
+    expect(styleText).toContain("inset: 12px;");
+    expect(styleText).toContain(".devtools-host-controls-scroll");
 
     const centerButton = shadowRoot?.querySelector('[data-layout-position="center"]') as HTMLButtonElement | null;
     centerButton?.click();
@@ -519,15 +703,37 @@ export function registerOverlayShellSuite(): void {
 
     const largeButton = shadowRoot?.querySelector('[data-layout-size="large"]') as HTMLButtonElement | null;
     largeButton?.click();
-    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1120px");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1480px");
+
+    const fullscreenButton = shadowRoot?.querySelector('[data-window-control="fullscreen"]') as HTMLButtonElement | null;
+    fullscreenButton?.click();
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("calc(100vw - 24px)");
 
     const persisted = JSON.parse(ensureTestStorage().getItem(OVERLAY_PREFERENCES_STORAGE_KEY) ?? "{}");
     expect(persisted.position).toBe("center");
-    expect(persisted.panelSize).toBe("large");
+    expect(persisted.panelSize).toBe("fullscreen");
 
     const persistToggle = shadowRoot?.querySelector('[data-layout-persist-toggle="true"]') as HTMLButtonElement | null;
     persistToggle?.click();
     expect(ensureTestStorage().getItem(OVERLAY_PREFERENCES_STORAGE_KEY)).toBeNull();
+  });
+
+  it("supports header window controls for minimize and fullscreen", async () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const shadowRoot = host?.shadowRoot;
+    const panel = shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
+
+    const fullscreenButton = shadowRoot?.querySelector('[data-window-control="fullscreen"]') as HTMLButtonElement | null;
+    fullscreenButton?.click();
+    await flushMicrotasks();
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("calc(100vw - 24px)");
+
+    const minimizeButton = shadowRoot?.querySelector('[data-window-control="minimize"]') as HTMLButtonElement | null;
+    minimizeButton?.click();
+    await flushMicrotasks();
+    expect(panel?.classList.contains("is-hidden")).toBe(true);
   });
 
   it("supports keyboard shortcuts for panel and visibility controls", () => {
@@ -560,14 +766,20 @@ export function registerOverlayShellSuite(): void {
     const host = document.getElementById("terajs-overlay-container");
     const shadowRoot = host?.shadowRoot;
     const mountRoot = shadowRoot?.getElementById("terajs-devtools-root") as HTMLDivElement | null;
+    const shell = shadowRoot?.getElementById("terajs-devtools-shell") as HTMLDivElement | null;
     expect(mountRoot?.dataset.theme).toBe("dark");
+    expect(shell?.dataset.theme).toBe("dark");
 
-    const themeButton = shadowRoot?.querySelector('[data-theme-toggle="true"]') as HTMLButtonElement | null;
-    themeButton?.click();
-    expect(mountRoot?.dataset.theme).toBe("light");
+    expect(shadowRoot?.querySelector('.devtools-status-rail')).toBeNull();
+    expect(shadowRoot?.querySelector('.devtools-header [data-theme-toggle="true"]')).toBeNull();
 
     const hostControlsToggle = shadowRoot?.querySelector('[data-host-controls-toggle="true"]') as HTMLButtonElement | null;
     hostControlsToggle?.click();
+
+    const themeButton = shadowRoot?.querySelector('.devtools-host-controls-panel [data-theme-toggle="true"]') as HTMLButtonElement | null;
+    themeButton?.click();
+    expect(mountRoot?.dataset.theme).toBe("light");
+    expect(shell?.dataset.theme).toBe("light");
 
     const clearButton = shadowRoot?.querySelector('[data-clear-events="true"]') as HTMLButtonElement | null;
     clearButton?.click();

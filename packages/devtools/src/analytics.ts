@@ -9,6 +9,7 @@ export interface TimelineEntry {
   type: string;
   timestamp: number;
   summary: string;
+  payload?: unknown;
 }
 
 export interface PerformanceTypeMetric {
@@ -69,8 +70,14 @@ export interface RouterMetrics {
 function safeString(value: unknown): string {
   if (value === undefined) return "undefined";
   if (value === null) return "null";
-  if (typeof value === "string") return value;
+  if (typeof value === "string") {
+    const compact = value.replace(/\s+/g, " ").trim();
+    return compact.length > 56 ? `${compact.slice(0, 53)}...` : compact;
+  }
   if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return `Array(${value.length})`;
+  if (typeof value === "function") return `[Function ${(value as Function).name || "anonymous"}]`;
+  if (value && typeof value === "object") return `Object(${Object.keys(value as Record<string, unknown>).length})`;
   try {
     return JSON.stringify(value);
   } catch {
@@ -90,7 +97,7 @@ export function summarizeEvent(event: DevtoolsEventLike): string {
   const value = (payload as any).value;
 
   if (key !== undefined) {
-    return `key=${safeString(key)} value=${safeString(value)}`;
+    return `key=${safeString(key)} · value=${safeString(value)}`;
   }
   if (name !== undefined) {
     return `name=${safeString(name)}`;
@@ -101,7 +108,7 @@ export function summarizeEvent(event: DevtoolsEventLike): string {
 
   const entries = Object.entries(payload as Record<string, unknown>).slice(0, 2);
   if (entries.length === 0) return "{}";
-  return entries.map(([k, v]) => `${k}=${safeString(v)}`).join(" ");
+  return entries.map(([k, v]) => `${k}=${safeString(v)}`).join(" · ");
 }
 
 export function buildTimeline(events: DevtoolsEventLike[], limit = 250): TimelineEntry[] {
@@ -111,6 +118,7 @@ export function buildTimeline(events: DevtoolsEventLike[], limit = 250): Timelin
     type: event.type,
     timestamp: event.timestamp,
     summary: summarizeEvent(event),
+    payload: event.payload,
   }));
 }
 

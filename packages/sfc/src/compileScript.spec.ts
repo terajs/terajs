@@ -218,4 +218,60 @@ describe("compileScript (dependency‑free analyzer)", () => {
 
     expect(setupSegment).toContain("return import(\"./helpers.js\")");
   });
+
+  it("annotates reactive declarations with inferred variable names", () => {
+    const raw = `
+      const count = signal(0)
+      const state = reactive({ ready: true })
+      const mode = computed(() => count())
+      const stopWatch = watch(() => count(), () => {})
+      const stopWatchEffect = watchEffect(() => {
+        count()
+      })
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain('const count = signal(0, { key: "count" })');
+    expect(compiled.setupCode).toContain('const state = reactive({ ready: true }, { group: "state" })');
+    expect(compiled.setupCode).toContain('const mode = computed(() => count(), { key: "mode" })');
+    expect(compiled.setupCode).toContain('const stopWatch = watch(() => count(), () => {}, { debugName: "stopWatch" })');
+    expect(compiled.setupCode).toContain('const stopWatchEffect = watchEffect(() => {');
+    expect(compiled.setupCode).toContain('{ debugName: "stopWatchEffect" }');
+  });
+
+  it("annotates composable-local declarations with composable names", () => {
+    const raw = `
+      function useCounter() {
+        const count = ref(0)
+        const state = reactive({ ready: true })
+        return { count, state }
+      }
+
+      const usePanelState = () => {
+        const mode = computed(() => 'ready')
+        return { mode }
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain('const count = ref(0, { key: "count", composable: "useCounter" })');
+    expect(compiled.setupCode).toContain('const state = reactive({ ready: true }, { group: "state", composable: "useCounter" })');
+    expect(compiled.setupCode).toMatch(/const mode = computed\(\(\) => ['"]ready['"], \{ key: "mode", composable: "usePanelState" \}\)/);
+  });
+
+  it("merges inferred names into existing option objects", () => {
+    const raw = `
+      const count = signal(0, { scope: 'Counter' })
+      const state = reactive({ ready: true }, { scope: 'Counter' })
+      const mode = computed(() => count(), { key: 'mode' })
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toMatch(/signal\(0, \{ scope: ['"]Counter['"], key: "count" \}\)/);
+    expect(compiled.setupCode).toMatch(/reactive\(\{ ready: true \}, \{ scope: ['"]Counter['"], group: "state" \}\)/);
+    expect(compiled.setupCode).toMatch(/computed\(\(\) => count\(\), \{ key: ['"]mode['"] \}\)/);
+  });
 });

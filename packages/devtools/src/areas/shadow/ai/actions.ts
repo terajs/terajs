@@ -3,7 +3,12 @@ import {
   type NormalizedAIAssistantOptions
 } from "../../../aiHelpers.js";
 import { type SafeDocumentContext } from "../../../documentContext.js";
-import type { AIDiagnosticsSectionKey } from "../../../panels/diagnosticsPanels.js";
+import {
+  type AIDiagnosticsSectionKey,
+  type AIDocumentContextView,
+  type AIAnalysisOutputView,
+  type AISessionModeView
+} from "../../../panels/diagnosticsPanels.js";
 import {
   connectVsCodeDevtoolsBridge,
   disconnectVsCodeDevtoolsBridge,
@@ -25,6 +30,9 @@ interface ShadowAIActionsState {
   aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
   activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
+  activeAIDocumentContextView: AIDocumentContextView;
+  activeAISessionModeView: AISessionModeView;
+  activeAIAnalysisOutputView: AIAnalysisOutputView;
 }
 
 interface ShadowAIActionsDependencies {
@@ -49,6 +57,27 @@ export function handleShadowAIAreaClick({
   const aiSection = target.closest<HTMLElement>("[data-ai-section]")?.dataset.aiSection;
   if (isAIDiagnosticsSectionKey(aiSection) && aiSection !== state.activeAIDiagnosticsSection) {
     state.activeAIDiagnosticsSection = aiSection;
+    render();
+    return true;
+  }
+
+  const documentContextView = target.closest<HTMLElement>("[data-ai-document-context-view]")?.dataset.aiDocumentContextView;
+  if (isAIDocumentContextView(documentContextView) && documentContextView !== state.activeAIDocumentContextView) {
+    state.activeAIDocumentContextView = documentContextView;
+    render();
+    return true;
+  }
+
+  const sessionModeView = target.closest<HTMLElement>("[data-ai-session-mode-view]")?.dataset.aiSessionModeView;
+  if (isAISessionModeView(sessionModeView) && sessionModeView !== state.activeAISessionModeView) {
+    state.activeAISessionModeView = sessionModeView;
+    render();
+    return true;
+  }
+
+  const analysisOutputView = target.closest<HTMLElement>("[data-ai-analysis-output-view]")?.dataset.aiAnalysisOutputView;
+  if (isAIAnalysisOutputView(analysisOutputView) && analysisOutputView !== state.activeAIAnalysisOutputView) {
+    state.activeAIAnalysisOutputView = analysisOutputView;
     render();
     return true;
   }
@@ -109,4 +138,21 @@ function isAIDiagnosticsSectionKey(value: unknown): value is AIDiagnosticsSectio
     || value === "provider-telemetry"
     || value === "metadata-checks"
     || value === "document-context";
+}
+
+function isAIDocumentContextView(value: unknown): value is AIDocumentContextView {
+  return value === "overview" || value === "meta-tags" || value === "head-links";
+}
+
+function isAISessionModeView(value: unknown): value is AISessionModeView {
+  return value === "overview" || value === "coverage";
+}
+
+function isAIAnalysisOutputView(value: unknown): value is AIAnalysisOutputView {
+  return value === "overview"
+    || value === "likely-causes"
+    || value === "code-references"
+    || value === "next-checks"
+    || value === "suggested-fixes"
+    || value === "raw-text";
 }

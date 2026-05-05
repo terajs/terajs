@@ -33,6 +33,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
 import {
   createReactiveMetadata,
   getCurrentComposable,
+  getCurrentContext,
   registerReactiveInstance,
   updateReactiveValue,
   Debug
@@ -191,14 +192,19 @@ export function reactive<T extends AnyObj>(
     file?: string;
     line?: number;
     column?: number;
+    composable?: string;
+    group?: string;
   }
 ): Reactive<T> {
+  const currentContext = getCurrentContext();
   const ctx: WrapContext = {
-    scope: options?.scope ?? "UnknownScope",
-    instance: options?.instance ?? 0,
+    scope: options?.scope ?? currentContext?.name ?? "UnknownScope",
+    instance: options?.instance ?? currentContext?.instance ?? 0,
     file: options?.file,
     line: options?.line,
-    column: options?.column
+    column: options?.column,
+    composable: options?.composable,
+    group: options?.group
   };
 
   // Root object metadata (for grouping/inspection)

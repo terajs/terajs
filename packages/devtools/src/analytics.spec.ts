@@ -24,6 +24,15 @@ describe("devtools analytics", () => {
 
     expect(summarizeEvent(keyEvent)).toContain("key=count");
     expect(summarizeEvent(nameEvent)).toContain("name=Counter");
+
+    const nestedEvent: DevtoolsEventLike = {
+      type: "dom:insert",
+      timestamp: 3,
+      payload: { parent: { id: "app" }, child: { id: "hero" } },
+    };
+
+    expect(summarizeEvent(nestedEvent)).toContain("parent=Object(1)");
+    expect(summarizeEvent(nestedEvent)).toContain("child=Object(1)");
   });
 
   it("builds a bounded timeline with global indexes", () => {
@@ -39,6 +48,7 @@ describe("devtools analytics", () => {
     expect(timeline[1].index).toBe(2);
     expect(timeline[0].type).toBe("b");
     expect(timeline[1].type).toBe("c");
+    expect(timeline[0].payload).toEqual({ step: 2 });
   });
 
   it("replays events up to cursor index", () => {

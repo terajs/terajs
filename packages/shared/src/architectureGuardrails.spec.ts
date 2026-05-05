@@ -105,13 +105,9 @@ const maxProductionSourceLines = 500;
 const legacyProductionSourceLineCaps = new Map<string, number>([
   ["packages/devtools/src/aiHelpers.ts", 512],
   ["packages/devtools/src/app.ts", 846],
-  ["packages/devtools/src/overlayInspectorAndRuntimeStyles.ts", 517],
   ["packages/devtools/src/overlayInspectorSuite.ts", 537],
-  ["packages/devtools/src/overlayPanelAndContentStyles.ts", 533],
-  ["packages/devtools/src/overlayValueAndInteractiveStyles.ts", 511],
   ["packages/devtools/src/overlay.ts", 2090],
   ["packages/devtools/src/overlayStyles.ts", 1600],
-  ["packages/devtools/src/panels/aiDiagnosticsPanel.ts", 528],
   ["packages/vite-plug-in/src/index.ts", 852],
   ["packages/sfc/src/stripTypes.ts", 619],
   ["packages/renderer-web/src/renderFromIR.ts", 530],

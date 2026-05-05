@@ -25,6 +25,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
 import {
   createReactiveMetadata,
   getCurrentComposable,   
+  getCurrentContext,
   registerReactiveInstance,
   updateReactiveValue,
   Debug
@@ -79,8 +80,9 @@ export function ref<T>(
     group?: string;
   }
 ): Ref<T> {
-  const scope = options?.scope ?? "UnknownScope";
-  const instance = options?.instance ?? 0;
+  const currentContext = getCurrentContext();
+  const scope = options?.scope ?? currentContext?.name ?? "UnknownScope";
+  const instance = options?.instance ?? currentContext?.instance ?? 0;
 
   // Create metadata for this ref
   const meta: ReactiveMetadata = debugInstrumentationEnabled

@@ -1,7 +1,7 @@
 import type { DevtoolsAIAssistantOptions, DevtoolsBridgeOptions } from "./app.js";
 
 export type DevtoolsOverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
-export type DevtoolsOverlaySize = "normal" | "large";
+export type DevtoolsOverlaySize = "normal" | "large" | "fullscreen";
 
 /**
  * Configuration for the Terajs DevTools overlay.
@@ -89,7 +89,7 @@ export function isOverlayPosition(value: unknown): value is DevtoolsOverlayPosit
 }
 
 export function isOverlaySize(value: unknown): value is DevtoolsOverlaySize {
-  return value === "normal" || value === "large";
+  return value === "normal" || value === "large" || value === "fullscreen";
 }
 
 function getOverlayStorage(): OverlayStorage | null {

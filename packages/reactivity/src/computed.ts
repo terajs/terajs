@@ -52,6 +52,11 @@ export interface ComputedOptions {
    * Stable label attached to the computed metadata when available.
    */
   key?: string;
+
+  /**
+   * Optional composable label for grouping derived values in DevTools.
+   */
+  composable?: string;
 }
 
 /**
@@ -90,7 +95,7 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
         scope,
         instance,
         key,
-        composable: getCurrentComposable() ?? undefined,
+        composable: options.composable ?? getCurrentComposable() ?? undefined,
       })
     : getProductionMetadataPlaceholder("computed");
 

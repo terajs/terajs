@@ -17,6 +17,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
 import {
   createReactiveMetadata,
   getCurrentComposable,
+  getCurrentContext,
   registerReactiveInstance,
   updateReactiveValue,
   emitDebug,
@@ -96,8 +97,9 @@ export function signal<T>(
     group?: string;
   }
 ): Signal<T> {
-  const scope = options?.scope ?? "UnknownScope";
-  const instance = options?.instance ?? 0;
+  const currentContext = getCurrentContext();
+  const scope = options?.scope ?? currentContext?.name ?? "UnknownScope";
+  const instance = options?.instance ?? currentContext?.instance ?? 0;
 
   // Create metadata for this signal
   const meta: ReactiveMetadata = debugInstrumentationEnabled

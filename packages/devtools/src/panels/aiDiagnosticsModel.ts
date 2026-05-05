@@ -14,8 +14,26 @@ export type AIDiagnosticsSectionKey =
   | "metadata-checks"
   | "document-context";
 
+/** Active sub-view for the document context detail area. */
+export type AIDocumentContextView = "overview" | "meta-tags" | "head-links";
+
+/** Active sub-view for the Session Mode detail area. */
+export type AISessionModeView = "overview" | "coverage";
+
+/** Active sub-view for the structured AI analysis detail area. */
+export type AIAnalysisOutputView = "overview" | "likely-causes" | "code-references" | "next-checks" | "suggested-fixes" | "raw-text";
+
 /** Default section shown when the diagnostics workspace first opens. */
 export const DEFAULT_AI_DIAGNOSTICS_SECTION: AIDiagnosticsSectionKey = "analysis-output";
+
+/** Default document context sub-view shown when its detail area opens. */
+export const DEFAULT_AI_DOCUMENT_CONTEXT_VIEW: AIDocumentContextView = "overview";
+
+/** Default Session Mode sub-view shown when its detail area opens. */
+export const DEFAULT_AI_SESSION_MODE_VIEW: AISessionModeView = "overview";
+
+/** Default structured AI analysis sub-view shown when a response is available. */
+export const DEFAULT_AI_ANALYSIS_OUTPUT_VIEW: AIAnalysisOutputView = "overview";
 
 export interface AIDiagnosticsStateLike {
   events: DevtoolsEventLike[];
@@ -32,6 +50,9 @@ export interface AIDiagnosticsStateLike {
   aiAssistantModel: string;
   aiAssistantTimeoutMs: number;
   activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
+  activeAIDocumentContextView: AIDocumentContextView;
+  activeAISessionModeView: AISessionModeView;
+  activeAIAnalysisOutputView: AIAnalysisOutputView;
   documentContext?: SafeDocumentContext | null;
   documentDiagnostics?: SafeDocumentDiagnostic[];
 }

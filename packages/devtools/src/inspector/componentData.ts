@@ -8,6 +8,7 @@ import {
   safeString,
   shortJson
 } from "./shared.js";
+import { getReactiveByRid } from "@terajs/shared";
 import { resolveLiveComponentSnapshots } from "./liveEditing.js";
 import { isSignalLikeUpdate, summarizeLog, collectComponentComposables, type DevtoolsEventLike } from "./dataCollectors.js";
 
@@ -221,11 +222,33 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
     const matchesComponent = identity?.scope === scope && identity.instance === instance;
 
     if (isSignalLikeUpdate(event.type)) {
-      const reactiveKey = readString(event.payload, "rid") ?? readString(event.payload, "key");
-      if (reactiveKey && reactiveKey.includes(`${scope}#${instance}`)) {
-        reactiveKeys.add(reactiveKey);
+      const reactiveRid = readString(event.payload, "rid");
+      const reactiveKey = reactiveRid ?? readString(event.payload, "key");
+      const reactiveInfo = reactiveRid ? getReactiveByRid(reactiveRid) : undefined;
+      const label = reactiveInfo
+        ? (() => {
+            const group = typeof reactiveInfo.meta.group === "string" && reactiveInfo.meta.group.trim().length > 0
+              ? reactiveInfo.meta.group.trim()
+              : null;
+            const key = typeof reactiveInfo.meta.key === "string" && reactiveInfo.meta.key.trim().length > 0
+              ? reactiveInfo.meta.key.trim()
+              : null;
 
-        if (!reactiveStateMap.has(reactiveKey)) {
+            if (group && key && group !== key) {
+              return `${group}.${key}`;
+            }
+
+            return key ?? group ?? reactiveRid;
+          })()
+        : reactiveKey;
+      const matchesOwnedReactive = reactiveInfo
+        ? reactiveInfo.owner?.scope === scope && reactiveInfo.owner.instance === instance
+        : Boolean(reactiveKey && reactiveKey.includes(`${scope}#${instance}`));
+
+      if (label && matchesOwnedReactive) {
+        reactiveKeys.add(label);
+
+        if (!reactiveStateMap.has(label)) {
           const reactivePreview =
             readUnknown(event.payload, "next") ??
             readUnknown(event.payload, "value") ??
@@ -233,7 +256,7 @@ export function collectComponentDrilldown(events: DevtoolsEventLike[], scope: st
             readUnknown(event.payload, "prev") ??
             readUnknown(event.payload, "initialValue");
 
-          reactiveStateMap.set(reactiveKey, shortJson(reactivePreview));
+          reactiveStateMap.set(label, shortJson(reactivePreview));
         }
       }
     }
