@@ -67,6 +67,15 @@ export interface MountOptions {
 }
 
 function isHTMLElement(value: unknown): value is HTMLElement {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const ownerView = (value as Node & { ownerDocument?: Document | null }).ownerDocument?.defaultView;
+  if (ownerView?.HTMLElement && value instanceof ownerView.HTMLElement) {
+    return true;
+  }
+
   return typeof HTMLElement !== "undefined" && value instanceof HTMLElement;
 }
 

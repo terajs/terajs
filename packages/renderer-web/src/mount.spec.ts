@@ -90,6 +90,37 @@ describe("mount() / unmount()", () => {
         expect(root.textContent).toBe("hello");
     });
 
+    it("mount accepts HTMLElement targets from iframe documents", () => {
+        const frame = document.createElement("iframe");
+        document.body.appendChild(frame);
+
+        const frameDocument = frame.contentDocument;
+        const frameWindow = frame.contentWindow;
+
+        expect(frameDocument).toBeTruthy();
+        expect(frameWindow).toBeTruthy();
+
+        const root = frameDocument!.createElement("div");
+        frameDocument!.body.appendChild(root);
+
+        const Comp = () => {
+            const div = frameDocument!.createElement("div");
+            div.textContent = "iframe-root";
+            return div;
+        };
+
+        const mountedRoot = mount(Comp, root as unknown as HTMLElement);
+
+        const frameGlobal = frameWindow as Window & typeof globalThis;
+
+        expect(root instanceof frameGlobal.HTMLElement).toBe(true);
+        expect(mountedRoot).toBe(root);
+        expect(root.textContent).toBe("iframe-root");
+        expect(document.getElementById("app")?.textContent ?? "").not.toContain("iframe-root");
+
+        frame.remove();
+    });
+
     it("mount clears previous DOM", () => {
         const root = document.createElement("div");
         root.textContent = "old";

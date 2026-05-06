@@ -54,6 +54,45 @@ export interface RenderResult {
     ctx: ComponentContext;
 }
 
+function isDomNode(value: unknown): value is Node {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const ownerView = (value as Node & { ownerDocument?: Document | null }).ownerDocument?.defaultView;
+    if (ownerView?.Node && value instanceof ownerView.Node) {
+        return true;
+    }
+
+    return typeof Node !== "undefined" && value instanceof Node;
+}
+
+function isDomElement(value: unknown): value is Element {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const ownerView = (value as Node & { ownerDocument?: Document | null }).ownerDocument?.defaultView;
+    if (ownerView?.Element && value instanceof ownerView.Element) {
+        return true;
+    }
+
+    return typeof Element !== "undefined" && value instanceof Element;
+}
+
+function isDomDocumentFragment(value: unknown): value is DocumentFragment {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const ownerView = (value as Node & { ownerDocument?: Document | null }).ownerDocument?.defaultView;
+    if (ownerView?.DocumentFragment && value instanceof ownerView.DocumentFragment) {
+        return true;
+    }
+
+    return typeof DocumentFragment !== "undefined" && value instanceof DocumentFragment;
+}
+
 /**
  * Executes a component inside a fresh component context.
  *
@@ -97,7 +136,7 @@ export function renderComponent(
 
         node = template(fn);
     }
-    else if (out instanceof Node) {
+    else if (isDomNode(out)) {
         emitRendererDebug("component:render:static", () => ({
             component,
             node: out
@@ -157,7 +196,7 @@ function describeReturnValue(value: unknown): string {
         return "undefined";
     }
 
-    if (value instanceof Node) {
+    if (isDomNode(value)) {
         return value.nodeName;
     }
 
@@ -186,14 +225,14 @@ function attachComponentIdentity(node: Node, ctx: ComponentContext): void {
     const scope = String(ctx.name);
     const instance = String(ctx.instance);
 
-    if (node instanceof Element) {
+    if (isDomElement(node)) {
         applyComponentIdentity(node, scope, instance, ctx);
         return;
     }
 
-    if (node instanceof DocumentFragment) {
+    if (isDomDocumentFragment(node)) {
         for (const child of Array.from(node.childNodes)) {
-            if (!(child instanceof Element)) {
+            if (!isDomElement(child)) {
                 continue;
             }
 
@@ -249,7 +288,7 @@ export function renderIntoRoot(
 
 /** Type guard for AST nodes */
 function isAst(value: any): value is ASTNode {
-    if (!value || typeof value !== "object" || value instanceof Node) {
+    if (!value || typeof value !== "object" || isDomNode(value)) {
         return false;
     }
 

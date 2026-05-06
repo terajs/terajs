@@ -205,26 +205,24 @@ function renderIframeResultList(items: readonly IframeResultItem[], emptyMessage
   }
 
   return `
-    <div class="timeline-event-list">
-      <ul class="timeline-event-results">
+    <div class="timeline-event-list iframe-results-pane">
+      <ul class="timeline-event-results iframe-results-list">
         ${items.map((item) => `
-          <li class="timeline-event-item ${item.tone ? `is-${item.tone}` : ""} ${item.detailOpen ? "is-expanded" : ""}">
-            <div class="timeline-event-summary">
-              ${item.kicker ? `<div class="timeline-event-kicker">${escapeHtml(item.kicker)}</div>` : ""}
-              <div class="timeline-event-title">${escapeHtml(item.title)}</div>
-              ${item.summary ? `<div class="timeline-event-body">${escapeHtml(item.summary)}</div>` : ""}
-              ${item.meta ? `<div class="timeline-event-meta">${escapeHtml(item.meta)}</div>` : ""}
+          <li class="timeline-event-item iframe-results-item ${item.variant ? `is-${item.variant}` : ""} ${item.tone ? `is-${item.tone}` : ""} ${item.detailOpen ? "is-expanded" : ""}">
+            <div class="timeline-event-summary iframe-results-item-copy">
+              ${item.kicker ? `<div class="timeline-event-kicker iframe-results-item-kicker">${escapeHtml(item.kicker)}</div>` : ""}
+              <div class="timeline-event-title iframe-results-item-title">${escapeHtml(item.title)}</div>
+              ${item.summary ? `<div class="timeline-event-body iframe-results-item-summary">${escapeHtml(item.summary)}</div>` : ""}
+              ${item.meta ? `<div class="timeline-event-meta iframe-results-item-meta">${escapeHtml(item.meta)}</div>` : ""}
             </div>
             ${item.detail && item.detailKey ? `
-              <div class="timeline-event-detail-toggle-row">
-                <button
-                  class="toolbar-button toolbar-button--small timeline-event-detail-toggle"
-                  type="button"
-                  data-expand-detail-key="${item.detailKey}"
-                  aria-expanded="${item.detailOpen ? "true" : "false"}"
-                >${escapeHtml(item.detailLabel ?? "Details")}</button>
-              </div>
-              <div class="timeline-event-detail-panel ${item.detailOpen ? "is-open" : ""}">${item.detail}</div>
+              <details class="iframe-results-item-detail" ${item.detailOpen ? "open" : ""}>
+                <summary
+                  class="iframe-results-item-detail-toggle"
+                  data-timeline-detail-key="${item.detailKey}"
+                >${escapeHtml(item.detailLabel ?? "Details")}</summary>
+                <div class="iframe-results-item-detail-body">${item.detail}</div>
+              </details>
             ` : ""}
           </li>
         `).join("")}

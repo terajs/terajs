@@ -16,7 +16,7 @@ describe("compileSFC integration", () => {
     const sfc = parseSFC(code, "test.tera");
     const compiled = compileSfcToComponent(sfc);
 
-    expect(compiled).toContain('const name = signal("Terajs");');
+    expect(compiled).toContain('const name = signal("Terajs", { key: "name" });');
     expect(compiled).not.toContain("setup");
   });
 });

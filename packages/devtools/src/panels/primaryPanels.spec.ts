@@ -66,8 +66,8 @@ describe("primaryPanels", () => {
     expect(logsMarkup).toContain("investigation-journal");
     expect(logsMarkup).toContain("data-log-entry-key=");
     expect(logsMarkup).toContain("Route Changed");
-    expect(logsMarkup).toContain("Component 1");
-    expect(logsMarkup).toContain("Component activity");
+    expect(logsMarkup).toContain("Components 1");
+    expect(logsMarkup).toContain("component lifecycle and render activity");
     expect(logsMarkup).toContain("Event Investigation");
     expect(logsMarkup).toContain("Choose an event to inspect");
     expect(logsMarkup).toContain("devtools-section-subcontrols");

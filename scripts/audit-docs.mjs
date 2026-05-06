@@ -46,9 +46,22 @@ async function collectPublicPackages() {
   return packages.sort((left, right) => left.name.localeCompare(right.name));
 }
 
+function countNonEmptyLines(content) {
+  return content
+    .split(/\r?\n/u)
+    .filter((line) => line.trim().length > 0)
+    .length;
+}
+
 function ensureContains(content, needle, issues, ownerLabel) {
   if (!content.includes(needle)) {
     issues.push(`${ownerLabel}: missing \"${needle}\"`);
+  }
+}
+
+function ensureNotContains(content, needle, issues, ownerLabel) {
+  if (content.includes(needle)) {
+    issues.push(`${ownerLabel}: should not include "${needle}"`);
   }
 }
 
@@ -76,6 +89,10 @@ async function main() {
   const apiReference = await readFile(apiReferencePath, "utf8");
   const publicPackages = await collectPublicPackages();
 
+  if (countNonEmptyLines(rootReadme) > 220) {
+    issues.push("README.md: root README should stay concise (220 non-empty lines max)");
+  }
+
   for (const pkg of publicPackages) {
     if (!existsSync(pkg.readmePath)) {
       issues.push(`${pkg.name}: missing package README.md`);
@@ -88,27 +105,50 @@ async function main() {
       issues.push(`${pkg.name}: README.md should start with \"${expectedHeading}\"`);
     }
 
-    ensureContains(rootReadme, pkg.name, issues, "README.md");
     ensureContains(apiReference, pkg.name, issues, "API_REFERENCE.md");
   }
 
   const requiredReadmeTopics = [
+    "https://terajs.com/docs",
+    "https://terajs.com/docs/quickstart",
+    "https://terajs.com/docs/benchmarks",
+    "https://terajs.com/examples",
+    "https://terajs.com/api-reference",
+    "npm create terajs@latest my-app",
+    "@terajs/app",
     "@terajs/app/vite",
     "@terajs/app/devtools",
+    "bench:browser",
+    "bench:browser:build",
+    "bench:browser:serve",
+    "frameworks-browser.html",
+    "route-startup-browser.html",
+    "benchmarks/frameworks-browser.ts",
+    "benchmarks/route-startup-browser.ts",
+    "Solid",
+    "Preact",
+    "Lit",
+    "Vue",
+    "React",
     "local-first",
     "DevTools",
     "SignalR",
     "Socket.IO",
-    "WebSockets",
-    "<ai>",
-    "server-function",
-    "SSR",
-    "defineCustomElement",
-    "@terajs/cli"
+    "WebSockets"
   ];
 
   for (const topic of requiredReadmeTopics) {
     ensureContains(rootReadme, topic, issues, "README.md");
+  }
+
+  const forbiddenReadmeTopics = [
+    "jsdom",
+    "bench:frameworks",
+    "bench:direct-text"
+  ];
+
+  for (const topic of forbiddenReadmeTopics) {
+    ensureNotContains(rootReadme, topic, issues, "README.md");
   }
 
   const requiredApiTopics = [
