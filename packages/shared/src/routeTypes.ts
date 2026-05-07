@@ -13,6 +13,7 @@ export interface RouteOverride {
 export interface MetaConfig {
   [key: string]: unknown;
   title?: string;
+  canonical?: string | "auto";
   description?: string;
   keywords?: string[] | string;
   aiSummary?: "auto" | string;

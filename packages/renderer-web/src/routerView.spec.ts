@@ -121,7 +121,12 @@ describe("createRouteView", () => {
       [
         route({
           path: "/docs",
-          meta: { title: "Docs", description: "Read the docs", keywords: ["terajs", "docs"] },
+          meta: {
+            title: "Docs",
+            canonical: "auto",
+            description: "Read the docs",
+            keywords: ["terajs", "docs"]
+          },
           component: async () => ({ default: () => document.createTextNode("docs") })
         })
       ],
@@ -132,6 +137,7 @@ describe("createRouteView", () => {
     await flush();
 
     expect(document.title).toBe("Docs");
+    expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe("http://localhost:3000/docs");
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("Read the docs");
     expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toBe("terajs, docs");
 
