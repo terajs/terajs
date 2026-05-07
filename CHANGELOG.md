@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+## 1.2.0
+
 - Backfilled the public docs story around `@terajs/app`: the reactivity guide now covers `ref`, `reactive`, and `shallowRef` alongside `signal`, `state`, and `computed`, and the API reference now documents `withErrorBoundary()` plus the `web.*` router context helpers accurately.
 - Hardened the docs-site code-highlighting path by switching the public site from Prism globals to Refractor-backed HTML rendering, removing the production `Prism is not defined` failure path from deployed docs pages.
 - Tightened docs, examples, and API-reference route metadata so live search and AI summaries describe the current shipped surface instead of older single-transport or signal-only wording.
+- Added canonical route metadata support across `@terajs/shared` and `@terajs/renderer-web` so apps can declare explicit or automatic canonical URLs through route head metadata.
 - Add debugging support for composables
 - Expanded the unreleased DevTools slice across `@terajs/devtools`, `@terajs/vite-plugin`, `@terajs/app`, `@terajs/shared`, `@terajs/reactivity`, and `@terajs/sfc` with richer workbench panels, stronger component/value drilldown, improved instrumentation metadata, and unified overlay theming plus explicit AI bridge controls.
 

@@ -29,23 +29,28 @@ Trusted publishing is configured on npm, not as a GitHub secret. Once it is enab
 
 1. Run the local release check:
 	```bash
-	npm run release:check
+	npm run rc:check
 	```
-	- This validates tests, typecheck, docs, exports, and pending Changesets.
-2. Open the `Release` workflow in GitHub Actions.
-3. Run it against `main`.
-4. If pending Changesets exist, the workflow pushes or updates the `changeset-release/main` branch and prints a compare URL in the workflow summary.
-5. Open or refresh the version PR from that branch and merge it.
-6. Run the `Release` workflow again against `main` to publish the packages.
+	- This validates tests, typecheck, docs, and exports.
+2. Confirm the pending package plan and update the root changelog entry manually:
+	```bash
+	npm run release:status
+	```
+	- Changesets does not generate changelog files in this repo, so keep `CHANGELOG.md` aligned with the packages queued for release.
+3. Open the `Release` workflow in GitHub Actions.
+4. Run it against `main`.
+5. If pending Changesets exist, the workflow pushes or updates the `changeset-release/main` branch and prints a compare URL in the workflow summary.
+6. Open or refresh the version PR from that branch and merge it.
+7. Run the `Release` workflow again against `main` to publish the packages.
 
 **What happens automatically:**
-- All affected package versions are bumped and changelogs updated.
+- All affected package versions are bumped.
 - The root `package.json` version is synced to the highest public package version.
 - An annotated git tag (e.g., `v1.1.2`) is created and pushed.
 - A GitHub Release entry is created if configured in `release.yml`.
 - Packages are published to npm via trusted publishing.
 
-**You do NOT need to manually bump versions, changelogs, or tags.**
+**You do NOT need to manually bump versions or tags in the GitHub Actions flow.**
 
 ---
 
@@ -93,6 +98,10 @@ If GitHub Actions is unavailable or you need to recover a release manually:
 
 You can run all local release validation and status checks with:
 ```bash
-npm run release:check
+npm run rc:check
 ```
-This runs tests, typecheck, docs, exports, and shows pending Changesets. Fix any errors before running the GitHub Actions workflow.
+Then inspect pending Changesets with:
+```bash
+npm run release:status
+```
+Fix any errors and update `CHANGELOG.md` before running the GitHub Actions workflow.

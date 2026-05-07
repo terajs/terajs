@@ -1,5 +1,13 @@
 import type { MetaConfig } from "@terajs/shared";
 
+function normalizeCanonicalPathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+
+  return pathname || "/";
+}
+
 function normalizeMetaString(value: unknown): string {
   if (typeof value !== "string") {
     return "";
@@ -65,6 +73,50 @@ function syncMetaTag(name: string, content: string | undefined, attrName: "name"
   el.setAttribute("content", content);
 }
 
+function resolveCanonicalHref(value: unknown, pathname?: string): string | undefined {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  if (value === "auto") {
+    return `${document.location.origin}${normalizeCanonicalPathname(pathname ?? document.location.pathname)}`;
+  }
+
+  const normalized = normalizeMetaString(value);
+  if (!normalized) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(normalized, document.baseURI);
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return normalized;
+  }
+}
+
+function syncCanonicalLink(href: string | undefined): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  let el = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+
+  if (!href) {
+    el?.remove();
+    return;
+  }
+
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+
+  el.setAttribute("href", href);
+}
+
 /**
  * Applies resolved route metadata and optional AI hints to the document head.
  *
@@ -73,18 +125,21 @@ function syncMetaTag(name: string, content: string | undefined, attrName: "name"
  *
  * @param meta - The resolved metadata to apply to the current document.
  * @param ai - Optional structured AI hint payload serialized into a meta tag.
+ * @param pathname - Optional active route pathname used to resolve automatic canonicals.
  */
-export function updateHead(meta: MetaConfig, ai?: Record<string, unknown>): void {
+export function updateHead(meta: MetaConfig, ai?: Record<string, unknown>, pathname?: string): void {
   if (typeof document === "undefined") return;
   if (!meta || typeof meta !== "object") return;
 
   const title = normalizeMetaString(meta.title);
+  syncCanonicalLink(resolveCanonicalHref(meta.canonical, pathname));
+
   if (title) {
     document.title = title;
   }
 
   for (const [key, value] of Object.entries(meta)) {
-    if (key === "title") {
+    if (key === "title" || key === "canonical") {
       continue;
     }
 

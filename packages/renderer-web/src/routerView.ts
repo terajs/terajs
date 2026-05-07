@@ -51,7 +51,7 @@ function resolveFrameworkComponent(value: unknown, label: string): FrameworkComp
 }
 
 function applyResolvedRouteMetadata(loaded: LoadedRouteMatch<unknown>): void {
-  updateHead(loaded.resolved.meta, loaded.resolved.ai);
+  updateHead(loaded.resolved.meta, loaded.resolved.ai, loaded.match.pathname);
 }
 
 function composeLoadedMatch<TData>(
