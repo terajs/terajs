@@ -42,29 +42,30 @@ If you are evaluating the stack before installing anything, start with the docs 
 
 ## Browser Benchmarks
 
-The public performance story is based on production browser bundles in `benchmarks/frameworks-browser.ts` and `benchmarks/route-startup-browser.ts`, comparing Terajs, Solid, Preact, Lit, Vue, and React on the same harnesses.
+The public performance story is based on production browser bundles in `benchmarks/frameworks-browser.ts` and `benchmarks/route-startup-browser.ts`. The framework DOM benchmark compares Terajs, Solid, Preact, Lit, Vue Vapor, and React on the same harness, while the route benchmark compares Terajs, Solid, Preact, Lit, Vue Vapor, and React.
+Benchmark-only framework dependencies now live in the isolated `benchmarks/` subproject instead of the Terajs root manifest.
 
 ### Framework DOM benchmark
 
 | Framework | Mount median | Targeted median | Targeted/update | Bulk median | Bulk/update |
 | --- | --- | --- | --- | --- | --- |
-| Terajs | `1.30 ms` | `1.20 ms` | `6.0 us` | `2.90 ms` | `145.0 us` |
-| Solid | `0.90 ms` | `3.50 ms` | `17.5 us` | `4.70 ms` | `235.0 us` |
-| Preact | `0.90 ms` | `59.40 ms` | `297.0 us` | `9.10 ms` | `455.0 us` |
-| Lit | `1.70 ms` | `10.10 ms` | `50.5 us` | `4.80 ms` | `240.0 us` |
-| Vue | `0.80 ms` | `27.70 ms` | `138.5 us` | `22.80 ms` | `1140.0 us` |
-| React | `1.00 ms` | `22.90 ms` | `114.5 us` | `6.00 ms` | `300.0 us` |
+| Terajs | `1.10 ms` | `1.00 ms` | `5.0 us` | `2.40 ms` | `120.0 us` |
+| Solid | `0.90 ms` | `3.20 ms` | `16.0 us` | `3.90 ms` | `195.0 us` |
+| Preact | `0.70 ms` | `59.80 ms` | `299.0 us` | `8.60 ms` | `430.0 us` |
+| Lit | `1.40 ms` | `11.30 ms` | `56.5 us` | `3.70 ms` | `185.0 us` |
+| Vue Vapor | `2.20 ms` | `77.60 ms` | `388.0 us` | `32.10 ms` | `1605.0 us` |
+| React | `0.70 ms` | `23.50 ms` | `117.5 us` | `5.30 ms` | `265.0 us` |
 
 ### Route benchmark
 
 | Framework | Startup median | Startup mean | Route swap median | Per transition |
 | --- | --- | --- | --- | --- |
-| Terajs | `0.60 ms` | `0.57 ms` | `6.50 ms` | `108.3 us` |
-| Solid | `0.20 ms` | `0.20 ms` | `10.80 ms` | `180.0 us` |
-| Preact | `0.40 ms` | `0.39 ms` | `6.90 ms` | `115.0 us` |
-| Lit | `0.40 ms` | `0.38 ms` | `3.10 ms` | `51.7 us` |
-| Vue | `0.40 ms` | `0.41 ms` | `11.50 ms` | `191.7 us` |
-| React | `0.40 ms` | `0.47 ms` | `6.60 ms` | `110.0 us` |
+| Terajs | `0.40 ms` | `0.47 ms` | `5.80 ms` | `96.7 us` |
+| Solid | `0.20 ms` | `0.16 ms` | `9.50 ms` | `158.3 us` |
+| Preact | `0.30 ms` | `0.30 ms` | `6.10 ms` | `101.7 us` |
+| Lit | `0.40 ms` | `0.42 ms` | `2.60 ms` | `43.3 us` |
+| Vue Vapor | `0.30 ms` | `0.30 ms` | `9.30 ms` | `155.0 us` |
+| React | `0.30 ms` | `0.36 ms` | `6.30 ms` | `105.0 us` |
 
 Treat those numbers as workload-specific receipts, not a blanket claim that every Terajs app beats every other framework on every screen.
 
@@ -73,19 +74,23 @@ Read the benchmark guide on the public site for the full interpretation and comp
 ### Rerun the public harness
 
 ```bash
-npm run bench:browser
+cd benchmarks
+npm install
+npm run browser
 ```
 
 That command builds the bundle and serves:
 
+- `http://127.0.0.1:4181/` shared browser benchmark shell with one merged results table
 - `http://127.0.0.1:4181/benchmarks/frameworks-browser.html`
 - `http://127.0.0.1:4181/benchmarks/route-startup-browser.html`
 
 You can also split the steps:
 
 ```bash
-npm run bench:browser:build
-npm run bench:browser:serve
+cd benchmarks
+npm run browser:build
+npm run browser:serve
 ```
 
 ## Documentation Map

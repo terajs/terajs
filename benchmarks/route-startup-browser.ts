@@ -10,7 +10,8 @@ import { flushSync } from "react-dom";
 import { createSignal as createSolidSignal, type Accessor } from "solid-js";
 import htmlSolid from "solid-js/html";
 import { render as renderSolid } from "solid-js/web";
-import { createApp, h, nextTick, ref } from "vue";
+import { createVaporApp, nextTick as vaporNextTick, ref as vaporRef } from "@vue-vapor/vue/vapor";
+import { render as renderVueVaporRouteShell } from "virtual:vue-vapor-route-benchmark";
 
 type BenchmarkResult = {
   framework: string;
@@ -106,7 +107,7 @@ async function run(): Promise<void> {
   results.push(await benchmarkFramework("Lit", () => createLitHarness()));
   renderResults(results);
 
-  results.push(await benchmarkFramework("Vue", () => createVueHarness()));
+  results.push(await benchmarkFramework("Vue Vapor", () => createVueVaporHarness()));
   renderResults(results);
 
   results.push(await benchmarkFramework("React", () => createReactHarness()));
@@ -644,85 +645,16 @@ function createLitHarness() {
   };
 }
 
-function renderRouteShellVue(route: RouteRecord) {
-  return h(
-    "div",
-    { class: "route-shell" },
-    [
-      h("header", { class: "shell-header" }, [
-        h("div", { class: "brand-lockup" }, [
-          h("strong", null, readRouteField(route, "brandName")),
-          h("p", null, readRouteField(route, "brandTagline")),
-        ]),
-        h("nav", { class: "shell-nav" }, Array.from({ length: LINK_COUNT }, (_, index) => h(
-          "a",
-          { href: readRouteField(route, `link${index}Href`) },
-          readRouteField(route, `link${index}Label`)
-        )))
-      ]),
-      h("main", { class: "route-main" }, [
-        h("section", { class: "route-hero" }, [
-          h("p", null, readRouteField(route, "pageKicker")),
-          h("h1", null, readRouteField(route, "pageTitle")),
-          h("p", null, readRouteField(route, "pageSummary")),
-          h("div", { class: "hero-actions" }, [
-            h("button", null, readRouteField(route, "primaryAction")),
-            h("button", null, readRouteField(route, "secondaryAction")),
-          ])
-        ]),
-        h("section", { class: "metrics-strip" }, Array.from({ length: METRIC_COUNT }, (_, index) => h(
-          "article",
-          { class: "metric-pill" },
-          [
-            h("span", null, readRouteField(route, `metric${index}Label`)),
-            h("strong", null, readRouteField(route, `metric${index}Value`)),
-            h("small", null, readRouteField(route, `metric${index}Trend`)),
-          ]
-        ))),
-        h("section", { class: "content-grid" }, [
-          h("div", { class: "cards-panel" }, Array.from({ length: CARD_COUNT }, (_, index) => h(
-            "article",
-            { class: "content-card", "data-meta": readRouteField(route, `card${index}Meta`) },
-            [
-              h("p", null, readRouteField(route, `card${index}Eyebrow`)),
-              h("h3", null, readRouteField(route, `card${index}Title`)),
-              h("p", null, readRouteField(route, `card${index}Excerpt`)),
-              h("footer", null, readRouteField(route, `card${index}Meta`)),
-            ]
-          ))),
-          h("aside", { class: "route-sidebar" }, [
-            h("h2", null, readRouteField(route, "asideTitle")),
-            h("p", null, readRouteField(route, "asideSummary")),
-            h("ol", { class: "timeline-list" }, Array.from({ length: STEP_COUNT }, (_, index) => h(
-              "li",
-              { class: "timeline-step" },
-              [
-                h("div", null, [
-                  h("strong", null, readRouteField(route, `step${index}Label`)),
-                  h("p", null, readRouteField(route, `step${index}Detail`)),
-                ]),
-                h("span", null, readRouteField(route, `step${index}Time`)),
-              ]
-            )))
-          ])
-        ])
-      ]),
-      h("footer", { class: "route-footer" }, [
-        h("strong", null, readRouteField(route, "footerLead")),
-        h("p", null, readRouteField(route, "footerNote")),
-      ])
-    ]
-  );
-}
-
-function createVueHarness() {
+function createVueVaporHarness() {
   const rootElement = createMountTarget();
-  const route = ref<RouteRecord>(routeLaunch);
+  const route = vaporRef<RouteRecord>(routeLaunch);
 
-  const app = createApp({
+  const app = createVaporApp({
+    vapor: true,
     setup() {
-      return () => renderRouteShellVue(route.value);
-    }
+      return { route };
+    },
+    render: renderVueVaporRouteShell as unknown as (ctx: { route: RouteRecord }) => unknown
   });
 
   app.mount(rootElement);
@@ -730,7 +662,7 @@ function createVueHarness() {
   return {
     async navigate(iteration: number) {
       route.value = iteration % 2 === 0 ? routeDiagnostics : routeLaunch;
-      await nextTick();
+      await vaporNextTick();
     },
     async destroy() {
       app.unmount();

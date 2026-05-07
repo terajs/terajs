@@ -92,8 +92,8 @@ async function loadRuntime() {
   const [{ dispose, signal }, { Debug }, dom, bindings] = await Promise.all([
     import("@terajs/reactivity"),
     import("@terajs/shared"),
-    import("../packages/renderer-web/dist/dom.js"),
-    import("../packages/renderer-web/dist/bindings.js")
+    import("../../packages/renderer-web/dist/dom.js"),
+    import("../../packages/renderer-web/dist/bindings.js")
   ]);
 
   Debug.emit = () => {};

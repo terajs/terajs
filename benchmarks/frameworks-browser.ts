@@ -10,7 +10,8 @@ import { flushSync } from "react-dom";
 import { createSignal as createSolidSignal, indexArray, type Accessor } from "solid-js";
 import htmlSolid from "solid-js/html";
 import { render as renderSolid } from "solid-js/web";
-import { createApp, h, nextTick, ref } from "vue";
+import { createVaporApp, nextTick as vaporNextTick, ref as vaporRef } from "@vue-vapor/vue/vapor";
+import { render as renderVueVaporList } from "virtual:vue-vapor-framework-benchmark";
 
 type BenchmarkResult = {
   framework: string;
@@ -79,7 +80,7 @@ async function run(): Promise<void> {
   results.push(await benchmarkFramework("Lit", () => createLitHarness()));
   renderResults(results);
 
-  results.push(await benchmarkFramework("Vue", () => createVueHarness()));
+  results.push(await benchmarkFramework("Vue Vapor", () => createVueVaporHarness()));
   renderResults(results);
 
   results.push(await benchmarkFramework("React", () => createReactHarness()));
@@ -313,21 +314,16 @@ function createLitHarness() {
   };
 }
 
-function createVueHarness() {
+function createVueVaporHarness() {
   const rootElement = createMountTarget();
-  const values = ref(Array.from({ length: ROW_COUNT }, (_, index) => index));
+  const values = vaporRef(Array.from({ length: ROW_COUNT }, (_, index) => index));
 
-  const app = createApp({
+  const app = createVaporApp({
+    vapor: true,
     setup() {
-      return () => h(
-        "ul",
-        null,
-        values.value.map((value, index) => h("li", {
-          key: index,
-          "data-row": String(index)
-        }, String(value)))
-      );
-    }
+      return { values };
+    },
+    render: renderVueVaporList as unknown as (ctx: { values: number[] }) => unknown
   });
 
   app.mount(rootElement);
@@ -336,13 +332,13 @@ function createVueHarness() {
     async updateOne(iteration: number) {
       const rowIndex = iteration % ROW_COUNT;
       values.value[rowIndex] += 1;
-      await nextTick();
+      await vaporNextTick();
     },
     async updateAll() {
       for (let index = 0; index < values.value.length; index += 1) {
         values.value[index] += 1;
       }
-      await nextTick();
+      await vaporNextTick();
     },
     destroy() {
       app.unmount();
