@@ -118,9 +118,10 @@ async function main() {
     "@terajs/app",
     "@terajs/app/vite",
     "@terajs/app/devtools",
-    "bench:browser",
-    "bench:browser:build",
-    "bench:browser:serve",
+    "cd benchmarks",
+    "npm run browser",
+    "npm run browser:build",
+    "npm run browser:serve",
     "frameworks-browser.html",
     "route-startup-browser.html",
     "benchmarks/frameworks-browser.ts",
@@ -128,7 +129,7 @@ async function main() {
     "Solid",
     "Preact",
     "Lit",
-    "Vue",
+    "Vue Vapor",
     "React",
     "local-first",
     "DevTools",
@@ -143,6 +144,10 @@ async function main() {
 
   const forbiddenReadmeTopics = [
     "jsdom",
+    "bench:browser",
+    "bench:browser:build",
+    "bench:browser:serve",
+    "| Vue |",
     "bench:frameworks",
     "bench:direct-text"
   ];

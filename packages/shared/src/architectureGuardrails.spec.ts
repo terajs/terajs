@@ -36,18 +36,8 @@ const adapterImports = [
 const allowedRootDevDependencies = new Set([
   "@changesets/cli",
   "@types/node",
-  "@types/react",
-  "@types/react-dom",
-  "@types/vue",
-  "jsdom",
-  "lit",
-  "preact",
-  "react",
-  "react-dom",
-  "solid-js",
   "typescript",
-  "vitest",
-  "vue"
+  "vitest"
 ]);
 
 const allowedPackageExternalDependencies = new Map<string, Set<string>>([

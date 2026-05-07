@@ -5,11 +5,6 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "npm run clean && tsc -b",
-    "bench:browser": "npm run bench:browser:build && npm run bench:browser:serve",
-    "bench:browser:build": "npx vite build --config benchmarks/vite.browser-bench.config.ts",
-    "bench:browser:serve": "node scripts/serve-browser-bench.mjs",
-    "bench:direct-text": "npm run build && node scripts/benchmark-direct-text.mjs",
-    "bench:frameworks": "npm run build && node scripts/benchmark-frameworks.mjs",
     "clean": "node scripts/clean-workspace.mjs",
     "changeset": "changeset",
     "test": "vitest",
@@ -34,17 +29,8 @@
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
     "@types/node": "^25.5.2",
-    "@types/react": "^18.3.28",
-    "@types/react-dom": "^18.3.7",
-    "jsdom": "^29.0.1",
-    "lit": "^3.3.1",
-    "preact": "^10.27.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "solid-js": "^1.9.12",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.2",
-    "vue": "^3.5.22"
+    "vitest": "^4.1.2"
   },
   "workspaces": [
     "packages/*"
