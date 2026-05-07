@@ -49,23 +49,23 @@ Benchmark-only framework dependencies now live in the isolated `benchmarks/` sub
 
 | Framework | Mount median | Targeted median | Targeted/update | Bulk median | Bulk/update |
 | --- | --- | --- | --- | --- | --- |
-| Terajs | `1.30 ms` | `1.20 ms` | `6.0 us` | `2.90 ms` | `145.0 us` |
-| Solid | `0.90 ms` | `3.40 ms` | `17.0 us` | `4.60 ms` | `230.0 us` |
-| Preact | `0.90 ms` | `63.20 ms` | `316.0 us` | `9.70 ms` | `485.0 us` |
-| Lit | `1.80 ms` | `11.20 ms` | `56.0 us` | `4.50 ms` | `225.0 us` |
-| Vue Vapor | `2.40 ms` | `83.20 ms` | `416.0 us` | `37.20 ms` | `1860.0 us` |
-| React | `1.00 ms` | `25.80 ms` | `129.0 us` | `6.50 ms` | `325.0 us` |
+| Terajs | `1.10 ms` | `1.00 ms` | `5.0 us` | `2.40 ms` | `120.0 us` |
+| Solid | `0.90 ms` | `3.20 ms` | `16.0 us` | `3.90 ms` | `195.0 us` |
+| Preact | `0.70 ms` | `59.80 ms` | `299.0 us` | `8.60 ms` | `430.0 us` |
+| Lit | `1.40 ms` | `11.30 ms` | `56.5 us` | `3.70 ms` | `185.0 us` |
+| Vue Vapor | `2.20 ms` | `77.60 ms` | `388.0 us` | `32.10 ms` | `1605.0 us` |
+| React | `0.70 ms` | `23.50 ms` | `117.5 us` | `5.30 ms` | `265.0 us` |
 
 ### Route benchmark
 
 | Framework | Startup median | Startup mean | Route swap median | Per transition |
 | --- | --- | --- | --- | --- |
-| Terajs | `0.50 ms` | `0.53 ms` | `5.40 ms` | `90.0 us` |
-| Solid | `0.20 ms` | `0.20 ms` | `11.50 ms` | `191.7 us` |
-| Preact | `0.40 ms` | `0.39 ms` | `7.60 ms` | `126.7 us` |
-| Lit | `0.40 ms` | `0.41 ms` | `3.10 ms` | `51.7 us` |
-| Vue Vapor | `0.30 ms` | `0.35 ms` | `10.30 ms` | `171.7 us` |
-| React | `0.40 ms` | `0.42 ms` | `6.70 ms` | `111.7 us` |
+| Terajs | `0.40 ms` | `0.47 ms` | `5.80 ms` | `96.7 us` |
+| Solid | `0.20 ms` | `0.16 ms` | `9.50 ms` | `158.3 us` |
+| Preact | `0.30 ms` | `0.30 ms` | `6.10 ms` | `101.7 us` |
+| Lit | `0.40 ms` | `0.42 ms` | `2.60 ms` | `43.3 us` |
+| Vue Vapor | `0.30 ms` | `0.30 ms` | `9.30 ms` | `155.0 us` |
+| React | `0.30 ms` | `0.36 ms` | `6.30 ms` | `105.0 us` |
 
 Treat those numbers as workload-specific receipts, not a blanket claim that every Terajs app beats every other framework on every screen.
 
