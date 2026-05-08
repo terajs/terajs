@@ -1,5 +1,4 @@
 import type {
-  IRBindingHint,
   IRElementNode,
   IRIfNode,
   IRInterpolationNode,
@@ -17,9 +16,12 @@ import { emitRendererDebug } from "./debug.js";
 import { createIRForRenderer } from "./hostIRForRenderer.js";
 import type { HostBindings } from "./hostBindings.js";
 import {
+  applyIRProps as applyHostIRProps,
+  normalizeSlotValue as normalizeHostSlotValue,
+} from "./hostIRShared.js";
+import {
   isDirectBindingSource,
   resolveDirectTextSource,
-  resolveEventHandler,
   resolveExpr,
   resolveHintedDirectSource,
   resolveHintedPath,
@@ -66,6 +68,20 @@ export function createHostIRRenderer<
     bindEvent,
   } = runtime.bindings;
   const renderIRForNode = createIRForRenderer<NodeLike, FragmentLike>(runtime.host);
+  const hostIRPropRuntime = {
+    applyStaticProp,
+    bindDirectPropSource,
+    bindProp,
+    bindClass,
+    bindStyle,
+    bindEvent,
+  };
+  const hostSlotRuntime = {
+    createFragment,
+    createText,
+    insert: (parent: NodeLike, child: NodeLike) => insert(parent, child),
+    isNode,
+  };
 
   function renderIRModule(ir: IRModule, ctx: any): FragmentLike {
     emitRendererDebug("ir:render:module", () => ({ filePath: ir.filePath }));
@@ -176,7 +192,7 @@ export function createHostIRRenderer<
     const slotValue = ctx?.slots?.[slotName];
 
     if (slotValue != null) {
-      return normalizeSlotValue(slotValue);
+      return normalizeHostSlotValue(slotValue, hostSlotRuntime);
     }
 
     const frag = createFragment();
@@ -236,21 +252,7 @@ export function createHostIRRenderer<
   }
 
   function applyIRProps(el: ElementLike, props: IRPropNode[], ctx: any): void {
-    for (const prop of props) {
-      switch (prop.kind) {
-        case "static":
-          applyStaticProp(el, prop);
-          break;
-        case "bind":
-          applyBindProp(el, prop, ctx);
-          break;
-        case "event":
-          applyEventProp(el, prop, ctx);
-          break;
-        default:
-          emitRendererDebug("ir:render:prop:skip", () => prop);
-      }
-    }
+    applyHostIRProps(el, props, ctx, hostIRPropRuntime);
   }
 
   function applyStaticProp(el: ElementLike, prop: IRPropNode): void {
@@ -272,99 +274,6 @@ export function createHostIRRenderer<
     if (prop.value != null) {
       setProp(el, prop.name, prop.value);
     }
-  }
-
-  function applyBindProp(el: ElementLike, prop: IRPropNode, ctx: any): void {
-    if (prop.binding?.kind === "simple-path") {
-      applyHintedBindProp(el, prop, ctx, prop.binding);
-      return;
-    }
-
-    const expr = String(prop.value);
-
-    if (prop.name === "class") {
-      bindClass(el, () => resolveExpr(ctx, expr));
-      return;
-    }
-
-    if (prop.name === "style") {
-      bindStyle(el, () => {
-        const value = resolveExpr(ctx, expr);
-        if (typeof value === "string") {
-          return { color: value };
-        }
-
-        return value || {};
-      });
-      return;
-    }
-
-    bindProp(el, prop.name, () => resolveExpr(ctx, expr));
-  }
-
-  function applyHintedBindProp(el: ElementLike, prop: IRPropNode, ctx: any, binding: IRBindingHint): void {
-    if (prop.name === "class") {
-      bindClass(el, () => resolveHintedPath(ctx, binding, true));
-      return;
-    }
-
-    if (prop.name === "style") {
-      bindStyle(el, () => {
-        const value = resolveHintedPath(ctx, binding, true);
-        if (typeof value === "string") {
-          return { color: value };
-        }
-
-        return value || {};
-      });
-      return;
-    }
-
-    const directSource = resolveHintedDirectSource(ctx, binding);
-    if (isDirectBindingSource(directSource)) {
-      bindDirectPropSource(el, prop.name, directSource);
-      return;
-    }
-
-    bindProp(el, prop.name, () => resolveHintedPath(ctx, binding, true));
-  }
-
-  function applyEventProp(el: ElementLike, prop: IRPropNode, ctx: any): void {
-    const handler = resolveEventHandler(ctx, String(prop.value));
-
-    if (typeof handler === "function") {
-      bindEvent(el, prop.name, handler);
-      return;
-    }
-
-    emitRendererDebug("error:renderer", () => ({
-      message: `Event handler '${prop.value}' is not a function`,
-      value: handler,
-    }));
-  }
-
-  function normalizeSlotValue(value: any): NodeLike {
-    if (typeof value === "function") {
-      return normalizeSlotValue(value());
-    }
-
-    if (value == null || value === false || value === true) {
-      return createFragment() as NodeLike;
-    }
-
-    if (isNode(value)) {
-      return value;
-    }
-
-    if (Array.isArray(value)) {
-      const frag = createFragment();
-      for (const item of value) {
-        insert(frag as NodeLike, normalizeSlotValue(item));
-      }
-      return frag as NodeLike;
-    }
-
-    return createText(String(value)) as NodeLike;
   }
 
   return {

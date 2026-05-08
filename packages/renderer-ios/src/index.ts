@@ -7,11 +7,13 @@ type UIKitHostNode = {
   parent: UIKitHostNode | null;
 };
 
+/** Minimal imperative host surface for the current UIKit-side renderer stub. */
 export type UIKitHostAdapter = Pick<
   RendererHost<UIKitHostNode>,
   "createElement" | "insert" | "remove" | "setProp"
 >;
 
+/** In-memory UIKit host used to validate the shared renderer contract from JS. */
 export const UIKitViewAdapter: UIKitHostAdapter = {
   createElement(type) {
     return {
@@ -39,6 +41,10 @@ export const UIKitViewAdapter: UIKitHostAdapter = {
   }
 };
 
+/**
+ * Creates the current placeholder native root while the real JS-to-UIKit bridge
+ * is still being built.
+ */
 export function renderTerajsToUIKitViews(component: any, adapter: UIKitHostAdapter = UIKitViewAdapter) {
   void component;
   return adapter.createElement("UIView");

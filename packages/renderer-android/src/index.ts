@@ -7,11 +7,13 @@ type AndroidViewHostNode = {
   parent: AndroidViewHostNode | null;
 };
 
+/** Minimal imperative host surface for the current Android Views renderer stub. */
 export type AndroidViewHostAdapter = Pick<
   RendererHost<AndroidViewHostNode>,
   "createElement" | "insert" | "remove" | "setProp"
 >;
 
+/** In-memory Android host used to validate the shared renderer contract from JS. */
 export const AndroidViewAdapter: AndroidViewHostAdapter = {
   createElement(type) {
     return {
@@ -39,6 +41,10 @@ export const AndroidViewAdapter: AndroidViewHostAdapter = {
   }
 };
 
+/**
+ * Creates the current placeholder native root while the real JS-to-Android bridge
+ * is still being built.
+ */
 export function renderTerajsToAndroidViews(component: any, adapter: AndroidViewHostAdapter = AndroidViewAdapter) {
   void component;
   return adapter.createElement("ViewGroup");

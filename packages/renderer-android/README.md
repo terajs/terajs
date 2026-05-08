@@ -2,19 +2,21 @@
 
 Experimental stub package. Android renderer work is directional and not part of the shipped web-first launch surface.
 
-This package represents the Android-side exploration for rendering Terajs components into Jetpack Compose-backed native views.
+This package represents the Android-side exploration for rendering Terajs components into Android Views-backed native views.
 
 ## Current state
 
 - proof-of-concept / planning stage
 - not production-ready
 - intended to stay aligned with the neutral runtime and renderer contracts rather than introducing a separate framework model
+- current JS seam is a minimal imperative host adapter with focused conformance tests
 
 ## Direction
 
-- map Terajs renderer operations to Compose-friendly native primitives
+- map Terajs renderer operations to Android Views primitives first
 - reuse Terajs reactivity, runtime, and SFC-authored component model where appropriate
 - host the JavaScript runtime through a native bridge layer that preserves Terajs-native contracts
+- evaluate Jetpack Compose only after the imperative host bridge is proven sufficient
 
 ## Related docs
 

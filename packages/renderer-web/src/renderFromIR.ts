@@ -9,7 +9,6 @@ import type {
   IRNode,
   IRTextNode,
   IRInterpolationNode,
-  IRBindingHint,
   IRElementNode,
   IRPortalNode,
   IRSlotNode,
@@ -46,6 +45,10 @@ import {
   resolveHintedDirectSource,
   resolveHintedPath,
 } from "./renderFromIRExpressions.js";
+import {
+  applyIRProps as applyHostIRProps,
+  normalizeSlotValue as normalizeHostSlotValue,
+} from "./hostIRShared.js";
 import { renderIRForNode } from "./renderFromIRFor.js";
 
 const {
@@ -58,6 +61,22 @@ const {
   isNode,
   remove,
 } = webRendererHost;
+
+const domIRPropRuntime = {
+  applyStaticProp,
+  bindDirectPropSource,
+  bindProp,
+  bindClass,
+  bindStyle,
+  bindEvent,
+};
+
+const domSlotRuntime = {
+  createFragment,
+  createText,
+  insert,
+  isNode,
+};
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -236,7 +255,7 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
   const slotValue = ctx?.slots?.[slotName];
 
   if (slotValue != null) {
-    return normalizeSlotValue(slotValue);
+    return normalizeHostSlotValue(slotValue, domSlotRuntime);
   }
 
   const frag = webRendererHost.createFragment();
@@ -251,21 +270,7 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
 }
 
 function applyIRProps(el: Element, props: IRPropNode[], ctx: any): void {
-  for (const prop of props) {
-    switch (prop.kind) {
-      case "static":
-        applyStaticProp(el, prop);
-        break;
-      case "bind":
-        applyBindProp(el, prop, ctx);
-        break;
-      case "event":
-        applyEventProp(el, prop, ctx);
-        break;
-      default:
-        emitRendererDebug("ir:render:prop:skip", () => prop);
-    }
-  }
+  applyHostIRProps(el, props, ctx, domIRPropRuntime);
 }
 
 function applyStaticProp(el: Element, prop: IRPropNode): void {
@@ -286,75 +291,6 @@ function applyStaticProp(el: Element, prop: IRPropNode): void {
   if (prop.value != null) {
     el.setAttribute(prop.name, String(prop.value));
   }
-}
-
-function applyBindProp(el: Element, prop: IRPropNode, ctx: any): void {
-  if (prop.binding?.kind === "simple-path") {
-    applyHintedBindProp(el, prop, ctx, prop.binding);
-    return;
-  }
-
-  const expr = String(prop.value);
-
-  if (prop.name === "class") {
-    bindClass(el, () => resolveExpr(ctx, expr));
-    return;
-  }
-
-  if (prop.name === "style") {
-    bindStyle(el, () => {
-      const value = resolveExpr(ctx, expr);
-      if (typeof value === "string") {
-        return { color: value };
-      }
-
-      return value || {};
-    });
-    return;
-  }
-
-  bindProp(el, prop.name, () => resolveExpr(ctx, expr));
-}
-
-function applyHintedBindProp(el: Element, prop: IRPropNode, ctx: any, binding: IRBindingHint): void {
-  if (prop.name === "class") {
-    bindClass(el, () => resolveHintedPath(ctx, binding, true));
-    return;
-  }
-
-  if (prop.name === "style") {
-    bindStyle(el, () => {
-      const value = resolveHintedPath(ctx, binding, true);
-      if (typeof value === "string") {
-        return { color: value };
-      }
-
-      return value || {};
-    });
-    return;
-  }
-
-  const directSource = resolveHintedDirectSource(ctx, binding);
-  if (isDirectBindingSource(directSource)) {
-    bindDirectPropSource(el, prop.name, directSource);
-    return;
-  }
-
-  bindProp(el, prop.name, () => resolveHintedPath(ctx, binding, true));
-}
-
-function applyEventProp(el: Element, prop: IRPropNode, ctx: any): void {
-  const handler = resolveEventHandler(ctx, String(prop.value));
-
-  if (typeof handler === "function") {
-    bindEvent(el, prop.name, handler);
-    return;
-  }
-
-  emitRendererDebug("error:renderer", () => ({
-    message: `Event handler '${prop.value}' is not a function`,
-    value: handler,
-  }));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -582,28 +518,4 @@ function resolvePortalTarget(target: IRPropNode | undefined, ctx: any): any {
   }
 
   return target.value;
-}
-
-function normalizeSlotValue(value: any): Node {
-  if (typeof value === "function") {
-    return normalizeSlotValue(value());
-  }
-
-  if (value == null || value === false || value === true) {
-    return webRendererHost.createFragment();
-  }
-
-  if (isNode(value)) {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    const frag = webRendererHost.createFragment();
-    for (const item of value) {
-      webRendererHost.insert(frag, normalizeSlotValue(item));
-    }
-    return frag;
-  }
-
-  return webRendererHost.createText(String(value));
 }

@@ -5,46 +5,21 @@ import type {
   IRForNode,
   IRIfNode,
   IRInterpolationNode,
-  IRTextNode,
+  IRSlotNode,
 } from "@terajs/compiler";
-import type { RendererHost } from "@terajs/renderer";
 import { signal } from "@terajs/reactivity";
 
 import { createHostBindings } from "./hostBindings.js";
 import { createHostIRRenderer } from "./createHostIRRenderer.js";
-
-type SimNode = SimAnchorNode | SimElementNode | SimFragmentNode | SimTextNode;
-
-type SimBaseNode = {
-  children: SimNode[];
-  cleanups: Array<() => void>;
-  kind: string;
-  parent: SimNode | null;
-};
-
-type SimAnchorNode = SimBaseNode & {
-  kind: "anchor";
-  label: string;
-};
-
-type SimElementNode = SimBaseNode & {
-  events: Record<string, Array<(...args: any[]) => unknown>>;
-  kind: "element";
-  props: Record<string, unknown>;
-  styles: Record<string, string>;
-  tag: string;
-};
-
-type SimFragmentNode = SimBaseNode & {
-  kind: "fragment";
-};
-
-type SimTextNode = SimBaseNode & {
-  data: string;
-  kind: "text";
-};
-
-const tick = () => Promise.resolve();
+import {
+  createSimulationHost,
+  nextSimulationTick,
+  simulationElementChildren,
+  simulationTextContent,
+  type SimulationElementNode,
+  type SimulationNode,
+  type SimulationTextNode,
+} from "./testing/simulationHost.js";
 
 describe("createHostIRRenderer", () => {
   it("renders and updates interpolation against a non-DOM host", async () => {
@@ -62,11 +37,11 @@ describe("createHostIRRenderer", () => {
       flags: { dynamic: true }
     };
 
-    const rendered = renderer.renderIRNode(node, { label }) as SimTextNode;
+    const rendered = renderer.renderIRNode(node, { label }) as SimulationTextNode;
     expect(rendered.data).toBe("alpha");
 
     label.set("beta");
-    await tick();
+    await nextSimulationTick();
 
     expect(rendered.data).toBe("beta");
   });
@@ -109,12 +84,12 @@ describe("createHostIRRenderer", () => {
       onClick: () => {
         clicked = true;
       }
-    }) as SimElementNode;
+    }) as SimulationElementNode;
 
     expect(rendered.props.title).toBe("alpha");
 
     title.set("beta");
-    await tick();
+    await nextSimulationTick();
 
     expect(rendered.props.title).toBe("beta");
     rendered.events.click[0]?.();
@@ -147,19 +122,52 @@ describe("createHostIRRenderer", () => {
       flags: {}
     };
 
-    const rendered = renderer.renderIRNode(node, { show, count }) as SimNode;
+    const rendered = renderer.renderIRNode(node, { show, count }) as SimulationNode;
     host.insert(root, rendered);
 
-    const removedText = root.children.find((child) => child.kind === "text") as SimTextNode;
-    expect(simTextContent(root)).toBe("1");
+    const removedText = root.children.find(
+      (child): child is SimulationTextNode => child.kind === "text"
+    ) as SimulationTextNode;
+    expect(simulationTextContent(root)).toBe("1");
 
     show.set(false);
-    await tick();
-    expect(simTextContent(root)).toBe("");
+    await nextSimulationTick();
+    expect(simulationTextContent(root)).toBe("");
 
     count.set(2);
-    await tick();
+    await nextSimulationTick();
     expect(removedText.data).toBe("1");
+  });
+
+  it("renders slot content before fallback against a non-DOM host", () => {
+    const host = createSimulationHost();
+    const renderer = createHostIRRenderer({
+      host,
+      bindings: createHostBindings(host)
+    });
+
+    const node: IRSlotNode = {
+      type: "slot",
+      name: "default",
+      fallback: [
+        {
+          type: "text",
+          value: "fallback",
+          loc: undefined,
+          flags: { dynamic: false }
+        }
+      ],
+      loc: undefined,
+      flags: {}
+    };
+
+    const rendered = renderer.renderIRNode(node, {
+      slots: {
+        default: () => ["alpha", false, "beta"]
+      }
+    }) as SimulationNode;
+
+    expect(simulationTextContent(rendered)).toBe("alphabeta");
   });
 
   it("renders reactive for nodes against a non-DOM host", async () => {
@@ -197,15 +205,15 @@ describe("createHostIRRenderer", () => {
     };
 
     const root = host.createElement("root");
-    const rendered = renderer.renderIRNode(node, { items }) as SimNode;
+    const rendered = renderer.renderIRNode(node, { items }) as SimulationNode;
     host.insert(root, rendered);
 
-    expect(simTextContent(root)).toBe("12");
+    expect(simulationTextContent(root)).toBe("12");
 
     items.set([3, 4, 5]);
-    await tick();
+    await nextSimulationTick();
 
-    expect(simTextContent(root)).toBe("345");
+    expect(simulationTextContent(root)).toBe("345");
   });
 
   it("reuses keyed row nodes against a non-DOM host", async () => {
@@ -246,182 +254,24 @@ describe("createHostIRRenderer", () => {
     };
 
     const root = host.createElement("root");
-    const rendered = renderer.renderIRNode(node, { items }) as SimNode;
+    const rendered = renderer.renderIRNode(node, { items }) as SimulationNode;
     host.insert(root, rendered);
 
-    const initialRows = simElementChildren(root);
+    const initialRows = simulationElementChildren(root);
     const firstNode = initialRows[0];
     const secondNode = initialRows[1];
 
-    expect(simTextContent(root)).toBe("AB");
+    expect(simulationTextContent(root)).toBe("AB");
 
     items.set([
       { id: "b", label: "B2" },
       { id: "a", label: "A" }
     ]);
-    await tick();
+    await nextSimulationTick();
 
-    const reorderedRows = simElementChildren(root);
-    expect(simTextContent(root)).toBe("B2A");
+    const reorderedRows = simulationElementChildren(root);
+    expect(simulationTextContent(root)).toBe("B2A");
     expect(reorderedRows[0]).toBe(secondNode);
     expect(reorderedRows[1]).toBe(firstNode);
   });
 });
-
-function createSimulationHost(): RendererHost<SimNode, SimElementNode, SimTextNode, SimFragmentNode> {
-  function createBaseNode<Kind extends SimNode["kind"]>(kind: Kind): SimBaseNode & { kind: Kind } {
-    return {
-      kind,
-      parent: null,
-      children: [],
-      cleanups: []
-    } as SimBaseNode & { kind: Kind };
-  }
-
-  function detach(node: SimNode): void {
-    const parent = node.parent;
-    if (!parent) {
-      return;
-    }
-
-    const index = parent.children.indexOf(node);
-    if (index !== -1) {
-      parent.children.splice(index, 1);
-    }
-
-    node.parent = null;
-  }
-
-  function disposeNode(node: SimNode): void {
-    for (const child of [...node.children]) {
-      disposeNode(child);
-    }
-
-    for (const cleanup of node.cleanups.splice(0, node.cleanups.length)) {
-      cleanup();
-    }
-  }
-
-  return {
-    createAnchor(label = "") {
-      return {
-        ...createBaseNode("anchor"),
-        label,
-      };
-    },
-    createElement(type) {
-      return {
-        ...createBaseNode("element"),
-        tag: type,
-        props: {},
-        styles: {},
-        events: {},
-      };
-    },
-    createText(value) {
-      return {
-        ...createBaseNode("text"),
-        data: String(value),
-      };
-    },
-    createFragment() {
-      return {
-        ...createBaseNode("fragment"),
-      };
-    },
-    isNode(value): value is SimNode {
-      return typeof value === "object" && value !== null && "kind" in value;
-    },
-    isFragment(node): node is SimFragmentNode {
-      return node.kind === "fragment";
-    },
-    getParent(node) {
-      return node.parent;
-    },
-    getNextSibling(node) {
-      const parent = node.parent;
-      if (!parent) {
-        return null;
-      }
-
-      const index = parent.children.indexOf(node);
-      return index >= 0 ? parent.children[index + 1] ?? null : null;
-    },
-    getChildren(node) {
-      return [...node.children];
-    },
-    insert(parent, child, anchor = null) {
-      if (child.kind === "fragment") {
-        const children = [...child.children];
-        child.children.length = 0;
-        for (const fragmentChild of children) {
-          this.insert(parent, fragmentChild, anchor);
-        }
-        return;
-      }
-
-      detach(child);
-
-      const anchorIndex = anchor ? parent.children.indexOf(anchor) : -1;
-      if (anchorIndex >= 0) {
-        parent.children.splice(anchorIndex, 0, child);
-      } else {
-        parent.children.push(child);
-      }
-
-      child.parent = parent;
-    },
-    remove(node) {
-      disposeNode(node);
-      detach(node);
-    },
-    setText(node, value) {
-      node.data = String(value);
-    },
-    setProp(el, name, value) {
-      if (value == null || value === false) {
-        delete el.props[name];
-        return;
-      }
-
-      el.props[name] = value === true ? "" : value;
-    },
-    setStyle(el, style) {
-      el.styles = { ...el.styles, ...style };
-    },
-    setClass(el, className) {
-      el.props.class = className;
-    },
-    addEvent(el, name, handler) {
-      el.events[name] ??= [];
-      el.events[name].push(handler);
-    },
-    removeEvent(el, name, handler) {
-      const current = el.events[name];
-      if (!current) {
-        return;
-      }
-
-      el.events[name] = current.filter((candidate) => candidate !== handler);
-    },
-    addNodeCleanup(node, cleanup) {
-      node.cleanups.push(cleanup);
-    }
-  };
-}
-
-function simTextContent(node: SimNode): string {
-  if (node.kind === "text") {
-    return node.data;
-  }
-
-  if (node.kind === "anchor") {
-    return "";
-  }
-
-  return node.children.map((child) => simTextContent(child)).join("");
-}
-
-function simElementChildren(node: SimNode): SimElementNode[] {
-  return node.children.filter((child): child is SimElementNode => child.kind === "element");
-}
