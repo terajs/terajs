@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // FIXED: Path changed from ../src/renderer/ to ./
-import { updateKeyedList, KeyedItem, MountFn, UnmountFn } from "./updateKeyedList";
+import { updateKeyedList, KeyedItem, MountFn, MoveFn, UnmountFn } from "./updateKeyedList";
 
 function makeItem(key: any, text: string): KeyedItem {
     const node = document.createElement("div");
@@ -15,12 +15,15 @@ describe("updateKeyedList()", () => {
         const newItems = [makeItem(1, "a"), makeItem(2, "b")];
 
         // Types are now correctly inferred from the valid import
-        const mount: MountFn = (item, p, anchor) => {
+        const mount: MountFn<Node> = (item, p, anchor) => {
             p.insertBefore(item.node, anchor);
         };
-        const unmount: UnmountFn = () => {};
+        const unmount: UnmountFn<Node> = () => {};
+        const move: MoveFn<Node> = (item, p, anchor) => {
+            p.insertBefore(item.node, anchor);
+        };
 
-        updateKeyedList(parent, oldItems, newItems, mount, unmount);
+        updateKeyedList(parent, oldItems, newItems, mount, unmount, move);
 
         expect(parent.textContent).toBe("ab");
     });
@@ -32,12 +35,15 @@ describe("updateKeyedList()", () => {
 
         const newItems: KeyedItem[] = [];
 
-        const mount: MountFn = () => {};
-        const unmount: UnmountFn = (item, p) => {
+        const mount: MountFn<Node> = () => {};
+        const unmount: UnmountFn<Node> = (item, p) => {
             p.removeChild(item.node);
         };
+        const move: MoveFn<Node> = (item, p, anchor) => {
+            p.insertBefore(item.node, anchor);
+        };
 
-        updateKeyedList(parent, oldItems, newItems, mount, unmount);
+        updateKeyedList(parent, oldItems, newItems, mount, unmount, move);
 
         expect(parent.childNodes.length).toBe(0);
     });
@@ -54,14 +60,17 @@ describe("updateKeyedList()", () => {
 
         const newItems = [d, b, a, c];
 
-        const mount: MountFn = (item, p, anchor) => {
+        const mount: MountFn<Node> = (item, p, anchor) => {
             p.insertBefore(item.node, anchor);
         };
-        const unmount: UnmountFn = (item, p) => {
+        const unmount: UnmountFn<Node> = (item, p) => {
             p.removeChild(item.node);
         };
+        const move: MoveFn<Node> = (item, p, anchor) => {
+            p.insertBefore(item.node, anchor);
+        };
 
-        updateKeyedList(parent, oldItems, newItems, mount, unmount);
+        updateKeyedList(parent, oldItems, newItems, mount, unmount, move);
 
         expect(parent.textContent).toBe("dbac");
         expect(parent.childNodes[0]).toBe(d.node);
@@ -82,14 +91,17 @@ describe("updateKeyedList()", () => {
         const c = makeItem(3, "c");
         const newItems = [a, c, d];
 
-        const mount: MountFn = (item, p, anchor) => {
+        const mount: MountFn<Node> = (item, p, anchor) => {
             p.insertBefore(item.node, anchor);
         };
-        const unmount: UnmountFn = (item, p) => {
+        const unmount: UnmountFn<Node> = (item, p) => {
             p.removeChild(item.node);
         };
+        const move: MoveFn<Node> = (item, p, anchor) => {
+            p.insertBefore(item.node, anchor);
+        };
 
-        updateKeyedList(parent, oldItems, newItems, mount, unmount);
+        updateKeyedList(parent, oldItems, newItems, mount, unmount, move);
 
         expect(parent.textContent).toBe("acd");
         expect(parent.childNodes[0]).toBe(a.node);

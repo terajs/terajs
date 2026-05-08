@@ -8,6 +8,7 @@
  */
 
 import { emitRendererDebug } from "./debug.js";
+import type { RendererHost } from "@terajs/renderer";
 import { unwrap } from "./unwrap.js"; 
 
 type NodeCleanupEntry = (() => void) | Array<() => void>;
@@ -281,6 +282,30 @@ export function createFragment(): DocumentFragment {
     return frag;
 }
 
+export function createAnchor(label: string = ""): Comment {
+    return document.createComment(label);
+}
+
+export function isNode(value: unknown): value is Node {
+    return value instanceof Node;
+}
+
+export function isFragment(node: Node): node is DocumentFragment {
+    return node instanceof DocumentFragment;
+}
+
+export function getParent(node: Node): Node | null {
+    return node.parentNode;
+}
+
+export function getNextSibling(node: Node): Node | null {
+    return node.nextSibling;
+}
+
+export function getChildren(node: Node): Node[] {
+    return Array.from(node.childNodes);
+}
+
 /**
  * Insert a child node into a parent before an optional anchor.
  */
@@ -428,3 +453,28 @@ export function removeEvent(el: Element, name: string, handler: EventListener): 
 
     el.removeEventListener(name, handler);
 }
+
+export const webRendererHost: RendererHost<Node, Element, Text, DocumentFragment> = {
+    createAnchor,
+    createElement,
+    createText,
+    createFragment,
+    isNode,
+    isFragment,
+    getParent,
+    getNextSibling,
+    getChildren,
+    insert,
+    remove,
+    setText,
+    setProp,
+    setStyle,
+    setClass,
+    addEvent(el, name, handler) {
+        addEvent(el, name, handler as EventListener);
+    },
+    removeEvent(el, name, handler) {
+        removeEvent(el, name, handler as EventListener);
+    },
+    addNodeCleanup,
+};

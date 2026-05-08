@@ -1,37 +1,45 @@
-// Terajs Android Renderer Entry Point (Experimental)
-// This is a proof-of-concept for mapping Terajs's runtime/component tree to Jetpack Compose
+import type { RendererHost } from "@terajs/renderer";
 
-// Platform adapter interface
-export interface PlatformAdapter {
-  createElement(type: string, props: any): any;
-  setProperty(node: any, key: string, value: any): void;
-  appendChild(parent: any, child: any): void;
-  removeChild(parent: any, child: any): void;
-}
+type AndroidViewHostNode = {
+  type: string;
+  props: Record<string, unknown>;
+  children: AndroidViewHostNode[];
+  parent: AndroidViewHostNode | null;
+};
 
-// Example: Jetpack Compose adapter stub
-export const JetpackComposeAdapter: PlatformAdapter = {
-  createElement(type, props) {
-    // Map Terajs element types to Jetpack Compose primitives
-    // e.g., 'div' -> Column, 'span' -> Text, etc.
-    return { type, props };
+export type AndroidViewHostAdapter = Pick<
+  RendererHost<AndroidViewHostNode>,
+  "createElement" | "insert" | "remove" | "setProp"
+>;
+
+export const AndroidViewAdapter: AndroidViewHostAdapter = {
+  createElement(type) {
+    return {
+      type,
+      props: {},
+      children: [],
+      parent: null
+    };
   },
-  setProperty(node, key, value) {
-    node.props[key] = value;
-  },
-  appendChild(parent, child) {
-    if (!parent.children) parent.children = [];
+  insert(parent, child) {
+    child.parent = parent;
     parent.children.push(child);
   },
-  removeChild(parent, child) {
-    if (!parent.children) return;
-    parent.children = parent.children.filter(c => c !== child);
+  remove(node) {
+    const parent = node.parent;
+    if (!parent) {
+      return;
+    }
+
+    parent.children = parent.children.filter((child) => child !== node);
+    node.parent = null;
+  },
+  setProp(node, key, value) {
+    node.props[key] = value;
   }
 };
 
-// Renderer entry
-export function renderTerajsToJetpackCompose(component: any, adapter: PlatformAdapter = JetpackComposeAdapter) {
-  // TODO: Walk Terajs component tree and map to Jetpack Compose
-  // This is a stub for future implementation
-  return adapter.createElement('Column', {});
+export function renderTerajsToAndroidViews(component: any, adapter: AndroidViewHostAdapter = AndroidViewAdapter) {
+  void component;
+  return adapter.createElement("ViewGroup");
 }

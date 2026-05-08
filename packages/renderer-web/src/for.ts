@@ -94,7 +94,12 @@ export function For<T>(props: ForProps<T>): Node {
                     node: item.node
                 }));
                 remove(item.node);
-            }
+            },
+
+            // move
+            (item, p, anchor) => {
+                insert(p, item.node, anchor);
+            },
         );
 
         oldItems = newItems;

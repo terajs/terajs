@@ -134,6 +134,9 @@ describe("production renderer instrumentation gating", () => {
       (item, target) => {
         target.removeChild(item.node);
       },
+      (item, target, anchor) => {
+        target.insertBefore(item.node, anchor);
+      },
     );
 
     await tick();

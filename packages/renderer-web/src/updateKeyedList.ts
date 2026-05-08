@@ -19,29 +19,56 @@
 
 import { emitRendererDebug } from "./debug.js";
 
-export interface KeyedItem {
+export interface KeyedItem<NodeLike = Node> {
     /** Unique identity for the item. Determines DOM preservation. */
     key: any;
 
     /** The actual DOM node associated with this item. */
-    node: Node;
+    node: NodeLike;
 }
 
-/** Mount a new keyed item into the DOM. */
-export type MountFn = (item: KeyedItem, parent: Node, anchor: Node | null) => void;
+/** Mount a new keyed item into the host parent. */
+export type MountFn<
+    ParentLike = Node,
+    NodeLike = Node,
+    ItemLike extends KeyedItem<NodeLike> = KeyedItem<NodeLike>
+> = (
+    item: ItemLike,
+    parent: ParentLike,
+    anchor: ItemLike["node"] | null
+) => void;
 
-/** Remove an existing keyed item from the DOM. */
-export type UnmountFn = (item: KeyedItem, parent: Node) => void;
+/** Remove an existing keyed item from the host parent. */
+export type UnmountFn<
+    ParentLike = Node,
+    NodeLike = Node,
+    ItemLike extends KeyedItem<NodeLike> = KeyedItem<NodeLike>
+> = (
+    item: ItemLike,
+    parent: ParentLike
+) => void;
+
+/** Move an existing keyed item before an anchor within the parent. */
+export type MoveFn<
+    ParentLike = Node,
+    NodeLike = Node,
+    ItemLike extends KeyedItem<NodeLike> = KeyedItem<NodeLike>
+> = (
+    item: ItemLike,
+    parent: ParentLike,
+    anchor: ItemLike["node"] | null
+) => void;
 
 /**
  * Reconcile two keyed lists with minimal DOM movement.
  */
-export function updateKeyedList(
-    parent: Node,
-    oldItems: KeyedItem[],
-    newItems: KeyedItem[],
-    mount: MountFn,
-    unmount: UnmountFn
+export function updateKeyedList<ParentLike, NodeLike, ItemLike extends KeyedItem<NodeLike>>(
+    parent: ParentLike,
+    oldItems: ItemLike[],
+    newItems: ItemLike[],
+    mount: MountFn<ParentLike, NodeLike, ItemLike>,
+    unmount: UnmountFn<ParentLike, NodeLike, ItemLike>,
+    move: MoveFn<ParentLike, NodeLike, ItemLike>
 ) {
     emitRendererDebug("list:diff:start", () => ({
         parent,
@@ -184,7 +211,7 @@ export function updateKeyedList(
                 key: newItem.key,
                 anchor
             }));
-            parent.insertBefore(newItem.node, anchor);
+            move(newItem, parent, anchor);
         } else {
             seqIdx--;
         }

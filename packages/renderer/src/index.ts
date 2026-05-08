@@ -5,6 +5,7 @@
  */
 
 export * from "./ast.js";
+export * from "./host.js";
 export * from "./renderer.js";
 export * from "./templateFn.js";
 export * from "./component.js";

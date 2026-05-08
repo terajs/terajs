@@ -20,6 +20,11 @@ const strictNeutralPackages = [
 
 const guardedPackages = [...strictNeutralPackages];
 
+const nativeAdapterPackages = [
+  "renderer-ios",
+  "renderer-android"
+];
+
 const adapterImports = [
   "@terajs/app",
   "@terajs/renderer-web",
@@ -143,6 +148,28 @@ describe("architecture guardrails", () => {
     for (const packageName of strictNeutralPackages) {
       for (const filePath of collectFiles(path.join(packagesRoot, packageName, "src"), (candidate) => isProductionSourceFile(candidate))) {
         const source = read(filePath);
+        if (browserPattern.test(source)) {
+          violations.push(formatViolation(filePath, "references browser-specific globals or DOM types"));
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("prevents native adapter stubs from importing web-only renderer surfaces or browser globals", () => {
+    const browserPattern = /\bwindow\b|\bdocument\b|\bnavigator\b|\blocalStorage\b|\bsessionStorage\b|\bCustomEvent\b|\bMutationObserver\b|\bcustomElements\b|\bWindow\b|\bDocument\b|\bHTMLElement\b|\bIntersectionObserver\b|\brequestIdleCallback\b/;
+    const webRendererImport = "@terajs/renderer-web";
+    const violations: string[] = [];
+
+    for (const packageName of nativeAdapterPackages) {
+      for (const filePath of collectFiles(path.join(packagesRoot, packageName, "src"), (candidate) => isProductionSourceFile(candidate))) {
+        const source = read(filePath);
+
+        if (source.includes(`from \"${webRendererImport}\"`) || source.includes(`from '${webRendererImport}'`)) {
+          violations.push(formatViolation(filePath, `imports web-only renderer package ${webRendererImport}`));
+        }
+
         if (browserPattern.test(source)) {
           violations.push(formatViolation(filePath, "references browser-specific globals or DOM types"));
         }

@@ -2,30 +2,33 @@
  * @file bindings.ts
  * @description
  * Fine-grained DOM bindings for Terajs's reactive renderer.
- *
- * These helpers connect reactive expressions (signals, memos, accessors)
- * to DOM updates. Each binding registers a reactive effect that updates
- * only the affected DOM node - no virtual DOM, no diffing.
- *
- * This is the same model used by SolidJS and Vue Vapor Mode.
  */
 
 import { effect, type ReactiveEffect, type Ref, type Signal } from "@terajs/reactivity";
-import { unwrap } from "./unwrap.js";
+
+import { emitRendererDebug } from "./debug.js";
 import {
+    addEvent,
     addNodeCleanup,
-    setText,
+    removeEvent,
+    setClass,
     setProp,
     setStyle,
-    setClass,
-    addEvent,
-    removeEvent,
+    setText,
 } from "./dom.js";
-import { emitRendererDebug } from "./debug.js";
+import { unwrap } from "./unwrap.js";
 
 type DirectSubscriber = ReactiveEffect & {
     active: boolean;
 };
+
+const shouldDebugBindings = process.env.NODE_ENV !== "production";
+
+const setDirectTextValue: (node: Text, value: unknown) => void = process.env.NODE_ENV !== "production"
+    ? setText
+    : (node, value) => {
+        node.data = String(value);
+    };
 
 function isRefSource(value: unknown): value is Ref<unknown> {
     return typeof value === "object"
@@ -42,13 +45,13 @@ function subscribeTextSource(node: Text, source: Signal<unknown> | Ref<unknown>)
     const signalSource = isRefSource(source) ? source._sig : source;
     const dep = signalSource._dep;
 
-    const subscriber = (() => {
-        if (subscriber.active === false) {
-            return;
-        }
-
-        setText(node, signalSource._value);
-    }) as DirectSubscriber;
+    const subscriber = process.env.NODE_ENV !== "production"
+        ? (() => {
+            setText(node, signalSource._value);
+        }) as DirectSubscriber
+        : (() => {
+            node.data = String(signalSource._value);
+        }) as DirectSubscriber;
 
     subscriber.active = true;
 
@@ -58,7 +61,7 @@ function subscribeTextSource(node: Text, source: Signal<unknown> | Ref<unknown>)
         disposeDirectSubscriber(dep, subscriber);
     });
 
-    setText(node, signalSource._value);
+    setDirectTextValue(node, signalSource._value);
 }
 
 function subscribePropSource(el: Element, name: string, source: Signal<unknown> | Ref<unknown>): void {
@@ -84,133 +87,109 @@ function subscribePropSource(el: Element, name: string, source: Signal<unknown> 
     setProp(el, name, signalSource._value);
 }
 
-/**
- * Bind a reactive expression to a Text node.
- *
- * @param node - The Text node to update.
- * @param compute - A function returning the latest text value.
- */
 export function bindText(node: Text, compute: () => any): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "text",
-        node,
-    }));
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "text",
+            node,
+        }));
+    }
 
     effect(() => {
         const value = unwrap(compute());
 
-        emitRendererDebug("binding:update", () => ({
-            type: "text",
-            node,
-            value,
-        }));
+        if (shouldDebugBindings) {
+            emitRendererDebug("binding:update", () => ({
+                type: "text",
+                node,
+                value,
+            }));
+        }
 
         setText(node, value);
     });
 }
 
-export function bindDirectTextSource(
-    node: Text,
-    source: Signal<unknown> | Ref<unknown>
-): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "text:direct",
-        node,
-        sourceType: isRefSource(source) ? "ref" : "signal",
-    }));
+export function bindDirectTextSource(node: Text, source: Signal<unknown> | Ref<unknown>): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "text:direct",
+            node,
+            sourceType: isRefSource(source) ? "ref" : "signal",
+        }));
+    }
 
     subscribeTextSource(node, source);
 }
 
-export function bindDirectPropSource(
-    el: Element,
-    name: string,
-    source: Signal<unknown> | Ref<unknown>
-): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "prop:direct",
-        el,
-        name,
-        sourceType: isRefSource(source) ? "ref" : "signal",
-    }));
+export function bindDirectPropSource(el: Element, name: string, source: Signal<unknown> | Ref<unknown>): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "prop:direct",
+            el,
+            name,
+            sourceType: isRefSource(source) ? "ref" : "signal",
+        }));
+    }
 
     subscribePropSource(el, name, source);
 }
 
-/**
- * Bind a reactive expression to an element attribute/property.
- *
- * @param el - The element to update.
- * @param name - The attribute or property name.
- * @param compute - A function returning the latest value.
- */
-export function bindProp(
-    el: Element,
-    name: string,
-    compute: () => any
-): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "prop",
-        el,
-        name,
-    }));
+export function bindProp(el: Element, name: string, compute: () => any): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "prop",
+            el,
+            name,
+        }));
+    }
 
     effect(() => {
         const value = unwrap(compute());
 
-        emitRendererDebug("binding:update", () => ({
-            type: "prop",
-            el,
-            name,
-            value,
-        }));
+        if (shouldDebugBindings) {
+            emitRendererDebug("binding:update", () => ({
+                type: "prop",
+                el,
+                name,
+                value,
+            }));
+        }
 
         setProp(el, name, value);
     });
 }
 
-/**
- * Bind a reactive expression to an element's class attribute.
- *
- * @param el - The element to update.
- * @param compute - A function returning the class string or class object.
- */
-export function bindClass(
-    el: Element,
-    compute: () => any
-): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "class",
-        el,
-    }));
+export function bindClass(el: Element, compute: () => any): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "class",
+            el,
+        }));
+    }
 
     effect(() => {
         const value = unwrap(compute());
 
-        emitRendererDebug("binding:update", () => ({
-            type: "class",
-            el,
-            value,
-        }));
+        if (shouldDebugBindings) {
+            emitRendererDebug("binding:update", () => ({
+                type: "class",
+                el,
+                value,
+            }));
+        }
 
         setClass(el, value);
     });
 }
 
-/**
- * Bind a reactive expression to an element's inline styles.
- *
- * @param el - The element to update.
- * @param compute - A function returning a style object.
- */
-export function bindStyle(
-    el: Element,
-    compute: () => Record<string, any>
-): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "style",
-        el,
-    }));
+export function bindStyle(el: Element, compute: () => Record<string, any>): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "style",
+            el,
+        }));
+    }
 
     effect(() => {
         const styleObj = unwrap(compute());
@@ -220,58 +199,40 @@ export function bindStyle(
             resolved[key] = unwrap(styleObj[key]);
         }
 
-        emitRendererDebug("binding:update", () => ({
-            type: "style",
-            el,
-            value: resolved,
-        }));
+        if (shouldDebugBindings) {
+            emitRendererDebug("binding:update", () => ({
+                type: "style",
+                el,
+                value: resolved,
+            }));
+        }
 
         setStyle(el, resolved);
     });
 }
 
-/**
- * Bind a static event listener to an element.
- *
- * Events are NOT reactive - the handler is attached once.
- *
- * @param el - The element to bind to.
- * @param name - Event name (e.g., "click").
- * @param handler - The event handler function.
- */
-export function bindEvent(
-    el: Element,
-    name: string,
-    handler: EventListener
-): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "event",
-        el,
-        name,
-        handler,
-    }));
+export function bindEvent(el: Element, name: string, handler: EventListener): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:create", () => ({
+            type: "event",
+            el,
+            name,
+            handler,
+        }));
+    }
 
     addEvent(el, name, handler);
 }
 
-/**
- * Remove a previously bound event listener.
- *
- * @param el - The element to unbind from.
- * @param name - Event name.
- * @param handler - The handler to remove.
- */
-export function unbindEvent(
-    el: Element,
-    name: string,
-    handler: EventListener
-): void {
-    emitRendererDebug("binding:dispose", () => ({
-        type: "event",
-        el,
-        name,
-        handler,
-    }));
+export function unbindEvent(el: Element, name: string, handler: EventListener): void {
+    if (shouldDebugBindings) {
+        emitRendererDebug("binding:dispose", () => ({
+            type: "event",
+            el,
+            name,
+            handler,
+        }));
+    }
 
     removeEvent(el, name, handler);
 }

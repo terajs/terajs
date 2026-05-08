@@ -19,11 +19,10 @@ import type {
 
 import {
   createElement,
-  createText,
   createFragment,
+  createText,
   insert,
-  remove,
-  addNodeCleanup,
+  webRendererHost,
 } from "./dom.js";
 import { renderComponent, type FrameworkComponent } from "./render.js";
 import {
@@ -48,6 +47,17 @@ import {
   resolveHintedPath,
 } from "./renderFromIRExpressions.js";
 import { renderIRForNode } from "./renderFromIRFor.js";
+
+const {
+  addNodeCleanup,
+  createAnchor,
+  getChildren,
+  getNextSibling,
+  getParent,
+  isFragment,
+  isNode,
+  remove,
+} = webRendererHost;
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -229,11 +239,11 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
     return normalizeSlotValue(slotValue);
   }
 
-  const frag = createFragment();
+  const frag = webRendererHost.createFragment();
   for (const child of node.fallback) {
     const dom = renderIRNode(child, ctx, isSvg);
     if (dom) {
-      insert(frag, dom);
+      webRendererHost.insert(frag, dom);
     }
   }
 
@@ -354,9 +364,9 @@ function applyEventProp(el: Element, prop: IRPropNode, ctx: any): void {
 function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
   emitRendererDebug("ir:render:if", () => ({ condition: node.condition }));
 
-  const anchor = document.createComment("if");
+  const anchor = createAnchor("if");
   const fragment = createFragment();
-  fragment.appendChild(anchor);
+  insert(fragment, anchor);
 
   // We explicitly track the nodes this v-if owns
   const ownedNodes: ChildNode[] = [];
@@ -365,7 +375,7 @@ function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
     const condition = !!resolveExpr(ctx, node.condition);
     const branch = condition ? node.then : node.else ?? [];
 
-    const container = anchor.parentNode as ParentNode | null;
+    const container = getParent(anchor) as ParentNode | null;
     if (!container) return; // not mounted / already cleaned up
 
     // Remove only nodes previously created by this v-if
@@ -375,10 +385,10 @@ function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
     ownedNodes.length = 0;
 
     // Insert new branch right after the anchor
-    let ref: ChildNode | null = anchor.nextSibling;
+    let ref = getNextSibling(anchor) as ChildNode | null;
     for (const child of branch) {
       const dom = renderIRNode(child, ctx, isSvg);
-      if (dom && dom instanceof Node && 'remove' in dom) {
+      if (dom) {
         insert(container as any, dom as ChildNode, ref ?? null);
         ownedNodes.push(dom as ChildNode);
         ref = null;
@@ -452,12 +462,12 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
 
   if (node.children.length > 0) {
     props.children = () => {
-      const frag = createFragment();
+      const frag = webRendererHost.createFragment();
 
       for (const child of node.children) {
         const dom = renderIRNode(child, ctx, isSvg);
         if (dom) {
-          insert(frag, dom);
+          webRendererHost.insert(frag, dom);
         }
       }
 
@@ -530,22 +540,25 @@ function createComponentCleanup(ctx: any): { active: () => boolean; dispose: () 
 }
 
 function attachComponentCleanup(node: Node, cleanup: () => void): void {
-  if (node instanceof DocumentFragment) {
-    const children = Array.from(node.childNodes);
+  if (isFragment(node)) {
+    const children = getChildren(node);
 
     for (const child of children) {
-      addNodeCleanup(child, cleanup);
+      webRendererHost.addNodeCleanup(child, cleanup);
     }
 
     return;
   }
 
-  addNodeCleanup(node, cleanup);
+  webRendererHost.addNodeCleanup(node, cleanup);
 }
 
 function normalizeRenderedComponentNode(node: Node): Node {
-  if (node instanceof DocumentFragment && node.childNodes.length === 1) {
-    return node.firstChild as Node;
+  if (isFragment(node)) {
+    const children = getChildren(node);
+    if (children.length === 1) {
+      return children[0];
+    }
   }
 
   return node;
@@ -577,20 +590,20 @@ function normalizeSlotValue(value: any): Node {
   }
 
   if (value == null || value === false || value === true) {
-    return createFragment();
+    return webRendererHost.createFragment();
   }
 
-  if (value instanceof Node) {
+  if (isNode(value)) {
     return value;
   }
 
   if (Array.isArray(value)) {
-    const frag = createFragment();
+    const frag = webRendererHost.createFragment();
     for (const item of value) {
-      insert(frag, normalizeSlotValue(item));
+      webRendererHost.insert(frag, normalizeSlotValue(item));
     }
     return frag;
   }
 
-  return createText(String(value));
+  return webRendererHost.createText(String(value));
 }

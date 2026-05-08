@@ -1,37 +1,45 @@
-// Terajs iOS Renderer Entry Point (Experimental)
-// This is a proof-of-concept for mapping Terajs's runtime/component tree to SwiftUI
+import type { RendererHost } from "@terajs/renderer";
 
-// Platform adapter interface
-export interface PlatformAdapter {
-  createElement(type: string, props: any): any;
-  setProperty(node: any, key: string, value: any): void;
-  appendChild(parent: any, child: any): void;
-  removeChild(parent: any, child: any): void;
-}
+type UIKitHostNode = {
+  type: string;
+  props: Record<string, unknown>;
+  children: UIKitHostNode[];
+  parent: UIKitHostNode | null;
+};
 
-// Example: SwiftUI adapter stub
-export const SwiftUIAdapter: PlatformAdapter = {
-  createElement(type, props) {
-    // Map Terajs element types to SwiftUI primitives
-    // e.g., 'div' -> VStack, 'span' -> Text, etc.
-    return { type, props };
+export type UIKitHostAdapter = Pick<
+  RendererHost<UIKitHostNode>,
+  "createElement" | "insert" | "remove" | "setProp"
+>;
+
+export const UIKitViewAdapter: UIKitHostAdapter = {
+  createElement(type) {
+    return {
+      type,
+      props: {},
+      children: [],
+      parent: null
+    };
   },
-  setProperty(node, key, value) {
-    node.props[key] = value;
-  },
-  appendChild(parent, child) {
-    if (!parent.children) parent.children = [];
+  insert(parent, child) {
+    child.parent = parent;
     parent.children.push(child);
   },
-  removeChild(parent, child) {
-    if (!parent.children) return;
-    parent.children = parent.children.filter(c => c !== child);
+  remove(node) {
+    const parent = node.parent;
+    if (!parent) {
+      return;
+    }
+
+    parent.children = parent.children.filter((child) => child !== node);
+    node.parent = null;
+  },
+  setProp(node, key, value) {
+    node.props[key] = value;
   }
 };
 
-// Renderer entry
-export function renderTerajsToSwiftUI(component: any, adapter: PlatformAdapter = SwiftUIAdapter) {
-  // TODO: Walk Terajs component tree and map to SwiftUI
-  // This is a stub for future implementation
-  return adapter.createElement('VStack', {});
+export function renderTerajsToUIKitViews(component: any, adapter: UIKitHostAdapter = UIKitViewAdapter) {
+  void component;
+  return adapter.createElement("UIView");
 }
