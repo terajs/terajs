@@ -1,0 +1,121 @@
+{
+  "capturedAt": "2026-05-06",
+  "source": "Release-prep production browser rerun",
+  "notes": [
+    "Use browser medians as the public-source-of-truth performance baseline.",
+    "Fail first on targeted updates, bulk updates, and route swaps before tightening mount and startup budgets."
+  ],
+  "budgets": {
+    "fail": {
+      "frameworkDom": {
+        "targetedMedianMs": 1.15,
+        "bulkMedianMs": 1.15
+      },
+      "routeStartup": {
+        "navigationMedianMs": 1.15
+      }
+    },
+    "warn": {
+      "frameworkDom": {
+        "mountMedianMs": 1.2
+      },
+      "routeStartup": {
+        "startupMedianMs": 1.25
+      }
+    }
+  },
+  "frameworkDom": [
+    {
+      "framework": "Terajs",
+      "mountMedianMs": 1.3,
+      "targetedMedianMs": 1.2,
+      "targetedUsPerUpdate": 6,
+      "bulkMedianMs": 2.9,
+      "bulkUsPerUpdate": 145
+    },
+    {
+      "framework": "Solid",
+      "mountMedianMs": 0.9,
+      "targetedMedianMs": 3.5,
+      "targetedUsPerUpdate": 17.5,
+      "bulkMedianMs": 4.7,
+      "bulkUsPerUpdate": 235
+    },
+    {
+      "framework": "Preact",
+      "mountMedianMs": 0.9,
+      "targetedMedianMs": 59.4,
+      "targetedUsPerUpdate": 297,
+      "bulkMedianMs": 9.1,
+      "bulkUsPerUpdate": 455
+    },
+    {
+      "framework": "Lit",
+      "mountMedianMs": 1.7,
+      "targetedMedianMs": 10.1,
+      "targetedUsPerUpdate": 50.5,
+      "bulkMedianMs": 4.8,
+      "bulkUsPerUpdate": 240
+    },
+    {
+      "framework": "Vue Vapor",
+      "mountMedianMs": 0.8,
+      "targetedMedianMs": 27.7,
+      "targetedUsPerUpdate": 138.5,
+      "bulkMedianMs": 22.8,
+      "bulkUsPerUpdate": 1140
+    },
+    {
+      "framework": "React",
+      "mountMedianMs": 1,
+      "targetedMedianMs": 22.9,
+      "targetedUsPerUpdate": 114.5,
+      "bulkMedianMs": 6,
+      "bulkUsPerUpdate": 300
+    }
+  ],
+  "routeStartup": [
+    {
+      "framework": "Terajs",
+      "startupMedianMs": 0.6,
+      "startupMeanMs": 0.57,
+      "navigationMedianMs": 6.5,
+      "navigationUsPerTransition": 108.3
+    },
+    {
+      "framework": "Solid",
+      "startupMedianMs": 0.2,
+      "startupMeanMs": 0.2,
+      "navigationMedianMs": 10.8,
+      "navigationUsPerTransition": 180
+    },
+    {
+      "framework": "Preact",
+      "startupMedianMs": 0.4,
+      "startupMeanMs": 0.39,
+      "navigationMedianMs": 6.9,
+      "navigationUsPerTransition": 115
+    },
+    {
+      "framework": "Lit",
+      "startupMedianMs": 0.4,
+      "startupMeanMs": 0.38,
+      "navigationMedianMs": 3.1,
+      "navigationUsPerTransition": 51.7
+    },
+    {
+      "framework": "Vue Vapor",
+      "startupMedianMs": 0.4,
+      "startupMeanMs": 0.41,
+      "navigationMedianMs": 11.5,
+      "navigationUsPerTransition": 191.7
+    },
+    {
+      "framework": "React",
+      "startupMedianMs": 0.4,
+      "startupMeanMs": 0.47,
+      "navigationMedianMs": 6.6,
+      "navigationUsPerTransition": 110
+    }
+  ]
+}

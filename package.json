@@ -5,6 +5,10 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "npm run clean && tsc -b",
+    "bench:browser": "npm --prefix benchmarks run browser:run",
+    "bench:browser:compare": "npm --prefix benchmarks run browser:compare",
+    "bench:browser:guard": "npm --prefix benchmarks run browser:guard",
+    "bench:frameworks": "npm --prefix benchmarks run frameworks",
     "clean": "node scripts/clean-workspace.mjs",
     "changeset": "changeset",
     "test": "vitest",

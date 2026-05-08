@@ -631,6 +631,151 @@ describe("IR -> DOM Renderer", () => {
     expect(frag.textContent).toBe("AB");
   });
 
+  it("updates hinted text bindings without replacing the existing text node", async () => {
+    const label = signal("Alpha");
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "div",
+      props: [],
+      children: [
+        {
+          type: "interp",
+          expression: "label",
+          binding: {
+            kind: "simple-path",
+            segments: ["label"]
+          },
+          loc: undefined,
+          flags: { dynamic: true }
+        } as IRInterpolationNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, { label }) as HTMLElement;
+    const originalTextNode = el.firstChild;
+
+    expect(originalTextNode?.nodeType).toBe(Node.TEXT_NODE);
+    expect(el.textContent).toBe("Alpha");
+
+    label.set("Beta");
+    await tick();
+
+    expect(el.firstChild).toBe(originalTextNode);
+    expect(el.textContent).toBe("Beta");
+  });
+
+  it("updates route-like IR modules in place without remounting the shell", async () => {
+    const route = signal({
+      title: "Launch route workspace",
+      primaryAction: "Open diagnostics",
+      footerNote: "Diagnostics ready"
+    });
+
+    const ir: IRModule = {
+      filePath: "/route-shell",
+      template: [
+        {
+          type: "element",
+          tag: "section",
+          props: [{ kind: "static", name: "class", value: "route-shell" }],
+          children: [
+            {
+              type: "element",
+              tag: "h1",
+              props: [],
+              children: [
+                {
+                  type: "interp",
+                  expression: "route.title",
+                  binding: {
+                    kind: "simple-path",
+                    segments: ["route", "title"]
+                  },
+                  loc: undefined,
+                  flags: { dynamic: true }
+                } as IRInterpolationNode
+              ],
+              loc: undefined,
+              flags: { hasDirectives: false }
+            } as IRElementNode,
+            {
+              type: "element",
+              tag: "button",
+              props: [{ kind: "static", name: "type", value: "button" }],
+              children: [
+                {
+                  type: "interp",
+                  expression: "route.primaryAction",
+                  binding: {
+                    kind: "simple-path",
+                    segments: ["route", "primaryAction"]
+                  },
+                  loc: undefined,
+                  flags: { dynamic: true }
+                } as IRInterpolationNode
+              ],
+              loc: undefined,
+              flags: { hasDirectives: false }
+            } as IRElementNode,
+            {
+              type: "element",
+              tag: "footer",
+              props: [],
+              children: [
+                {
+                  type: "interp",
+                  expression: "route.footerNote",
+                  binding: {
+                    kind: "simple-path",
+                    segments: ["route", "footerNote"]
+                  },
+                  loc: undefined,
+                  flags: { dynamic: true }
+                } as IRInterpolationNode
+              ],
+              loc: undefined,
+              flags: { hasDirectives: false }
+            } as IRElementNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      meta: {},
+      route: null
+    };
+
+    const root = document.createElement("div");
+    root.appendChild(renderIRModuleToFragment(ir, { route }));
+
+    const shell = root.firstElementChild as HTMLElement;
+    const title = shell.querySelector("h1");
+    const action = shell.querySelector("button");
+    const footer = shell.querySelector("footer");
+
+    expect(root.textContent).toContain("Launch route workspace");
+    expect(root.textContent).toContain("Open diagnostics");
+    expect(root.textContent).toContain("Diagnostics ready");
+
+    route.set({
+      title: "Diagnostics route workspace",
+      primaryAction: "Open timing timeline",
+      footerNote: "Mounted state snapshots ready"
+    });
+    await tick();
+
+    expect(root.firstElementChild).toBe(shell);
+    expect(shell.querySelector("h1")).toBe(title);
+    expect(shell.querySelector("button")).toBe(action);
+    expect(shell.querySelector("footer")).toBe(footer);
+    expect(root.textContent).toContain("Diagnostics route workspace");
+    expect(root.textContent).toContain("Open timing timeline");
+    expect(root.textContent).toContain("Mounted state snapshots ready");
+  });
+
   it("creates SVG namespaced elements for SVG tags", () => {
     const node: IRElementNode = {
       type: "element",
