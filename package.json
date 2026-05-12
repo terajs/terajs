@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "npm run clean && tsc -b",
+    "bench:browser:guard": "npm --prefix benchmarks run browser:guard",
     "clean": "node scripts/clean-workspace.mjs",
     "changeset": "changeset",
     "test": "vitest",
