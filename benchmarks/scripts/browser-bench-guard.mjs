@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright-core";
@@ -14,29 +15,19 @@ if (!VALID_MODES.has(mode)) {
   process.exit(1);
 }
 
-const scriptDir = fileURLToPath(new URL(".", import.meta.url));
+const scriptDir = dirname(fileURLToPath(import.meta.url));
 const benchmarksRoot = resolve(scriptDir, "..");
 const baselinePath = resolve(benchmarksRoot, "baselines", "production-browser-baseline.json");
 const latestResultPath = resolve(benchmarksRoot, ".dist", "latest-browser-bench.json");
+const serverScriptPath = resolve(benchmarksRoot, "scripts", "serve-browser-bench.mjs");
 const distRoot = resolve(benchmarksRoot, ".dist", "frameworks-browser");
-const host = process.env.TERAJS_BROWSER_BENCH_HOST ?? "127.0.0.1";
-const port = Number(process.env.TERAJS_BROWSER_BENCH_PORT ?? 4181);
-const baseUrl = `http://${host}:${port}`;
+const baseUrl = `http://${process.env.TERAJS_BROWSER_BENCH_HOST ?? "127.0.0.1"}:${process.env.TERAJS_BROWSER_BENCH_PORT ?? "4181"}`;
 const benchmarkTimeoutMs = Number(process.env.TERAJS_BROWSER_BENCH_TIMEOUT_MS ?? 300000);
 
 function ensureBuildOutput() {
   if (!existsSync(distRoot)) {
     throw new Error("Missing browser benchmark build output. Run `npm run browser:build` first.");
   }
-}
-
-function readJson(jsonPath) {
-  return JSON.parse(readFileSync(jsonPath, "utf8"));
-}
-
-function writeJson(jsonPath, data) {
-  mkdirSync(dirname(jsonPath), { recursive: true });
-  writeFileSync(jsonPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
 function round(value) {
@@ -189,37 +180,33 @@ function resolveBrowserExecutable() {
 }
 
 async function waitForServer() {
-  const startedAt = Date.now();
+  const deadline = Date.now() + benchmarkTimeoutMs;
 
-  while (Date.now() - startedAt < 30000) {
+  while (Date.now() < deadline) {
     try {
-      const response = await fetch(baseUrl, { signal: AbortSignal.timeout(2000) });
+      const response = await fetch(baseUrl, { method: "GET" });
       if (response.ok) {
         return;
       }
     } catch {
-      // server still starting
+      // server not ready yet
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 250));
   }
 
   throw new Error(`Timed out waiting for browser benchmark server at ${baseUrl}.`);
 }
 
 function startServer() {
-  const child = spawn(process.execPath, [resolve(scriptDir, "serve-browser-bench.mjs")], {
+  const child = spawn(process.execPath, [serverScriptPath], {
     cwd: benchmarksRoot,
     env: process.env,
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "inherit", "inherit"]
   });
 
-  child.stdout.on("data", (chunk) => {
-    process.stdout.write(chunk);
-  });
-
-  child.stderr.on("data", (chunk) => {
-    process.stderr.write(chunk);
+  child.on("error", (error) => {
+    console.error("[bench:browser:guard] Failed to start benchmark server.", error);
   });
 
   return child;
@@ -230,15 +217,15 @@ async function stopServer(child) {
     return;
   }
 
-  await new Promise((resolve) => {
-    const finish = () => resolve();
+  await new Promise((resolvePromise) => {
+    const finish = () => resolvePromise();
     child.once("exit", finish);
     child.kill();
     setTimeout(() => {
       if (!child.killed) {
         child.kill("SIGKILL");
       }
-      resolve();
+      resolvePromise();
     }, 5000);
   });
 }
@@ -247,7 +234,7 @@ async function runSuite(browser, suite) {
   const page = await browser.newPage();
 
   try {
-    await page.goto(`${suite.url}?ts=${Date.now()}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${suite.url}?ts=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: benchmarkTimeoutMs });
     await page.waitForFunction(
       (stateKey) => {
         const state = globalThis[stateKey];
@@ -274,6 +261,7 @@ async function runSuite(browser, suite) {
 
 async function captureBrowserBenchmarks() {
   ensureBuildOutput();
+
   const server = startServer();
 
   try {
@@ -283,7 +271,7 @@ async function captureBrowserBenchmarks() {
     const browser = await chromium.launch({
       executablePath,
       headless: true,
-      args: ["--disable-dev-shm-usage"]
+      args: process.platform === "linux" ? ["--no-sandbox", "--disable-gpu"] : ["--disable-gpu", "--disable-dev-shm-usage"]
     });
 
     try {
@@ -327,7 +315,8 @@ async function captureBrowserBenchmarks() {
         }))
       };
 
-      writeJson(latestResultPath, latest);
+      await mkdir(resolve(benchmarksRoot, ".dist"), { recursive: true });
+      await writeFile(latestResultPath, `${JSON.stringify(latest, null, 2)}\n`);
       summarizeTerajsResults(latest);
       console.log(`Latest benchmark capture written to ${latestResultPath}`);
       return latest;
@@ -339,8 +328,9 @@ async function captureBrowserBenchmarks() {
   }
 }
 
-async function runMode() {
-  await captureBrowserBenchmarks();
+async function readJson(jsonPath) {
+  const content = await readFile(jsonPath, "utf8");
+  return JSON.parse(content.replace(/^\uFEFF/, ""));
 }
 
 async function compareMode(current = undefined) {
@@ -348,8 +338,8 @@ async function compareMode(current = undefined) {
     throw new Error("Missing latest benchmark capture. Run `npm run browser:run` first.");
   }
 
-  const baseline = readJson(baselinePath);
-  const latest = current ?? readJson(latestResultPath);
+  const baseline = await readJson(baselinePath);
+  const latest = current ?? await readJson(latestResultPath);
   const { failures, warnings } = compareResults(baseline, latest);
 
   for (const warning of warnings) {
@@ -373,6 +363,10 @@ async function compareMode(current = undefined) {
   console.log("Browser benchmark guard passed.");
 }
 
+async function runMode() {
+  await captureBrowserBenchmarks();
+}
+
 async function guardMode() {
   const latest = await captureBrowserBenchmarks();
   await compareMode(latest);
@@ -394,6 +388,6 @@ async function main() {
 
 main().catch((error) => {
   console.error("Browser benchmark guard failed.");
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
+  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
   process.exit(1);
 });

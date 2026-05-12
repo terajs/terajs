@@ -41,6 +41,7 @@ const adapterImports = [
 const allowedRootDevDependencies = new Set([
   "@changesets/cli",
   "@types/node",
+  "jsdom",
   "typescript",
   "vitest"
 ]);

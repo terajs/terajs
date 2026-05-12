@@ -25,6 +25,13 @@ npm run browser:build
 npm run browser:serve
 ```
 
+Or capture the production browser benchmark results and compare them to the
+checked-in baseline in one step:
+
+```bash
+npm run browser:guard
+```
+
 The served pages are:
 
 - `http://127.0.0.1:4181/` combined browser benchmark shell that runs both suites sequentially and renders one merged results table
@@ -77,3 +84,4 @@ npm run direct-text
 - Production browser baselines live in `baselines/production-browser-baseline.json`.
 - Latest benchmark captures are written to `.dist/latest-browser-bench.json`.
 - The benchmark TypeScript config extends the repo root config so the harness can resolve `@terajs/*` packages from the repository without moving those dependencies into the root manifest.
+- The browser guard writes the latest capture to `.dist/latest-browser-bench.json` and compares the Terajs medians against `baselines/production-browser-baseline.json`.
