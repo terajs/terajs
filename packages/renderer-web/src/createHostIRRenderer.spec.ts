@@ -20,6 +20,11 @@ import {
   type SimulationNode,
   type SimulationTextNode,
 } from "./testing/simulationHost.js";
+import {
+  createClickEventElementNode,
+  createHintedBoundPropElementNode,
+  createProjectedDefaultSlotNode,
+} from "./testing/rendererConformance.js";
 
 describe("createHostIRRenderer", () => {
   it("renders and updates interpolation against a non-DOM host", async () => {
@@ -56,27 +61,11 @@ describe("createHostIRRenderer", () => {
     const title = signal("alpha");
     let clicked = false;
     const node: IRElementNode = {
-      type: "element",
-      tag: "button",
+      ...createHintedBoundPropElementNode({ tag: "button" }),
       props: [
-        {
-          kind: "bind",
-          name: "title",
-          value: "title",
-          binding: {
-            kind: "simple-path",
-            segments: ["title"]
-          }
-        },
-        {
-          kind: "event",
-          name: "click",
-          value: "onClick"
-        }
+        ...createHintedBoundPropElementNode({ tag: "button" }).props,
+        ...createClickEventElementNode({ tag: "button" }).props,
       ],
-      children: [],
-      loc: undefined,
-      flags: { hasDirectives: false }
     };
 
     const rendered = renderer.renderIRNode(node, {
@@ -146,20 +135,7 @@ describe("createHostIRRenderer", () => {
       bindings: createHostBindings(host)
     });
 
-    const node: IRSlotNode = {
-      type: "slot",
-      name: "default",
-      fallback: [
-        {
-          type: "text",
-          value: "fallback",
-          loc: undefined,
-          flags: { dynamic: false }
-        }
-      ],
-      loc: undefined,
-      flags: {}
-    };
+    const node: IRSlotNode = createProjectedDefaultSlotNode("fallback");
 
     const rendered = renderer.renderIRNode(node, {
       slots: {

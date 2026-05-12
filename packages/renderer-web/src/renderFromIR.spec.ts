@@ -23,6 +23,11 @@ import type {
 import { ref, signal } from "@terajs/reactivity";
 import { component, onMounted, onUnmounted } from "@terajs/runtime";
 import { clear } from "./dom";
+import {
+  createClickEventElementNode,
+  createHintedBoundPropElementNode,
+  createProjectedDefaultSlotNode,
+} from "./testing/rendererConformance.js";
 
 /** Ensures reactive effects flush before assertions */
 const tick = () => Promise.resolve();
@@ -177,24 +182,7 @@ describe("IR -> DOM Renderer", () => {
   it("binds hinted direct props", async () => {
     const title = signal("Alpha");
 
-    const node: IRElementNode = {
-      type: "element",
-      tag: "div",
-      props: [
-        {
-          kind: "bind",
-          name: "title",
-          value: "title",
-          binding: {
-            kind: "simple-path",
-            segments: ["title"]
-          }
-        }
-      ],
-      children: [],
-      loc: undefined,
-      flags: { hasDirectives: false }
-    };
+    const node: IRElementNode = createHintedBoundPropElementNode();
 
     const el = renderIRNode(node, { title }) as HTMLElement;
 
@@ -243,16 +231,7 @@ describe("IR -> DOM Renderer", () => {
   it("binds event handlers", () => {
     let clicked = false;
 
-    const node: IRElementNode = {
-      type: "element",
-      tag: "button",
-      props: [
-        { kind: "event", name: "click", value: "onClick" }
-      ],
-      children: [],
-      loc: undefined,
-      flags: { hasDirectives: false }
-    };
+    const node: IRElementNode = createClickEventElementNode();
 
     const el = renderIRNode(node, {
       onClick: () => { clicked = true; }
@@ -517,20 +496,7 @@ describe("IR -> DOM Renderer", () => {
   });
 
   it("renders slot content before fallback", () => {
-    const node: IRSlotNode = {
-      type: "slot",
-      name: "default",
-      fallback: [
-        {
-          type: "text",
-          value: "Fallback",
-          loc: undefined,
-          flags: {}
-        } as IRTextNode
-      ],
-      loc: undefined,
-      flags: { dynamic: true }
-    };
+    const node: IRSlotNode = createProjectedDefaultSlotNode();
 
     const dom = renderIRNode(node, {
       slots: {
@@ -539,6 +505,18 @@ describe("IR -> DOM Renderer", () => {
     })!;
 
     expect(dom.textContent).toBe("Projected");
+  });
+
+  it("renders array slot content and skips boolean placeholders", () => {
+    const node: IRSlotNode = createProjectedDefaultSlotNode();
+
+    const dom = renderIRNode(node, {
+      slots: {
+        default: () => ["Alpha", false, document.createTextNode("Beta"), true, "Gamma"]
+      }
+    })!;
+
+    expect(dom.textContent).toBe("AlphaBetaGamma");
   });
 
   it("renders slot fallback when no slot is provided", () => {

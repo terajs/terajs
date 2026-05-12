@@ -8,6 +8,7 @@ This document outlines the plan for building production-ready native renderers f
 - Browser performance protection is a hard prerequisite for renderer extraction. `npm run bench:browser:guard` is the required pre/post gate for native-renderer foundation work.
 - `@terajs/renderer` now owns a shared host contract for the current renderer surface.
 - `@terajs/renderer-web` has been proven through that shared host contract with focused renderer tests and the browser regression guard.
+- DOM hot paths such as `renderFromIR.ts` prop and slot handling stay locally optimized in `@terajs/renderer-web`; share semantics through conformance tests instead of generic runtime helpers when the browser guard shows a targeted-update regression.
 - The current iOS and Android stubs now align to the shared host contract and point at UIKit and Android Views as the next imperative host targets.
 - SwiftUI, Jetpack Compose, and JSX-runtime neutralization are explicitly deferred until after the imperative host simulation milestone.
 
@@ -39,6 +40,7 @@ This document outlines the plan for building production-ready native renderers f
 ## 5. Testing & Examples
 - Keep `npm run bench:browser:guard` green before and after renderer-boundary changes.
 - Add JS-side host simulation tests and renderer conformance tests before real host-app scaffolding.
+- Keep a narrower DOM prop/update perf canary alongside the broader browser guard so web hot-path regressions fail closer to the changed seam.
 - Build a minimal demo app for each platform after the host simulation proves the contract.
 
 ## 6. Documentation
