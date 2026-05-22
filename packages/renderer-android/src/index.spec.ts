@@ -16,7 +16,10 @@ import {
   AndroidViewAdapter,
   createAndroidCommandBridge,
   createAndroidCommandConsumer,
+  normalizeAndroidEventName,
+  normalizeAndroidProp,
   renderTerajsToAndroidViews,
+  resolveAndroidViewType,
   type AndroidBridgeElementNode,
   type AndroidBridgeTextNode,
   type AndroidNativeTextNode,
@@ -25,20 +28,40 @@ import {
 
 describe("renderer-android stub", () => {
   it("creates, inserts, updates, and removes Android host nodes", () => {
-    const root = AndroidViewAdapter.createElement("ViewGroup");
-    const child = AndroidViewAdapter.createElement("TextView");
+    const root = AndroidViewAdapter.createElement("section");
+    const child = AndroidViewAdapter.createElement("button");
 
     AndroidViewAdapter.insert(root, child);
     AndroidViewAdapter.setProp(child, "text", "Hello native");
 
     expect(root.children).toEqual([child]);
     expect(child.parent).toBe(root);
+    expect(root.type).toBe("ViewGroup");
+    expect(child.type).toBe("Button");
     expect(child.props.text).toBe("Hello native");
 
     AndroidViewAdapter.remove(child);
 
     expect(root.children).toEqual([]);
     expect(child.parent).toBeNull();
+  });
+
+  it("maps standard and native-flavored Android tags to Android primitives", () => {
+    expect(resolveAndroidViewType("button")).toBe("Button");
+    expect(resolveAndroidViewType("text-view")).toBe("TextView");
+    expect(resolveAndroidViewType("TextView")).toBe("TextView");
+  });
+
+  it("normalizes standard Android props and events to native names", () => {
+    expect(normalizeAndroidProp("Button", "aria-label", "Primary")).toEqual({
+      name: "contentDescription",
+      value: "Primary"
+    });
+    expect(normalizeAndroidProp("EditText", "value", "Alpha")).toEqual({
+      name: "text",
+      value: "Alpha"
+    });
+    expect(normalizeAndroidEventName("Button", "click")).toBe("press");
   });
 
   it("renders compiler IR modules through the public Android entry point", async () => {
@@ -49,11 +72,11 @@ describe("renderer-android stub", () => {
       template: [
         {
           type: "element",
-          tag: "button-view",
+          tag: "button",
           props: [
             {
               kind: "bind",
-              name: "contentDescription",
+              name: "aria-label",
               value: "label",
               binding: {
                 kind: "simple-path",
@@ -62,7 +85,7 @@ describe("renderer-android stub", () => {
             },
             {
               kind: "event",
-              name: "press",
+              name: "click",
               value: "onPress"
             }
           ],
@@ -88,7 +111,7 @@ describe("renderer-android stub", () => {
     const text = button.children[0] as AndroidNativeTextNode;
 
     expect(root.viewType).toBe("ViewGroup");
-    expect(button.viewType).toBe("button-view");
+  expect(button.viewType).toBe("Button");
     expect(button.props.contentDescription).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["press"]);
     expect(text.value).toBe("Alpha");
@@ -108,18 +131,18 @@ describe("renderer-android stub", () => {
 
   it("records thin Android host commands without sending JS handlers across the bridge", () => {
     const bridge = createAndroidCommandBridge();
-    const row = bridge.host.createElement("TextView");
+    const row = bridge.host.createElement("button");
     const text = bridge.host.createText("Hello native");
     const handler = vi.fn();
 
     bridge.host.insert(bridge.root, row);
     bridge.host.insert(row, text);
-    bridge.host.setProp(row, "contentDescription", "Greeting");
+    bridge.host.setProp(row, "aria-label", "Greeting");
     bridge.host.setStyle(row, { color: "#1E88E5" });
     bridge.host.setClass(row, "headline");
-    bridge.host.addEvent(row, "press", handler);
+    bridge.host.addEvent(row, "click", handler);
     bridge.dispatchEvent(row, "press", { source: "native" });
-    bridge.host.removeEvent(row, "press", handler);
+    bridge.host.removeEvent(row, "click", handler);
     bridge.host.remove(row);
 
     expect(handler).toHaveBeenCalledTimes(1);
@@ -134,7 +157,7 @@ describe("renderer-android stub", () => {
       {
         type: "create-element",
         nodeId: row.id,
-        viewType: "TextView",
+        viewType: "Button",
         svg: false
       },
       {
@@ -289,7 +312,7 @@ describe("renderer-android stub", () => {
     const rendered = renderer.renderIRNode(node, { label, onPress }) as AndroidBridgeElementNode;
     bridge.host.insert(bridge.root, rendered);
 
-    expect(rendered.viewType).toBe("button-view");
+    expect(rendered.viewType).toBe("Button");
     expect(rendered.props.contentDescription).toBe("Alpha");
     expect(rendered.children).toHaveLength(1);
     expect((rendered.children[0] as AndroidBridgeTextNode).value).toBe("Alpha");
@@ -412,7 +435,7 @@ describe("renderer-android stub", () => {
     const text = button.children[0] as AndroidNativeTextNode;
 
     expect(root.viewType).toBe("ViewGroup");
-    expect(button.viewType).toBe("button-view");
+    expect(button.viewType).toBe("Button");
     expect(button.props.contentDescription).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["press"]);
     expect(text.value).toBe("Alpha");

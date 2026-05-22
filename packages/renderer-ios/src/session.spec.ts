@@ -51,7 +51,7 @@ describe("renderer-ios host session", () => {
     const button = root.children[0] as UIKitNativeViewNode;
     const text = button.children[0] as UIKitNativeTextNode;
 
-    expect(button.viewType).toBe("ui-button");
+    expect(button.viewType).toBe("UIButton");
     expect(button.props.accessibilityLabel).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["tap"]);
     expect(text.value).toBe("Alpha");
@@ -109,7 +109,7 @@ describe("renderer-ios host session", () => {
 
     const root = session.root;
     expect(root.children).toHaveLength(1);
-    expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("ui-label");
+    expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("UILabel");
 
     visible.set(false);
     await Promise.resolve();
@@ -164,7 +164,7 @@ describe("renderer-ios host session", () => {
     const root = session.root;
 
     expect(root.children).toHaveLength(1);
-    expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("ui-label");
+    expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("UILabel");
 
     visible.set(false);
     await Promise.resolve();

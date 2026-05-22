@@ -51,7 +51,7 @@ describe("renderer-android host session", () => {
     const button = root.children[0] as AndroidNativeViewNode;
     const text = button.children[0] as AndroidNativeTextNode;
 
-    expect(button.viewType).toBe("button-view");
+    expect(button.viewType).toBe("Button");
     expect(button.props.contentDescription).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["press"]);
     expect(text.value).toBe("Alpha");
@@ -168,7 +168,7 @@ describe("renderer-android host session", () => {
     const root = session.root;
 
     expect(root.children).toHaveLength(1);
-    expect((root.children[0] as AndroidNativeViewNode).viewType).toBe("text-view");
+    expect((root.children[0] as AndroidNativeViewNode).viewType).toBe("TextView");
 
     visible.set(false);
     await Promise.resolve();

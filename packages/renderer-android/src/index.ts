@@ -1,5 +1,6 @@
 import type { IRModule } from "@terajs/compiler";
 import type { RendererHost } from "@terajs/renderer";
+import { normalizeAndroidProp, resolveAndroidViewType } from "./primitives.js";
 import { createAndroidHostSession } from "./session.js";
 import type { AndroidHostSession, AndroidMountedModule } from "./session.js";
 import type { AndroidNativeViewNode } from "./consumer.js";
@@ -25,6 +26,11 @@ export {
   type AndroidHostSession,
   type AndroidMountedModule
 } from "./session.js";
+export {
+  normalizeAndroidEventName,
+  normalizeAndroidProp,
+  resolveAndroidViewType
+} from "./primitives.js";
 
 type AndroidViewHostNode = {
   type: string;
@@ -43,7 +49,7 @@ export type AndroidViewHostAdapter = Pick<
 export const AndroidViewAdapter: AndroidViewHostAdapter = {
   createElement(type) {
     return {
-      type,
+      type: resolveAndroidViewType(type),
       props: {},
       children: [],
       parent: null
@@ -63,7 +69,14 @@ export const AndroidViewAdapter: AndroidViewHostAdapter = {
     node.parent = null;
   },
   setProp(node, key, value) {
-    node.props[key] = value;
+    const normalized = normalizeAndroidProp(node.type, key, value);
+
+    if (normalized.value == null) {
+      delete node.props[normalized.name];
+      return;
+    }
+
+    node.props[normalized.name] = normalized.value;
   }
 };
 

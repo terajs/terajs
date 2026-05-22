@@ -14,8 +14,11 @@ import {
 import {
   createUIKitCommandBridge,
   createUIKitCommandConsumer,
+  normalizeUIKitEventName,
+  normalizeUIKitProp,
   UIKitViewAdapter,
   renderTerajsToUIKitViews,
+  resolveUIKitViewType,
   type UIKitBridgeElementNode,
   type UIKitBridgeTextNode,
   type UIKitNativeTextNode,
@@ -24,20 +27,40 @@ import {
 
 describe("renderer-ios stub", () => {
   it("creates, inserts, updates, and removes UIKit host nodes", () => {
-    const root = UIKitViewAdapter.createElement("UIView");
-    const child = UIKitViewAdapter.createElement("UILabel");
+    const root = UIKitViewAdapter.createElement("div");
+    const child = UIKitViewAdapter.createElement("button");
 
     UIKitViewAdapter.insert(root, child);
     UIKitViewAdapter.setProp(child, "text", "Hello native");
 
     expect(root.children).toEqual([child]);
     expect(child.parent).toBe(root);
+    expect(root.type).toBe("UIView");
+    expect(child.type).toBe("UIButton");
     expect(child.props.text).toBe("Hello native");
 
     UIKitViewAdapter.remove(child);
 
     expect(root.children).toEqual([]);
     expect(child.parent).toBeNull();
+  });
+
+  it("maps standard and native-flavored iOS tags to UIKit primitives", () => {
+    expect(resolveUIKitViewType("button")).toBe("UIButton");
+    expect(resolveUIKitViewType("ui-label")).toBe("UILabel");
+    expect(resolveUIKitViewType("UILabel")).toBe("UILabel");
+  });
+
+  it("normalizes standard iOS props and events to native names", () => {
+    expect(normalizeUIKitProp("UIButton", "aria-label", "Primary")).toEqual({
+      name: "accessibilityLabel",
+      value: "Primary"
+    });
+    expect(normalizeUIKitProp("UITextField", "value", "Alpha")).toEqual({
+      name: "text",
+      value: "Alpha"
+    });
+    expect(normalizeUIKitEventName("UIButton", "click")).toBe("tap");
   });
 
   it("renders compiler IR modules through the public UIKit entry point", async () => {
@@ -48,11 +71,11 @@ describe("renderer-ios stub", () => {
       template: [
         {
           type: "element",
-          tag: "ui-button",
+          tag: "button",
           props: [
             {
               kind: "bind",
-              name: "accessibilityLabel",
+              name: "aria-label",
               value: "title",
               binding: {
                 kind: "simple-path",
@@ -61,7 +84,7 @@ describe("renderer-ios stub", () => {
             },
             {
               kind: "event",
-              name: "tap",
+              name: "click",
               value: "onTap"
             }
           ],
@@ -87,7 +110,7 @@ describe("renderer-ios stub", () => {
     const text = button.children[0] as UIKitNativeTextNode;
 
     expect(root.viewType).toBe("UIView");
-    expect(button.viewType).toBe("ui-button");
+  expect(button.viewType).toBe("UIButton");
     expect(button.props.accessibilityLabel).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["tap"]);
     expect(text.value).toBe("Alpha");
@@ -107,18 +130,18 @@ describe("renderer-ios stub", () => {
 
   it("records thin UIKit host commands without sending JS handlers across the bridge", () => {
     const bridge = createUIKitCommandBridge();
-    const label = bridge.host.createElement("UILabel");
+    const label = bridge.host.createElement("button");
     const text = bridge.host.createText("Hello native");
     const handler = vi.fn();
 
     bridge.host.insert(bridge.root, label);
     bridge.host.insert(label, text);
-    bridge.host.setProp(label, "accessibilityLabel", "Greeting");
+    bridge.host.setProp(label, "aria-label", "Greeting");
     bridge.host.setStyle(label, { color: "systemBlue" });
     bridge.host.setClass(label, "headline");
-    bridge.host.addEvent(label, "tap", handler);
+    bridge.host.addEvent(label, "click", handler);
     bridge.dispatchEvent(label, "tap", { source: "native" });
-    bridge.host.removeEvent(label, "tap", handler);
+    bridge.host.removeEvent(label, "click", handler);
     bridge.host.remove(label);
 
     expect(handler).toHaveBeenCalledTimes(1);
@@ -133,7 +156,7 @@ describe("renderer-ios stub", () => {
       {
         type: "create-element",
         nodeId: label.id,
-        viewType: "UILabel",
+        viewType: "UIButton",
         svg: false
       },
       {
@@ -278,7 +301,7 @@ describe("renderer-ios stub", () => {
     const rendered = renderer.renderIRNode(node, { title, onTap }) as UIKitBridgeElementNode;
     bridge.host.insert(bridge.root, rendered);
 
-    expect(rendered.viewType).toBe("ui-button");
+    expect(rendered.viewType).toBe("UIButton");
     expect(rendered.props.accessibilityLabel).toBe("Alpha");
     expect(rendered.children).toHaveLength(1);
     expect((rendered.children[0] as UIKitBridgeTextNode).value).toBe("Alpha");
@@ -402,7 +425,7 @@ describe("renderer-ios stub", () => {
     const text = button.children[0] as UIKitNativeTextNode;
 
     expect(root.viewType).toBe("UIView");
-    expect(button.viewType).toBe("ui-button");
+    expect(button.viewType).toBe("UIButton");
     expect(button.props.accessibilityLabel).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["tap"]);
     expect(text.value).toBe("Alpha");
@@ -467,7 +490,7 @@ describe("renderer-ios stub", () => {
 
     const root = consumer.root as UIKitNativeViewNode;
     expect(root.children).toHaveLength(1);
-    expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("ui-label");
+    expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("UILabel");
 
     visible.set(false);
     await Promise.resolve();

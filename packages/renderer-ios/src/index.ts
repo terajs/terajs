@@ -1,5 +1,6 @@
 import type { IRModule } from "@terajs/compiler";
 import type { RendererHost } from "@terajs/renderer";
+import { normalizeUIKitProp, resolveUIKitViewType } from "./primitives.js";
 import { createUIKitHostSession } from "./session.js";
 import type { UIKitMountedModule, UIKitHostSession } from "./session.js";
 import type { UIKitNativeViewNode } from "./consumer.js";
@@ -25,6 +26,11 @@ export {
   type UIKitHostSession,
   type UIKitMountedModule
 } from "./session.js";
+export {
+  normalizeUIKitEventName,
+  normalizeUIKitProp,
+  resolveUIKitViewType
+} from "./primitives.js";
 
 type UIKitHostNode = {
   type: string;
@@ -43,7 +49,7 @@ export type UIKitHostAdapter = Pick<
 export const UIKitViewAdapter: UIKitHostAdapter = {
   createElement(type) {
     return {
-      type,
+      type: resolveUIKitViewType(type),
       props: {},
       children: [],
       parent: null
@@ -63,7 +69,14 @@ export const UIKitViewAdapter: UIKitHostAdapter = {
     node.parent = null;
   },
   setProp(node, key, value) {
-    node.props[key] = value;
+    const normalized = normalizeUIKitProp(node.type, key, value);
+
+    if (normalized.value == null) {
+      delete node.props[normalized.name];
+      return;
+    }
+
+    node.props[normalized.name] = normalized.value;
   }
 };
 

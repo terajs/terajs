@@ -1,5 +1,7 @@
 import type { RendererEventHandler, RendererHost } from "@terajs/renderer";
 
+import { normalizeAndroidEventName, normalizeAndroidProp, resolveAndroidViewType } from "./primitives.js";
+
 export type AndroidBridgeCommand =
   | {
     type: "create-element";
@@ -250,7 +252,7 @@ export function createAndroidCommandBridge(
       return node;
     },
     createElement(type, svg = false) {
-      return createElementNode(type, svg);
+      return createElementNode(resolveAndroidViewType(type), svg);
     },
     createText(value) {
       return createTextNode(value);
@@ -344,17 +346,19 @@ export function createAndroidCommandBridge(
       });
     },
     setProp(el, name, value) {
-      if (value == null) {
-        delete el.props[name];
+      const normalized = normalizeAndroidProp(el.viewType, name, value);
+
+      if (normalized.value == null) {
+        delete el.props[normalized.name];
       } else {
-        el.props[name] = value;
+        el.props[normalized.name] = normalized.value;
       }
 
       pushCommand({
         type: "set-prop",
         nodeId: el.id,
-        name,
-        value: value ?? null
+        name: normalized.name,
+        value: normalized.value ?? null
       });
     },
     setStyle(el, style) {
@@ -378,37 +382,39 @@ export function createAndroidCommandBridge(
       });
     },
     addEvent(el, name, handler) {
-      const handlers = el.eventHandlers[name] ?? [];
+      const nativeEventName = normalizeAndroidEventName(el.viewType, name);
+      const handlers = el.eventHandlers[nativeEventName] ?? [];
       const shouldSubscribe = handlers.length === 0;
 
       handlers.push(handler);
-      el.eventHandlers[name] = handlers;
+      el.eventHandlers[nativeEventName] = handlers;
 
       if (shouldSubscribe) {
         pushCommand({
           type: "subscribe-event",
           nodeId: el.id,
-          name
+          name: nativeEventName
         });
       }
     },
     removeEvent(el, name, handler) {
-      const current = el.eventHandlers[name];
+      const nativeEventName = normalizeAndroidEventName(el.viewType, name);
+      const current = el.eventHandlers[nativeEventName];
       if (!current?.length) {
         return;
       }
 
       const nextHandlers = current.filter((candidate) => candidate !== handler);
       if (nextHandlers.length > 0) {
-        el.eventHandlers[name] = nextHandlers;
+        el.eventHandlers[nativeEventName] = nextHandlers;
         return;
       }
 
-      delete el.eventHandlers[name];
+      delete el.eventHandlers[nativeEventName];
       pushCommand({
         type: "unsubscribe-event",
         nodeId: el.id,
-        name
+        name: nativeEventName
       });
     },
     addNodeCleanup(node, cleanup) {
