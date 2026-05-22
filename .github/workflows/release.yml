@@ -14,21 +14,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  prepare-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
+
+    outputs:
+      has_changes: ${{ steps.version_diff.outputs.has_changes }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 24
           check-latest: true
@@ -105,32 +107,62 @@ jobs:
           echo "Refusing to publish from '${{ inputs.ref }}'. Run the Release workflow against 'main'."
           exit 1
 
+  publish-release:
+    if: needs.prepare-release.outputs.has_changes == 'false' && inputs.ref == 'main'
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          check-latest: true
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm
+        run: npm install --global npm@^11.5.1
+
+      - name: Show Node and npm Versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Install Dependencies
+        run: npm ci
+
       - name: Configure Release Git Identity
-        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Publish Packages
-        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         run: npm run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Release Tags
-        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         run: npm run release:tag:push
 
       - name: Resolve Release Tag
-        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
         id: release_tag
         shell: bash
         run: |
           node -p "'tag=v' + require('./package.json').version" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           generate_release_notes: true
