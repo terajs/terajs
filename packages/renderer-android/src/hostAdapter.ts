@@ -40,12 +40,15 @@ export const AndroidViewAdapter: AndroidViewHostAdapter = {
   },
   setProp(node, key, value) {
     const normalized = normalizeAndroidProp(node.type, key, value);
+    const updates = [normalized, ...(normalized.additional ?? [])];
 
-    if (normalized.value == null) {
-      delete node.props[normalized.name];
-      return;
+    for (const update of updates) {
+      if (update.value == null) {
+        delete node.props[update.name];
+        continue;
+      }
+
+      node.props[update.name] = update.value;
     }
-
-    node.props[normalized.name] = normalized.value;
   }
 };

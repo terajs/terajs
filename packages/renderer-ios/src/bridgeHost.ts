@@ -138,19 +138,22 @@ export function createUIKitBridgeHost(options: CreateUIKitBridgeHostOptions): {
     },
     setProp(el, name, value) {
       const normalized = normalizeUIKitProp(el.viewType, name, value);
+      const updates = [normalized, ...(normalized.additional ?? [])];
 
-      if (normalized.value == null) {
-        delete el.props[normalized.name];
-      } else {
-        el.props[normalized.name] = normalized.value;
+      for (const update of updates) {
+        if (update.value == null) {
+          delete el.props[update.name];
+        } else {
+          el.props[update.name] = update.value;
+        }
+
+        pushCommand({
+          type: "set-prop",
+          nodeId: el.id,
+          name: update.name,
+          value: update.value ?? null
+        });
       }
-
-      pushCommand({
-        type: "set-prop",
-        nodeId: el.id,
-        name: normalized.name,
-        value: normalized.value ?? null
-      });
     },
     setStyle(el, style) {
       const normalizedStyle = normalizeUIKitStyle(el.viewType, style);

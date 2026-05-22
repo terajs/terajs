@@ -6,6 +6,10 @@ const UIKitImagePropViewTypes = new Set(["UIImageView"]);
 export interface UIKitNormalizedProp {
   name: string;
   value: unknown;
+  additional?: Array<{
+    name: string;
+    value: unknown;
+  }>;
 }
 
 function normalizeNativeKey(name: string): string {

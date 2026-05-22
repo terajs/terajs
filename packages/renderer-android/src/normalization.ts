@@ -6,6 +6,10 @@ const AndroidImagePropViewTypes = new Set(["ImageView"]);
 export interface AndroidNormalizedProp {
   name: string;
   value: unknown;
+  additional?: Array<{
+    name: string;
+    value: unknown;
+  }>;
 }
 
 function normalizeNativeKey(name: string): string {
