@@ -9,7 +9,7 @@ This package represents the Android-side exploration for rendering Terajs compon
 - proof-of-concept / planning stage
 - not production-ready
 - intended to stay aligned with the neutral runtime and renderer contracts rather than introducing a separate framework model
-- current JS seam includes a minimal imperative host adapter, a thin command-oriented bridge host with incremental command draining, a package-local host session for compiler-driven IR mounting plus node-id event packets, and focused conformance tests
+- current JS seam includes a minimal imperative host adapter, a thin command-oriented bridge host with incremental command draining, package-local JSON-safe wire codecs for command batches and native event packets, a package-local host session for compiler-driven IR mounting plus node-id event packets, and focused conformance tests
 - package-local primitive mapping now resolves standard tags and native-flavored tags into concrete Android View types
 - package-local bridge normalization now translates standard props and events such as `aria-label`, input placeholders, structured selection-range and caret props, textarea line-count, viewport, interaction, and text-limit props, secure input traits, keyboard and correction hints, image alt text, and `click` into native-facing Android names
 - package-local style normalization now translates a small layout subset like row/column, spacing, alignment, and colors into Android-facing style keys

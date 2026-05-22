@@ -9,6 +9,13 @@ export {
   type CreateAndroidCommandBridgeOptions
 } from "./bridge.js";
 export {
+  parseAndroidBridgeCommands,
+  parseAndroidNativeEventPacket,
+  stringifyAndroidBridgeCommands,
+  stringifyAndroidNativeEventPacket,
+  type AndroidTransportValue
+} from "./transportCodec.js";
+export {
   createAndroidCommandConsumer,
   type AndroidCommandConsumer,
   type AndroidNativeNode,

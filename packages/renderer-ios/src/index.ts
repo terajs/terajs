@@ -9,6 +9,13 @@ export {
   type UIKitCommandBridge
 } from "./bridge.js";
 export {
+  parseUIKitBridgeCommands,
+  parseUIKitNativeEventPacket,
+  stringifyUIKitBridgeCommands,
+  stringifyUIKitNativeEventPacket,
+  type UIKitTransportValue
+} from "./transportCodec.js";
+export {
   createUIKitCommandConsumer,
   type UIKitCommandConsumer,
   type UIKitNativeNode,
