@@ -29,6 +29,7 @@ export {
 export {
   normalizeUIKitEventName,
   normalizeUIKitProp,
+  normalizeUIKitStyle,
   resolveUIKitViewType
 } from "./primitives.js";
 

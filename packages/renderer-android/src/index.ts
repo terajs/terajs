@@ -29,6 +29,7 @@ export {
 export {
   normalizeAndroidEventName,
   normalizeAndroidProp,
+  normalizeAndroidStyle,
   resolveAndroidViewType
 } from "./primitives.js";
 

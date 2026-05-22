@@ -79,7 +79,7 @@ describe("renderer-android stub", () => {
       {
         type: "set-style",
         nodeId: row.id,
-        style: { color: "#1E88E5" }
+        style: { textColor: "#1E88E5" }
       },
       {
         type: "set-class",

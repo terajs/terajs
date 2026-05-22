@@ -11,6 +11,7 @@ Keep Terajs architecture modular and Terajs-native.
 - When adding a feature, prefer adding a small neutral contract in a core package and implementing it in adapters rather than leaking adapter behavior upward into the core.
 - If a change appears faster but introduces architectural drift, stop and choose the boundary-preserving implementation instead.
 - Treat established user constraints and project vision as architecture inputs, not optional guidance. Future iteration should preserve those constraints unless the user explicitly changes them.
+- Do not pack multiple responsibilities into one file. When a module starts carrying contracts, platform mappings, bridge logic, sessions, consumers, or tests together, split them into focused files with one primary responsibility each.
 
 ## Native Renderer Lock
 

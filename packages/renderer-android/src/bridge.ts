@@ -1,116 +1,37 @@
-import type { RendererEventHandler, RendererHost } from "@terajs/renderer";
+import type { RendererHost } from "@terajs/renderer";
 
+import {
+  createAndroidBridgeNodeBase,
+  detachAndroidBridgeNode,
+  disposeAndroidBridgeSubtree,
+  isAndroidNativeBackedNode,
+  resolveAndroidBridgeAnchorId,
+  type AndroidBridgeAnchorNode,
+  type AndroidBridgeElementNode,
+  type AndroidBridgeFragmentNode,
+  type AndroidBridgeNode,
+  type AndroidBridgeTextNode,
+} from "./bridgeNodes.js";
+import {
+  type AndroidBridgeCommand,
+  type AndroidCommandBridge,
+  type CreateAndroidCommandBridgeOptions,
+} from "./bridgeContracts.js";
 import { normalizeAndroidEventName, normalizeAndroidProp, resolveAndroidViewType } from "./primitives.js";
+import { normalizeAndroidStyle } from "./styleNormalization.js";
 
-export type AndroidBridgeCommand =
-  | {
-    type: "create-element";
-    nodeId: number;
-    viewType: string;
-    svg: boolean;
-  }
-  | {
-    type: "create-text";
-    nodeId: number;
-    value: string;
-  }
-  | {
-    type: "insert";
-    parentId: number;
-    childId: number;
-    anchorId: number | null;
-  }
-  | {
-    type: "remove";
-    nodeId: number;
-  }
-  | {
-    type: "set-text";
-    nodeId: number;
-    value: string;
-  }
-  | {
-    type: "set-prop";
-    nodeId: number;
-    name: string;
-    value: unknown;
-  }
-  | {
-    type: "set-style";
-    nodeId: number;
-    style: Record<string, string>;
-  }
-  | {
-    type: "set-class";
-    nodeId: number;
-    className: string;
-  }
-  | {
-    type: "subscribe-event";
-    nodeId: number;
-    name: string;
-  }
-  | {
-    type: "unsubscribe-event";
-    nodeId: number;
-    name: string;
-  };
-
-type AndroidBridgeNodeBase = {
-  children: AndroidBridgeNode[];
-  cleanups: Array<() => void>;
-  id: number;
-  kind: string;
-  parent: AndroidBridgeNode | null;
-};
-
-export type AndroidBridgeAnchorNode = AndroidBridgeNodeBase & {
-  kind: "anchor";
-  label: string;
-};
-
-export type AndroidBridgeElementNode = AndroidBridgeNodeBase & {
-  className: string;
-  eventHandlers: Record<string, RendererEventHandler[]>;
-  kind: "element";
-  props: Record<string, unknown>;
-  styles: Record<string, string>;
-  svg: boolean;
-  viewType: string;
-};
-
-export type AndroidBridgeFragmentNode = AndroidBridgeNodeBase & {
-  kind: "fragment";
-};
-
-export type AndroidBridgeTextNode = AndroidBridgeNodeBase & {
-  kind: "text";
-  value: string;
-};
-
-export type AndroidBridgeNode =
-  | AndroidBridgeAnchorNode
-  | AndroidBridgeElementNode
-  | AndroidBridgeFragmentNode
-  | AndroidBridgeTextNode;
-
-export interface CreateAndroidCommandBridgeOptions {
-  emitCommand?: (command: AndroidBridgeCommand) => void;
-  rootViewType?: string;
-}
-
-export interface AndroidCommandBridge {
-  readonly commands: AndroidBridgeCommand[];
-  dispatchEvent(node: AndroidBridgeElementNode, name: string, payload?: unknown): void;
-  getNode(nodeId: number): AndroidBridgeNode | undefined;
-  host: RendererHost<
-    AndroidBridgeNode,
-    AndroidBridgeElementNode,
-    AndroidBridgeTextNode,
-    AndroidBridgeFragmentNode
-  >;
-  root: AndroidBridgeElementNode;
-}
+export type {
+  AndroidBridgeCommand,
+  AndroidCommandBridge,
+  CreateAndroidCommandBridgeOptions,
+} from "./bridgeContracts.js";
+export type {
+  AndroidBridgeAnchorNode,
+  AndroidBridgeElementNode,
+  AndroidBridgeFragmentNode,
+  AndroidBridgeNode,
+  AndroidBridgeTextNode,
+} from "./bridgeNodes.js";
 
 /**
  * Creates a thin command-oriented Android bridge that keeps renderer ownership in JS
@@ -129,14 +50,8 @@ export function createAndroidCommandBridge(
     emitCommand?.(command);
   }
 
-  function createBaseNode<Kind extends AndroidBridgeNode["kind"]>(kind: Kind): AndroidBridgeNodeBase & { kind: Kind } {
-    return {
-      kind,
-      id: nextNodeId++,
-      parent: null,
-      children: [],
-      cleanups: []
-    } as AndroidBridgeNodeBase & { kind: Kind };
+  function createBaseNode<Kind extends AndroidBridgeNode["kind"]>(kind: Kind) {
+    return createAndroidBridgeNodeBase(nextNodeId++, kind);
   }
 
   function createElementNode(viewType: string, svg: boolean): AndroidBridgeElementNode {
@@ -177,63 +92,6 @@ export function createAndroidCommandBridge(
     nodes.set(node.id, node);
 
     return node;
-  }
-
-  function isNativeBackedNode(node: AndroidBridgeNode): node is AndroidBridgeElementNode | AndroidBridgeTextNode {
-    return node.kind === "element" || node.kind === "text";
-  }
-
-  function detach(node: AndroidBridgeNode): void {
-    const parent = node.parent;
-    if (!parent) {
-      return;
-    }
-
-    const index = parent.children.indexOf(node);
-    if (index !== -1) {
-      parent.children.splice(index, 1);
-    }
-
-    node.parent = null;
-  }
-
-  function disposeSubtree(node: AndroidBridgeNode): void {
-    for (const child of [...node.children]) {
-      disposeSubtree(child);
-      child.parent = null;
-    }
-
-    node.children.length = 0;
-
-    for (const cleanup of node.cleanups.splice(0, node.cleanups.length)) {
-      cleanup();
-    }
-
-    if (node.kind === "element") {
-      node.eventHandlers = {};
-    }
-
-    nodes.delete(node.id);
-  }
-
-  function resolveAnchorId(parent: AndroidBridgeNode, anchor: AndroidBridgeNode | null | undefined): number | null {
-    if (!anchor) {
-      return null;
-    }
-
-    const anchorIndex = parent.children.indexOf(anchor);
-    if (anchorIndex === -1) {
-      return isNativeBackedNode(anchor) ? anchor.id : null;
-    }
-
-    for (let index = anchorIndex; index < parent.children.length; index += 1) {
-      const candidate = parent.children[index];
-      if (isNativeBackedNode(candidate)) {
-        return candidate.id;
-      }
-    }
-
-    return null;
   }
 
   const host: RendererHost<
@@ -296,9 +154,9 @@ export function createAndroidCommandBridge(
         return;
       }
 
-      const anchorId = resolveAnchorId(parent, anchor);
+      const anchorId = resolveAndroidBridgeAnchorId(parent, anchor);
 
-      detach(child);
+      detachAndroidBridgeNode(child);
 
       const anchorIndex = anchor ? parent.children.indexOf(anchor) : -1;
       if (anchorIndex >= 0) {
@@ -309,7 +167,7 @@ export function createAndroidCommandBridge(
 
       child.parent = parent;
 
-      if (isNativeBackedNode(parent) && isNativeBackedNode(child)) {
+      if (isAndroidNativeBackedNode(parent) && isAndroidNativeBackedNode(child)) {
         pushCommand({
           type: "insert",
           parentId: parent.id,
@@ -327,10 +185,10 @@ export function createAndroidCommandBridge(
         return;
       }
 
-      disposeSubtree(node);
-      detach(node);
+      disposeAndroidBridgeSubtree(node, nodes);
+      detachAndroidBridgeNode(node);
 
-      if (isNativeBackedNode(node)) {
+      if (isAndroidNativeBackedNode(node)) {
         pushCommand({
           type: "remove",
           nodeId: node.id
@@ -362,15 +220,17 @@ export function createAndroidCommandBridge(
       });
     },
     setStyle(el, style) {
+      const normalizedStyle = normalizeAndroidStyle(el.viewType, style);
+
       el.styles = {
         ...el.styles,
-        ...style
+        ...normalizedStyle
       };
 
       pushCommand({
         type: "set-style",
         nodeId: el.id,
-        style
+        style: normalizedStyle
       });
     },
     setClass(el, className) {

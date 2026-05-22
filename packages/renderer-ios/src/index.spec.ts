@@ -78,7 +78,7 @@ describe("renderer-ios stub", () => {
       {
         type: "set-style",
         nodeId: label.id,
-        style: { color: "systemBlue" }
+        style: { textColor: "systemBlue" }
       },
       {
         type: "set-class",

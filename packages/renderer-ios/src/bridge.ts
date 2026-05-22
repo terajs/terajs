@@ -1,116 +1,37 @@
-import type { RendererEventHandler, RendererHost } from "@terajs/renderer";
+import type { RendererHost } from "@terajs/renderer";
 
+import {
+  createUIKitBridgeNodeBase,
+  detachUIKitBridgeNode,
+  disposeUIKitBridgeSubtree,
+  isUIKitNativeBackedNode,
+  resolveUIKitBridgeAnchorId,
+  type UIKitBridgeAnchorNode,
+  type UIKitBridgeElementNode,
+  type UIKitBridgeFragmentNode,
+  type UIKitBridgeNode,
+  type UIKitBridgeTextNode,
+} from "./bridgeNodes.js";
+import {
+  type CreateUIKitCommandBridgeOptions,
+  type UIKitBridgeCommand,
+  type UIKitCommandBridge,
+} from "./bridgeContracts.js";
 import { normalizeUIKitEventName, normalizeUIKitProp, resolveUIKitViewType } from "./primitives.js";
+import { normalizeUIKitStyle } from "./styleNormalization.js";
 
-export type UIKitBridgeCommand =
-  | {
-    type: "create-element";
-    nodeId: number;
-    viewType: string;
-    svg: boolean;
-  }
-  | {
-    type: "create-text";
-    nodeId: number;
-    value: string;
-  }
-  | {
-    type: "insert";
-    parentId: number;
-    childId: number;
-    anchorId: number | null;
-  }
-  | {
-    type: "remove";
-    nodeId: number;
-  }
-  | {
-    type: "set-text";
-    nodeId: number;
-    value: string;
-  }
-  | {
-    type: "set-prop";
-    nodeId: number;
-    name: string;
-    value: unknown;
-  }
-  | {
-    type: "set-style";
-    nodeId: number;
-    style: Record<string, string>;
-  }
-  | {
-    type: "set-class";
-    nodeId: number;
-    className: string;
-  }
-  | {
-    type: "subscribe-event";
-    nodeId: number;
-    name: string;
-  }
-  | {
-    type: "unsubscribe-event";
-    nodeId: number;
-    name: string;
-  };
-
-type UIKitBridgeNodeBase = {
-  children: UIKitBridgeNode[];
-  cleanups: Array<() => void>;
-  id: number;
-  kind: string;
-  parent: UIKitBridgeNode | null;
-};
-
-export type UIKitBridgeAnchorNode = UIKitBridgeNodeBase & {
-  kind: "anchor";
-  label: string;
-};
-
-export type UIKitBridgeElementNode = UIKitBridgeNodeBase & {
-  className: string;
-  eventHandlers: Record<string, RendererEventHandler[]>;
-  kind: "element";
-  props: Record<string, unknown>;
-  styles: Record<string, string>;
-  svg: boolean;
-  viewType: string;
-};
-
-export type UIKitBridgeFragmentNode = UIKitBridgeNodeBase & {
-  kind: "fragment";
-};
-
-export type UIKitBridgeTextNode = UIKitBridgeNodeBase & {
-  kind: "text";
-  value: string;
-};
-
-export type UIKitBridgeNode =
-  | UIKitBridgeAnchorNode
-  | UIKitBridgeElementNode
-  | UIKitBridgeFragmentNode
-  | UIKitBridgeTextNode;
-
-export interface CreateUIKitCommandBridgeOptions {
-  emitCommand?: (command: UIKitBridgeCommand) => void;
-  rootViewType?: string;
-}
-
-export interface UIKitCommandBridge {
-  readonly commands: UIKitBridgeCommand[];
-  dispatchEvent(node: UIKitBridgeElementNode, name: string, payload?: unknown): void;
-  getNode(nodeId: number): UIKitBridgeNode | undefined;
-  host: RendererHost<
-    UIKitBridgeNode,
-    UIKitBridgeElementNode,
-    UIKitBridgeTextNode,
-    UIKitBridgeFragmentNode
-  >;
-  root: UIKitBridgeElementNode;
-}
+export type {
+  CreateUIKitCommandBridgeOptions,
+  UIKitBridgeCommand,
+  UIKitCommandBridge,
+} from "./bridgeContracts.js";
+export type {
+  UIKitBridgeAnchorNode,
+  UIKitBridgeElementNode,
+  UIKitBridgeFragmentNode,
+  UIKitBridgeNode,
+  UIKitBridgeTextNode,
+} from "./bridgeNodes.js";
 
 /**
  * Creates a thin command-oriented UIKit bridge that keeps renderer ownership in JS
@@ -129,14 +50,8 @@ export function createUIKitCommandBridge(
     emitCommand?.(command);
   }
 
-  function createBaseNode<Kind extends UIKitBridgeNode["kind"]>(kind: Kind): UIKitBridgeNodeBase & { kind: Kind } {
-    return {
-      kind,
-      id: nextNodeId++,
-      parent: null,
-      children: [],
-      cleanups: []
-    } as UIKitBridgeNodeBase & { kind: Kind };
+  function createBaseNode<Kind extends UIKitBridgeNode["kind"]>(kind: Kind) {
+    return createUIKitBridgeNodeBase(nextNodeId++, kind);
   }
 
   function createElementNode(viewType: string, svg: boolean): UIKitBridgeElementNode {
@@ -177,63 +92,6 @@ export function createUIKitCommandBridge(
     nodes.set(node.id, node);
 
     return node;
-  }
-
-  function isNativeBackedNode(node: UIKitBridgeNode): node is UIKitBridgeElementNode | UIKitBridgeTextNode {
-    return node.kind === "element" || node.kind === "text";
-  }
-
-  function detach(node: UIKitBridgeNode): void {
-    const parent = node.parent;
-    if (!parent) {
-      return;
-    }
-
-    const index = parent.children.indexOf(node);
-    if (index !== -1) {
-      parent.children.splice(index, 1);
-    }
-
-    node.parent = null;
-  }
-
-  function disposeSubtree(node: UIKitBridgeNode): void {
-    for (const child of [...node.children]) {
-      disposeSubtree(child);
-      child.parent = null;
-    }
-
-    node.children.length = 0;
-
-    for (const cleanup of node.cleanups.splice(0, node.cleanups.length)) {
-      cleanup();
-    }
-
-    if (node.kind === "element") {
-      node.eventHandlers = {};
-    }
-
-    nodes.delete(node.id);
-  }
-
-  function resolveAnchorId(parent: UIKitBridgeNode, anchor: UIKitBridgeNode | null | undefined): number | null {
-    if (!anchor) {
-      return null;
-    }
-
-    const anchorIndex = parent.children.indexOf(anchor);
-    if (anchorIndex === -1) {
-      return isNativeBackedNode(anchor) ? anchor.id : null;
-    }
-
-    for (let index = anchorIndex; index < parent.children.length; index += 1) {
-      const candidate = parent.children[index];
-      if (isNativeBackedNode(candidate)) {
-        return candidate.id;
-      }
-    }
-
-    return null;
   }
 
   const host: RendererHost<
@@ -296,9 +154,9 @@ export function createUIKitCommandBridge(
         return;
       }
 
-      const anchorId = resolveAnchorId(parent, anchor);
+      const anchorId = resolveUIKitBridgeAnchorId(parent, anchor);
 
-      detach(child);
+      detachUIKitBridgeNode(child);
 
       const anchorIndex = anchor ? parent.children.indexOf(anchor) : -1;
       if (anchorIndex >= 0) {
@@ -309,7 +167,7 @@ export function createUIKitCommandBridge(
 
       child.parent = parent;
 
-      if (isNativeBackedNode(parent) && isNativeBackedNode(child)) {
+      if (isUIKitNativeBackedNode(parent) && isUIKitNativeBackedNode(child)) {
         pushCommand({
           type: "insert",
           parentId: parent.id,
@@ -327,10 +185,10 @@ export function createUIKitCommandBridge(
         return;
       }
 
-      disposeSubtree(node);
-      detach(node);
+      disposeUIKitBridgeSubtree(node, nodes);
+      detachUIKitBridgeNode(node);
 
-      if (isNativeBackedNode(node)) {
+      if (isUIKitNativeBackedNode(node)) {
         pushCommand({
           type: "remove",
           nodeId: node.id
@@ -362,15 +220,17 @@ export function createUIKitCommandBridge(
       });
     },
     setStyle(el, style) {
+      const normalizedStyle = normalizeUIKitStyle(el.viewType, style);
+
       el.styles = {
         ...el.styles,
-        ...style
+        ...normalizedStyle
       };
 
       pushCommand({
         type: "set-style",
         nodeId: el.id,
-        style
+        style: normalizedStyle
       });
     },
     setClass(el, className) {

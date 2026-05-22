@@ -12,6 +12,7 @@ This directory contains experimental scaffolds for native renderers:
 - package-local UIKit host session and compiler-driven IR mounting entry point
 - package-local primitive mapping from Terajs tags to UIKit view types
 - package-local prop and event normalization from Terajs-style names to UIKit-facing bridge payloads
+- package-local style normalization from Terajs-style layout props to UIKit-facing bridge payloads
 - focused JS-side conformance tests for the current host adapter seam
 - Example renderer entry points
 - README and roadmap for future development
