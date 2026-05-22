@@ -8,13 +8,19 @@ class AndroidHostRuntime(
   emitEventPayload: (String) -> Unit = {}
 ) {
   val applier = AndroidCommandApplier(context)
+  private lateinit var transportRef: AndroidHostTransport
+  private val eventBinder = AndroidHostEventBinder { nodeId, name, payload ->
+    if (::transportRef.isInitialized) {
+      transportRef.sendNativeEvent(nodeId = nodeId, name = name, payload = payload)
+    }
+  }
 
   val transport = AndroidHostTransport(
     applyCommands = { commands ->
-      applier.applyCommands(commands)
+      applyCommands(commands)
     },
     emitEventPayload = emitEventPayload
-  )
+  ).also { transportRef = it }
 
   val rootView: View?
     get() = applier.root?.view
@@ -29,5 +35,34 @@ class AndroidHostRuntime(
     payload: TerajsJsonValue? = null
   ) {
     transport.sendNativeEvent(nodeId = nodeId, name = name, payload = payload)
+  }
+
+  private fun applyCommands(commands: List<AndroidHostCommand>) {
+    commands.forEach { command ->
+      if (command.type == AndroidHostCommandType.Remove && command.nodeId != null) {
+        removeBindings(command.nodeId)
+      }
+
+      applier.apply(command)
+
+      if (command.type == AndroidHostCommandType.CreateElement && command.nodeId != null) {
+        val node = applier.node(command.nodeId) as? AndroidHostElementNode
+        if (node != null) {
+          eventBinder.bindIfNeeded(node)
+        }
+      }
+    }
+  }
+
+  private fun removeBindings(nodeId: Int) {
+    val node = applier.node(nodeId)
+    if (node is AndroidHostElementNode) {
+      node.childNodeIds.forEach { childId ->
+        removeBindings(childId)
+      }
+      eventBinder.remove(nodeId)
+    } else if (node == null) {
+      eventBinder.remove(nodeId)
+    }
   }
 }

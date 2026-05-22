@@ -11,6 +11,8 @@ This directory contains experimental scaffolds for native renderers:
 - package-local Kotlin transport scaffold for decoding command batches and encoding node-id native event packets on the Android side
 - package-local Kotlin host command applier scaffold for allocating concrete Android Views and replaying thin bridge commands into a native-owned tree
 - package-local Kotlin host runtime scaffold for wiring transport and command application into a current Android root view
+- package-local Kotlin event binding scaffold for press, text-input change, and switch change packet emission
+- package-local Android Gradle compile scaffold under `android/`
 - JS-side host-consumer proof that replays bridge commands into an Android Views-shaped native tree
 - package-local Android host session and compiler-driven IR mounting entry point with node-id native event packet dispatch
 - package-local primitive mapping from Terajs tags to Android View types

@@ -13,6 +13,8 @@ This package represents the Android-side exploration for rendering Terajs compon
 - package-local native host transport source now exists under `android/src/main/kotlin/dev/terajs/renderer/android/` for decoding command batches and encoding native event packets on the Android Views side
 - package-local Android host command applier source now exists under `android/src/main/kotlin/dev/terajs/renderer/android/` for allocating concrete `View` instances, replaying command batches, and syncing text, props, styles, and event subscriptions into a native-owned tree
 - package-local Android host runtime source now exists under `android/src/main/kotlin/dev/terajs/renderer/android/` to wire the transport and command applier together and expose the current native root view
+- package-local Android event bindings now cover basic press, text-input change, and switch change emission back into the JS-owned event packet loop
+- a minimal Android library Gradle scaffold now exists under `android/` so the host code has a package-local compile target
 - package-local primitive mapping now resolves standard tags and native-flavored tags into concrete Android View types
 - package-local bridge normalization now translates standard props and events such as `aria-label`, input placeholders, structured selection-range and caret props, textarea line-count, viewport, interaction, and text-limit props, secure input traits, keyboard and correction hints, image alt text, and `click` into native-facing Android names
 - package-local style normalization now translates a small layout subset like row/column, spacing, alignment, and colors into Android-facing style keys
