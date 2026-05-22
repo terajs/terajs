@@ -9,7 +9,7 @@ This package represents the Android-side exploration for rendering Terajs compon
 - proof-of-concept / planning stage
 - not production-ready
 - intended to stay aligned with the neutral runtime and renderer contracts rather than introducing a separate framework model
-- current JS seam is a minimal imperative host adapter with focused conformance tests
+- current JS seam includes a minimal imperative host adapter and a thin command-oriented bridge host with focused conformance tests
 
 ## Direction
 

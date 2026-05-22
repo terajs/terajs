@@ -7,6 +7,7 @@ This directory contains experimental scaffolds for native renderers:
 
 ## What’s included
 - JS-side platform adapter interfaces and stubs
+- JS-side command-oriented bridge host proof for Android Views-style operations and event delivery
 - focused JS-side conformance tests for the current host adapter seam
 - Example renderer entry points
 - README and roadmap for future development

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { IRElementNode, IRForNode, IRInterpolationNode } from "@terajs/compiler";
+import type { IRElementNode, IRForNode, IRIfNode, IRInterpolationNode } from "@terajs/compiler";
 import { signal } from "@terajs/reactivity";
 
 import { createHostBindings } from "../../renderer-web/src/hostBindings.js";
@@ -13,7 +13,13 @@ import {
   type SimulationNode,
 } from "../../renderer-web/src/testing/simulationHost.js";
 
-import { AndroidViewAdapter, renderTerajsToAndroidViews } from "./index.js";
+import {
+  AndroidViewAdapter,
+  createAndroidCommandBridge,
+  renderTerajsToAndroidViews,
+  type AndroidBridgeElementNode,
+  type AndroidBridgeTextNode,
+} from "./index.js";
 
 describe("renderer-android stub", () => {
   it("creates, inserts, updates, and removes Android host nodes", () => {
@@ -46,6 +52,87 @@ describe("renderer-android stub", () => {
 
     expect(createElement).toHaveBeenCalledWith("ViewGroup");
     expect(root.type).toBe("ViewGroup");
+  });
+
+  it("records thin Android host commands without sending JS handlers across the bridge", () => {
+    const bridge = createAndroidCommandBridge();
+    const row = bridge.host.createElement("TextView");
+    const text = bridge.host.createText("Hello native");
+    const handler = vi.fn();
+
+    bridge.host.insert(bridge.root, row);
+    bridge.host.insert(row, text);
+    bridge.host.setProp(row, "contentDescription", "Greeting");
+    bridge.host.setStyle(row, { color: "#1E88E5" });
+    bridge.host.setClass(row, "headline");
+    bridge.host.addEvent(row, "press", handler);
+    bridge.dispatchEvent(row, "press", { source: "native" });
+    bridge.host.removeEvent(row, "press", handler);
+    bridge.host.remove(row);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith({ source: "native" });
+    expect(bridge.commands).toEqual([
+      {
+        type: "create-element",
+        nodeId: bridge.root.id,
+        viewType: "ViewGroup",
+        svg: false
+      },
+      {
+        type: "create-element",
+        nodeId: row.id,
+        viewType: "TextView",
+        svg: false
+      },
+      {
+        type: "create-text",
+        nodeId: text.id,
+        value: "Hello native"
+      },
+      {
+        type: "insert",
+        parentId: bridge.root.id,
+        childId: row.id,
+        anchorId: null
+      },
+      {
+        type: "insert",
+        parentId: row.id,
+        childId: text.id,
+        anchorId: null
+      },
+      {
+        type: "set-prop",
+        nodeId: row.id,
+        name: "contentDescription",
+        value: "Greeting"
+      },
+      {
+        type: "set-style",
+        nodeId: row.id,
+        style: { color: "#1E88E5" }
+      },
+      {
+        type: "set-class",
+        nodeId: row.id,
+        className: "headline"
+      },
+      {
+        type: "subscribe-event",
+        nodeId: row.id,
+        name: "press"
+      },
+      {
+        type: "unsubscribe-event",
+        nodeId: row.id,
+        name: "press"
+      },
+      {
+        type: "remove",
+        nodeId: row.id
+      }
+    ]);
   });
 
   it("reuses compiler-driven list rows against an Android Views-style host simulation", async () => {
@@ -105,5 +192,118 @@ describe("renderer-android stub", () => {
     expect(simulationTextContent(root)).toBe("B2A");
     expect(reorderedRows[0]).toBe(secondNode);
     expect(reorderedRows[1]).toBe(firstNode);
+  });
+
+  it("renders compiler output through the Android command bridge", async () => {
+    const bridge = createAndroidCommandBridge();
+    const renderer = createHostIRRenderer({
+      host: bridge.host,
+      bindings: createHostBindings(bridge.host)
+    });
+
+    const label = signal("Alpha");
+    const onPress = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "button-view",
+      props: [
+        {
+          kind: "bind",
+          name: "contentDescription",
+          value: "label",
+          binding: {
+            kind: "simple-path",
+            segments: ["label"]
+          }
+        },
+        {
+          kind: "event",
+          name: "press",
+          value: "onPress"
+        }
+      ],
+      children: [
+        {
+          type: "interp",
+          expression: "label",
+          loc: undefined,
+          flags: { dynamic: true }
+        } as IRInterpolationNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = renderer.renderIRNode(node, { label, onPress }) as AndroidBridgeElementNode;
+    bridge.host.insert(bridge.root, rendered);
+
+    expect(rendered.viewType).toBe("button-view");
+    expect(rendered.props.contentDescription).toBe("Alpha");
+    expect(rendered.children).toHaveLength(1);
+    expect((rendered.children[0] as AndroidBridgeTextNode).value).toBe("Alpha");
+    expect(bridge.commands.some((command) => command.type === "subscribe-event" && command.nodeId === rendered.id && command.name === "press")).toBe(true);
+
+    bridge.dispatchEvent(rendered, "press", { action: "primary" });
+    expect(onPress).toHaveBeenCalledWith({ action: "primary" });
+
+    label.set("Beta");
+    await Promise.resolve();
+
+    expect(rendered.props.contentDescription).toBe("Beta");
+    expect((rendered.children[0] as AndroidBridgeTextNode).value).toBe("Beta");
+  });
+
+  it("keeps control-flow anchors JS-local while updating native-backed Android nodes", async () => {
+    const bridge = createAndroidCommandBridge();
+    const renderer = createHostIRRenderer({
+      host: bridge.host,
+      bindings: createHostBindings(bridge.host)
+    });
+
+    const visible = signal(true);
+    const node: IRIfNode = {
+      type: "if",
+      condition: "visible",
+      then: [
+        {
+          type: "element",
+          tag: "text-view",
+          props: [],
+          children: [
+            {
+              type: "text",
+              value: "Visible",
+              loc: undefined,
+              flags: { dynamic: false }
+            }
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      else: [
+        {
+          type: "text",
+          value: "Hidden",
+          loc: undefined,
+          flags: { dynamic: false }
+        }
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = renderer.renderIRNode(node, { visible });
+    bridge.host.insert(bridge.root, rendered!);
+
+    expect(bridge.root.children.some((child) => child.kind === "anchor")).toBe(true);
+    expect(bridge.root.children.some((child) => child.kind === "element")).toBe(true);
+
+    visible.set(false);
+    await Promise.resolve();
+
+    expect(bridge.root.children.some((child) => child.kind === "anchor")).toBe(true);
+    expect(bridge.root.children.some((child) => child.kind === "element")).toBe(false);
+    expect(bridge.root.children.some((child) => child.kind === "text" && (child as AndroidBridgeTextNode).value === "Hidden")).toBe(true);
   });
 });

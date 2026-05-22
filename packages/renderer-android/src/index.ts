@@ -1,5 +1,15 @@
 import type { RendererHost } from "@terajs/renderer";
 
+export {
+  createAndroidCommandBridge,
+  type AndroidBridgeCommand,
+  type AndroidBridgeElementNode,
+  type AndroidBridgeNode,
+  type AndroidBridgeTextNode,
+  type AndroidCommandBridge,
+  type CreateAndroidCommandBridgeOptions
+} from "./bridge.js";
+
 type AndroidViewHostNode = {
   type: string;
   props: Record<string, unknown>;
@@ -42,8 +52,8 @@ export const AndroidViewAdapter: AndroidViewHostAdapter = {
 };
 
 /**
- * Creates the current placeholder native root while the real JS-to-Android bridge
- * is still being built.
+ * Creates the current placeholder native root while the renderer package grows
+ * a full command-oriented bridge host for compiler-driven native proof.
  */
 export function renderTerajsToAndroidViews(component: any, adapter: AndroidViewHostAdapter = AndroidViewAdapter) {
   void component;
