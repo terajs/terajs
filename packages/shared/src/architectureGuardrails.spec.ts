@@ -25,6 +25,13 @@ const nativeAdapterPackages = [
   "renderer-android"
 ];
 
+const allowedNativeRendererImports = new Set([
+  "@terajs/reactivity",
+  "@terajs/renderer",
+  "@terajs/runtime",
+  "@terajs/shared"
+]);
+
 const adapterImports = [
   "@terajs/app",
   "@terajs/renderer-web",
@@ -176,6 +183,54 @@ describe("architecture guardrails", () => {
         }
       }
     }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("prevents native adapter production source from importing renderer-web internals by relative path", () => {
+    const violations: string[] = [];
+
+    for (const packageName of nativeAdapterPackages) {
+      for (const filePath of collectFiles(path.join(packagesRoot, packageName, "src"), (candidate) => isProductionSourceFile(candidate))) {
+        for (const importPath of extractRelativeImports(read(filePath))) {
+          if (importPath.includes("renderer-web/")) {
+            violations.push(formatViolation(filePath, `imports renderer-web internals by relative path ${importPath}`));
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("limits native adapter production source to neutral Terajs imports", () => {
+    const violations: string[] = [];
+
+    for (const packageName of nativeAdapterPackages) {
+      for (const filePath of collectFiles(path.join(packagesRoot, packageName, "src"), (candidate) => isProductionSourceFile(candidate))) {
+        for (const importPath of extractBareImports(read(filePath))) {
+          if (!importPath.startsWith("@terajs/")) {
+            continue;
+          }
+
+          if (!allowedNativeRendererImports.has(importPath)) {
+            violations.push(formatViolation(filePath, `imports non-neutral Terajs module ${importPath}`));
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps renderFromIR hot paths free of shared host-helper imports", () => {
+    const renderFromIRPath = path.join(packagesRoot, "renderer-web", "src", "renderFromIR.ts");
+    const source = read(renderFromIRPath);
+    const violations = [
+      "./hostIRShared.js",
+      "./hostBindings.js",
+      "./createHostIRRenderer.js"
+    ].filter((importPath) => source.includes(`from \"${importPath}\"`) || source.includes(`from '${importPath}'`));
 
     expect(violations).toEqual([]);
   });
@@ -452,6 +507,28 @@ function extractBareImports(source: string): string[] {
   while ((match = pattern.exec(source)) !== null) {
     const importPath = match[1];
     if (!importPath || importPath.startsWith(".") || importPath.startsWith("/")) {
+      continue;
+    }
+
+    imports.add(importPath);
+  }
+
+  return [...imports];
+}
+
+function extractRelativeImports(source: string): string[] {
+  return extractAllImports(source)
+    .filter((importPath) => importPath.startsWith(".") || importPath.startsWith("/"));
+}
+
+function extractAllImports(source: string): string[] {
+  const imports = new Set<string>();
+  const pattern = /^\s*import(?:\s+[^"';]+?\s+from\s+)?["']([^"']+)["']/gm;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = pattern.exec(source)) !== null) {
+    const importPath = match[1];
+    if (!importPath) {
       continue;
     }
 

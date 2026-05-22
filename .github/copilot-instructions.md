@@ -11,3 +11,13 @@ Keep Terajs architecture modular and Terajs-native.
 - When adding a feature, prefer adding a small neutral contract in a core package and implementing it in adapters rather than leaking adapter behavior upward into the core.
 - If a change appears faster but introduces architectural drift, stop and choose the boundary-preserving implementation instead.
 - Treat established user constraints and project vision as architecture inputs, not optional guidance. Future iteration should preserve those constraints unless the user explicitly changes them.
+
+## Native Renderer Lock
+
+- Terajs native renderer work must keep Terajs source renderer-neutral; do not treat DOM output as the source for iOS or Android.
+- The first real native renderer targets are UIKit Views on iOS and Android Views on Android.
+- SwiftUI and Jetpack Compose are optional outer shells later, not first renderer targets.
+- Keep JS authoritative for rendering intelligence: reactivity, control flow, keyed reconciliation, component composition, scheduling, and binding resolution stay in JS.
+- Keep native authoritative only for concrete views, mutation application, layout participation, and event delivery.
+- The native bridge must stay thin and command-oriented. Do not send component instances, virtual trees, lifecycle objects, hook semantics, or framework-compatibility payloads across the bridge.
+- Do not trade `renderer-web` hot-path performance for generic helper reuse in native renderer extraction work.

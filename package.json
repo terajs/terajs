@@ -23,7 +23,7 @@
     "audit:docs": "node scripts/audit-docs.mjs",
     "audit:exports": "node scripts/audit-exports.mjs",
     "audit:exports:strict": "node scripts/audit-exports.mjs --strict",
-    "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict && npm run audit:docs",
+    "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict && npm run audit:docs && npm run bench:browser:guard",
     "release:status": "changeset status --verbose",
     "version-packages": "changeset version && node scripts/sync-release-version.mjs && npm install --package-lock-only",
     "release:tag": "node scripts/create-release-tag.mjs",

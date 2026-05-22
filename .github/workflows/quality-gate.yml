@@ -11,13 +11,15 @@ concurrency:
 jobs:
   architecture-and-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
@@ -45,3 +47,26 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Resolve Browser For Bench Guard
+        shell: bash
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "TERAJS_BROWSER_BENCH_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "TERAJS_BROWSER_BENCH_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "TERAJS_BROWSER_BENCH_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          elif command -v chromium-browser >/dev/null 2>&1; then
+            echo "TERAJS_BROWSER_BENCH_EXECUTABLE=$(command -v chromium-browser)" >> "$GITHUB_ENV"
+          elif command -v microsoft-edge >/dev/null 2>&1; then
+            echo "TERAJS_BROWSER_BENCH_EXECUTABLE=$(command -v microsoft-edge)" >> "$GITHUB_ENV"
+          elif command -v microsoft-edge-stable >/dev/null 2>&1; then
+            echo "TERAJS_BROWSER_BENCH_EXECUTABLE=$(command -v microsoft-edge-stable)" >> "$GITHUB_ENV"
+          else
+            echo "::error::No supported browser executable found for npm run bench:browser:guard"
+            exit 1
+          fi
+
+      - name: Run Browser Perf Guard
+        run: npm run bench:browser:guard
