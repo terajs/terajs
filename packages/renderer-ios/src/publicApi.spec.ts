@@ -48,12 +48,101 @@ describe("renderer-ios public API", () => {
       name: "text",
       value: "Alpha"
     });
+    expect(normalizeUIKitProp("UITextField", "hint", "Email address")).toEqual({
+      name: "placeholder",
+      value: "Email address"
+    });
+    expect(normalizeUIKitProp("UIImageView", "alt", "Hero artwork")).toEqual({
+      name: "accessibilityLabel",
+      value: "Hero artwork"
+    });
     expect(normalizeUIKitProp("UISwitch", "checked", 1)).toEqual({
       name: "on",
       value: true
     });
     expect(normalizeUIKitEventName("UIButton", "click")).toBe("tap");
     expect(normalizeUIKitEventName("UISwitch", "toggle")).toBe("change");
+  });
+
+  it("renders native input and image prop aliases through the UIKit entry point", async () => {
+    const placeholder = signal("Email address");
+    const source = signal("/hero-alpha.png");
+    const alt = signal("Alpha hero artwork");
+    const ir: IRModule = {
+      filePath: "/native/ios-aliases.tera",
+      template: [
+        {
+          type: "element",
+          tag: "input",
+          props: [
+            {
+              kind: "bind",
+              name: "hint",
+              value: "placeholder",
+              binding: {
+                kind: "simple-path",
+                segments: ["placeholder"]
+              }
+            }
+          ],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRElementNode,
+        {
+          type: "element",
+          tag: "image",
+          props: [
+            {
+              kind: "bind",
+              name: "src",
+              value: "source",
+              binding: {
+                kind: "simple-path",
+                segments: ["source"]
+              }
+            },
+            {
+              kind: "bind",
+              name: "alt",
+              value: "alt",
+              binding: {
+                kind: "simple-path",
+                segments: ["alt"]
+              }
+            }
+          ],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRElementNode
+      ],
+      meta: {} as IRModule["meta"],
+      route: null
+    };
+
+    const rendered = renderTerajsToUIKitViews(ir, { placeholder, source, alt });
+    const root = rendered.root;
+    const input = root.children[0] as UIKitNativeViewNode;
+    const image = root.children[1] as UIKitNativeViewNode;
+
+    expect(input.viewType).toBe("UITextField");
+    expect(input.props.placeholder).toBe("Email address");
+    expect(image.viewType).toBe("UIImageView");
+    expect(image.props.source).toBe("/hero-alpha.png");
+    expect(image.props.accessibilityLabel).toBe("Alpha hero artwork");
+
+    placeholder.set("Work email");
+    source.set("/hero-beta.png");
+    alt.set("Beta hero artwork");
+    await Promise.resolve();
+
+    expect(input.props.placeholder).toBe("Work email");
+    expect(image.props.source).toBe("/hero-beta.png");
+    expect(image.props.accessibilityLabel).toBe("Beta hero artwork");
+
+    rendered.unmount();
+    expect(root.children).toEqual([]);
   });
 
   it("renders compiler IR modules through the public UIKit entry point", async () => {

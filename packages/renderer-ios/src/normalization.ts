@@ -1,3 +1,5 @@
+import { normalizeUIKitInputProp } from "./inputProps.js";
+
 const UIKitTextPropViewTypes = new Set(["UIButton", "UILabel", "UITextField", "UITextView"]);
 const UIKitImagePropViewTypes = new Set(["UIImageView"]);
 
@@ -12,6 +14,18 @@ function normalizeNativeKey(name: string): string {
 
 export function normalizeUIKitProp(viewType: string, name: string, value: unknown): UIKitNormalizedProp {
   const normalizedKey = normalizeNativeKey(name);
+
+  const inputProp = normalizeUIKitInputProp(viewType, name, value);
+  if (inputProp) {
+    return inputProp;
+  }
+
+  if (UIKitImagePropViewTypes.has(viewType) && normalizedKey === "alt") {
+    return {
+      name: "accessibilityLabel",
+      value
+    };
+  }
 
   if (
     normalizedKey === "arialabel"

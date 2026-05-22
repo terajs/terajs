@@ -1,3 +1,5 @@
+import { normalizeAndroidInputProp } from "./inputProps.js";
+
 const AndroidTextPropViewTypes = new Set(["Button", "EditText", "TextView"]);
 const AndroidImagePropViewTypes = new Set(["ImageView"]);
 
@@ -12,6 +14,18 @@ function normalizeNativeKey(name: string): string {
 
 export function normalizeAndroidProp(viewType: string, name: string, value: unknown): AndroidNormalizedProp {
   const normalizedKey = normalizeNativeKey(name);
+
+  const inputProp = normalizeAndroidInputProp(viewType, name, value);
+  if (inputProp) {
+    return inputProp;
+  }
+
+  if (AndroidImagePropViewTypes.has(viewType) && normalizedKey === "alt") {
+    return {
+      name: "contentDescription",
+      value
+    };
+  }
 
   if (
     normalizedKey === "arialabel"

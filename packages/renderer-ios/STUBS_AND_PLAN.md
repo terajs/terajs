@@ -11,7 +11,7 @@ This directory contains experimental scaffolds for native renderers:
 - JS-side host-consumer proof that replays bridge commands into a UIKit-shaped native tree
 - package-local UIKit host session and compiler-driven IR mounting entry point
 - package-local primitive mapping from Terajs tags to UIKit view types
-- package-local prop and event normalization from Terajs-style names to UIKit-facing bridge payloads
+- package-local prop and event normalization from Terajs-style names to UIKit-facing bridge payloads, including input hints, secure and keyboard traits, and image accessibility aliases
 - package-local style normalization from Terajs-style layout props to UIKit-facing bridge payloads
 - package-local native event ingress for text inputs and switches so host-session state and JS handlers stay aligned
 - focused JS-side conformance tests for the current host adapter seam
