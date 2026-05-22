@@ -1,4 +1,5 @@
 import { normalizeUIKitInputProp } from "./inputProps.js";
+import { normalizeUIKitTextInteractionProp } from "./textInteractionProps.js";
 import { normalizeUIKitTextLayoutProp } from "./textLayoutProps.js";
 import { normalizeUIKitTextViewportProp } from "./textViewportProps.js";
 
@@ -34,6 +35,11 @@ export function normalizeUIKitProp(viewType: string, name: string, value: unknow
   const textViewportProp = normalizeUIKitTextViewportProp(viewType, name, value);
   if (textViewportProp) {
     return textViewportProp;
+  }
+
+  const textInteractionProp = normalizeUIKitTextInteractionProp(viewType, name, value);
+  if (textInteractionProp) {
+    return textInteractionProp;
   }
 
   if (UIKitImagePropViewTypes.has(viewType) && normalizedKey === "alt") {

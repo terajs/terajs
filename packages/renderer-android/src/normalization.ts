@@ -1,4 +1,5 @@
 import { normalizeAndroidInputProp } from "./inputProps.js";
+import { normalizeAndroidTextInteractionProp } from "./textInteractionProps.js";
 import { normalizeAndroidTextLayoutProp } from "./textLayoutProps.js";
 import { normalizeAndroidTextViewportProp } from "./textViewportProps.js";
 
@@ -34,6 +35,11 @@ export function normalizeAndroidProp(viewType: string, name: string, value: unkn
   const textViewportProp = normalizeAndroidTextViewportProp(viewType, name, value);
   if (textViewportProp) {
     return textViewportProp;
+  }
+
+  const textInteractionProp = normalizeAndroidTextInteractionProp(viewType, name, value);
+  if (textInteractionProp) {
+    return textInteractionProp;
   }
 
   if (AndroidImagePropViewTypes.has(viewType) && normalizedKey === "alt") {

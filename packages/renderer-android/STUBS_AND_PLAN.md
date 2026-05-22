@@ -11,7 +11,7 @@ This directory contains experimental scaffolds for native renderers:
 - JS-side host-consumer proof that replays bridge commands into an Android Views-shaped native tree
 - package-local Android host session and compiler-driven IR mounting entry point
 - package-local primitive mapping from Terajs tags to Android View types
-- package-local prop and event normalization from Terajs-style names to Android-facing bridge payloads, including input placeholder, structured selection-range and caret props, textarea line-count and viewport props, secure, keyboard, and correction traits, and image accessibility aliases
+- package-local prop and event normalization from Terajs-style names to Android-facing bridge payloads, including input placeholder, structured selection-range and caret props, textarea line-count, viewport, and interaction props, secure, keyboard, and correction traits, and image accessibility aliases
 - package-local style normalization from Terajs-style layout props to Android-facing bridge payloads
 - package-local native event ingress for text input text, structured text selection payloads, and switch state so host-session state and JS handlers stay aligned
 - focused JS-side conformance tests for the current host adapter seam
