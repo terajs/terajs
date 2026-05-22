@@ -22,6 +22,8 @@
     { "path": "./packages/sfc" },
     { "path": "./packages/runtime" },
     { "path": "./packages/renderer" },
+    { "path": "./packages/renderer-ios" },
+    { "path": "./packages/renderer-android" },
     { "path": "./packages/renderer-ssr"},
     { "path": "./packages/renderer-web" },
     { "path": "./packages/router" },
