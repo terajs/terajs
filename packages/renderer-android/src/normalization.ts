@@ -1,4 +1,5 @@
 import { normalizeAndroidInputProp } from "./inputProps.js";
+import { normalizeAndroidTextLayoutProp } from "./textLayoutProps.js";
 
 const AndroidTextPropViewTypes = new Set(["Button", "EditText", "TextView"]);
 const AndroidImagePropViewTypes = new Set(["ImageView"]);
@@ -22,6 +23,11 @@ export function normalizeAndroidProp(viewType: string, name: string, value: unkn
   const inputProp = normalizeAndroidInputProp(viewType, name, value);
   if (inputProp) {
     return inputProp;
+  }
+
+  const textLayoutProp = normalizeAndroidTextLayoutProp(viewType, name, value);
+  if (textLayoutProp) {
+    return textLayoutProp;
   }
 
   if (AndroidImagePropViewTypes.has(viewType) && normalizedKey === "alt") {
