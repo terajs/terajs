@@ -1,6 +1,7 @@
 import { normalizeAndroidInputProp } from "./inputProps.js";
 import { normalizeAndroidTextInteractionProp } from "./textInteractionProps.js";
 import { normalizeAndroidTextLayoutProp } from "./textLayoutProps.js";
+import { normalizeAndroidTextLimitProp } from "./textLimitProps.js";
 import { normalizeAndroidTextViewportProp } from "./textViewportProps.js";
 
 const AndroidTextPropViewTypes = new Set(["Button", "EditText", "TextView"]);
@@ -40,6 +41,11 @@ export function normalizeAndroidProp(viewType: string, name: string, value: unkn
   const textInteractionProp = normalizeAndroidTextInteractionProp(viewType, name, value);
   if (textInteractionProp) {
     return textInteractionProp;
+  }
+
+  const textLimitProp = normalizeAndroidTextLimitProp(viewType, name, value);
+  if (textLimitProp) {
+    return textLimitProp;
   }
 
   if (AndroidImagePropViewTypes.has(viewType) && normalizedKey === "alt") {

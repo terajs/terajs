@@ -1,6 +1,7 @@
 import { normalizeUIKitInputProp } from "./inputProps.js";
 import { normalizeUIKitTextInteractionProp } from "./textInteractionProps.js";
 import { normalizeUIKitTextLayoutProp } from "./textLayoutProps.js";
+import { normalizeUIKitTextLimitProp } from "./textLimitProps.js";
 import { normalizeUIKitTextViewportProp } from "./textViewportProps.js";
 
 const UIKitTextPropViewTypes = new Set(["UIButton", "UILabel", "UITextField", "UITextView"]);
@@ -40,6 +41,11 @@ export function normalizeUIKitProp(viewType: string, name: string, value: unknow
   const textInteractionProp = normalizeUIKitTextInteractionProp(viewType, name, value);
   if (textInteractionProp) {
     return textInteractionProp;
+  }
+
+  const textLimitProp = normalizeUIKitTextLimitProp(viewType, name, value);
+  if (textLimitProp) {
+    return textLimitProp;
   }
 
   if (UIKitImagePropViewTypes.has(viewType) && normalizedKey === "alt") {
