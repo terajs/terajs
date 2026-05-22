@@ -52,6 +52,54 @@ describe("renderer-android native event ingress", () => {
     expect(input.props.text).toBe("Beta");
   });
 
+  it("enforces maximum text length on native text input events before syncing state", () => {
+    const session = createAndroidHostSession();
+    const value = signal("Alpha");
+    const maxLength = signal(4);
+    const onInput = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "input",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "bind",
+          name: "maxLength",
+          value: "maxLength",
+          binding: {
+            kind: "simple-path",
+            segments: ["maxLength"]
+          }
+        },
+        {
+          kind: "event",
+          name: "input",
+          value: "onInput"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, maxLength, onInput }) as AndroidBridgeElementNode;
+    const input = session.root.children[0] as AndroidNativeViewNode;
+
+    session.dispatchNativeEvent(rendered.id, "input", { text: "BetaGamma" });
+
+    expect(onInput).toHaveBeenCalledWith({ text: "Beta", value: "Beta" });
+    expect(rendered.props.text).toBe("Beta");
+    expect(input.props.text).toBe("Beta");
+  });
+
   it("normalizes text selection events and syncs selection state into the session tree", () => {
     const session = createAndroidHostSession();
     const value = signal("Alpha");
@@ -215,6 +263,107 @@ describe("renderer-android native event ingress", () => {
       composition: "Be",
       composing: false,
       isComposing: false
+    });
+    expect(rendered.props.composing).toBe(false);
+    expect(rendered.props.compositionText).toBeUndefined();
+    expect(input.props.composing).toBe(false);
+    expect(input.props.compositionText).toBeUndefined();
+  });
+
+  it("enforces text limits and keeps selection aligned during composition", () => {
+    const session = createAndroidHostSession();
+    const value = signal("Alpha");
+    const maxLength = signal(4);
+    const onCompositionUpdate = vi.fn();
+    const onCompositionEnd = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "input",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "bind",
+          name: "maxLength",
+          value: "maxLength",
+          binding: {
+            kind: "simple-path",
+            segments: ["maxLength"]
+          }
+        },
+        {
+          kind: "event",
+          name: "compositionUpdate",
+          value: "onCompositionUpdate"
+        },
+        {
+          kind: "event",
+          name: "compositionEnd",
+          value: "onCompositionEnd"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, maxLength, onCompositionUpdate, onCompositionEnd }) as AndroidBridgeElementNode;
+    const input = session.root.children[0] as AndroidNativeViewNode;
+
+    session.dispatchNativeEvent(rendered.id, "compositionupdate", {
+      value: "BetaGamma",
+      data: "ta",
+      selectionRange: [2, 8]
+    });
+
+    expect(onCompositionUpdate).toHaveBeenCalledWith({
+      value: "Beta",
+      text: "Beta",
+      data: "ta",
+      composition: "ta",
+      composing: true,
+      isComposing: true,
+      start: 2,
+      end: 4,
+      selectionStart: 2,
+      selectionEnd: 4,
+      selection: { start: 2, end: 4 },
+      selectionRange: { start: 2, end: 4 }
+    });
+    expect(rendered.props.text).toBe("Beta");
+    expect(rendered.props.selectionStart).toBe(2);
+    expect(rendered.props.selectionEnd).toBe(4);
+    expect(rendered.props.compositionText).toBe("ta");
+    expect(input.props.text).toBe("Beta");
+    expect(input.props.selectionStart).toBe(2);
+    expect(input.props.selectionEnd).toBe(4);
+
+    session.dispatchNativeEvent(rendered.id, "compositionend", {
+      value: "BetaGamma",
+      data: "ta",
+      selectionRange: [2, 8]
+    });
+
+    expect(onCompositionEnd).toHaveBeenCalledWith({
+      value: "Beta",
+      text: "Beta",
+      data: "ta",
+      composition: "ta",
+      composing: false,
+      isComposing: false,
+      start: 2,
+      end: 4,
+      selectionStart: 2,
+      selectionEnd: 4,
+      selection: { start: 2, end: 4 },
+      selectionRange: { start: 2, end: 4 }
     });
     expect(rendered.props.composing).toBe(false);
     expect(rendered.props.compositionText).toBeUndefined();

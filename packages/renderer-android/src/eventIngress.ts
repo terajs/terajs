@@ -1,6 +1,7 @@
 import type { AndroidBridgeElementNode } from "./bridge.js";
 import type { AndroidNativeNode } from "./consumer.js";
 import {
+  type AndroidCompositionEventState,
   createAndroidCompositionPayload,
   extractAndroidCompositionState,
 } from "./compositionEventPayload.js";
@@ -9,6 +10,7 @@ import {
   createAndroidSelectionPayload,
   extractAndroidSelectionRange,
 } from "./selectionEventPayload.js";
+import { applyAndroidTextEventConstraints } from "./textEventConstraints.js";
 import { createAndroidTextPayload, extractAndroidTextValue } from "./textEventPayload.js";
 import { createAndroidTogglePayload, extractAndroidToggleValue } from "./toggleEventPayload.js";
 
@@ -31,15 +33,18 @@ export function ingestAndroidNativeEvent(
   if (AndroidTextInputViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {
     const value = extractAndroidTextValue(payload);
     if (value != null) {
-      bridgeNode.props.text = value;
+      const constrainedText = applyAndroidTextEventConstraints(bridgeNode.props as Record<string, unknown>, {
+        text: value
+      }).text ?? value;
+      bridgeNode.props.text = constrainedText;
 
       if (nativeNode?.kind === "view") {
-        nativeNode.props.text = value;
+        nativeNode.props.text = constrainedText;
       }
 
       return {
         name: normalizedName,
-        payload: createAndroidTextPayload(value, payload)
+        payload: createAndroidTextPayload(constrainedText, payload)
       };
     }
   }
@@ -63,13 +68,26 @@ export function ingestAndroidNativeEvent(
   }
 
   if (AndroidTextInputViewTypes.has(bridgeNode.viewType) && AndroidCompositionEventNames.has(normalizedName)) {
-    const composition = extractAndroidCompositionState(normalizedName, payload);
+    const composition: AndroidCompositionEventState = applyAndroidTextEventConstraints(
+      bridgeNode.props as Record<string, unknown>,
+      extractAndroidCompositionState(normalizedName, payload)
+    );
 
     if (composition.text != null) {
       bridgeNode.props.text = composition.text;
 
       if (nativeNode?.kind === "view") {
         nativeNode.props.text = composition.text;
+      }
+    }
+
+    if (composition.selectionRange) {
+      bridgeNode.props.selectionStart = composition.selectionRange.start;
+      bridgeNode.props.selectionEnd = composition.selectionRange.end;
+
+      if (nativeNode?.kind === "view") {
+        nativeNode.props.selectionStart = composition.selectionRange.start;
+        nativeNode.props.selectionEnd = composition.selectionRange.end;
       }
     }
 

@@ -1,7 +1,14 @@
+import {
+  createAndroidSelectionPayload,
+  extractAndroidSelectionRange,
+  type AndroidNativeSelectionRange,
+} from "./selectionEventPayload.js";
+
 export interface AndroidCompositionEventState {
   text?: string;
   compositionText?: string;
   composing: boolean;
+  selectionRange?: AndroidNativeSelectionRange;
 }
 
 function resolveDefaultComposing(eventName: string): boolean {
@@ -70,13 +77,17 @@ export function extractAndroidCompositionState(eventName: string, payload: unkno
   return {
     text,
     compositionText: extractCompositionText(record, text),
-    composing
+    composing,
+    selectionRange: extractAndroidSelectionRange(payload)
   };
 }
 
 export function createAndroidCompositionPayload(state: AndroidCompositionEventState, payload: unknown): unknown {
-  const base = typeof payload === "object" && payload !== null && !Array.isArray(payload)
-    ? { ...(payload as Record<string, unknown>) }
+  const selectionPayload = state.selectionRange
+    ? createAndroidSelectionPayload(state.selectionRange, payload)
+    : payload;
+  const base = typeof selectionPayload === "object" && selectionPayload !== null && !Array.isArray(selectionPayload)
+    ? { ...(selectionPayload as Record<string, unknown>) }
     : {};
 
   return {

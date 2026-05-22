@@ -1,6 +1,7 @@
 import type { UIKitBridgeElementNode } from "./bridge.js";
 import type { UIKitNativeNode } from "./consumer.js";
 import {
+  type UIKitCompositionEventState,
   createUIKitCompositionPayload,
   extractUIKitCompositionState,
 } from "./compositionEventPayload.js";
@@ -9,6 +10,7 @@ import {
   createUIKitSelectionPayload,
   extractUIKitSelectionRange,
 } from "./selectionEventPayload.js";
+import { applyUIKitTextEventConstraints } from "./textEventConstraints.js";
 import { createUIKitTextPayload, extractUIKitTextValue } from "./textEventPayload.js";
 import { createUIKitTogglePayload, extractUIKitToggleValue } from "./toggleEventPayload.js";
 
@@ -31,15 +33,18 @@ export function ingestUIKitNativeEvent(
   if (UIKitTextInputViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {
     const value = extractUIKitTextValue(payload);
     if (value != null) {
-      bridgeNode.props.text = value;
+      const constrainedText = applyUIKitTextEventConstraints(bridgeNode.props as Record<string, unknown>, {
+        text: value
+      }).text ?? value;
+      bridgeNode.props.text = constrainedText;
 
       if (nativeNode?.kind === "view") {
-        nativeNode.props.text = value;
+        nativeNode.props.text = constrainedText;
       }
 
       return {
         name: normalizedName,
-        payload: createUIKitTextPayload(value, payload)
+        payload: createUIKitTextPayload(constrainedText, payload)
       };
     }
   }
@@ -63,13 +68,26 @@ export function ingestUIKitNativeEvent(
   }
 
   if (UIKitTextInputViewTypes.has(bridgeNode.viewType) && UIKitCompositionEventNames.has(normalizedName)) {
-    const composition = extractUIKitCompositionState(normalizedName, payload);
+    const composition: UIKitCompositionEventState = applyUIKitTextEventConstraints(
+      bridgeNode.props as Record<string, unknown>,
+      extractUIKitCompositionState(normalizedName, payload)
+    );
 
     if (composition.text != null) {
       bridgeNode.props.text = composition.text;
 
       if (nativeNode?.kind === "view") {
         nativeNode.props.text = composition.text;
+      }
+    }
+
+    if (composition.selectionRange) {
+      bridgeNode.props.selectionStart = composition.selectionRange.start;
+      bridgeNode.props.selectionEnd = composition.selectionRange.end;
+
+      if (nativeNode?.kind === "view") {
+        nativeNode.props.selectionStart = composition.selectionRange.start;
+        nativeNode.props.selectionEnd = composition.selectionRange.end;
       }
     }
 
