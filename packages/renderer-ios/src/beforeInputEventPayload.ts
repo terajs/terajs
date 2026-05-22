@@ -25,6 +25,26 @@ function extractInputType(
     return record.inputType;
   }
 
+  if (record) {
+    if (
+      record.clipboardData !== undefined
+      || record.clipboardText !== undefined
+      || record.pastedText !== undefined
+      || record.pasteData !== undefined
+    ) {
+      return "insertFromPaste";
+    }
+
+    if (
+      record.dataTransfer !== undefined
+      || record.droppedText !== undefined
+      || record.transferData !== undefined
+      || record.dropData !== undefined
+    ) {
+      return "insertFromDrop";
+    }
+  }
+
   if (!replacementText && replacementRange.start !== replacementRange.end) {
     return "deleteContent";
   }

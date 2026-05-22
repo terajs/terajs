@@ -10,6 +10,68 @@ import {
 } from "./index.js";
 
 describe("renderer-ios advanced composition ingress", () => {
+  it("derives compositionstart previews from replacement ranges when the payload omits the final value", () => {
+    const session = createUIKitHostSession();
+    const value = signal("Alpha");
+    const onCompositionStart = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "input",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "event",
+          name: "compositionStart",
+          value: "onCompositionStart"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, onCompositionStart }) as UIKitBridgeElementNode;
+    const input = session.root.children[0] as UIKitNativeViewNode;
+
+    session.dispatchNativeEvent(rendered.id, "compositionstart", {
+      data: "Be",
+      targetRange: [1, 3]
+    });
+
+    expect(onCompositionStart).toHaveBeenCalledWith({
+      text: "ABeha",
+      value: "ABeha",
+      data: "Be",
+      composition: "Be",
+      targetRange: [1, 3],
+      replacementRange: { start: 1, end: 3 },
+      composing: true,
+      isComposing: true,
+      start: 3,
+      end: 3,
+      selectionStart: 3,
+      selectionEnd: 3,
+      selection: { start: 3, end: 3 },
+      selectionRange: { start: 3, end: 3 }
+    });
+    expect(rendered.props.text).toBe("ABeha");
+    expect(rendered.props.selectionStart).toBe(3);
+    expect(rendered.props.selectionEnd).toBe(3);
+    expect(rendered.props.composing).toBe(true);
+    expect(rendered.props.compositionText).toBe("Be");
+    expect(input.props.text).toBe("ABeha");
+    expect(input.props.selectionStart).toBe(3);
+    expect(input.props.selectionEnd).toBe(3);
+  });
+
   it("derives multiline composition previews from targetRanges when the payload omits the final value", () => {
     const session = createUIKitHostSession();
     const value = signal("Alpha\nBravo\nCharlie");

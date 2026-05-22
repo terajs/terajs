@@ -97,21 +97,90 @@ function extractExplicitRange(record: Record<string, unknown> | undefined): UIKi
     : undefined;
 }
 
-export function extractUIKitTextEditString(
-  record: Record<string, unknown> | undefined,
-  payload: unknown,
-  keys: readonly string[] = ["data", "insertedText", "insertText", "replacementText"]
-): string | undefined {
-  if (record) {
-    for (const key of keys) {
-      const value = record[key];
-      if (typeof value === "string") {
-        return value;
+function extractTextRecordValue(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = extractTextRecordValue(item);
+      if (text != null) {
+        return text;
+      }
+    }
+
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of [
+    "text",
+    "data",
+    "value",
+    "plainText",
+    "textPlain",
+    "string",
+    "content",
+    "clipboardText",
+    "pastedText",
+    "droppedText",
+    "transferText",
+    "replacementText",
+    "insertedText",
+    "insertText",
+    "text/plain"
+  ]) {
+    if (typeof record[key] === "string") {
+      return record[key] as string;
+    }
+  }
+
+  if (typeof record.getData === "function") {
+    for (const format of ["text/plain", "text", "plainText"]) {
+      const text = record.getData(format);
+      if (typeof text === "string" && text.length > 0) {
+        return text;
       }
     }
   }
 
-  return typeof payload === "string" ? payload : undefined;
+  return undefined;
+}
+
+export function extractUIKitTextEditString(
+  record: Record<string, unknown> | undefined,
+  payload: unknown,
+  keys: readonly string[] = [
+    "data",
+    "insertedText",
+    "insertText",
+    "replacementText",
+    "clipboardText",
+    "pastedText",
+    "droppedText",
+    "transferText",
+    "clipboardData",
+    "dataTransfer",
+    "transferData",
+    "pasteData",
+    "dropData"
+  ]
+): string | undefined {
+  if (record) {
+    for (const key of keys) {
+      const text = extractTextRecordValue(record[key]);
+      if (text != null) {
+        return text;
+      }
+    }
+  }
+
+  return extractTextRecordValue(payload);
 }
 
 function inferDeleteRange(
