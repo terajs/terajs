@@ -88,11 +88,65 @@ describe("renderer-ios native event ingress", () => {
 
     session.dispatchNativeEvent(rendered.id, "select", { start: 1, end: 4 });
 
-    expect(onSelect).toHaveBeenCalledWith({ start: 1, end: 4, selectionStart: 1, selectionEnd: 4 });
+    expect(onSelect).toHaveBeenCalledWith({
+      start: 1,
+      end: 4,
+      selectionStart: 1,
+      selectionEnd: 4,
+      selection: { start: 1, end: 4 },
+      selectionRange: { start: 1, end: 4 }
+    });
     expect(rendered.props.selectionStart).toBe(1);
     expect(rendered.props.selectionEnd).toBe(4);
     expect(input.props.selectionStart).toBe(1);
     expect(input.props.selectionEnd).toBe(4);
+  });
+
+  it("normalizes structured text selection payloads into a canonical range shape", () => {
+    const session = createUIKitHostSession();
+    const value = signal("Alpha");
+    const onSelect = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "textarea",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "event",
+          name: "select",
+          value: "onSelect"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, onSelect }) as UIKitBridgeElementNode;
+    const input = session.root.children[0] as UIKitNativeViewNode;
+
+    session.dispatchNativeEvent(rendered.id, "select", { selectionRange: [2, 5] });
+
+    expect(onSelect).toHaveBeenCalledWith({
+      selectionRange: { start: 2, end: 5 },
+      start: 2,
+      end: 5,
+      selectionStart: 2,
+      selectionEnd: 5,
+      selection: { start: 2, end: 5 }
+    });
+    expect(rendered.props.selectionStart).toBe(2);
+    expect(rendered.props.selectionEnd).toBe(5);
+    expect(input.props.selectionStart).toBe(2);
+    expect(input.props.selectionEnd).toBe(5);
   });
 
   it("normalizes switch toggle events and syncs checked state into the session tree", () => {

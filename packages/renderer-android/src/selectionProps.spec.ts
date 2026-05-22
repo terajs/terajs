@@ -42,7 +42,12 @@ describe("renderer-android selection props", () => {
   });
 
   it("renders Android structured selection props through the public entry point", async () => {
-    const selection = signal({ start: 1, end: 4 });
+    const selection = signal<{
+      start?: number;
+      end?: number;
+      selectionStart?: number;
+      selectionEnd?: number;
+    }>({ start: 1, end: 4 });
     const ir: IRModule = {
       filePath: "/native/android-selection-range.tera",
       template: [

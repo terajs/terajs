@@ -88,11 +88,65 @@ describe("renderer-android native event ingress", () => {
 
     session.dispatchNativeEvent(rendered.id, "select", { selectionStart: 2, selectionEnd: 5 });
 
-    expect(onSelect).toHaveBeenCalledWith({ selectionStart: 2, selectionEnd: 5, start: 2, end: 5 });
+    expect(onSelect).toHaveBeenCalledWith({
+      selectionStart: 2,
+      selectionEnd: 5,
+      start: 2,
+      end: 5,
+      selection: { start: 2, end: 5 },
+      selectionRange: { start: 2, end: 5 }
+    });
     expect(rendered.props.selectionStart).toBe(2);
     expect(rendered.props.selectionEnd).toBe(5);
     expect(input.props.selectionStart).toBe(2);
     expect(input.props.selectionEnd).toBe(5);
+  });
+
+  it("normalizes structured text selection payloads into a canonical range shape", () => {
+    const session = createAndroidHostSession();
+    const value = signal("Alpha");
+    const onSelect = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "textarea",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "event",
+          name: "select",
+          value: "onSelect"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, onSelect }) as AndroidBridgeElementNode;
+    const input = session.root.children[0] as AndroidNativeViewNode;
+
+    session.dispatchNativeEvent(rendered.id, "select", { selection: { start: 3, end: 6 } });
+
+    expect(onSelect).toHaveBeenCalledWith({
+      selection: { start: 3, end: 6 },
+      start: 3,
+      end: 6,
+      selectionStart: 3,
+      selectionEnd: 6,
+      selectionRange: { start: 3, end: 6 }
+    });
+    expect(rendered.props.selectionStart).toBe(3);
+    expect(rendered.props.selectionEnd).toBe(6);
+    expect(input.props.selectionStart).toBe(3);
+    expect(input.props.selectionEnd).toBe(6);
   });
 
   it("normalizes switch toggle events and syncs checked state into the session tree", () => {

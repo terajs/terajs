@@ -42,7 +42,12 @@ describe("renderer-ios selection props", () => {
   });
 
   it("renders UIKit structured selection props through the public entry point", async () => {
-    const selection = signal({ start: 1, end: 4 });
+    const selection = signal<{
+      start?: number;
+      end?: number;
+      selectionStart?: number;
+      selectionEnd?: number;
+    }>({ start: 1, end: 4 });
     const ir: IRModule = {
       filePath: "/native/ios-selection-range.tera",
       template: [
