@@ -96,6 +96,28 @@ function resolveAndroidImeOptions(value: unknown): string | null {
   }
 }
 
+function resolveAndroidCapitalizeMode(value: unknown): string | null {
+  const normalized = normalizeStringValue(value);
+  if (!normalized) {
+    return null;
+  }
+
+  switch (normalized) {
+    case "off":
+    case "false":
+    case "no":
+    case "none":
+      return "none";
+    case "words":
+      return "textCapWords";
+    case "characters":
+    case "allcharacters":
+      return "textCapCharacters";
+    default:
+      return "textCapSentences";
+  }
+}
+
 export function normalizeAndroidInputProp(
   viewType: string,
   name: string,
@@ -139,6 +161,20 @@ export function normalizeAndroidInputProp(
     return {
       name: "imeOptions",
       value: resolveAndroidImeOptions(value)
+    };
+  }
+
+  if (["autocapitalize", "autocapitalization", "inputcapsmode"].includes(normalizedKey)) {
+    return {
+      name: "inputCapsMode",
+      value: resolveAndroidCapitalizeMode(value)
+    };
+  }
+
+  if (["autocorrect", "autocorrection"].includes(normalizedKey)) {
+    return {
+      name: "autoCorrect",
+      value: normalizeBooleanValue(value)
     };
   }
 

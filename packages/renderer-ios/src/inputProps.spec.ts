@@ -23,6 +23,14 @@ describe("renderer-ios input prop normalization", () => {
       name: "returnKeyType",
       value: "search"
     });
+    expect(normalizeUIKitProp("UITextView", "autocapitalize", "words")).toEqual({
+      name: "autocapitalizationType",
+      value: "words"
+    });
+    expect(normalizeUIKitProp("UITextView", "autocorrect", false)).toEqual({
+      name: "autocorrectionType",
+      value: "no"
+    });
     expect(normalizeUIKitProp("UITextField", "type", "text")).toEqual({
       name: "secureTextEntry",
       value: false
@@ -93,6 +101,62 @@ describe("renderer-ios input prop normalization", () => {
     expect(input.props.secureTextEntry).toBe(false);
     expect(input.props.keyboardType).toBe("decimalPad");
     expect(input.props.returnKeyType).toBe("done");
+
+    rendered.unmount();
+    expect(rendered.root.children).toEqual([]);
+  });
+
+  it("renders UIKit textarea correction traits through the public entry point", async () => {
+    const autocapitalize = signal("words");
+    const autocorrect = signal(false);
+    const ir: IRModule = {
+      filePath: "/native/ios-textarea-traits.tera",
+      template: [
+        {
+          type: "element",
+          tag: "textarea",
+          props: [
+            {
+              kind: "bind",
+              name: "autocapitalize",
+              value: "autocapitalize",
+              binding: {
+                kind: "simple-path",
+                segments: ["autocapitalize"]
+              }
+            },
+            {
+              kind: "bind",
+              name: "autocorrect",
+              value: "autocorrect",
+              binding: {
+                kind: "simple-path",
+                segments: ["autocorrect"]
+              }
+            }
+          ],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRElementNode
+      ],
+      meta: {} as IRModule["meta"],
+      route: null
+    };
+
+    const rendered = renderTerajsToUIKitViews(ir, { autocapitalize, autocorrect });
+    const input = rendered.root.children[0] as UIKitNativeViewNode;
+
+    expect(input.viewType).toBe("UITextView");
+    expect(input.props.autocapitalizationType).toBe("words");
+    expect(input.props.autocorrectionType).toBe("no");
+
+    autocapitalize.set("characters");
+    autocorrect.set(true);
+    await Promise.resolve();
+
+    expect(input.props.autocapitalizationType).toBe("allCharacters");
+    expect(input.props.autocorrectionType).toBe("yes");
 
     rendered.unmount();
     expect(rendered.root.children).toEqual([]);

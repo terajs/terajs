@@ -95,6 +95,46 @@ function resolveUIKitReturnKeyType(value: unknown): string | null {
   }
 }
 
+function resolveUIKitAutocapitalizationType(value: unknown): string | null {
+  const normalized = normalizeStringValue(value);
+  if (!normalized) {
+    return null;
+  }
+
+  switch (normalized) {
+    case "off":
+    case "false":
+    case "no":
+    case "none":
+      return "none";
+    case "words":
+      return "words";
+    case "characters":
+    case "allcharacters":
+      return "allCharacters";
+    default:
+      return "sentences";
+  }
+}
+
+function resolveUIKitAutocorrectionType(value: unknown): string | null {
+  const normalized = normalizeStringValue(value);
+  if (!normalized) {
+    return null;
+  }
+
+  switch (normalized) {
+    case "off":
+    case "false":
+    case "no":
+      return "no";
+    case "default":
+      return "default";
+    default:
+      return "yes";
+  }
+}
+
 export function normalizeUIKitInputProp(
   viewType: string,
   name: string,
@@ -138,6 +178,20 @@ export function normalizeUIKitInputProp(
     return {
       name: "returnKeyType",
       value: resolveUIKitReturnKeyType(value)
+    };
+  }
+
+  if (["autocapitalize", "autocapitalization", "autocapitalizationtype"].includes(normalizedKey)) {
+    return {
+      name: "autocapitalizationType",
+      value: resolveUIKitAutocapitalizationType(value)
+    };
+  }
+
+  if (["autocorrect", "autocorrection", "autocorrectiontype"].includes(normalizedKey)) {
+    return {
+      name: "autocorrectionType",
+      value: resolveUIKitAutocorrectionType(value)
     };
   }
 
