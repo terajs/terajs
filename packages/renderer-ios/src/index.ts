@@ -1,5 +1,15 @@
 import type { RendererHost } from "@terajs/renderer";
 
+export {
+  createUIKitCommandBridge,
+  type CreateUIKitCommandBridgeOptions,
+  type UIKitBridgeCommand,
+  type UIKitBridgeElementNode,
+  type UIKitBridgeNode,
+  type UIKitBridgeTextNode,
+  type UIKitCommandBridge
+} from "./bridge.js";
+
 type UIKitHostNode = {
   type: string;
   props: Record<string, unknown>;
@@ -42,8 +52,8 @@ export const UIKitViewAdapter: UIKitHostAdapter = {
 };
 
 /**
- * Creates the current placeholder native root while the real JS-to-UIKit bridge
- * is still being built.
+ * Creates the current placeholder native root while the renderer package grows
+ * a full command-oriented bridge host for compiler-driven native proof.
  */
 export function renderTerajsToUIKitViews(component: any, adapter: UIKitHostAdapter = UIKitViewAdapter) {
   void component;
