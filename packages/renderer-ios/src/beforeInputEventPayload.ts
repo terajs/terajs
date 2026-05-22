@@ -41,6 +41,32 @@ function clampRange(range: UIKitNativeSelectionRange, maximum: number): UIKitNat
   return start <= end ? { start, end } : { start: end, end: start };
 }
 
+function extractRangeLike(value: unknown): UIKitNativeSelectionRange | undefined {
+  const directRange = extractUIKitSelectionRange(value);
+  if (directRange) {
+    return directRange;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const start = normalizeSelectionIndex(record.startOffset ?? record.rangeStart ?? record.from ?? record.location);
+  const length = normalizeSelectionIndex(record.length);
+  const end = normalizeSelectionIndex(record.endOffset ?? record.rangeEnd ?? record.to)
+    ?? (start != null && length != null ? start + length : undefined);
+
+  if (start == null || end == null) {
+    return undefined;
+  }
+
+  return {
+    start,
+    end
+  };
+}
+
 function getCurrentText(props: Record<string, unknown>): string {
   return typeof props.text === "string" ? props.text : "";
 }
@@ -61,10 +87,13 @@ function extractReplacementRange(
   currentSelection: UIKitNativeSelectionRange,
   maximum: number
 ): UIKitNativeSelectionRange {
+  const targetRanges = Array.isArray(record?.targetRanges) ? record?.targetRanges as unknown[] : undefined;
   const explicitRange = record
-    ? extractUIKitSelectionRange(record.replacementRange)
-      ?? extractUIKitSelectionRange(record.replaceRange)
-      ?? extractUIKitSelectionRange(record.targetRange)
+    ? extractRangeLike(record.replacementRange)
+      ?? extractRangeLike(record.replaceRange)
+      ?? extractRangeLike(record.targetRange)
+      ?? extractRangeLike(record.range)
+      ?? (targetRanges ? targetRanges.map(extractRangeLike).find((range) => range != null) : undefined)
     : undefined;
 
   return clampRange(explicitRange ?? extractUIKitSelectionRange(payload) ?? currentSelection, maximum);
@@ -99,6 +128,32 @@ function extractInputType(
   return "insertText";
 }
 
+function inferDeleteRange(
+  inputType: string,
+  currentSelection: UIKitNativeSelectionRange,
+  currentText: string,
+  explicitRange: UIKitNativeSelectionRange | undefined
+): UIKitNativeSelectionRange | undefined {
+  if (explicitRange || currentSelection.start !== currentSelection.end) {
+    return undefined;
+  }
+
+  const normalizedType = inputType.trim().toLowerCase();
+  if (!normalizedType.startsWith("delete")) {
+    return undefined;
+  }
+
+  if (normalizedType.includes("forward")) {
+    return currentSelection.start >= currentText.length
+      ? undefined
+      : { start: currentSelection.start, end: currentSelection.start + 1 };
+  }
+
+  return currentSelection.start <= 0
+    ? undefined
+    : { start: currentSelection.start - 1, end: currentSelection.start };
+}
+
 function applyReplacement(text: string, replacementRange: UIKitNativeSelectionRange, replacementText: string): string {
   return text.slice(0, replacementRange.start) + replacementText + text.slice(replacementRange.end);
 }
@@ -118,14 +173,24 @@ export function extractUIKitBeforeInputState(
   const record = extractPayloadRecord(payload);
   const currentText = getCurrentText(props);
   const currentSelection = getCurrentSelectionRange(props, currentText);
-  const replacementRange = extractReplacementRange(record, payload, currentSelection, currentText.length);
   const data = extractReplacementText(record, payload);
+  const baseReplacementRange = extractReplacementRange(record, payload, currentSelection, currentText.length);
+  const inputType = extractInputType(record, data, baseReplacementRange);
+  const replacementRange = clampRange(
+    inferDeleteRange(inputType, currentSelection, currentText, record ? extractRangeLike(record.replacementRange)
+      ?? extractRangeLike(record.replaceRange)
+      ?? extractRangeLike(record.targetRange)
+      ?? extractRangeLike(record.range)
+      ?? (Array.isArray(record.targetRanges) ? (record.targetRanges as unknown[]).map(extractRangeLike).find((range) => range != null) : undefined)
+      : undefined) ?? baseReplacementRange,
+    currentText.length
+  );
   const text = applyReplacement(currentText, replacementRange, data);
 
   return {
     text,
     data,
-    inputType: extractInputType(record, data, replacementRange),
+    inputType,
     replacementRange,
     selectionRange: createResultSelectionRange(text, replacementRange, data)
   };

@@ -13,7 +13,7 @@ This package represents the iOS-side exploration for rendering Terajs components
 - package-local primitive mapping now resolves standard tags and native-flavored tags into concrete UIKit view types
 - package-local bridge normalization now translates standard props and events such as `aria-label`, input hints, structured selection-range and caret props, textarea line-count, viewport, interaction, and text-limit props, secure input traits, keyboard and correction hints, image alt text, and `click` into native-facing UIKit names
 - package-local style normalization now translates a small layout subset like row/column, spacing, alignment, and colors into UIKit-facing style keys
-- package-local native event ingress now normalizes beforeinput replacement previews, text-input change, text-limit-aware composition payloads with selection state, structured text-selection payloads, and switch change events and syncs native state into the host-session proof tree
+- package-local native event ingress now normalizes beforeinput replacement previews, delete-style payloads, multiline replacement ranges, text-input change, text-limit-aware composition payloads with selection state, structured text-selection payloads, and switch change events and syncs native state into the host-session proof tree
 
 ## Direction
 
