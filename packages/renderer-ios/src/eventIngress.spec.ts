@@ -52,6 +52,49 @@ describe("renderer-ios native event ingress", () => {
     expect(input.props.text).toBe("Beta");
   });
 
+  it("normalizes text selection events and syncs selection state into the session tree", () => {
+    const session = createUIKitHostSession();
+    const value = signal("Alpha");
+    const onSelect = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "textarea",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "event",
+          name: "select",
+          value: "onSelect"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, onSelect }) as UIKitBridgeElementNode;
+    const input = session.root.children[0] as UIKitNativeViewNode;
+
+    expect(input.viewType).toBe("UITextView");
+    expect(input.subscribedEvents).toEqual(["selectionchange"]);
+
+    session.dispatchNativeEvent(rendered.id, "select", { start: 1, end: 4 });
+
+    expect(onSelect).toHaveBeenCalledWith({ start: 1, end: 4, selectionStart: 1, selectionEnd: 4 });
+    expect(rendered.props.selectionStart).toBe(1);
+    expect(rendered.props.selectionEnd).toBe(4);
+    expect(input.props.selectionStart).toBe(1);
+    expect(input.props.selectionEnd).toBe(4);
+  });
+
   it("normalizes switch toggle events and syncs checked state into the session tree", () => {
     const session = createUIKitHostSession();
     const checked = signal(true);

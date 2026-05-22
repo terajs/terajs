@@ -86,5 +86,12 @@ export function normalizeUIKitEventName(viewType: string, name: string): string 
     return "change";
   }
 
+  if (
+    ["selectionchange", "selection", "select", "caretchange", "cursorchange"].includes(normalizedKey)
+    && ["UITextField", "UITextView"].includes(viewType)
+  ) {
+    return "selectionchange";
+  }
+
   return name;
 }

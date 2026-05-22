@@ -86,5 +86,12 @@ export function normalizeAndroidEventName(viewType: string, name: string): strin
     return "change";
   }
 
+  if (
+    ["selectionchange", "selection", "select", "caretchange", "cursorchange"].includes(normalizedKey)
+    && viewType === "EditText"
+  ) {
+    return "selectionchange";
+  }
+
   return name;
 }
