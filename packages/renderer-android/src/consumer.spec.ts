@@ -1,18 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { IRElementNode, IRForNode, IRInterpolationNode } from "@terajs/compiler";
+import { createHostBindings, createHostIRRenderer } from "@terajs/renderer";
 import { signal } from "@terajs/reactivity";
 
 import {
-  createAndroidHostSession,
+  createAndroidCommandBridge,
+  createAndroidCommandConsumer,
   type AndroidBridgeElementNode,
   type AndroidNativeTextNode,
   type AndroidNativeViewNode,
 } from "./index.js";
 
-describe("renderer-android host session", () => {
-  it("mounts IR into the Android native tree and dispatches events by node id", async () => {
-    const session = createAndroidHostSession();
+describe("renderer-android consumer", () => {
+  it("replays Android bridge commands into a package-local native view tree", async () => {
+    const consumer = createAndroidCommandConsumer();
+    const bridge = createAndroidCommandBridge({
+      emitCommand(command) {
+        consumer.applyCommand(command);
+      }
+    });
+    const renderer = createHostIRRenderer({
+      host: bridge.host,
+      bindings: createHostBindings(bridge.host)
+    });
+
     const label = signal("Alpha");
     const onPress = vi.fn();
     const node: IRElementNode = {
@@ -46,19 +58,18 @@ describe("renderer-android host session", () => {
       flags: { hasDirectives: true }
     };
 
-    const rendered = session.mountIRNode(node, { label, onPress }) as AndroidBridgeElementNode;
-    const root = session.root;
+    const rendered = renderer.renderIRNode(node, { label, onPress }) as AndroidBridgeElementNode;
+    bridge.host.insert(bridge.root, rendered);
+
+    const root = consumer.root as AndroidNativeViewNode;
     const button = root.children[0] as AndroidNativeViewNode;
     const text = button.children[0] as AndroidNativeTextNode;
 
+    expect(root.viewType).toBe("ViewGroup");
     expect(button.viewType).toBe("Button");
     expect(button.props.contentDescription).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["press"]);
     expect(text.value).toBe("Alpha");
-    expect(session.getNativeNode(rendered.id)).toBe(button);
-
-    session.dispatchNativeEvent(rendered.id, "press", { source: "native" });
-    expect(onPress).toHaveBeenCalledWith({ source: "native" });
 
     label.set("Beta");
     await Promise.resolve();
@@ -67,8 +78,18 @@ describe("renderer-android host session", () => {
     expect(text.value).toBe("Beta");
   });
 
-  it("replays keyed Android rows through the host session consumer tree", async () => {
-    const session = createAndroidHostSession();
+  it("replays keyed Android row reuse into the native view tree", async () => {
+    const consumer = createAndroidCommandConsumer();
+    const bridge = createAndroidCommandBridge({
+      emitCommand(command) {
+        consumer.applyCommand(command);
+      }
+    });
+    const renderer = createHostIRRenderer({
+      host: bridge.host,
+      bindings: createHostBindings(bridge.host)
+    });
+
     const items = signal([
       { id: "a", label: "A" },
       { id: "b", label: "B" }
@@ -99,9 +120,10 @@ describe("renderer-android host session", () => {
       flags: { hasDirectives: true }
     };
 
-    session.mountIRNode(node, { items });
+    const rendered = renderer.renderIRNode(node, { items });
+    bridge.host.insert(bridge.root, rendered!);
 
-    const root = session.root;
+    const root = consumer.root as AndroidNativeViewNode;
     const firstRow = root.children[0] as AndroidNativeViewNode;
     const secondRow = root.children[1] as AndroidNativeViewNode;
 
@@ -121,5 +143,4 @@ describe("renderer-android host session", () => {
     expect((reorderedFirstRow.children[0] as AndroidNativeTextNode).value).toBe("B2");
     expect((reorderedSecondRow.children[0] as AndroidNativeTextNode).value).toBe("A");
   });
-
 });

@@ -1,33 +1,24 @@
-import type { AndroidBridgeCommand } from "./bridge.js";
+import type { AndroidBridgeCommand } from "./bridgeContracts.js";
+import type { AndroidCommandConsumer } from "./consumerContracts.js";
+import {
+  createAndroidNativeTextNode,
+  createAndroidNativeViewNode,
+  disposeAndroidNativeNode,
+  insertAndroidNativeChild,
+  requireAndroidNativeNode,
+  requireAndroidNativeText,
+  requireAndroidNativeView,
+  type AndroidNativeNode,
+  type AndroidNativeTextNode,
+  type AndroidNativeViewNode,
+} from "./consumerNodes.js";
 
-type AndroidNativeNodeBase = {
-  id: number;
-  parent: AndroidNativeViewNode | null;
-};
-
-export type AndroidNativeTextNode = AndroidNativeNodeBase & {
-  kind: "text";
-  value: string;
-};
-
-export type AndroidNativeViewNode = AndroidNativeNodeBase & {
-  children: AndroidNativeNode[];
-  className: string;
-  kind: "view";
-  props: Record<string, unknown>;
-  styles: Record<string, string>;
-  subscribedEvents: string[];
-  viewType: string;
-};
-
-export type AndroidNativeNode = AndroidNativeTextNode | AndroidNativeViewNode;
-
-export interface AndroidCommandConsumer {
-  applyCommand(command: AndroidBridgeCommand): void;
-  applyCommands(commands: readonly AndroidBridgeCommand[]): void;
-  getNode(nodeId: number): AndroidNativeNode | undefined;
-  root: AndroidNativeViewNode | null;
-}
+export type { AndroidCommandConsumer } from "./consumerContracts.js";
+export type {
+  AndroidNativeNode,
+  AndroidNativeTextNode,
+  AndroidNativeViewNode,
+} from "./consumerNodes.js";
 
 /**
  * Replays thin Android bridge commands into an Android Views-shaped native tree
@@ -37,125 +28,45 @@ export function createAndroidCommandConsumer(): AndroidCommandConsumer {
   const nodes = new Map<number, AndroidNativeNode>();
   let root: AndroidNativeViewNode | null = null;
 
-  function requireNode(nodeId: number): AndroidNativeNode {
-    const node = nodes.get(nodeId);
-    if (!node) {
-      throw new Error(`Unknown Android native node ${nodeId}`);
-    }
-
-    return node;
-  }
-
-  function requireView(nodeId: number): AndroidNativeViewNode {
-    const node = requireNode(nodeId);
-    if (node.kind !== "view") {
-      throw new Error(`Expected Android view node ${nodeId}`);
-    }
-
-    return node;
-  }
-
-  function requireText(nodeId: number): AndroidNativeTextNode {
-    const node = requireNode(nodeId);
-    if (node.kind !== "text") {
-      throw new Error(`Expected Android text node ${nodeId}`);
-    }
-
-    return node;
-  }
-
-  function detach(node: AndroidNativeNode): void {
-    const parent = node.parent;
-    if (!parent) {
-      return;
-    }
-
-    const index = parent.children.indexOf(node);
-    if (index !== -1) {
-      parent.children.splice(index, 1);
-    }
-
-    node.parent = null;
-  }
-
-  function disposeNode(node: AndroidNativeNode): void {
-    if (node.kind === "view") {
-      for (const child of [...node.children]) {
-        disposeNode(child);
-      }
-
-      node.children.length = 0;
-      node.subscribedEvents = [];
-    }
-
-    detach(node);
-    nodes.delete(node.id);
-
-    if (root?.id === node.id) {
+  function clearRoot(nodeId: number): void {
+    if (root?.id === nodeId) {
       root = null;
     }
-  }
-
-  function insertChild(parent: AndroidNativeViewNode, child: AndroidNativeNode, anchorId: number | null): void {
-    detach(child);
-
-    if (anchorId != null) {
-      const anchorIndex = parent.children.findIndex((candidate) => candidate.id === anchorId);
-      if (anchorIndex !== -1) {
-        parent.children.splice(anchorIndex, 0, child);
-        child.parent = parent;
-        return;
-      }
-    }
-
-    parent.children.push(child);
-    child.parent = parent;
   }
 
   function applyCommand(command: AndroidBridgeCommand): void {
     switch (command.type) {
       case "create-element": {
-        const node: AndroidNativeViewNode = {
-          id: command.nodeId,
-          parent: null,
-          kind: "view",
-          viewType: command.viewType,
-          className: "",
-          children: [],
-          props: {},
-          styles: {},
-          subscribedEvents: []
-        };
+        const node = createAndroidNativeViewNode(command.nodeId, command.viewType);
 
         nodes.set(node.id, node);
         root ??= node;
         return;
       }
       case "create-text": {
-        const node: AndroidNativeTextNode = {
-          id: command.nodeId,
-          parent: null,
-          kind: "text",
-          value: command.value
-        };
+        const node = createAndroidNativeTextNode(command.nodeId, command.value);
 
         nodes.set(node.id, node);
         return;
       }
       case "insert": {
-        insertChild(requireView(command.parentId), requireNode(command.childId), command.anchorId);
+        insertAndroidNativeChild(
+          requireAndroidNativeView(nodes, command.parentId),
+          requireAndroidNativeNode(nodes, command.childId),
+          command.anchorId
+        );
         return;
       }
       case "remove": {
-        disposeNode(requireNode(command.nodeId));
+        disposeAndroidNativeNode(requireAndroidNativeNode(nodes, command.nodeId), nodes, clearRoot);
         return;
       }
       case "set-text": {
-        requireText(command.nodeId).value = command.value;
+        requireAndroidNativeText(nodes, command.nodeId).value = command.value;
         return;
       }
       case "set-prop": {
-        const node = requireView(command.nodeId);
+        const node = requireAndroidNativeView(nodes, command.nodeId);
         if (command.value == null) {
           delete node.props[command.name];
         } else {
@@ -164,7 +75,7 @@ export function createAndroidCommandConsumer(): AndroidCommandConsumer {
         return;
       }
       case "set-style": {
-        const node = requireView(command.nodeId);
+        const node = requireAndroidNativeView(nodes, command.nodeId);
         node.styles = {
           ...node.styles,
           ...command.style
@@ -172,18 +83,18 @@ export function createAndroidCommandConsumer(): AndroidCommandConsumer {
         return;
       }
       case "set-class": {
-        requireView(command.nodeId).className = command.className;
+        requireAndroidNativeView(nodes, command.nodeId).className = command.className;
         return;
       }
       case "subscribe-event": {
-        const node = requireView(command.nodeId);
+        const node = requireAndroidNativeView(nodes, command.nodeId);
         if (!node.subscribedEvents.includes(command.name)) {
           node.subscribedEvents.push(command.name);
         }
         return;
       }
       case "unsubscribe-event": {
-        const node = requireView(command.nodeId);
+        const node = requireAndroidNativeView(nodes, command.nodeId);
         node.subscribedEvents = node.subscribedEvents.filter((name) => name !== command.name);
         return;
       }

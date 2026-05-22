@@ -1,0 +1,51 @@
+import type { RendererHost } from "@terajs/renderer";
+
+import { normalizeAndroidProp, resolveAndroidViewType } from "./primitives.js";
+
+export type AndroidViewHostNode = {
+  type: string;
+  props: Record<string, unknown>;
+  children: AndroidViewHostNode[];
+  parent: AndroidViewHostNode | null;
+};
+
+/** Minimal imperative host surface for the current Android Views renderer stub. */
+export type AndroidViewHostAdapter = Pick<
+  RendererHost<AndroidViewHostNode>,
+  "createElement" | "insert" | "remove" | "setProp"
+>;
+
+/** In-memory Android host used to validate the shared renderer contract from JS. */
+export const AndroidViewAdapter: AndroidViewHostAdapter = {
+  createElement(type) {
+    return {
+      type: resolveAndroidViewType(type),
+      props: {},
+      children: [],
+      parent: null
+    };
+  },
+  insert(parent, child) {
+    child.parent = parent;
+    parent.children.push(child);
+  },
+  remove(node) {
+    const parent = node.parent;
+    if (!parent) {
+      return;
+    }
+
+    parent.children = parent.children.filter((child) => child !== node);
+    node.parent = null;
+  },
+  setProp(node, key, value) {
+    const normalized = normalizeAndroidProp(node.type, key, value);
+
+    if (normalized.value == null) {
+      delete node.props[normalized.name];
+      return;
+    }
+
+    node.props[normalized.name] = normalized.value;
+  }
+};

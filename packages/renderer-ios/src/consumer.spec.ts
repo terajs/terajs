@@ -1,18 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { IRElementNode, IRIfNode, IRInterpolationNode } from "@terajs/compiler";
+import { createHostBindings, createHostIRRenderer } from "@terajs/renderer";
 import { signal } from "@terajs/reactivity";
 
 import {
-  createUIKitHostSession,
+  createUIKitCommandBridge,
+  createUIKitCommandConsumer,
   type UIKitBridgeElementNode,
   type UIKitNativeTextNode,
   type UIKitNativeViewNode,
 } from "./index.js";
 
-describe("renderer-ios host session", () => {
-  it("mounts IR into the UIKit native tree and dispatches events by node id", async () => {
-    const session = createUIKitHostSession();
+describe("renderer-ios consumer", () => {
+  it("replays UIKit bridge commands into a package-local native view tree", async () => {
+    const consumer = createUIKitCommandConsumer();
+    const bridge = createUIKitCommandBridge({
+      emitCommand(command) {
+        consumer.applyCommand(command);
+      }
+    });
+    const renderer = createHostIRRenderer({
+      host: bridge.host,
+      bindings: createHostBindings(bridge.host)
+    });
+
     const title = signal("Alpha");
     const onTap = vi.fn();
     const node: IRElementNode = {
@@ -46,19 +58,18 @@ describe("renderer-ios host session", () => {
       flags: { hasDirectives: true }
     };
 
-    const rendered = session.mountIRNode(node, { title, onTap }) as UIKitBridgeElementNode;
-    const root = session.root;
+    const rendered = renderer.renderIRNode(node, { title, onTap }) as UIKitBridgeElementNode;
+    bridge.host.insert(bridge.root, rendered);
+
+    const root = consumer.root as UIKitNativeViewNode;
     const button = root.children[0] as UIKitNativeViewNode;
     const text = button.children[0] as UIKitNativeTextNode;
 
+    expect(root.viewType).toBe("UIView");
     expect(button.viewType).toBe("UIButton");
     expect(button.props.accessibilityLabel).toBe("Alpha");
     expect(button.subscribedEvents).toEqual(["tap"]);
     expect(text.value).toBe("Alpha");
-    expect(session.getNativeNode(rendered.id)).toBe(button);
-
-    session.dispatchNativeEvent(rendered.id, "tap", { source: "native" });
-    expect(onTap).toHaveBeenCalledWith({ source: "native" });
 
     title.set("Beta");
     await Promise.resolve();
@@ -66,12 +77,22 @@ describe("renderer-ios host session", () => {
     expect(button.props.accessibilityLabel).toBe("Beta");
     expect(text.value).toBe("Beta");
 
-    session.removeNode(rendered.id);
+    bridge.host.remove(rendered);
     expect(root.children).toEqual([]);
   });
 
-  it("replays control-flow updates through the UIKit host session without anchor leakage", async () => {
-    const session = createUIKitHostSession();
+  it("replays UIKit control flow into the native view tree without anchor leakage", async () => {
+    const consumer = createUIKitCommandConsumer();
+    const bridge = createUIKitCommandBridge({
+      emitCommand(command) {
+        consumer.applyCommand(command);
+      }
+    });
+    const renderer = createHostIRRenderer({
+      host: bridge.host,
+      bindings: createHostBindings(bridge.host)
+    });
+
     const visible = signal(true);
     const node: IRIfNode = {
       type: "if",
@@ -105,9 +126,10 @@ describe("renderer-ios host session", () => {
       flags: { hasDirectives: true }
     };
 
-    session.mountIRNode(node, { visible });
+    const rendered = renderer.renderIRNode(node, { visible });
+    bridge.host.insert(bridge.root, rendered!);
 
-    const root = session.root;
+    const root = consumer.root as UIKitNativeViewNode;
     expect(root.children).toHaveLength(1);
     expect((root.children[0] as UIKitNativeViewNode).viewType).toBe("UILabel");
 

@@ -13,23 +13,10 @@ import {
   type UIKitNativeNode,
   type UIKitNativeViewNode,
 } from "./consumer.js";
+import { createUIKitMountedModule } from "./sessionMountedModule.js";
+import type { UIKitHostSession } from "./sessionContracts.js";
 
-export interface UIKitMountedModule {
-  bridgeNodes: readonly UIKitBridgeNode[];
-  remove(): void;
-}
-
-export interface UIKitHostSession {
-  bridge: UIKitCommandBridge;
-  consumer: UIKitCommandConsumer;
-  dispatchNativeEvent(nodeId: number, name: string, payload?: unknown): void;
-  getBridgeNode(nodeId: number): UIKitBridgeNode | undefined;
-  getNativeNode(nodeId: number): UIKitNativeNode | undefined;
-  mountIRModule(ir: IRModule, ctx: any): UIKitMountedModule;
-  mountIRNode(node: IRNode, ctx: any, isSvg?: boolean): UIKitBridgeNode | null;
-  removeNode(nodeId: number): void;
-  root: UIKitNativeViewNode;
-}
+export type { UIKitHostSession, UIKitMountedModule } from "./sessionContracts.js";
 
 /**
  * Creates a package-local UIKit host session that mounts compiler IR through the
@@ -57,34 +44,6 @@ export function createUIKitHostSession(): UIKitHostSession {
     return root;
   }
 
-  function removeBridgeNodes(nodes: readonly UIKitBridgeNode[]): void {
-    const orderedNodes = [...nodes].sort((left, right) => getRemovalPriority(left) - getRemovalPriority(right));
-
-    for (const node of orderedNodes) {
-      if (!bridge.getNode(node.id)) {
-        continue;
-      }
-
-      bridge.host.remove(node);
-    }
-  }
-
-  function createMountedModule(nodes: readonly UIKitBridgeNode[]): UIKitMountedModule {
-    let removed = false;
-
-    return {
-      bridgeNodes: [...nodes],
-      remove() {
-        if (removed) {
-          return;
-        }
-
-        removed = true;
-        removeBridgeNodes(nodes);
-      }
-    };
-  }
-
   return {
     bridge,
     consumer,
@@ -106,7 +65,7 @@ export function createUIKitHostSession(): UIKitHostSession {
       const rendered = renderer.renderIRModule(ir, ctx);
       const bridgeNodes = bridge.host.getChildren(rendered);
       bridge.host.insert(bridge.root, rendered);
-      return createMountedModule(bridgeNodes);
+      return createUIKitMountedModule(bridge, bridgeNodes);
     },
     mountIRNode(node, ctx, isSvg = false) {
       const rendered = renderer.renderIRNode(node, ctx, isSvg);
@@ -127,8 +86,4 @@ export function createUIKitHostSession(): UIKitHostSession {
       return requireRoot();
     }
   };
-}
-
-function getRemovalPriority(node: UIKitBridgeNode): number {
-  return node.kind === "anchor" ? 0 : 1;
 }
