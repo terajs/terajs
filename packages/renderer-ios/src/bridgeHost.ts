@@ -1,13 +1,12 @@
 import type { RendererHost } from "@terajs/renderer";
 
 import type { UIKitBridgeCommand } from "./bridgeContracts.js";
+import { createUIKitBridgeNodeFactory } from "./bridgeNodeFactory.js";
 import {
-  createUIKitBridgeNodeBase,
   detachUIKitBridgeNode,
   disposeUIKitBridgeSubtree,
   isUIKitNativeBackedNode,
   resolveUIKitBridgeAnchorId,
-  type UIKitBridgeAnchorNode,
   type UIKitBridgeElementNode,
   type UIKitBridgeFragmentNode,
   type UIKitBridgeNode,
@@ -32,49 +31,12 @@ export function createUIKitBridgeHost(options: CreateUIKitBridgeHostOptions): {
   root: UIKitBridgeElementNode;
 } {
   const { nodes, pushCommand } = options;
-  let nextNodeId = 1;
-
-  function createBaseNode<Kind extends UIKitBridgeNode["kind"]>(kind: Kind) {
-    return createUIKitBridgeNodeBase(nextNodeId++, kind);
-  }
-
-  function createElementNode(viewType: string, svg: boolean): UIKitBridgeElementNode {
-    const node: UIKitBridgeElementNode = {
-      ...createBaseNode("element"),
-      viewType,
-      svg,
-      className: "",
-      eventHandlers: {},
-      props: {},
-      styles: {}
-    };
-
-    pushCommand({
-      type: "create-element",
-      nodeId: node.id,
-      viewType,
-      svg
-    });
-
-    nodes.set(node.id, node);
-    return node;
-  }
-
-  function createTextNode(value: string): UIKitBridgeTextNode {
-    const node: UIKitBridgeTextNode = {
-      ...createBaseNode("text"),
-      value: String(value)
-    };
-
-    pushCommand({
-      type: "create-text",
-      nodeId: node.id,
-      value: node.value
-    });
-
-    nodes.set(node.id, node);
-    return node;
-  }
+  const {
+    createAnchorNode,
+    createElementNode,
+    createFragmentNode,
+    createTextNode
+  } = createUIKitBridgeNodeFactory({ nodes, pushCommand });
 
   const host: RendererHost<
     UIKitBridgeNode,
@@ -83,13 +45,7 @@ export function createUIKitBridgeHost(options: CreateUIKitBridgeHostOptions): {
     UIKitBridgeFragmentNode
   > = {
     createAnchor(label = "") {
-      const node: UIKitBridgeAnchorNode = {
-        ...createBaseNode("anchor"),
-        label
-      };
-
-      nodes.set(node.id, node);
-      return node;
+      return createAnchorNode(label);
     },
     createElement(type, svg = false) {
       return createElementNode(resolveUIKitViewType(type), svg);
@@ -98,12 +54,7 @@ export function createUIKitBridgeHost(options: CreateUIKitBridgeHostOptions): {
       return createTextNode(value);
     },
     createFragment() {
-      const node: UIKitBridgeFragmentNode = {
-        ...createBaseNode("fragment")
-      };
-
-      nodes.set(node.id, node);
-      return node;
+      return createFragmentNode();
     },
     isNode(value): value is UIKitBridgeNode {
       return typeof value === "object" && value !== null && "kind" in value && "id" in value;

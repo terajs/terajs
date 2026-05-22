@@ -1,13 +1,12 @@
 import type { RendererHost } from "@terajs/renderer";
 
 import type { AndroidBridgeCommand } from "./bridgeContracts.js";
+import { createAndroidBridgeNodeFactory } from "./bridgeNodeFactory.js";
 import {
-  createAndroidBridgeNodeBase,
   detachAndroidBridgeNode,
   disposeAndroidBridgeSubtree,
   isAndroidNativeBackedNode,
   resolveAndroidBridgeAnchorId,
-  type AndroidBridgeAnchorNode,
   type AndroidBridgeElementNode,
   type AndroidBridgeFragmentNode,
   type AndroidBridgeNode,
@@ -32,49 +31,12 @@ export function createAndroidBridgeHost(options: CreateAndroidBridgeHostOptions)
   root: AndroidBridgeElementNode;
 } {
   const { nodes, pushCommand } = options;
-  let nextNodeId = 1;
-
-  function createBaseNode<Kind extends AndroidBridgeNode["kind"]>(kind: Kind) {
-    return createAndroidBridgeNodeBase(nextNodeId++, kind);
-  }
-
-  function createElementNode(viewType: string, svg: boolean): AndroidBridgeElementNode {
-    const node: AndroidBridgeElementNode = {
-      ...createBaseNode("element"),
-      viewType,
-      svg,
-      className: "",
-      eventHandlers: {},
-      props: {},
-      styles: {}
-    };
-
-    pushCommand({
-      type: "create-element",
-      nodeId: node.id,
-      viewType,
-      svg
-    });
-
-    nodes.set(node.id, node);
-    return node;
-  }
-
-  function createTextNode(value: string): AndroidBridgeTextNode {
-    const node: AndroidBridgeTextNode = {
-      ...createBaseNode("text"),
-      value: String(value)
-    };
-
-    pushCommand({
-      type: "create-text",
-      nodeId: node.id,
-      value: node.value
-    });
-
-    nodes.set(node.id, node);
-    return node;
-  }
+  const {
+    createAnchorNode,
+    createElementNode,
+    createFragmentNode,
+    createTextNode
+  } = createAndroidBridgeNodeFactory({ nodes, pushCommand });
 
   const host: RendererHost<
     AndroidBridgeNode,
@@ -83,13 +45,7 @@ export function createAndroidBridgeHost(options: CreateAndroidBridgeHostOptions)
     AndroidBridgeFragmentNode
   > = {
     createAnchor(label = "") {
-      const node: AndroidBridgeAnchorNode = {
-        ...createBaseNode("anchor"),
-        label
-      };
-
-      nodes.set(node.id, node);
-      return node;
+      return createAnchorNode(label);
     },
     createElement(type, svg = false) {
       return createElementNode(resolveAndroidViewType(type), svg);
@@ -98,12 +54,7 @@ export function createAndroidBridgeHost(options: CreateAndroidBridgeHostOptions)
       return createTextNode(value);
     },
     createFragment() {
-      const node: AndroidBridgeFragmentNode = {
-        ...createBaseNode("fragment")
-      };
-
-      nodes.set(node.id, node);
-      return node;
+      return createFragmentNode();
     },
     isNode(value): value is AndroidBridgeNode {
       return typeof value === "object" && value !== null && "kind" in value && "id" in value;

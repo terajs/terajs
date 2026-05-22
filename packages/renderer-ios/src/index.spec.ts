@@ -5,19 +5,12 @@ import { createHostBindings, createHostIRRenderer } from "@terajs/renderer";
 import { signal } from "@terajs/reactivity";
 
 import {
-  createSimulationHost,
-  nextSimulationTick,
-  simulationTextContent,
-  type SimulationElementNode,
-} from "../../renderer-web/src/testing/simulationHost.js";
-
-import {
   createUIKitCommandBridge,
   type UIKitBridgeElementNode,
   type UIKitBridgeTextNode,
 } from "./index.js";
 
-describe("renderer-ios stub", () => {
+describe("renderer-ios bridge", () => {
   it("records thin UIKit host commands without sending JS handlers across the bridge", () => {
     const bridge = createUIKitCommandBridge();
     const label = bridge.host.createElement("button");
@@ -97,55 +90,6 @@ describe("renderer-ios stub", () => {
         nodeId: label.id
       }
     ]);
-  });
-
-  it("renders compiler output against a UIKit-style host simulation", async () => {
-    const host = createSimulationHost();
-    const renderer = createHostIRRenderer({
-      host,
-      bindings: createHostBindings(host)
-    });
-
-    const title = signal("Alpha");
-    const node: IRElementNode = {
-      type: "element",
-      tag: "ui-label",
-      props: [
-        {
-          kind: "bind",
-          name: "accessibilityLabel",
-          value: "title",
-          binding: {
-            kind: "simple-path",
-            segments: ["title"]
-          }
-        }
-      ],
-      children: [
-        {
-          type: "interp",
-          expression: "title",
-          loc: undefined,
-          flags: { dynamic: true }
-        } as IRInterpolationNode
-      ],
-      loc: undefined,
-      flags: { hasDirectives: false }
-    };
-
-    const root = host.createElement("UIView");
-    const rendered = renderer.renderIRNode(node, { title }) as SimulationElementNode;
-    host.insert(root, rendered);
-
-    expect(rendered.tag).toBe("ui-label");
-    expect(rendered.props.accessibilityLabel).toBe("Alpha");
-    expect(simulationTextContent(root)).toBe("Alpha");
-
-    title.set("Beta");
-    await nextSimulationTick();
-
-    expect(rendered.props.accessibilityLabel).toBe("Beta");
-    expect(simulationTextContent(root)).toBe("Beta");
   });
 
   it("renders compiler output through the UIKit command bridge", async () => {
