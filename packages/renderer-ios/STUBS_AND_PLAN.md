@@ -13,7 +13,7 @@ This directory contains experimental scaffolds for native renderers:
 - package-local primitive mapping from Terajs tags to UIKit view types
 - package-local prop and event normalization from Terajs-style names to UIKit-facing bridge payloads
 - package-local style normalization from Terajs-style layout props to UIKit-facing bridge payloads
-- package-local native event ingress for text inputs so host-session input state and JS handlers stay aligned
+- package-local native event ingress for text inputs and switches so host-session state and JS handlers stay aligned
 - focused JS-side conformance tests for the current host adapter seam
 - Example renderer entry points
 - README and roadmap for future development

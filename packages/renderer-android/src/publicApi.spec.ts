@@ -48,7 +48,12 @@ describe("renderer-android public API", () => {
       name: "text",
       value: "Alpha"
     });
+    expect(normalizeAndroidProp("Switch", "on", 1)).toEqual({
+      name: "checked",
+      value: true
+    });
     expect(normalizeAndroidEventName("Button", "click")).toBe("press");
+    expect(normalizeAndroidEventName("Switch", "toggle")).toBe("change");
   });
 
   it("renders compiler IR modules through the public Android entry point", async () => {

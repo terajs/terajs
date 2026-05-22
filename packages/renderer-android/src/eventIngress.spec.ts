@@ -51,4 +51,46 @@ describe("renderer-android native event ingress", () => {
     expect(rendered.props.text).toBe("Beta");
     expect(input.props.text).toBe("Beta");
   });
+
+  it("normalizes switch toggle events and syncs checked state into the session tree", () => {
+    const session = createAndroidHostSession();
+    const checked = signal(true);
+    const onChange = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "switch",
+      props: [
+        {
+          kind: "bind",
+          name: "checked",
+          value: "checked",
+          binding: {
+            kind: "simple-path",
+            segments: ["checked"]
+          }
+        },
+        {
+          kind: "event",
+          name: "toggle",
+          value: "onChange"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { checked, onChange }) as AndroidBridgeElementNode;
+    const toggle = session.root.children[0] as AndroidNativeViewNode;
+
+    expect(toggle.viewType).toBe("Switch");
+    expect(toggle.props.checked).toBe(true);
+    expect(toggle.subscribedEvents).toEqual(["change"]);
+
+    session.dispatchNativeEvent(rendered.id, "toggle", { checked: false });
+
+    expect(onChange).toHaveBeenCalledWith({ checked: false, on: false });
+    expect(rendered.props.checked).toBe(false);
+    expect(toggle.props.checked).toBe(false);
+  });
 });

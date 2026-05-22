@@ -51,4 +51,46 @@ describe("renderer-ios native event ingress", () => {
     expect(rendered.props.text).toBe("Beta");
     expect(input.props.text).toBe("Beta");
   });
+
+  it("normalizes switch toggle events and syncs checked state into the session tree", () => {
+    const session = createUIKitHostSession();
+    const checked = signal(true);
+    const onChange = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "switch",
+      props: [
+        {
+          kind: "bind",
+          name: "checked",
+          value: "checked",
+          binding: {
+            kind: "simple-path",
+            segments: ["checked"]
+          }
+        },
+        {
+          kind: "event",
+          name: "toggle",
+          value: "onChange"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { checked, onChange }) as UIKitBridgeElementNode;
+    const toggle = session.root.children[0] as UIKitNativeViewNode;
+
+    expect(toggle.viewType).toBe("UISwitch");
+    expect(toggle.props.on).toBe(true);
+    expect(toggle.subscribedEvents).toEqual(["change"]);
+
+    session.dispatchNativeEvent(rendered.id, "toggle", { on: false });
+
+    expect(onChange).toHaveBeenCalledWith({ on: false, checked: false });
+    expect(rendered.props.on).toBe(false);
+    expect(toggle.props.on).toBe(false);
+  });
 });

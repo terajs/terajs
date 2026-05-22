@@ -3,6 +3,7 @@ import type { UIKitNativeNode } from "./consumer.js";
 import { normalizeUIKitEventName } from "./primitives.js";
 
 const UIKitTextInputViewTypes = new Set(["UITextField", "UITextView"]);
+const UIKitSwitchViewTypes = new Set(["UISwitch"]);
 
 function extractUIKitTextValue(payload: unknown): string | undefined {
   if (typeof payload === "string") {
@@ -40,6 +41,42 @@ function createUIKitTextPayload(value: string, payload: unknown): unknown {
   };
 }
 
+function extractUIKitToggleValue(payload: unknown): boolean | undefined {
+  if (typeof payload === "boolean") {
+    return payload;
+  }
+
+  if (typeof payload !== "object" || payload === null) {
+    return undefined;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (typeof record.checked === "boolean") {
+    return record.checked;
+  }
+
+  if (typeof record.on === "boolean") {
+    return record.on;
+  }
+
+  return undefined;
+}
+
+function createUIKitTogglePayload(checked: boolean, payload: unknown): unknown {
+  if (typeof payload === "object" && payload !== null && !Array.isArray(payload)) {
+    return {
+      ...(payload as Record<string, unknown>),
+      checked,
+      on: checked
+    };
+  }
+
+  return {
+    checked,
+    on: checked
+  };
+}
+
 /**
  * Normalizes inbound native UIKit events and syncs input text state into the
  * bridge and consumer proof trees before JS handlers run.
@@ -64,6 +101,22 @@ export function ingestUIKitNativeEvent(
       return {
         name: normalizedName,
         payload: createUIKitTextPayload(value, payload)
+      };
+    }
+  }
+
+  if (UIKitSwitchViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {
+    const checked = extractUIKitToggleValue(payload);
+    if (checked != null) {
+      bridgeNode.props.on = checked;
+
+      if (nativeNode?.kind === "view") {
+        nativeNode.props.on = checked;
+      }
+
+      return {
+        name: normalizedName,
+        payload: createUIKitTogglePayload(checked, payload)
       };
     }
   }

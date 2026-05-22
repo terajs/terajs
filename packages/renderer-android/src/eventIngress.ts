@@ -3,6 +3,7 @@ import type { AndroidNativeNode } from "./consumer.js";
 import { normalizeAndroidEventName } from "./primitives.js";
 
 const AndroidTextInputViewTypes = new Set(["EditText"]);
+const AndroidSwitchViewTypes = new Set(["Switch"]);
 
 function extractAndroidTextValue(payload: unknown): string | undefined {
   if (typeof payload === "string") {
@@ -40,6 +41,42 @@ function createAndroidTextPayload(value: string, payload: unknown): unknown {
   };
 }
 
+function extractAndroidToggleValue(payload: unknown): boolean | undefined {
+  if (typeof payload === "boolean") {
+    return payload;
+  }
+
+  if (typeof payload !== "object" || payload === null) {
+    return undefined;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (typeof record.checked === "boolean") {
+    return record.checked;
+  }
+
+  if (typeof record.on === "boolean") {
+    return record.on;
+  }
+
+  return undefined;
+}
+
+function createAndroidTogglePayload(checked: boolean, payload: unknown): unknown {
+  if (typeof payload === "object" && payload !== null && !Array.isArray(payload)) {
+    return {
+      ...(payload as Record<string, unknown>),
+      checked,
+      on: checked
+    };
+  }
+
+  return {
+    checked,
+    on: checked
+  };
+}
+
 /**
  * Normalizes inbound native Android events and syncs input text state into the
  * bridge and consumer proof trees before JS handlers run.
@@ -64,6 +101,22 @@ export function ingestAndroidNativeEvent(
       return {
         name: normalizedName,
         payload: createAndroidTextPayload(value, payload)
+      };
+    }
+  }
+
+  if (AndroidSwitchViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {
+    const checked = extractAndroidToggleValue(payload);
+    if (checked != null) {
+      bridgeNode.props.checked = checked;
+
+      if (nativeNode?.kind === "view") {
+        nativeNode.props.checked = checked;
+      }
+
+      return {
+        name: normalizedName,
+        payload: createAndroidTogglePayload(checked, payload)
       };
     }
   }

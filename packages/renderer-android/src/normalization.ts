@@ -59,6 +59,13 @@ export function normalizeAndroidEventName(viewType: string, name: string): strin
   }
 
   if (
+    ["change", "input", "toggle"].includes(normalizedKey)
+    && viewType === "Switch"
+  ) {
+    return "change";
+  }
+
+  if (
     ["input", "change", "textinput"].includes(normalizedKey)
     && viewType === "EditText"
   ) {

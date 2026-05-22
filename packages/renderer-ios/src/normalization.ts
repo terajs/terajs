@@ -59,6 +59,13 @@ export function normalizeUIKitEventName(viewType: string, name: string): string 
   }
 
   if (
+    ["change", "input", "toggle"].includes(normalizedKey)
+    && viewType === "UISwitch"
+  ) {
+    return "change";
+  }
+
+  if (
     ["input", "change", "textinput"].includes(normalizedKey)
     && ["UITextField", "UITextView"].includes(viewType)
   ) {

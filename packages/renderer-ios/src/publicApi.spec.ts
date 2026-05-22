@@ -48,7 +48,12 @@ describe("renderer-ios public API", () => {
       name: "text",
       value: "Alpha"
     });
+    expect(normalizeUIKitProp("UISwitch", "checked", 1)).toEqual({
+      name: "on",
+      value: true
+    });
     expect(normalizeUIKitEventName("UIButton", "click")).toBe("tap");
+    expect(normalizeUIKitEventName("UISwitch", "toggle")).toBe("change");
   });
 
   it("renders compiler IR modules through the public UIKit entry point", async () => {
