@@ -62,6 +62,7 @@ describe("renderer-ios public API", () => {
     });
     expect(normalizeUIKitEventName("UIButton", "click")).toBe("tap");
     expect(normalizeUIKitEventName("UISwitch", "toggle")).toBe("change");
+    expect(normalizeUIKitEventName("UITextField", "compositionUpdate")).toBe("compositionupdate");
   });
 
   it("renders native input and image prop aliases through the UIKit entry point", async () => {

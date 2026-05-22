@@ -1,5 +1,9 @@
 import type { AndroidBridgeElementNode } from "./bridge.js";
 import type { AndroidNativeNode } from "./consumer.js";
+import {
+  createAndroidCompositionPayload,
+  extractAndroidCompositionState,
+} from "./compositionEventPayload.js";
 import { normalizeAndroidEventName } from "./primitives.js";
 import {
   createAndroidSelectionPayload,
@@ -10,6 +14,7 @@ import { createAndroidTogglePayload, extractAndroidToggleValue } from "./toggleE
 
 const AndroidTextInputViewTypes = new Set(["EditText"]);
 const AndroidSwitchViewTypes = new Set(["Switch"]);
+const AndroidCompositionEventNames = new Set(["compositionstart", "compositionupdate", "compositionend"]);
 
 /**
  * Normalizes inbound native Android events and syncs text-entry and toggle
@@ -55,6 +60,35 @@ export function ingestAndroidNativeEvent(
         payload: createAndroidSelectionPayload(range, payload)
       };
     }
+  }
+
+  if (AndroidTextInputViewTypes.has(bridgeNode.viewType) && AndroidCompositionEventNames.has(normalizedName)) {
+    const composition = extractAndroidCompositionState(normalizedName, payload);
+
+    if (composition.text != null) {
+      bridgeNode.props.text = composition.text;
+
+      if (nativeNode?.kind === "view") {
+        nativeNode.props.text = composition.text;
+      }
+    }
+
+    bridgeNode.props.composing = composition.composing;
+    bridgeNode.props.compositionText = composition.composing
+      ? composition.compositionText
+      : undefined;
+
+    if (nativeNode?.kind === "view") {
+      nativeNode.props.composing = composition.composing;
+      nativeNode.props.compositionText = composition.composing
+        ? composition.compositionText
+        : undefined;
+    }
+
+    return {
+      name: normalizedName,
+      payload: createAndroidCompositionPayload(composition, payload)
+    };
   }
 
   if (AndroidSwitchViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {

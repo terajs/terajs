@@ -1,5 +1,9 @@
 import type { UIKitBridgeElementNode } from "./bridge.js";
 import type { UIKitNativeNode } from "./consumer.js";
+import {
+  createUIKitCompositionPayload,
+  extractUIKitCompositionState,
+} from "./compositionEventPayload.js";
 import { normalizeUIKitEventName } from "./primitives.js";
 import {
   createUIKitSelectionPayload,
@@ -10,6 +14,7 @@ import { createUIKitTogglePayload, extractUIKitToggleValue } from "./toggleEvent
 
 const UIKitTextInputViewTypes = new Set(["UITextField", "UITextView"]);
 const UIKitSwitchViewTypes = new Set(["UISwitch"]);
+const UIKitCompositionEventNames = new Set(["compositionstart", "compositionupdate", "compositionend"]);
 
 /**
  * Normalizes inbound native UIKit events and syncs text-entry and toggle state
@@ -55,6 +60,35 @@ export function ingestUIKitNativeEvent(
         payload: createUIKitSelectionPayload(range, payload)
       };
     }
+  }
+
+  if (UIKitTextInputViewTypes.has(bridgeNode.viewType) && UIKitCompositionEventNames.has(normalizedName)) {
+    const composition = extractUIKitCompositionState(normalizedName, payload);
+
+    if (composition.text != null) {
+      bridgeNode.props.text = composition.text;
+
+      if (nativeNode?.kind === "view") {
+        nativeNode.props.text = composition.text;
+      }
+    }
+
+    bridgeNode.props.composing = composition.composing;
+    bridgeNode.props.compositionText = composition.composing
+      ? composition.compositionText
+      : undefined;
+
+    if (nativeNode?.kind === "view") {
+      nativeNode.props.composing = composition.composing;
+      nativeNode.props.compositionText = composition.composing
+        ? composition.compositionText
+        : undefined;
+    }
+
+    return {
+      name: normalizedName,
+      payload: createUIKitCompositionPayload(composition, payload)
+    };
   }
 
   if (UIKitSwitchViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {

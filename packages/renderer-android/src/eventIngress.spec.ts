@@ -149,6 +149,79 @@ describe("renderer-android native event ingress", () => {
     expect(input.props.selectionEnd).toBe(6);
   });
 
+  it("normalizes composition payloads and syncs composition state into the session tree", () => {
+    const session = createAndroidHostSession();
+    const value = signal("Alpha");
+    const onCompositionUpdate = vi.fn();
+    const onCompositionEnd = vi.fn();
+    const node: IRElementNode = {
+      type: "element",
+      tag: "input",
+      props: [
+        {
+          kind: "bind",
+          name: "value",
+          value: "value",
+          binding: {
+            kind: "simple-path",
+            segments: ["value"]
+          }
+        },
+        {
+          kind: "event",
+          name: "compositionUpdate",
+          value: "onCompositionUpdate"
+        },
+        {
+          kind: "event",
+          name: "imeEnd",
+          value: "onCompositionEnd"
+        }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const rendered = session.mountIRNode(node, { value, onCompositionUpdate, onCompositionEnd }) as AndroidBridgeElementNode;
+    const input = session.root.children[0] as AndroidNativeViewNode;
+
+    expect(input.viewType).toBe("EditText");
+    expect(input.subscribedEvents).toEqual(["compositionupdate", "compositionend"]);
+
+    session.dispatchNativeEvent(rendered.id, "compositionupdate", { value: "Beta", data: "Be" });
+
+    expect(onCompositionUpdate).toHaveBeenCalledWith({
+      value: "Beta",
+      text: "Beta",
+      data: "Be",
+      composition: "Be",
+      composing: true,
+      isComposing: true
+    });
+    expect(rendered.props.text).toBe("Beta");
+    expect(rendered.props.composing).toBe(true);
+    expect(rendered.props.compositionText).toBe("Be");
+    expect(input.props.text).toBe("Beta");
+    expect(input.props.composing).toBe(true);
+    expect(input.props.compositionText).toBe("Be");
+
+    session.dispatchNativeEvent(rendered.id, "compositionend", { value: "Beta", data: "Be" });
+
+    expect(onCompositionEnd).toHaveBeenCalledWith({
+      value: "Beta",
+      text: "Beta",
+      data: "Be",
+      composition: "Be",
+      composing: false,
+      isComposing: false
+    });
+    expect(rendered.props.composing).toBe(false);
+    expect(rendered.props.compositionText).toBeUndefined();
+    expect(input.props.composing).toBe(false);
+    expect(input.props.compositionText).toBeUndefined();
+  });
+
   it("normalizes switch toggle events and syncs checked state into the session tree", () => {
     const session = createAndroidHostSession();
     const checked = signal(true);

@@ -121,5 +121,26 @@ export function normalizeUIKitEventName(viewType: string, name: string): string 
     return "selectionchange";
   }
 
+  if (
+    ["compositionstart", "composingstart", "imestart"].includes(normalizedKey)
+    && ["UITextField", "UITextView"].includes(viewType)
+  ) {
+    return "compositionstart";
+  }
+
+  if (
+    ["compositionupdate", "composition", "composing", "imeupdate"].includes(normalizedKey)
+    && ["UITextField", "UITextView"].includes(viewType)
+  ) {
+    return "compositionupdate";
+  }
+
+  if (
+    ["compositionend", "composingend", "imeend"].includes(normalizedKey)
+    && ["UITextField", "UITextView"].includes(viewType)
+  ) {
+    return "compositionend";
+  }
+
   return name;
 }

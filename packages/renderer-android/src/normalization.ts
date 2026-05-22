@@ -121,5 +121,26 @@ export function normalizeAndroidEventName(viewType: string, name: string): strin
     return "selectionchange";
   }
 
+  if (
+    ["compositionstart", "composingstart", "imestart"].includes(normalizedKey)
+    && viewType === "EditText"
+  ) {
+    return "compositionstart";
+  }
+
+  if (
+    ["compositionupdate", "composition", "composing", "imeupdate"].includes(normalizedKey)
+    && viewType === "EditText"
+  ) {
+    return "compositionupdate";
+  }
+
+  if (
+    ["compositionend", "composingend", "imeend"].includes(normalizedKey)
+    && viewType === "EditText"
+  ) {
+    return "compositionend";
+  }
+
   return name;
 }

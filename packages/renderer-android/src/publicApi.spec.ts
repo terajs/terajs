@@ -62,6 +62,7 @@ describe("renderer-android public API", () => {
     });
     expect(normalizeAndroidEventName("Button", "click")).toBe("press");
     expect(normalizeAndroidEventName("Switch", "toggle")).toBe("change");
+    expect(normalizeAndroidEventName("EditText", "imeEnd")).toBe("compositionend");
   });
 
   it("renders native input and image prop aliases through the Android entry point", async () => {
