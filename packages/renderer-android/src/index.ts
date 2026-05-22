@@ -3,6 +3,7 @@ export {
   type AndroidBridgeCommand,
   type AndroidBridgeElementNode,
   type AndroidBridgeNode,
+  type AndroidNativeEventPacket,
   type AndroidBridgeTextNode,
   type AndroidCommandBridge,
   type CreateAndroidCommandBridgeOptions

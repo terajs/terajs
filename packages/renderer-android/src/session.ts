@@ -57,6 +57,9 @@ export function createAndroidHostSession(): AndroidHostSession {
       const event = ingestAndroidNativeEvent(node, consumer.getNode(nodeId), name, payload);
       bridge.dispatchEvent(node as AndroidBridgeElementNode, event.name, event.payload);
     },
+    dispatchNativeEventPacket(packet) {
+      this.dispatchNativeEvent(packet.nodeId, packet.name, packet.payload);
+    },
     getBridgeNode(nodeId) {
       return bridge.getNode(nodeId);
     },

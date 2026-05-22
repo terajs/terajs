@@ -3,6 +3,7 @@ import {
   type AndroidBridgeCommand,
   type AndroidCommandBridge,
   type CreateAndroidCommandBridgeOptions,
+  type AndroidNativeEventPacket,
 } from "./bridgeContracts.js";
 import { createAndroidBridgeHost } from "./bridgeHost.js";
 
@@ -10,6 +11,7 @@ export type {
   AndroidBridgeCommand,
   AndroidCommandBridge,
   CreateAndroidCommandBridgeOptions,
+  AndroidNativeEventPacket,
 } from "./bridgeContracts.js";
 export type {
   AndroidBridgeAnchorNode,
@@ -47,6 +49,11 @@ export function createAndroidCommandBridge(
       for (const handler of [...(node.eventHandlers[name] ?? [])]) {
         handler(payload);
       }
+    },
+    drainCommands() {
+      const drained = [...commands];
+      commands.length = 0;
+      return drained;
     },
     getNode(nodeId) {
       return nodes.get(nodeId);

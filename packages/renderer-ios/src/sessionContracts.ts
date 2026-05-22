@@ -1,6 +1,6 @@
 import type { IRModule, IRNode } from "@terajs/compiler";
 
-import type { UIKitBridgeNode, UIKitCommandBridge } from "./bridge.js";
+import type { UIKitBridgeNode, UIKitCommandBridge, UIKitNativeEventPacket } from "./bridge.js";
 import type { UIKitCommandConsumer, UIKitNativeNode, UIKitNativeViewNode } from "./consumer.js";
 
 export interface UIKitMountedModule {
@@ -12,6 +12,7 @@ export interface UIKitHostSession {
   bridge: UIKitCommandBridge;
   consumer: UIKitCommandConsumer;
   dispatchNativeEvent(nodeId: number, name: string, payload?: unknown): void;
+  dispatchNativeEventPacket(packet: UIKitNativeEventPacket): void;
   getBridgeNode(nodeId: number): UIKitBridgeNode | undefined;
   getNativeNode(nodeId: number): UIKitNativeNode | undefined;
   mountIRModule(ir: IRModule, ctx: any): UIKitMountedModule;

@@ -1,6 +1,6 @@
 import type { IRModule, IRNode } from "@terajs/compiler";
 
-import type { AndroidBridgeNode, AndroidCommandBridge } from "./bridge.js";
+import type { AndroidBridgeNode, AndroidCommandBridge, AndroidNativeEventPacket } from "./bridge.js";
 import type { AndroidCommandConsumer, AndroidNativeNode, AndroidNativeViewNode } from "./consumer.js";
 
 export interface AndroidMountedModule {
@@ -12,6 +12,7 @@ export interface AndroidHostSession {
   bridge: AndroidCommandBridge;
   consumer: AndroidCommandConsumer;
   dispatchNativeEvent(nodeId: number, name: string, payload?: unknown): void;
+  dispatchNativeEventPacket(packet: AndroidNativeEventPacket): void;
   getBridgeNode(nodeId: number): AndroidBridgeNode | undefined;
   getNativeNode(nodeId: number): AndroidNativeNode | undefined;
   mountIRModule(ir: IRModule, ctx: any): AndroidMountedModule;

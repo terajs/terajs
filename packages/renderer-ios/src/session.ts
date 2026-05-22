@@ -57,6 +57,9 @@ export function createUIKitHostSession(): UIKitHostSession {
       const event = ingestUIKitNativeEvent(node, consumer.getNode(nodeId), name, payload);
       bridge.dispatchEvent(node as UIKitBridgeElementNode, event.name, event.payload);
     },
+    dispatchNativeEventPacket(packet) {
+      this.dispatchNativeEvent(packet.nodeId, packet.name, packet.payload);
+    },
     getBridgeNode(nodeId) {
       return bridge.getNode(nodeId);
     },

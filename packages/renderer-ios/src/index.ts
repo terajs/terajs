@@ -4,6 +4,7 @@ export {
   type UIKitBridgeCommand,
   type UIKitBridgeElementNode,
   type UIKitBridgeNode,
+  type UIKitNativeEventPacket,
   type UIKitBridgeTextNode,
   type UIKitCommandBridge
 } from "./bridge.js";

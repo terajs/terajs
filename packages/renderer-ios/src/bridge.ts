@@ -3,6 +3,7 @@ import {
   type CreateUIKitCommandBridgeOptions,
   type UIKitBridgeCommand,
   type UIKitCommandBridge,
+  type UIKitNativeEventPacket,
 } from "./bridgeContracts.js";
 import { createUIKitBridgeHost } from "./bridgeHost.js";
 
@@ -10,6 +11,7 @@ export type {
   CreateUIKitCommandBridgeOptions,
   UIKitBridgeCommand,
   UIKitCommandBridge,
+  UIKitNativeEventPacket,
 } from "./bridgeContracts.js";
 export type {
   UIKitBridgeAnchorNode,
@@ -47,6 +49,11 @@ export function createUIKitCommandBridge(
       for (const handler of [...(node.eventHandlers[name] ?? [])]) {
         handler(payload);
       }
+    },
+    drainCommands() {
+      const drained = [...commands];
+      commands.length = 0;
+      return drained;
     },
     getNode(nodeId) {
       return nodes.get(nodeId);

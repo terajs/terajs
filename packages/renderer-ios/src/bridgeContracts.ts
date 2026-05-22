@@ -66,9 +66,17 @@ export interface CreateUIKitCommandBridgeOptions {
   rootViewType?: string;
 }
 
+/** Packet shape a native host can send back toward the JS-owned renderer. */
+export interface UIKitNativeEventPacket {
+  nodeId: number;
+  name: string;
+  payload?: unknown;
+}
+
 export interface UIKitCommandBridge {
   readonly commands: UIKitBridgeCommand[];
   dispatchEvent(node: UIKitBridgeElementNode, name: string, payload?: unknown): void;
+  drainCommands(): UIKitBridgeCommand[];
   getNode(nodeId: number): UIKitBridgeNode | undefined;
   host: RendererHost<
     UIKitBridgeNode,

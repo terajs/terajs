@@ -66,9 +66,17 @@ export interface CreateAndroidCommandBridgeOptions {
   rootViewType?: string;
 }
 
+/** Packet shape a native host can send back toward the JS-owned renderer. */
+export interface AndroidNativeEventPacket {
+  nodeId: number;
+  name: string;
+  payload?: unknown;
+}
+
 export interface AndroidCommandBridge {
   readonly commands: AndroidBridgeCommand[];
   dispatchEvent(node: AndroidBridgeElementNode, name: string, payload?: unknown): void;
+  drainCommands(): AndroidBridgeCommand[];
   getNode(nodeId: number): AndroidBridgeNode | undefined;
   host: RendererHost<
     AndroidBridgeNode,
