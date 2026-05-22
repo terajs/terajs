@@ -28,6 +28,11 @@ export {
   type AndroidMountedModule
 } from "./session.js";
 export {
+  createAndroidWireTransport,
+  type AndroidWireTransport,
+  type CreateAndroidWireTransportOptions
+} from "./wireTransport.js";
+export {
   normalizeAndroidEventName,
   normalizeAndroidProp,
   normalizeAndroidStyle,

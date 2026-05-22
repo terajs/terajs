@@ -28,6 +28,11 @@ export {
   type UIKitMountedModule
 } from "./session.js";
 export {
+  createUIKitWireTransport,
+  type CreateUIKitWireTransportOptions,
+  type UIKitWireTransport
+} from "./wireTransport.js";
+export {
   normalizeUIKitEventName,
   normalizeUIKitProp,
   normalizeUIKitStyle,
