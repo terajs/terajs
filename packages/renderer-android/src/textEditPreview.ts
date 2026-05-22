@@ -106,9 +106,23 @@ function extractTextRecordValue(value: unknown): string | undefined {
     return undefined;
   }
 
+  return extractTextRecordValueDeep(value, new Set<unknown>());
+}
+
+function extractTextRecordValueDeep(value: unknown, seen: Set<unknown>): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value !== "object" || value === null || seen.has(value)) {
+    return undefined;
+  }
+
+  seen.add(value);
+
   if (Array.isArray(value)) {
     for (const item of value) {
-      const text = extractTextRecordValue(item);
+      const text = extractTextRecordValueDeep(item, seen);
       if (text != null) {
         return text;
       }
@@ -146,6 +160,24 @@ function extractTextRecordValue(value: unknown): string | undefined {
       if (typeof text === "string" && text.length > 0) {
         return text;
       }
+    }
+  }
+
+  for (const key of [
+    "items",
+    "entries",
+    "values",
+    "payload",
+    "item",
+    "dataTransfer",
+    "clipboardData",
+    "transferData",
+    "pasteData",
+    "dropData"
+  ]) {
+    const text = extractTextRecordValueDeep(record[key], seen);
+    if (text != null) {
+      return text;
     }
   }
 
