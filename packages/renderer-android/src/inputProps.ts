@@ -9,6 +9,8 @@ export interface AndroidNormalizedInputProp extends AndroidNormalizedInputPropUp
 
 const AndroidInputTraitViewTypes = new Set(["EditText"]);
 
+import { normalizeAndroidSelectionProp } from "./selectionProps.js";
+
 function normalizeInputKey(name: string): string {
   return name.replace(/[-_\s]/g, "").toLowerCase();
 }
@@ -50,41 +52,6 @@ function normalizeStringValue(value: unknown): string | null {
   }
 
   return String(value).trim().toLowerCase();
-}
-
-function normalizeSelectionIndex(value: unknown): number | null {
-  if (value == null) {
-    return null;
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(0, Math.trunc(value));
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-
-    const parsed = Number(trimmed);
-    if (Number.isFinite(parsed)) {
-      return Math.max(0, Math.trunc(parsed));
-    }
-  }
-
-  return null;
-}
-
-function createCollapsedSelectionProp(index: number | null): AndroidNormalizedInputProp {
-  return {
-    name: "selectionStart",
-    value: index,
-    additional: [{
-      name: "selectionEnd",
-      value: index
-    }]
-  };
 }
 
 function resolveAndroidInputType(value: unknown): string | null {
@@ -217,22 +184,9 @@ export function normalizeAndroidInputProp(
     };
   }
 
-  if (normalizedKey === "selectionstart") {
-    return {
-      name: "selectionStart",
-      value: normalizeSelectionIndex(value)
-    };
-  }
-
-  if (normalizedKey === "selectionend") {
-    return {
-      name: "selectionEnd",
-      value: normalizeSelectionIndex(value)
-    };
-  }
-
-  if (["caret", "cursor"].includes(normalizedKey)) {
-    return createCollapsedSelectionProp(normalizeSelectionIndex(value));
+  const selectionProp = normalizeAndroidSelectionProp(viewType, name, value);
+  if (selectionProp) {
+    return selectionProp;
   }
 
   return null;

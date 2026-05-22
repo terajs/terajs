@@ -31,18 +31,6 @@ describe("renderer-android input prop normalization", () => {
       name: "autoCorrect",
       value: false
     });
-    expect(normalizeAndroidProp("EditText", "selectionEnd", 3)).toEqual({
-      name: "selectionEnd",
-      value: 3
-    });
-    expect(normalizeAndroidProp("EditText", "caret", 5)).toEqual({
-      name: "selectionStart",
-      value: 5,
-      additional: [{
-        name: "selectionEnd",
-        value: 5
-      }]
-    });
     expect(normalizeAndroidProp("EditText", "type", "text")).toEqual({
       name: "password",
       value: false
@@ -169,79 +157,6 @@ describe("renderer-android input prop normalization", () => {
 
     expect(input.props.inputCapsMode).toBe("textCapCharacters");
     expect(input.props.autoCorrect).toBe(true);
-
-    rendered.unmount();
-    expect(rendered.root.children).toEqual([]);
-  });
-
-  it("renders Android selection and caret props through the public entry point", async () => {
-    const selectionStart = signal(1);
-    const selectionEnd = signal(3);
-    const caret = signal<number | null>(4);
-    const ir: IRModule = {
-      filePath: "/native/android-selection-traits.tera",
-      template: [
-        {
-          type: "element",
-          tag: "textarea",
-          props: [
-            {
-              kind: "bind",
-              name: "selectionStart",
-              value: "selectionStart",
-              binding: {
-                kind: "simple-path",
-                segments: ["selectionStart"]
-              }
-            },
-            {
-              kind: "bind",
-              name: "selectionEnd",
-              value: "selectionEnd",
-              binding: {
-                kind: "simple-path",
-                segments: ["selectionEnd"]
-              }
-            },
-            {
-              kind: "bind",
-              name: "caret",
-              value: "caret",
-              binding: {
-                kind: "simple-path",
-                segments: ["caret"]
-              }
-            }
-          ],
-          children: [],
-          loc: undefined,
-          flags: { hasDirectives: true }
-        } as IRElementNode
-      ],
-      meta: {} as IRModule["meta"],
-      route: null
-    };
-
-    const rendered = renderTerajsToAndroidViews(ir, { selectionStart, selectionEnd, caret });
-    const input = rendered.root.children[0] as AndroidNativeViewNode;
-
-    expect(input.viewType).toBe("EditText");
-    expect(input.props.selectionStart).toBe(4);
-    expect(input.props.selectionEnd).toBe(4);
-
-    caret.set(null);
-    selectionStart.set(2);
-    selectionEnd.set(6);
-    await Promise.resolve();
-
-    expect(input.props.selectionStart).toBe(2);
-    expect(input.props.selectionEnd).toBe(6);
-
-    caret.set(7);
-    await Promise.resolve();
-
-    expect(input.props.selectionStart).toBe(7);
-    expect(input.props.selectionEnd).toBe(7);
 
     rendered.unmount();
     expect(rendered.root.children).toEqual([]);
