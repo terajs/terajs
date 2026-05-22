@@ -3,24 +3,23 @@ import {
   extractAndroidSelectionRange,
   type AndroidNativeSelectionRange,
 } from "./selectionEventPayload.js";
+import {
+  extractAndroidTextEditRecord,
+  extractAndroidTextEditString,
+  resolveAndroidTextEditPreview,
+} from "./textEditPreview.js";
 
 export interface AndroidCompositionEventState {
   text?: string;
   compositionText?: string;
   composing: boolean;
   selectionRange?: AndroidNativeSelectionRange;
+  replacementRange?: AndroidNativeSelectionRange;
+  baseText?: string;
 }
 
 function resolveDefaultComposing(eventName: string): boolean {
   return eventName !== "compositionend";
-}
-
-function extractCompositionRecord(payload: unknown): Record<string, unknown> | undefined {
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
-    return undefined;
-  }
-
-  return payload as Record<string, unknown>;
 }
 
 function extractTextValue(record: Record<string, unknown> | undefined, payload: unknown): string | undefined {
@@ -37,20 +36,16 @@ function extractTextValue(record: Record<string, unknown> | undefined, payload: 
   return typeof payload === "string" ? payload : undefined;
 }
 
-function extractCompositionText(record: Record<string, unknown> | undefined, fallback: string | undefined): string | undefined {
-  if (!record) {
-    return fallback;
-  }
-
-  if (typeof record.data === "string") {
-    return record.data;
-  }
-
-  if (typeof record.composition === "string") {
-    return record.composition;
-  }
-
-  return fallback;
+function extractCompositionText(
+  record: Record<string, unknown> | undefined,
+  payload: unknown,
+  fallback: string | undefined
+): string | undefined {
+  return extractAndroidTextEditString(
+    record,
+    payload,
+    ["data", "composition", "insertedText", "insertText", "replacementText"]
+  ) ?? fallback;
 }
 
 function extractComposingValue(record: Record<string, unknown> | undefined, fallback: boolean): boolean {
@@ -69,16 +64,47 @@ function extractComposingValue(record: Record<string, unknown> | undefined, fall
   return fallback;
 }
 
-export function extractAndroidCompositionState(eventName: string, payload: unknown): AndroidCompositionEventState {
-  const record = extractCompositionRecord(payload);
-  const text = extractTextValue(record, payload);
-  const composing = extractComposingValue(record, resolveDefaultComposing(eventName));
+function createPreviewProps(props: Record<string, unknown>): Record<string, unknown> {
+  const baseText = typeof props.compositionBaseText === "string" ? props.compositionBaseText : undefined;
+  const replacementRange = extractAndroidSelectionRange(props.compositionReplacementRange);
+
+  if (baseText == null && replacementRange == null) {
+    return props;
+  }
 
   return {
-    text,
-    compositionText: extractCompositionText(record, text),
+    ...props,
+    ...(baseText == null ? {} : { text: baseText }),
+    ...(replacementRange == null
+      ? {}
+      : {
+          selectionStart: replacementRange.start,
+          selectionEnd: replacementRange.end
+        })
+  };
+}
+
+export function extractAndroidCompositionState(
+  props: Record<string, unknown>,
+  eventName: string,
+  payload: unknown
+): AndroidCompositionEventState {
+  const record = extractAndroidTextEditRecord(payload);
+  const text = extractTextValue(record, payload);
+  const compositionText = extractCompositionText(record, payload, text);
+  const composing = extractComposingValue(record, resolveDefaultComposing(eventName));
+  const previewProps = createPreviewProps(props);
+  const preview = text == null && compositionText !== undefined
+    ? resolveAndroidTextEditPreview(previewProps, payload, compositionText, { record })
+    : undefined;
+
+  return {
+    text: text ?? preview?.text,
+    compositionText,
     composing,
-    selectionRange: extractAndroidSelectionRange(payload)
+    selectionRange: extractAndroidSelectionRange(payload) ?? preview?.selectionRange,
+    replacementRange: preview?.replacementRange,
+    baseText: preview?.currentText
   };
 }
 
@@ -94,6 +120,14 @@ export function createAndroidCompositionPayload(state: AndroidCompositionEventSt
     ...base,
     ...(state.text == null ? {} : { text: state.text, value: state.text }),
     ...(state.compositionText == null ? {} : { data: state.compositionText, composition: state.compositionText }),
+    ...(state.replacementRange == null
+      ? {}
+      : {
+          replacementRange: {
+            start: state.replacementRange.start,
+            end: state.replacementRange.end
+          }
+        }),
     composing: state.composing,
     isComposing: state.composing
   };

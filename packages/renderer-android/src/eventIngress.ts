@@ -97,7 +97,7 @@ export function ingestAndroidNativeEvent(
   if (AndroidTextInputViewTypes.has(bridgeNode.viewType) && AndroidCompositionEventNames.has(normalizedName)) {
     const composition: AndroidCompositionEventState = applyAndroidTextEventConstraints(
       bridgeNode.props as Record<string, unknown>,
-      extractAndroidCompositionState(normalizedName, payload)
+      extractAndroidCompositionState(bridgeNode.props as Record<string, unknown>, normalizedName, payload)
     );
 
     if (composition.text != null) {
@@ -122,11 +122,29 @@ export function ingestAndroidNativeEvent(
     bridgeNode.props.compositionText = composition.composing
       ? composition.compositionText
       : undefined;
+    bridgeNode.props.compositionBaseText = composition.composing
+      ? composition.baseText
+      : undefined;
+    bridgeNode.props.compositionReplacementRange = composition.composing && composition.replacementRange
+      ? {
+          start: composition.replacementRange.start,
+          end: composition.replacementRange.end
+        }
+      : undefined;
 
     if (nativeNode?.kind === "view") {
       nativeNode.props.composing = composition.composing;
       nativeNode.props.compositionText = composition.composing
         ? composition.compositionText
+        : undefined;
+      nativeNode.props.compositionBaseText = composition.composing
+        ? composition.baseText
+        : undefined;
+      nativeNode.props.compositionReplacementRange = composition.composing && composition.replacementRange
+        ? {
+            start: composition.replacementRange.start,
+            end: composition.replacementRange.end
+          }
         : undefined;
     }
 
