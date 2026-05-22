@@ -8,6 +8,7 @@ This directory contains experimental scaffolds for native renderers:
 ## What’s included
 - JS-side platform adapter interfaces and stubs
 - JS-side command-oriented bridge host proof for UIKit-style operations, incremental command draining, JSON-safe wire packets, thin host-bridge payload exchange, and event delivery
+- package-local Swift transport scaffold for decoding command batches and encoding node-id native event packets on the UIKit side
 - JS-side host-consumer proof that replays bridge commands into a UIKit-shaped native tree
 - package-local UIKit host session and compiler-driven IR mounting entry point with node-id native event packet dispatch
 - package-local primitive mapping from Terajs tags to UIKit view types
