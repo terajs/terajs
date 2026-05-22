@@ -122,6 +122,13 @@ export function normalizeAndroidEventName(viewType: string, name: string): strin
   }
 
   if (
+    ["beforeinput", "beforetextinput", "textbeforeinput"].includes(normalizedKey)
+    && viewType === "EditText"
+  ) {
+    return "beforeinput";
+  }
+
+  if (
     ["compositionstart", "composingstart", "imestart"].includes(normalizedKey)
     && viewType === "EditText"
   ) {

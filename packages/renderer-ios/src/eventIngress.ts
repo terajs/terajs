@@ -1,3 +1,7 @@
+import {
+  createUIKitBeforeInputPayload,
+  extractUIKitBeforeInputState,
+} from "./beforeInputEventPayload.js";
 import type { UIKitBridgeElementNode } from "./bridge.js";
 import type { UIKitNativeNode } from "./consumer.js";
 import {
@@ -16,6 +20,7 @@ import { createUIKitTogglePayload, extractUIKitToggleValue } from "./toggleEvent
 
 const UIKitTextInputViewTypes = new Set(["UITextField", "UITextView"]);
 const UIKitSwitchViewTypes = new Set(["UISwitch"]);
+const UIKitBeforeInputEventNames = new Set(["beforeinput"]);
 const UIKitCompositionEventNames = new Set(["compositionstart", "compositionupdate", "compositionend"]);
 
 /**
@@ -29,6 +34,28 @@ export function ingestUIKitNativeEvent(
   payload: unknown
 ): { name: string; payload: unknown } {
   const normalizedName = normalizeUIKitEventName(bridgeNode.viewType, name);
+
+  if (UIKitTextInputViewTypes.has(bridgeNode.viewType) && UIKitBeforeInputEventNames.has(normalizedName)) {
+    const beforeInput = applyUIKitTextEventConstraints(
+      bridgeNode.props as Record<string, unknown>,
+      extractUIKitBeforeInputState(bridgeNode.props as Record<string, unknown>, payload)
+    );
+
+    bridgeNode.props.text = beforeInput.text;
+    bridgeNode.props.selectionStart = beforeInput.selectionRange.start;
+    bridgeNode.props.selectionEnd = beforeInput.selectionRange.end;
+
+    if (nativeNode?.kind === "view") {
+      nativeNode.props.text = beforeInput.text;
+      nativeNode.props.selectionStart = beforeInput.selectionRange.start;
+      nativeNode.props.selectionEnd = beforeInput.selectionRange.end;
+    }
+
+    return {
+      name: normalizedName,
+      payload: createUIKitBeforeInputPayload(beforeInput, payload)
+    };
+  }
 
   if (UIKitTextInputViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {
     const value = extractUIKitTextValue(payload);

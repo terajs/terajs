@@ -122,6 +122,13 @@ export function normalizeUIKitEventName(viewType: string, name: string): string 
   }
 
   if (
+    ["beforeinput", "beforetextinput", "textbeforeinput"].includes(normalizedKey)
+    && ["UITextField", "UITextView"].includes(viewType)
+  ) {
+    return "beforeinput";
+  }
+
+  if (
     ["compositionstart", "composingstart", "imestart"].includes(normalizedKey)
     && ["UITextField", "UITextView"].includes(viewType)
   ) {

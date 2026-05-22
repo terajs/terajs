@@ -1,3 +1,7 @@
+import {
+  createAndroidBeforeInputPayload,
+  extractAndroidBeforeInputState,
+} from "./beforeInputEventPayload.js";
 import type { AndroidBridgeElementNode } from "./bridge.js";
 import type { AndroidNativeNode } from "./consumer.js";
 import {
@@ -16,6 +20,7 @@ import { createAndroidTogglePayload, extractAndroidToggleValue } from "./toggleE
 
 const AndroidTextInputViewTypes = new Set(["EditText"]);
 const AndroidSwitchViewTypes = new Set(["Switch"]);
+const AndroidBeforeInputEventNames = new Set(["beforeinput"]);
 const AndroidCompositionEventNames = new Set(["compositionstart", "compositionupdate", "compositionend"]);
 
 /**
@@ -29,6 +34,28 @@ export function ingestAndroidNativeEvent(
   payload: unknown
 ): { name: string; payload: unknown } {
   const normalizedName = normalizeAndroidEventName(bridgeNode.viewType, name);
+
+  if (AndroidTextInputViewTypes.has(bridgeNode.viewType) && AndroidBeforeInputEventNames.has(normalizedName)) {
+    const beforeInput = applyAndroidTextEventConstraints(
+      bridgeNode.props as Record<string, unknown>,
+      extractAndroidBeforeInputState(bridgeNode.props as Record<string, unknown>, payload)
+    );
+
+    bridgeNode.props.text = beforeInput.text;
+    bridgeNode.props.selectionStart = beforeInput.selectionRange.start;
+    bridgeNode.props.selectionEnd = beforeInput.selectionRange.end;
+
+    if (nativeNode?.kind === "view") {
+      nativeNode.props.text = beforeInput.text;
+      nativeNode.props.selectionStart = beforeInput.selectionRange.start;
+      nativeNode.props.selectionEnd = beforeInput.selectionRange.end;
+    }
+
+    return {
+      name: normalizedName,
+      payload: createAndroidBeforeInputPayload(beforeInput, payload)
+    };
+  }
 
   if (AndroidTextInputViewTypes.has(bridgeNode.viewType) && normalizedName === "change") {
     const value = extractAndroidTextValue(payload);

@@ -62,6 +62,7 @@ describe("renderer-ios public API", () => {
     });
     expect(normalizeUIKitEventName("UIButton", "click")).toBe("tap");
     expect(normalizeUIKitEventName("UISwitch", "toggle")).toBe("change");
+    expect(normalizeUIKitEventName("UITextField", "beforeInput")).toBe("beforeinput");
     expect(normalizeUIKitEventName("UITextField", "compositionUpdate")).toBe("compositionupdate");
   });
 

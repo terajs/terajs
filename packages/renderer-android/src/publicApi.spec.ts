@@ -62,6 +62,7 @@ describe("renderer-android public API", () => {
     });
     expect(normalizeAndroidEventName("Button", "click")).toBe("press");
     expect(normalizeAndroidEventName("Switch", "toggle")).toBe("change");
+    expect(normalizeAndroidEventName("EditText", "beforeInput")).toBe("beforeinput");
     expect(normalizeAndroidEventName("EditText", "imeEnd")).toBe("compositionend");
   });
 
