@@ -9,6 +9,8 @@ This directory contains experimental scaffolds for native renderers:
 - JS-side platform adapter interfaces and stubs
 - JS-side command-oriented bridge host proof for Android Views-style operations, incremental command draining, JSON-safe wire packets, thin host-bridge payload exchange, and event delivery
 - package-local Kotlin transport scaffold for decoding command batches and encoding node-id native event packets on the Android side
+- package-local Kotlin host command applier scaffold for allocating concrete Android Views and replaying thin bridge commands into a native-owned tree
+- package-local Kotlin host runtime scaffold for wiring transport and command application into a current Android root view
 - JS-side host-consumer proof that replays bridge commands into an Android Views-shaped native tree
 - package-local Android host session and compiler-driven IR mounting entry point with node-id native event packet dispatch
 - package-local primitive mapping from Terajs tags to Android View types
