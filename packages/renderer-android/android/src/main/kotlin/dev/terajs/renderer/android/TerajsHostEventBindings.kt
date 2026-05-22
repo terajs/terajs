@@ -4,7 +4,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.CompoundButton
-import android.widget.EditText
 import android.widget.Switch
 
 internal class AndroidHostEventBinder(
@@ -18,7 +17,7 @@ internal class AndroidHostEventBinder(
     }
 
     val binding = when (val view = node.view) {
-      is EditText -> AndroidTextInputEventBinding(node, view, emit)
+      is TerajsSelectionEditText -> AndroidTextInputEventBinding(node, view, emit)
       is Switch -> AndroidSwitchEventBinding(node, view, emit)
       else -> AndroidPressEventBinding(node, view, emit)
     }
@@ -86,7 +85,7 @@ private class AndroidSwitchEventBinding(
 
 private class AndroidTextInputEventBinding(
   private val node: AndroidHostElementNode,
-  private val editText: EditText,
+  private val editText: TerajsSelectionEditText,
   private val emit: (Int, String, TerajsJsonValue?) -> Unit,
 ) : AndroidHostEventBinding {
   private val watcher = object : TextWatcher {
@@ -113,9 +112,38 @@ private class AndroidTextInputEventBinding(
 
   init {
     editText.addTextChangedListener(watcher)
+    editText.onSelectionChangedCallback = { start, end ->
+      if (node.subscribedEvents.contains("selectionchange")) {
+        emit(
+          node.nodeId,
+          "selectionchange",
+          TerajsJsonObject(
+            mapOf(
+              "start" to TerajsJsonNumber(start.toDouble()),
+              "end" to TerajsJsonNumber(end.toDouble()),
+              "selectionStart" to TerajsJsonNumber(start.toDouble()),
+              "selectionEnd" to TerajsJsonNumber(end.toDouble()),
+              "selection" to TerajsJsonObject(
+                mapOf(
+                  "start" to TerajsJsonNumber(start.toDouble()),
+                  "end" to TerajsJsonNumber(end.toDouble())
+                )
+              ),
+              "selectionRange" to TerajsJsonObject(
+                mapOf(
+                  "start" to TerajsJsonNumber(start.toDouble()),
+                  "end" to TerajsJsonNumber(end.toDouble())
+                )
+              )
+            )
+          )
+        )
+      }
+    }
   }
 
   override fun detach() {
     editText.removeTextChangedListener(watcher)
+    editText.onSelectionChangedCallback = null
   }
 }

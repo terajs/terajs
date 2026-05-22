@@ -2,7 +2,6 @@ package dev.terajs.renderer.android
 
 import android.content.Context
 import android.widget.Button
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -14,7 +13,7 @@ import android.widget.TextView
 class AndroidHostViewFactory(private val context: Context) {
   fun makeView(viewType: String) = when (viewType) {
     "Button" -> Button(context)
-    "EditText" -> EditText(context)
+    "EditText" -> TerajsSelectionEditText(context)
     "ImageView" -> ImageView(context)
     "LinearLayout" -> LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     "RecyclerView" -> FrameLayout(context)

@@ -102,6 +102,7 @@ private final class UIKitTextFieldEventBinding: NSObject, UIKitHostEventBinding 
   private let emit: UIKitHostEventBinder.Emit
   private let node: UIKitHostElementNode
   private let textField: UITextField
+  private var selectionObserver: NSObjectProtocol?
 
   init(node: UIKitHostElementNode, textField: UITextField, emit: @escaping UIKitHostEventBinder.Emit) {
     self.emit = emit
@@ -109,10 +110,21 @@ private final class UIKitTextFieldEventBinding: NSObject, UIKitHostEventBinding 
     self.textField = textField
     super.init()
     textField.addTarget(self, action: #selector(handleChange), for: .editingChanged)
+    selectionObserver = NotificationCenter.default.addObserver(
+      forName: UITextField.textDidChangeSelectionNotification,
+      object: textField,
+      queue: nil
+    ) { [weak self] _ in
+      self?.handleSelectionChange()
+    }
   }
 
   func detach() {
     textField.removeTarget(self, action: #selector(handleChange), for: .editingChanged)
+    if let selectionObserver {
+      NotificationCenter.default.removeObserver(selectionObserver)
+      self.selectionObserver = nil
+    }
   }
 
   @objc private func handleChange() {
@@ -126,6 +138,15 @@ private final class UIKitTextFieldEventBinding: NSObject, UIKitHostEventBinding 
       "value": .string(text)
     ]))
   }
+
+  private func handleSelectionChange() {
+    guard node.subscribedEvents.contains("selectionchange") else {
+      return
+    }
+
+    let range = selectionRange(in: textField)
+    emit(node.nodeId, "selectionchange", selectionPayload(start: range.start, end: range.end))
+  }
 }
 
 private final class UIKitTextViewEventBinding: UIKitHostEventBinding {
@@ -133,6 +154,7 @@ private final class UIKitTextViewEventBinding: UIKitHostEventBinding {
   private let node: UIKitHostElementNode
   private let textView: UITextView
   private var changeObserver: NSObjectProtocol?
+  private var selectionObserver: NSObjectProtocol?
 
   init(node: UIKitHostElementNode, textView: UITextView, emit: @escaping UIKitHostEventBinder.Emit) {
     self.emit = emit
@@ -145,12 +167,23 @@ private final class UIKitTextViewEventBinding: UIKitHostEventBinding {
     ) { [weak self] _ in
       self?.handleChange()
     }
+    self.selectionObserver = NotificationCenter.default.addObserver(
+      forName: UITextView.textDidChangeSelectionNotification,
+      object: textView,
+      queue: nil
+    ) { [weak self] _ in
+      self?.handleSelectionChange()
+    }
   }
 
   func detach() {
     if let changeObserver {
       NotificationCenter.default.removeObserver(changeObserver)
       self.changeObserver = nil
+    }
+    if let selectionObserver {
+      NotificationCenter.default.removeObserver(selectionObserver)
+      self.selectionObserver = nil
     }
   }
 
@@ -165,4 +198,40 @@ private final class UIKitTextViewEventBinding: UIKitHostEventBinding {
       "value": .string(text)
     ]))
   }
+
+  private func handleSelectionChange() {
+    guard node.subscribedEvents.contains("selectionchange") else {
+      return
+    }
+
+    let range = selectionRange(in: textView)
+    emit(node.nodeId, "selectionchange", selectionPayload(start: range.start, end: range.end))
+  }
+}
+
+private func selectionPayload(start: Int, end: Int) -> TerajsJSONValue {
+  .object([
+    "start": .number(Double(start)),
+    "end": .number(Double(end)),
+    "selectionStart": .number(Double(start)),
+    "selectionEnd": .number(Double(end)),
+    "selection": .object([
+      "start": .number(Double(start)),
+      "end": .number(Double(end))
+    ]),
+    "selectionRange": .object([
+      "start": .number(Double(start)),
+      "end": .number(Double(end))
+    ])
+  ])
+}
+
+private func selectionRange(in textInput: UITextInput) -> (start: Int, end: Int) {
+  guard let selectedTextRange = textInput.selectedTextRange else {
+    return (0, 0)
+  }
+
+  let start = textInput.offset(from: textInput.beginningOfDocument, to: selectedTextRange.start)
+  let end = textInput.offset(from: textInput.beginningOfDocument, to: selectedTextRange.end)
+  return (start, end)
 }

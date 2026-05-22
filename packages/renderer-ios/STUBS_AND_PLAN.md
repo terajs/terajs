@@ -12,6 +12,7 @@ This directory contains experimental scaffolds for native renderers:
 - package-local Swift host command applier scaffold for allocating concrete UIKit views and replaying thin bridge commands into a native-owned tree
 - package-local Swift host runtime scaffold for wiring transport and command application into a current UIKit root view
 - package-local Swift event binding scaffold for button tap, text-input change, and switch change packet emission
+- package-local Swift text-input selection-change packet emission for `UITextField` and `UITextView`
 - package-local Swift Package compile scaffold at `ios/Package.swift`
 - JS-side host-consumer proof that replays bridge commands into a UIKit-shaped native tree
 - package-local UIKit host session and compiler-driven IR mounting entry point with node-id native event packet dispatch
