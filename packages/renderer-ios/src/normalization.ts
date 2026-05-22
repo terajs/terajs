@@ -1,5 +1,6 @@
 import { normalizeUIKitInputProp } from "./inputProps.js";
 import { normalizeUIKitTextLayoutProp } from "./textLayoutProps.js";
+import { normalizeUIKitTextViewportProp } from "./textViewportProps.js";
 
 const UIKitTextPropViewTypes = new Set(["UIButton", "UILabel", "UITextField", "UITextView"]);
 const UIKitImagePropViewTypes = new Set(["UIImageView"]);
@@ -28,6 +29,11 @@ export function normalizeUIKitProp(viewType: string, name: string, value: unknow
   const textLayoutProp = normalizeUIKitTextLayoutProp(viewType, name, value);
   if (textLayoutProp) {
     return textLayoutProp;
+  }
+
+  const textViewportProp = normalizeUIKitTextViewportProp(viewType, name, value);
+  if (textViewportProp) {
+    return textViewportProp;
   }
 
   if (UIKitImagePropViewTypes.has(viewType) && normalizedKey === "alt") {
