@@ -14,13 +14,18 @@ import {
   type AndroidNativeViewNode,
 } from "./consumer.js";
 
+export interface AndroidMountedModule {
+  bridgeNodes: readonly AndroidBridgeNode[];
+  remove(): void;
+}
+
 export interface AndroidHostSession {
   bridge: AndroidCommandBridge;
   consumer: AndroidCommandConsumer;
   dispatchNativeEvent(nodeId: number, name: string, payload?: unknown): void;
   getBridgeNode(nodeId: number): AndroidBridgeNode | undefined;
   getNativeNode(nodeId: number): AndroidNativeNode | undefined;
-  mountIRModule(ir: IRModule, ctx: any): AndroidBridgeNode;
+  mountIRModule(ir: IRModule, ctx: any): AndroidMountedModule;
   mountIRNode(node: IRNode, ctx: any, isSvg?: boolean): AndroidBridgeNode | null;
   removeNode(nodeId: number): void;
   root: AndroidNativeViewNode;
@@ -52,6 +57,34 @@ export function createAndroidHostSession(): AndroidHostSession {
     return root;
   }
 
+  function removeBridgeNodes(nodes: readonly AndroidBridgeNode[]): void {
+    const orderedNodes = [...nodes].sort((left, right) => getRemovalPriority(left) - getRemovalPriority(right));
+
+    for (const node of orderedNodes) {
+      if (!bridge.getNode(node.id)) {
+        continue;
+      }
+
+      bridge.host.remove(node);
+    }
+  }
+
+  function createMountedModule(nodes: readonly AndroidBridgeNode[]): AndroidMountedModule {
+    let removed = false;
+
+    return {
+      bridgeNodes: [...nodes],
+      remove() {
+        if (removed) {
+          return;
+        }
+
+        removed = true;
+        removeBridgeNodes(nodes);
+      }
+    };
+  }
+
   return {
     bridge,
     consumer,
@@ -71,8 +104,9 @@ export function createAndroidHostSession(): AndroidHostSession {
     },
     mountIRModule(ir, ctx) {
       const rendered = renderer.renderIRModule(ir, ctx);
+      const bridgeNodes = bridge.host.getChildren(rendered);
       bridge.host.insert(bridge.root, rendered);
-      return rendered;
+      return createMountedModule(bridgeNodes);
     },
     mountIRNode(node, ctx, isSvg = false) {
       const rendered = renderer.renderIRNode(node, ctx, isSvg);
@@ -93,4 +127,8 @@ export function createAndroidHostSession(): AndroidHostSession {
       return requireRoot();
     }
   };
+}
+
+function getRemovalPriority(node: AndroidBridgeNode): number {
+  return node.kind === "anchor" ? 0 : 1;
 }

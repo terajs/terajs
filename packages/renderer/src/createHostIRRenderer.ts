@@ -51,13 +51,13 @@ export function createHostIRRenderer<
     createText,
     getNextSibling,
     getParent,
-    insert,
     isNode,
-    remove,
     setClass,
     setProp,
     setStyle,
   } = runtime.host;
+  const insert = (parent: NodeLike, child: NodeLike, anchor?: NodeLike | null) => runtime.host.insert(parent, child, anchor);
+  const remove = (node: NodeLike) => runtime.host.remove(node);
   const {
     bindText,
     bindDirectTextSource,

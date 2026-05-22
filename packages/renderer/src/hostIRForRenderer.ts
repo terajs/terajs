@@ -47,10 +47,10 @@ export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = No
     getChildren,
     getNextSibling,
     getParent,
-    insert,
     isFragment,
-    remove,
   } = host;
+  const insert = (parent: NodeLike, child: NodeLike, anchor?: NodeLike | null) => host.insert(parent, child, anchor);
+  const remove = (node: NodeLike) => host.remove(node);
 
   return function renderIRForNode(
     node: HostIRForNode,

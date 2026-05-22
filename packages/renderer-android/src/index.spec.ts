@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { IRElementNode, IRForNode, IRIfNode, IRInterpolationNode } from "@terajs/compiler";
+import type { IRElementNode, IRForNode, IRIfNode, IRInterpolationNode, IRModule } from "@terajs/compiler";
 import { createHostBindings, createHostIRRenderer } from "@terajs/renderer";
 import { signal } from "@terajs/reactivity";
 
@@ -41,19 +41,69 @@ describe("renderer-android stub", () => {
     expect(child.parent).toBeNull();
   });
 
-  it("uses the provided adapter when creating the placeholder root view", () => {
-    const createElement = vi.fn((type: string) => ({ type, props: {}, children: [], parent: null }));
-    const adapter = {
-      createElement,
-      insert: vi.fn(),
-      remove: vi.fn(),
-      setProp: vi.fn()
+  it("renders compiler IR modules through the public Android entry point", async () => {
+    const label = signal("Alpha");
+    const onPress = vi.fn();
+    const ir: IRModule = {
+      filePath: "/native/android.tera",
+      template: [
+        {
+          type: "element",
+          tag: "button-view",
+          props: [
+            {
+              kind: "bind",
+              name: "contentDescription",
+              value: "label",
+              binding: {
+                kind: "simple-path",
+                segments: ["label"]
+              }
+            },
+            {
+              kind: "event",
+              name: "press",
+              value: "onPress"
+            }
+          ],
+          children: [
+            {
+              type: "interp",
+              expression: "label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRElementNode
+      ],
+      meta: {} as IRModule["meta"],
+      route: null
     };
 
-    const root = renderTerajsToAndroidViews({ name: "App" }, adapter);
+    const rendered = renderTerajsToAndroidViews(ir, { label, onPress });
+    const root = rendered.root;
+    const button = root.children[0] as AndroidNativeViewNode;
+    const text = button.children[0] as AndroidNativeTextNode;
 
-    expect(createElement).toHaveBeenCalledWith("ViewGroup");
-    expect(root.type).toBe("ViewGroup");
+    expect(root.viewType).toBe("ViewGroup");
+    expect(button.viewType).toBe("button-view");
+    expect(button.props.contentDescription).toBe("Alpha");
+    expect(button.subscribedEvents).toEqual(["press"]);
+    expect(text.value).toBe("Alpha");
+
+    rendered.session.dispatchNativeEvent(button.id, "press", { source: "native" });
+    expect(onPress).toHaveBeenCalledWith({ source: "native" });
+
+    label.set("Beta");
+    await Promise.resolve();
+
+    expect(button.props.contentDescription).toBe("Beta");
+    expect(text.value).toBe("Beta");
+
+    rendered.unmount();
+    expect(root.children).toEqual([]);
   });
 
   it("records thin Android host commands without sending JS handlers across the bridge", () => {

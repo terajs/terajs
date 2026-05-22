@@ -9,7 +9,7 @@ This package represents the iOS-side exploration for rendering Terajs components
 - proof-of-concept / planning stage
 - not production-ready
 - intended to stay aligned with the neutral runtime and renderer contracts rather than introducing a separate framework model
-- current JS seam includes a minimal imperative host adapter, a thin command-oriented bridge host, and a package-local host-consumer proof with focused conformance tests
+- current JS seam includes a minimal imperative host adapter, a thin command-oriented bridge host, a package-local host session for compiler-driven IR mounting, and focused conformance tests
 
 ## Direction
 

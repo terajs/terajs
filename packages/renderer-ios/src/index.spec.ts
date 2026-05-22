@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { IRElementNode, IRIfNode, IRInterpolationNode } from "@terajs/compiler";
+import type { IRElementNode, IRIfNode, IRInterpolationNode, IRModule } from "@terajs/compiler";
 import { createHostBindings, createHostIRRenderer } from "@terajs/renderer";
 import { signal } from "@terajs/reactivity";
 
@@ -40,19 +40,69 @@ describe("renderer-ios stub", () => {
     expect(child.parent).toBeNull();
   });
 
-  it("uses the provided adapter when creating the placeholder root view", () => {
-    const createElement = vi.fn((type: string) => ({ type, props: {}, children: [], parent: null }));
-    const adapter = {
-      createElement,
-      insert: vi.fn(),
-      remove: vi.fn(),
-      setProp: vi.fn()
+  it("renders compiler IR modules through the public UIKit entry point", async () => {
+    const title = signal("Alpha");
+    const onTap = vi.fn();
+    const ir: IRModule = {
+      filePath: "/native/ios.tera",
+      template: [
+        {
+          type: "element",
+          tag: "ui-button",
+          props: [
+            {
+              kind: "bind",
+              name: "accessibilityLabel",
+              value: "title",
+              binding: {
+                kind: "simple-path",
+                segments: ["title"]
+              }
+            },
+            {
+              kind: "event",
+              name: "tap",
+              value: "onTap"
+            }
+          ],
+          children: [
+            {
+              type: "interp",
+              expression: "title",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRElementNode
+      ],
+      meta: {} as IRModule["meta"],
+      route: null
     };
 
-    const root = renderTerajsToUIKitViews({ name: "App" }, adapter);
+    const rendered = renderTerajsToUIKitViews(ir, { title, onTap });
+    const root = rendered.root;
+    const button = root.children[0] as UIKitNativeViewNode;
+    const text = button.children[0] as UIKitNativeTextNode;
 
-    expect(createElement).toHaveBeenCalledWith("UIView");
-    expect(root.type).toBe("UIView");
+    expect(root.viewType).toBe("UIView");
+    expect(button.viewType).toBe("ui-button");
+    expect(button.props.accessibilityLabel).toBe("Alpha");
+    expect(button.subscribedEvents).toEqual(["tap"]);
+    expect(text.value).toBe("Alpha");
+
+    rendered.session.dispatchNativeEvent(button.id, "tap", { source: "native" });
+    expect(onTap).toHaveBeenCalledWith({ source: "native" });
+
+    title.set("Beta");
+    await Promise.resolve();
+
+    expect(button.props.accessibilityLabel).toBe("Beta");
+    expect(text.value).toBe("Beta");
+
+    rendered.unmount();
+    expect(root.children).toEqual([]);
   });
 
   it("records thin UIKit host commands without sending JS handlers across the bridge", () => {

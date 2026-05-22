@@ -1,4 +1,8 @@
+import type { IRModule } from "@terajs/compiler";
 import type { RendererHost } from "@terajs/renderer";
+import { createUIKitHostSession } from "./session.js";
+import type { UIKitMountedModule, UIKitHostSession } from "./session.js";
+import type { UIKitNativeViewNode } from "./consumer.js";
 
 export {
   createUIKitCommandBridge,
@@ -18,7 +22,8 @@ export {
 } from "./consumer.js";
 export {
   createUIKitHostSession,
-  type UIKitHostSession
+  type UIKitHostSession,
+  type UIKitMountedModule
 } from "./session.js";
 
 type UIKitHostNode = {
@@ -62,11 +67,30 @@ export const UIKitViewAdapter: UIKitHostAdapter = {
   }
 };
 
+export interface UIKitRenderResult {
+  mounted: UIKitMountedModule;
+  root: UIKitNativeViewNode;
+  session: UIKitHostSession;
+  unmount(): void;
+}
+
 /**
- * Creates the current placeholder native root while the renderer package grows
- * a full command-oriented bridge host for compiler-driven native proof.
+ * Renders compiler-generated IR into the package-local UIKit host session and
+ * returns the native root plus a teardown handle for the mounted subtree.
  */
-export function renderTerajsToUIKitViews(component: any, adapter: UIKitHostAdapter = UIKitViewAdapter) {
-  void component;
-  return adapter.createElement("UIView");
+export function renderTerajsToUIKitViews(
+  ir: IRModule,
+  ctx: any,
+  session: UIKitHostSession = createUIKitHostSession()
+): UIKitRenderResult {
+  const mounted = session.mountIRModule(ir, ctx);
+
+  return {
+    mounted,
+    root: session.root,
+    session,
+    unmount() {
+      mounted.remove();
+    }
+  };
 }

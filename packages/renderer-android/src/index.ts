@@ -1,4 +1,8 @@
+import type { IRModule } from "@terajs/compiler";
 import type { RendererHost } from "@terajs/renderer";
+import { createAndroidHostSession } from "./session.js";
+import type { AndroidHostSession, AndroidMountedModule } from "./session.js";
+import type { AndroidNativeViewNode } from "./consumer.js";
 
 export {
   createAndroidCommandBridge,
@@ -18,7 +22,8 @@ export {
 } from "./consumer.js";
 export {
   createAndroidHostSession,
-  type AndroidHostSession
+  type AndroidHostSession,
+  type AndroidMountedModule
 } from "./session.js";
 
 type AndroidViewHostNode = {
@@ -62,11 +67,30 @@ export const AndroidViewAdapter: AndroidViewHostAdapter = {
   }
 };
 
+export interface AndroidRenderResult {
+  mounted: AndroidMountedModule;
+  root: AndroidNativeViewNode;
+  session: AndroidHostSession;
+  unmount(): void;
+}
+
 /**
- * Creates the current placeholder native root while the renderer package grows
- * a full command-oriented bridge host for compiler-driven native proof.
+ * Renders compiler-generated IR into the package-local Android host session and
+ * returns the native root plus a teardown handle for the mounted subtree.
  */
-export function renderTerajsToAndroidViews(component: any, adapter: AndroidViewHostAdapter = AndroidViewAdapter) {
-  void component;
-  return adapter.createElement("ViewGroup");
+export function renderTerajsToAndroidViews(
+  ir: IRModule,
+  ctx: any,
+  session: AndroidHostSession = createAndroidHostSession()
+): AndroidRenderResult {
+  const mounted = session.mountIRModule(ir, ctx);
+
+  return {
+    mounted,
+    root: session.root,
+    session,
+    unmount() {
+      mounted.remove();
+    }
+  };
 }
