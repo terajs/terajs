@@ -13,6 +13,7 @@ import {
   type AndroidNativeNode,
   type AndroidNativeViewNode,
 } from "./consumer.js";
+import { ingestAndroidNativeEvent } from "./eventIngress.js";
 import { createAndroidMountedModule } from "./sessionMountedModule.js";
 import type { AndroidHostSession } from "./sessionContracts.js";
 
@@ -53,7 +54,8 @@ export function createAndroidHostSession(): AndroidHostSession {
         throw new Error(`Cannot dispatch Android native event for node ${nodeId}`);
       }
 
-      bridge.dispatchEvent(node as AndroidBridgeElementNode, name, payload);
+      const event = ingestAndroidNativeEvent(node, consumer.getNode(nodeId), name, payload);
+      bridge.dispatchEvent(node as AndroidBridgeElementNode, event.name, event.payload);
     },
     getBridgeNode(nodeId) {
       return bridge.getNode(nodeId);

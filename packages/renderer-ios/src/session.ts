@@ -13,6 +13,7 @@ import {
   type UIKitNativeNode,
   type UIKitNativeViewNode,
 } from "./consumer.js";
+import { ingestUIKitNativeEvent } from "./eventIngress.js";
 import { createUIKitMountedModule } from "./sessionMountedModule.js";
 import type { UIKitHostSession } from "./sessionContracts.js";
 
@@ -53,7 +54,8 @@ export function createUIKitHostSession(): UIKitHostSession {
         throw new Error(`Cannot dispatch UIKit native event for node ${nodeId}`);
       }
 
-      bridge.dispatchEvent(node as UIKitBridgeElementNode, name, payload);
+      const event = ingestUIKitNativeEvent(node, consumer.getNode(nodeId), name, payload);
+      bridge.dispatchEvent(node as UIKitBridgeElementNode, event.name, event.payload);
     },
     getBridgeNode(nodeId) {
       return bridge.getNode(nodeId);
