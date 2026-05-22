@@ -100,6 +100,7 @@ export interface CreateUIKitCommandBridgeOptions {
 export interface UIKitCommandBridge {
   readonly commands: UIKitBridgeCommand[];
   dispatchEvent(node: UIKitBridgeElementNode, name: string, payload?: unknown): void;
+  getNode(nodeId: number): UIKitBridgeNode | undefined;
   host: RendererHost<
     UIKitBridgeNode,
     UIKitBridgeElementNode,
@@ -118,6 +119,7 @@ export function createUIKitCommandBridge(
 ): UIKitCommandBridge {
   const commands: UIKitBridgeCommand[] = [];
   const emitCommand = options.emitCommand;
+  const nodes = new Map<number, UIKitBridgeNode>();
   let nextNodeId = 1;
 
   function pushCommand(command: UIKitBridgeCommand): void {
@@ -153,6 +155,8 @@ export function createUIKitCommandBridge(
       svg
     });
 
+    nodes.set(node.id, node);
+
     return node;
   }
 
@@ -167,6 +171,8 @@ export function createUIKitCommandBridge(
       nodeId: node.id,
       value: node.value
     });
+
+    nodes.set(node.id, node);
 
     return node;
   }
@@ -204,6 +210,8 @@ export function createUIKitCommandBridge(
     if (node.kind === "element") {
       node.eventHandlers = {};
     }
+
+    nodes.delete(node.id);
   }
 
   function resolveAnchorId(parent: UIKitBridgeNode, anchor: UIKitBridgeNode | null | undefined): number | null {
@@ -233,10 +241,13 @@ export function createUIKitCommandBridge(
     UIKitBridgeFragmentNode
   > = {
     createAnchor(label = "") {
-      return {
+      const node: UIKitBridgeAnchorNode = {
         ...createBaseNode("anchor"),
         label
       };
+
+      nodes.set(node.id, node);
+      return node;
     },
     createElement(type, svg = false) {
       return createElementNode(type, svg);
@@ -245,9 +256,12 @@ export function createUIKitCommandBridge(
       return createTextNode(value);
     },
     createFragment() {
-      return {
+      const node: UIKitBridgeFragmentNode = {
         ...createBaseNode("fragment")
       };
+
+      nodes.set(node.id, node);
+      return node;
     },
     isNode(value): value is UIKitBridgeNode {
       return typeof value === "object" && value !== null && "kind" in value && "id" in value;
@@ -307,6 +321,7 @@ export function createUIKitCommandBridge(
         for (const child of [...node.children]) {
           this.remove(child);
         }
+        nodes.delete(node.id);
         return;
       }
 
@@ -409,6 +424,9 @@ export function createUIKitCommandBridge(
       for (const handler of [...(node.eventHandlers[name] ?? [])]) {
         handler(payload);
       }
+    },
+    getNode(nodeId) {
+      return nodes.get(nodeId);
     },
     host,
     root

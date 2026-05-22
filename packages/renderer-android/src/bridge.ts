@@ -100,6 +100,7 @@ export interface CreateAndroidCommandBridgeOptions {
 export interface AndroidCommandBridge {
   readonly commands: AndroidBridgeCommand[];
   dispatchEvent(node: AndroidBridgeElementNode, name: string, payload?: unknown): void;
+  getNode(nodeId: number): AndroidBridgeNode | undefined;
   host: RendererHost<
     AndroidBridgeNode,
     AndroidBridgeElementNode,
@@ -118,6 +119,7 @@ export function createAndroidCommandBridge(
 ): AndroidCommandBridge {
   const commands: AndroidBridgeCommand[] = [];
   const emitCommand = options.emitCommand;
+  const nodes = new Map<number, AndroidBridgeNode>();
   let nextNodeId = 1;
 
   function pushCommand(command: AndroidBridgeCommand): void {
@@ -153,6 +155,8 @@ export function createAndroidCommandBridge(
       svg
     });
 
+    nodes.set(node.id, node);
+
     return node;
   }
 
@@ -167,6 +171,8 @@ export function createAndroidCommandBridge(
       nodeId: node.id,
       value: node.value
     });
+
+    nodes.set(node.id, node);
 
     return node;
   }
@@ -204,6 +210,8 @@ export function createAndroidCommandBridge(
     if (node.kind === "element") {
       node.eventHandlers = {};
     }
+
+    nodes.delete(node.id);
   }
 
   function resolveAnchorId(parent: AndroidBridgeNode, anchor: AndroidBridgeNode | null | undefined): number | null {
@@ -233,10 +241,13 @@ export function createAndroidCommandBridge(
     AndroidBridgeFragmentNode
   > = {
     createAnchor(label = "") {
-      return {
+      const node: AndroidBridgeAnchorNode = {
         ...createBaseNode("anchor"),
         label
       };
+
+      nodes.set(node.id, node);
+      return node;
     },
     createElement(type, svg = false) {
       return createElementNode(type, svg);
@@ -245,9 +256,12 @@ export function createAndroidCommandBridge(
       return createTextNode(value);
     },
     createFragment() {
-      return {
+      const node: AndroidBridgeFragmentNode = {
         ...createBaseNode("fragment")
       };
+
+      nodes.set(node.id, node);
+      return node;
     },
     isNode(value): value is AndroidBridgeNode {
       return typeof value === "object" && value !== null && "kind" in value && "id" in value;
@@ -307,6 +321,7 @@ export function createAndroidCommandBridge(
         for (const child of [...node.children]) {
           this.remove(child);
         }
+        nodes.delete(node.id);
         return;
       }
 
@@ -409,6 +424,9 @@ export function createAndroidCommandBridge(
       for (const handler of [...(node.eventHandlers[name] ?? [])]) {
         handler(payload);
       }
+    },
+    getNode(nodeId) {
+      return nodes.get(nodeId);
     },
     host,
     root

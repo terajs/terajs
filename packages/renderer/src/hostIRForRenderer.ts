@@ -1,0 +1,360 @@
+import type { RendererHost } from "@terajs/renderer";
+
+import { dispose, effect, signal, withDetachedCurrentEffect, type Signal } from "@terajs/reactivity";
+import {
+  createComponentContext,
+  getCurrentContext,
+  setCurrentContext,
+  type ComponentContext,
+} from "@terajs/shared";
+
+import { emitRendererDebug } from "./debug.js";
+import type { HostIRForNode, HostIRNode } from "./hostIRTypes.js";
+import { resolveExpr } from "./renderFromIRExpressions.js";
+import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
+
+type RenderIRNode<NodeLike> = (node: HostIRNode, ctx: any, isSvg?: boolean) => NodeLike | null;
+
+type IRForHost<NodeLike, FragmentLike extends NodeLike = NodeLike> = Pick<
+  RendererHost<NodeLike, any, any, FragmentLike>,
+  | "addNodeCleanup"
+  | "createAnchor"
+  | "createFragment"
+  | "getChildren"
+  | "getNextSibling"
+  | "getParent"
+  | "insert"
+  | "isFragment"
+  | "remove"
+>;
+
+interface IRForRowRecord<NodeLike> extends KeyedItem<NodeLike> {
+  itemSignal: Signal<unknown>;
+  indexSignal: Signal<number>;
+  ownerContext: ComponentContext;
+}
+
+interface IRForIdentityState {
+  objectIds: WeakMap<object, number>;
+  nextObjectId: number;
+}
+
+export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = NodeLike>(host: IRForHost<NodeLike, FragmentLike>) {
+  const {
+    addNodeCleanup,
+    createAnchor,
+    createFragment,
+    getChildren,
+    getNextSibling,
+    getParent,
+    insert,
+    isFragment,
+    remove,
+  } = host;
+
+  return function renderIRForNode(
+    node: HostIRForNode,
+    ctx: any,
+    isSvg: boolean,
+    renderNode: RenderIRNode<NodeLike>,
+  ): NodeLike {
+    emitRendererDebug("ir:render:for", () => ({ each: node.each }));
+
+    const anchor = createAnchor("for");
+    const parent = createFragment();
+    insert(parent as NodeLike, anchor as NodeLike);
+
+    const ownerContext = getCurrentContext();
+    const identityState = createIRForIdentityState();
+    const supportsKeyedReuse = node.body.length === 1 && node.isStructural !== true;
+    let rows: IRForRowRecord<NodeLike>[] = [];
+
+    const run = () => {
+      const array = resolveExpr(ctx, node.each) || [];
+      const mountTarget = getParent(anchor as NodeLike) ?? (parent as NodeLike);
+
+      if (supportsKeyedReuse && Array.isArray(array)) {
+        const reusedRows = createKeyedIRForRows(
+          node,
+          ctx,
+          isSvg,
+          array,
+          rows,
+          ownerContext,
+          identityState,
+          renderNode,
+          isFragment,
+          getChildren,
+        );
+
+        if (reusedRows) {
+          updateKeyedList(
+            mountTarget,
+            rows,
+            reusedRows,
+            (item, target, anchorNode) => insert(target, item.node, anchorNode),
+            (item) => {
+              remove(item.node);
+              disposeIRForRowRecord(item);
+            },
+            (item, target, anchorNode) => insert(target, item.node, anchorNode),
+          );
+
+          rows = reusedRows;
+          return;
+        }
+
+        for (const row of rows) {
+          disposeIRForRowRecord(row);
+        }
+        rows = [];
+      }
+
+      renderIRForByRebuild(
+        node,
+        ctx,
+        isSvg,
+        Array.isArray(array) ? array : [],
+        mountTarget,
+        anchor as NodeLike,
+        renderNode,
+        createFragment,
+        getNextSibling,
+        insert,
+        remove,
+      );
+    };
+
+    const effectFn = effect(run);
+
+    addNodeCleanup(anchor as NodeLike, () => {
+      dispose(effectFn);
+      for (const row of rows) {
+        disposeIRForRowRecord(row);
+      }
+      rows = [];
+    });
+
+    return parent as NodeLike;
+  };
+}
+
+function renderIRForByRebuild(
+  node: HostIRForNode,
+  ctx: any,
+  isSvg: boolean,
+  array: any[],
+  parent: any,
+  anchor: any,
+  renderNode: RenderIRNode<any>,
+  createFragment: () => any,
+  getNextSibling: (node: any) => any,
+  insert: (parent: any, child: any, anchor?: any | null) => void,
+  remove: (node: any) => void,
+): void {
+  const nodes: any[] = [];
+
+  for (let index = 0; index < array.length; index += 1) {
+    const childCtx = {
+      ...ctx,
+      [node.item]: array[index],
+      [node.index ?? "i"]: index,
+    };
+
+    const fragment = createFragment();
+    for (const child of node.body) {
+      const dom = renderNode(child, childCtx, isSvg);
+      if (dom) {
+        insert(fragment, dom);
+      }
+    }
+
+    nodes.push(fragment);
+  }
+
+  let next = getNextSibling(anchor);
+  while (next) {
+    const toRemove = next;
+    next = getNextSibling(next);
+    remove(toRemove);
+  }
+
+  let ref = getNextSibling(anchor);
+  for (const renderedNode of nodes) {
+    insert(parent, renderedNode, ref ?? null);
+    ref = null;
+  }
+}
+
+function createKeyedIRForRows<NodeLike>(
+  node: HostIRForNode,
+  ctx: any,
+  isSvg: boolean,
+  array: any[],
+  currentRows: IRForRowRecord<NodeLike>[],
+  ownerContext: ComponentContext | null,
+  identityState: IRForIdentityState,
+  renderNode: RenderIRNode<NodeLike>,
+  isFragment: (node: NodeLike) => boolean,
+  getChildren: (node: NodeLike) => NodeLike[],
+): IRForRowRecord<NodeLike>[] | null {
+  const nextRows: IRForRowRecord<NodeLike>[] = [];
+  const currentRowsByKey = new Map(currentRows.map((row) => [row.key, row]));
+  const seenCounts = new Map<string, number>();
+
+  for (let index = 0; index < array.length; index += 1) {
+    const item = array[index];
+    const key = createIRForRowKey(item, index, identityState, seenCounts);
+    const existing = currentRowsByKey.get(key);
+
+    if (existing) {
+      existing.itemSignal.set(item);
+      existing.indexSignal.set(index);
+      nextRows.push(existing);
+      continue;
+    }
+
+    const created = createIRForRowRecord(node, ctx, isSvg, item, index, key, ownerContext, renderNode, isFragment, getChildren);
+    if (!created) {
+      for (const row of nextRows) {
+        if (!currentRowsByKey.has(row.key)) {
+          disposeIRForRowRecord(row);
+        }
+      }
+      return null;
+    }
+
+    nextRows.push(created);
+  }
+
+  return nextRows;
+}
+
+function createIRForIdentityState(): IRForIdentityState {
+  return {
+    objectIds: new WeakMap<object, number>(),
+    nextObjectId: 1,
+  };
+}
+
+function createIRForRowKey(
+  item: unknown,
+  index: number,
+  identityState: IRForIdentityState,
+  seenCounts: Map<string, number>,
+): string {
+  const base = describeIRForRowIdentity(item, index, identityState);
+  const count = seenCounts.get(base) ?? 0;
+  seenCounts.set(base, count + 1);
+  return `${base}::${count}`;
+}
+
+function describeIRForRowIdentity(
+  item: unknown,
+  index: number,
+  identityState: IRForIdentityState,
+): string {
+  if (item && typeof item === "object") {
+    const candidate = item as { key?: unknown; id?: unknown };
+    if (candidate.key != null) {
+      return `key:${String(candidate.key)}`;
+    }
+
+    if (candidate.id != null) {
+      return `id:${String(candidate.id)}`;
+    }
+
+    let objectId = identityState.objectIds.get(item);
+    if (!objectId) {
+      objectId = identityState.nextObjectId;
+      identityState.objectIds.set(item, objectId);
+      identityState.nextObjectId += 1;
+    }
+
+    return `object:${objectId}`;
+  }
+
+  if (typeof item === "function") {
+    return `function:${index}`;
+  }
+
+  return `value:${typeof item}:${String(item)}`;
+}
+
+function createIRForRowRecord<NodeLike>(
+  node: HostIRForNode,
+  ctx: any,
+  isSvg: boolean,
+  item: unknown,
+  index: number,
+  key: string,
+  ownerContext: ComponentContext | null,
+  renderNode: RenderIRNode<NodeLike>,
+  isFragment: (node: NodeLike) => boolean,
+  getChildren: (node: NodeLike) => NodeLike[],
+): IRForRowRecord<NodeLike> | null {
+  const itemSignal = signal(item);
+  const indexSignal = signal(index);
+  const rowContext = createComponentContext();
+
+  if (ownerContext) {
+    rowContext.errorBoundary = ownerContext.errorBoundary;
+    rowContext.route = ownerContext.route;
+    rowContext.meta = ownerContext.meta;
+    rowContext.ai = ownerContext.ai;
+  }
+
+  const rowChildContext = {
+    ...ctx,
+    [node.item]: itemSignal,
+    [node.index ?? "i"]: indexSignal,
+  };
+
+  const previousContext = getCurrentContext();
+  let renderedNode: NodeLike | null = null;
+
+  try {
+    setCurrentContext(rowContext);
+    withDetachedCurrentEffect(() => {
+      renderedNode = renderNode(node.body[0], rowChildContext, isSvg);
+    });
+  } finally {
+    setCurrentContext(previousContext);
+  }
+
+  if (!renderedNode) {
+    return null;
+  }
+
+  const nodeForList = isFragment(renderedNode)
+    ? (getChildren(renderedNode)[0] ?? null)
+    : renderedNode;
+
+  if (!nodeForList) {
+    disposeIRForRowContext(rowContext);
+    return null;
+  }
+
+  return {
+    key,
+    node: nodeForList,
+    itemSignal,
+    indexSignal,
+    ownerContext: rowContext,
+  };
+}
+
+function disposeIRForRowRecord<NodeLike>(row: IRForRowRecord<NodeLike>): void {
+  disposeIRForRowContext(row.ownerContext);
+}
+
+function disposeIRForRowContext(ctx: ComponentContext): void {
+  const disposers = ctx.disposers.splice(0, ctx.disposers.length);
+  for (const cleanup of disposers) {
+    try {
+      cleanup();
+    } catch {
+      // Row teardown should stay non-fatal.
+    }
+  }
+}

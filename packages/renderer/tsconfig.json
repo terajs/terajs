@@ -9,5 +9,9 @@
     "strict": true
   },
   "include": ["src"],
-  "exclude": ["dist"]
+  "exclude": ["dist"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../reactivity" }
+  ]
 }

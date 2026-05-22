@@ -9,6 +9,17 @@ export {
   type UIKitBridgeTextNode,
   type UIKitCommandBridge
 } from "./bridge.js";
+export {
+  createUIKitCommandConsumer,
+  type UIKitCommandConsumer,
+  type UIKitNativeNode,
+  type UIKitNativeTextNode,
+  type UIKitNativeViewNode
+} from "./consumer.js";
+export {
+  createUIKitHostSession,
+  type UIKitHostSession
+} from "./session.js";
 
 type UIKitHostNode = {
   type: string;

@@ -26,6 +26,7 @@ const nativeAdapterPackages = [
 ];
 
 const allowedNativeRendererImports = new Set([
+  "@terajs/compiler",
   "@terajs/reactivity",
   "@terajs/renderer",
   "@terajs/runtime",

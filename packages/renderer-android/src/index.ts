@@ -9,6 +9,17 @@ export {
   type AndroidCommandBridge,
   type CreateAndroidCommandBridgeOptions
 } from "./bridge.js";
+export {
+  createAndroidCommandConsumer,
+  type AndroidCommandConsumer,
+  type AndroidNativeNode,
+  type AndroidNativeTextNode,
+  type AndroidNativeViewNode
+} from "./consumer.js";
+export {
+  createAndroidHostSession,
+  type AndroidHostSession
+} from "./session.js";
 
 type AndroidViewHostNode = {
   type: string;
