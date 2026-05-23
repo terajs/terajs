@@ -1,0 +1,18 @@
+<template>
+  <ProofCallout
+    title="Minimal proof workspace"
+    body="This workspace is separate from terajs-com, keeps shared route modules under src/shared/pages, and reserves generated Android and iOS output under .terajs for later build slices." />
+</template>
+
+<meta>
+  title: "Terajs Proof Workspace"
+  description: "A minimal shared-source Terajs proof workspace with explicit web, Android, and iOS targets."
+</meta>
+
+<ai>
+  summary: "A minimal Terajs proof workspace route that keeps shared source separate from terajs-com and declares explicit web, Android, and iOS targets."
+  tags:
+    - terajs
+    - proof-workspace
+    - universal
+</ai>

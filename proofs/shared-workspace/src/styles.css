@@ -1,0 +1,83 @@
+:root {
+  color-scheme: dark;
+  --proof-bg: #07111d;
+  --proof-panel: rgba(10, 24, 39, 0.9);
+  --proof-border: rgba(117, 157, 199, 0.22);
+  --proof-text: #eef5ff;
+  --proof-muted: #a8b8cf;
+  --proof-accent: #65d9ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(101, 217, 255, 0.15), transparent 30%),
+    linear-gradient(180deg, #0a1524 0%, var(--proof-bg) 100%);
+  color: var(--proof-text);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.proof-shell {
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
+}
+
+.proof-shell__frame {
+  width: min(100%, 64rem);
+  margin: 0 auto;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.proof-shell__header {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.proof-shell__eyebrow {
+  margin: 0;
+  color: var(--proof-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.proof-shell__title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.05;
+}
+
+.proof-shell__body {
+  display: grid;
+}
+
+.proof-callout {
+  padding: 1.5rem;
+  border: 1px solid var(--proof-border);
+  border-radius: 1.25rem;
+  background: var(--proof-panel);
+  box-shadow: 0 18px 48px rgba(4, 9, 18, 0.32);
+}
+
+.proof-callout__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.proof-callout__body {
+  margin: 0;
+  color: var(--proof-muted);
+  line-height: 1.7;
+}

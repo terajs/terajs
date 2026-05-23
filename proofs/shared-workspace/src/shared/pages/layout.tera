@@ -1,0 +1,14 @@
+<template>
+  <main class="proof-shell">
+    <div class="proof-shell__frame">
+      <header class="proof-shell__header">
+        <p class="proof-shell__eyebrow">Shared Proof Workspace</p>
+        <h1 class="proof-shell__title">One source root. Explicit targets.</h1>
+      </header>
+
+      <section class="proof-shell__body">
+        <slot />
+      </section>
+    </div>
+  </main>
+</template>

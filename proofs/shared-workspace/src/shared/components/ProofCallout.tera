@@ -1,0 +1,20 @@
+<template>
+  <article class="proof-callout">
+    <h2 class="proof-callout__title">{{ title() }}</h2>
+    <p class="proof-callout__body">{{ body() }}</p>
+  </article>
+</template>
+
+<script>
+function title() {
+  return typeof props.title === 'string' && props.title.length > 0
+    ? props.title
+    : 'Proof callout'
+}
+
+function body() {
+  return typeof props.body === 'string' && props.body.length > 0
+    ? props.body
+    : 'Shared proof workspace guidance.'
+}
+</script>
