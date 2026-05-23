@@ -19,6 +19,7 @@ npm run build
 ## Layout
 
 - `src/shared/pages` holds shared proof routes
+- `src/shared/pages/stories/[id].tera` proves parameterized route mapping in the shared workspace
 - `src/shared/components` holds shared proof components
 - `.terajs/generated/android` and `.terajs/generated/ios` hold generated native artifacts
 - `.terajs/hosts/android` and `.terajs/hosts/ios` hold generated host metadata

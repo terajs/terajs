@@ -1,0 +1,18 @@
+<template>
+  <ProofCallout
+    title="Parameterized detail route"
+    body="This route proves that one shared workspace can carry a bracket-parameter page file that maps to /stories/:id for later proof slices." />
+</template>
+
+<meta>
+  title: "Terajs Proof Detail"
+  description: "A parameterized proof route for the shared Terajs workspace."
+</meta>
+
+<ai>
+  summary: "A parameterized proof route in the shared Terajs workspace for the later state and navigation slices."
+  tags:
+    - terajs
+    - proof-workspace
+    - route-params
+</ai>

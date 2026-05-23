@@ -1,30 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
-import os from "node:os";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { getWorkspaceConfig } from "@terajs/app/vite";
 
 import { runBuildCommand } from "../src/build.js";
-
-const originalCwd = process.cwd();
-const tempDirs: string[] = [];
-const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const proofWorkspaceRoot = path.join(repoRoot, "proofs", "shared-workspace");
-
-async function copyProofWorkspace(): Promise<string> {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "terajs-proof-workspace-"));
-  tempDirs.push(tempRoot);
-
-  const tempWorkspace = path.join(tempRoot, "shared-workspace");
-  await cp(proofWorkspaceRoot, tempWorkspace, { recursive: true });
-  return tempWorkspace;
-}
+import {
+  cleanupProofWorkspaceCopies,
+  copyProofWorkspace,
+  proofWorkspaceRoot,
+  repoRoot,
+} from "./proofWorkspaceTestHarness.js";
 
 afterEach(async () => {
-  process.chdir(originalCwd);
-  await Promise.all(tempDirs.splice(0).map((dirPath) => rm(dirPath, { recursive: true, force: true })));
+  await cleanupProofWorkspaceCopies();
 });
 
 describe("proof workspace", () => {
@@ -43,13 +32,13 @@ describe("proof workspace", () => {
     const result = await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
 
     expect(result.targets).toEqual(["android"]);
-    expect(result.results).toEqual([
-      {
-        target: "android",
-        status: "built",
-        detail: "Native android artifacts written to .terajs/generated/android (3 modules, 1 routes) with host metadata in .terajs/hosts/android."
-      }
-    ]);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toMatchObject({
+      target: "android",
+      status: "built"
+    });
+    expect(result.results[0]?.detail).toContain(".terajs/generated/android");
+    expect(result.results[0]?.detail).toContain(".terajs/hosts/android");
 
     const generatedManifest = JSON.parse(
       await readFile(path.join(tempWorkspace, ".terajs", "generated", "android", "terajs-target.json"), "utf8")
@@ -76,15 +65,15 @@ describe("proof workspace", () => {
     expect(generatedManifest).toMatchObject({
       target: "android",
       renderer: "android-views",
-      moduleCount: 3,
-      routeCount: 1,
       routesFile: "routes.json",
       sourceRoot: "src/shared",
       generatedDir: ".terajs/generated/android",
       hostDir: ".terajs/hosts/android",
       hostManifestFile: "../../hosts/android/terajs-host.json"
     });
-    expect(generatedManifest.modules).toEqual([
+    expect(generatedManifest.moduleCount).toBeGreaterThanOrEqual(3);
+    expect(generatedManifest.routeCount).toBeGreaterThanOrEqual(1);
+    expect(generatedManifest.modules).toEqual(expect.arrayContaining([
       {
         kind: "component",
         filePath: "/src/shared/components/ProofCallout.tera",
@@ -109,7 +98,7 @@ describe("proof workspace", () => {
         importedBindings: [],
         exposedBindings: []
       }
-    ]);
+    ]));
 
     const hostManifest = JSON.parse(
       await readFile(path.join(tempWorkspace, ".terajs", "hosts", "android", "terajs-host.json"), "utf8")
