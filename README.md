@@ -102,4 +102,5 @@ npm run browser:serve
 - API reference: https://terajs.com/api-reference
 - Repo changelog: `CHANGELOG.md`
 - Repo API file: `API_REFERENCE.md`
+- Architecture decisions: `ARCHITECTURE_DECISIONS.md`
 - Long-range direction: `VISION.md`
