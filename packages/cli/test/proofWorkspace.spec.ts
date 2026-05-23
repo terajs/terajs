@@ -159,4 +159,90 @@ describe("proof workspace", () => {
       code: "ENOENT"
     });
   });
+
+  it("materializes a universal workspace fixture that the CLI can build for ios", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+
+    process.chdir(tempWorkspace);
+    const workspace = getWorkspaceConfig();
+
+    expect(workspace.mode).toBe("universal");
+    expect(workspace.targets.selected).toEqual(["web", "android", "ios"]);
+    expect(path.relative(tempWorkspace, workspace.sourceRoot).replace(/\\/g, "/")).toBe("src/shared");
+
+    const result = await runBuildCommand({ target: ["ios"] }, { cwd: tempWorkspace });
+
+    expect(result.targets).toEqual(["ios"]);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toMatchObject({
+      target: "ios",
+      status: "built"
+    });
+    expect(result.results[0]?.detail).toContain(".terajs/generated/ios");
+    expect(result.results[0]?.detail).toContain(".terajs/hosts/ios");
+
+    const generatedManifest = JSON.parse(
+      await readFile(path.join(tempWorkspace, ".terajs", "generated", "ios", "terajs-target.json"), "utf8")
+    ) as {
+      target: string;
+      renderer: string;
+      moduleCount: number;
+      routeCount: number;
+      routesFile: string;
+      sourceRoot: string;
+      generatedDir: string;
+      hostDir: string;
+      hostManifestFile: string;
+      modules: Array<{
+        kind: string;
+        filePath: string;
+        outputPath: string;
+        name: string;
+        importedBindings: string[];
+        exposedBindings: string[];
+      }>;
+    };
+
+    expect(generatedManifest).toMatchObject({
+      target: "ios",
+      renderer: "uikit-views",
+      routesFile: "routes.json",
+      sourceRoot: "src/shared",
+      generatedDir: ".terajs/generated/ios",
+      hostDir: ".terajs/hosts/ios",
+      hostManifestFile: "../../hosts/ios/terajs-host.json"
+    });
+    expect(generatedManifest.moduleCount).toBeGreaterThanOrEqual(3);
+    expect(generatedManifest.routeCount).toBeGreaterThanOrEqual(1);
+    expect(generatedManifest.modules).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "component",
+        filePath: "/src/shared/components/ProofStateBoard.tera",
+        outputPath: "modules/components/ProofStateBoard.json",
+        name: "ProofStateBoard"
+      })
+    ]));
+
+    const hostManifest = JSON.parse(
+      await readFile(path.join(tempWorkspace, ".terajs", "hosts", "ios", "terajs-host.json"), "utf8")
+    ) as {
+      target: string;
+      renderer: string;
+      sourceRoot: string;
+      generatedManifest: string;
+      routesFile: string;
+    };
+
+    expect(hostManifest).toMatchObject({
+      target: "ios",
+      renderer: "uikit-views",
+      sourceRoot: "src/shared",
+      generatedManifest: "../../generated/ios/terajs-target.json",
+      routesFile: "../../generated/ios/routes.json"
+    });
+
+    await expect(readFile(path.join(tempWorkspace, "dist", "index.html"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT"
+    });
+  });
 });
