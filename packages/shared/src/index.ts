@@ -19,6 +19,14 @@ export { Debug, resetDebugHandlers } from "./debug/events.js";
 export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus.js"; 
 export { resetDebugListeners } from "./debug/eventBus.js";
 export { clearDebugHistory, readDebugHistory } from "./debug/history.js";
+export {
+  getSharedDebugEventDefinition,
+  isSharedDebugEventType,
+  listSharedDebugEventDefinitions,
+  normalizeSharedDebugEvent,
+  SHARED_DEBUG_EVENT_DEFINITIONS,
+  SHARED_DEBUG_EVENT_TYPES
+} from "./debug/sharedEventSchema.js";
 
 // Context and shared types
 export * from "./debug/context.js";

@@ -24,6 +24,14 @@ Debug.emit("hub:connect", {
 });
 ```
 
+## Shared debug subset
+
+- The canonical cross-target subset is exported as `SHARED_DEBUG_EVENT_DEFINITIONS` and `normalizeSharedDebugEvent()`.
+- State diagnostics: `reactive:updated`.
+- Route diagnostics: `route:navigate:start`, `route:load:start`, `route:load:end`, `route:changed`, `route:blocked`, `route:redirect`, `route:warn`, `route:meta:resolved`, `error:router`.
+- Queue diagnostics: `queue:enqueue`, `queue:conflict`, `queue:retry`, `queue:fail`, `queue:flush`, `queue:drained`.
+- Bridge diagnostics reserved for native adapters: `bridge:commands`, `bridge:event`, `bridge:error`.
+
 ## Dependency graph example
 
 ```ts

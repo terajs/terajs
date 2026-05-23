@@ -30,6 +30,7 @@ export type DebugEventType =
     | "resource:load:start" | "resource:load:end" | "resource:error" | "resource:mutate" | "resource:invalidate"
     | "queue:enqueue" | "queue:retry" | "queue:flush" | "queue:drained" | "queue:fail" | "queue:conflict"
     | "queue:backoff" | "queue:skip:backoff" | "queue:skip:missing-handler"
+    | "bridge:commands" | "bridge:event" | "bridge:error"
     | "server:function:invoke" | "server:function:transport" | "server:function:error"
     | "hub:connect" | "hub:disconnect" | "hub:error" | "hub:push:received" | "hub:sync:start" | "hub:sync:complete"
 

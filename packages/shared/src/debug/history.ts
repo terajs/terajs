@@ -20,36 +20,10 @@ function historyCache(): PersistedDebugEvent[] {
 }
 
 /**
- * Returns a snapshot of the shared debug archive for overlay hydration.
+ * Coerces a live or replay debug event into the payload-based persisted shape
+ * used by shared tooling and debug-history hydration.
  */
-export function readDebugHistory(): PersistedDebugEvent[] {
-  return historyCache().map(clonePersistedDebugEvent);
-}
-
-/**
- * Normalizes and stores debug events in the shared in-memory ring buffer.
- */
-export function recordDebugHistory(rawEvent: unknown): void {
-  const normalized = normalizePersistedDebugEvent(rawEvent);
-  if (!normalized) {
-    return;
-  }
-
-  const history = historyCache();
-  history.push(normalized);
-  if (history.length > MAX_PERSISTED_DEBUG_EVENTS) {
-    history.splice(0, history.length - MAX_PERSISTED_DEBUG_EVENTS);
-  }
-}
-
-/**
- * Clears the shared debug archive.
- */
-export function clearDebugHistory(): void {
-  historyCache().length = 0;
-}
-
-function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | null {
+export function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | null {
   if (!rawEvent || typeof rawEvent !== "object") {
     return null;
   }
@@ -86,6 +60,36 @@ function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | 
     line: typeof event.line === "number" ? event.line : undefined,
     column: typeof event.column === "number" ? event.column : undefined
   };
+}
+
+/**
+ * Returns a snapshot of the shared debug archive for overlay hydration.
+ */
+export function readDebugHistory(): PersistedDebugEvent[] {
+  return historyCache().map(clonePersistedDebugEvent);
+}
+
+/**
+ * Normalizes and stores debug events in the shared in-memory ring buffer.
+ */
+export function recordDebugHistory(rawEvent: unknown): void {
+  const normalized = normalizePersistedDebugEvent(rawEvent);
+  if (!normalized) {
+    return;
+  }
+
+  const history = historyCache();
+  history.push(normalized);
+  if (history.length > MAX_PERSISTED_DEBUG_EVENTS) {
+    history.splice(0, history.length - MAX_PERSISTED_DEBUG_EVENTS);
+  }
+}
+
+/**
+ * Clears the shared debug archive.
+ */
+export function clearDebugHistory(): void {
+  historyCache().length = 0;
 }
 
 function sanitizeDebugValue(
