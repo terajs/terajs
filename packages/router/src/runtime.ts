@@ -251,7 +251,10 @@ async function runMiddleware(
   route: RouteMatch,
   from: RouteMatch | null,
   router: Router
-): Promise<void | boolean | string> {
+): Promise<{
+  result: void | boolean | string;
+  guardName: string | null;
+}> {
   for (const middlewareName of route.route.middleware) {
     const middleware = middlewareMap[middlewareName];
     if (!middleware) {
@@ -260,11 +263,17 @@ async function runMiddleware(
 
     const result = await middleware({ to: route, from, router });
     if (result === false || typeof result === "string") {
-      return result;
+      return {
+        result,
+        guardName: middlewareName
+      };
     }
   }
 
-  return true;
+  return {
+    result: true,
+    guardName: null
+  };
 }
 
 /**
@@ -347,18 +356,22 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
   ): Promise<NavigationResult> {
     const from = currentRoute;
     const parsedTarget = parseTarget(target);
+    const source = fromHistory ? "history" : historyMode;
+    const navigationStartedAt = Date.now();
     pendingTransitions += 1;
     setNavigationState({
       pending: true,
       from,
       to: parsedTarget.fullPath,
-      source: fromHistory ? "history" : historyMode
+      source
     });
 
     Debug.emit("route:navigate:start", {
       from: from?.fullPath ?? null,
       to: parsedTarget.fullPath,
-      source: fromHistory ? "history" : historyMode
+      source,
+      query: parsedTarget.query,
+      phase: "start"
     });
 
     try {
@@ -369,10 +382,16 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
           history.replace(from.fullPath);
         }
 
+        const durationMs = Math.max(0, Date.now() - navigationStartedAt);
+
         Debug.emit("error:router", {
           message: `No route matched ${parsedTarget.fullPath}`,
           from: from?.fullPath ?? null,
-          to: parsedTarget.fullPath
+          to: parsedTarget.fullPath,
+          source,
+          query: parsedTarget.query,
+          phase: "not-found",
+          durationMs
         });
 
         return {
@@ -382,23 +401,41 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
         };
       }
 
-      const middlewareResult = await runMiddleware(middleware, nextRoute, from, router);
+      const middlewareResolution = await runMiddleware(middleware, nextRoute, from, router);
+      const middlewareResult = middlewareResolution.result;
 
       if (middlewareResult === false) {
         if (fromHistory && from) {
           history.replace(from.fullPath);
         }
 
+        const durationMs = Math.max(0, Date.now() - navigationStartedAt);
+
         Debug.emit("route:blocked", {
           from: from?.fullPath ?? null,
           to: nextRoute.fullPath,
-          middleware: nextRoute.route.middleware
+          route: nextRoute.route.path,
+          params: nextRoute.params,
+          query: nextRoute.query,
+          source,
+          middleware: nextRoute.route.middleware,
+          guardName: middlewareResolution.guardName,
+          phase: "blocked",
+          durationMs
         });
 
         Debug.emit("route:warn", {
           message: `Navigation blocked for ${nextRoute.fullPath}`,
           from: from?.fullPath ?? null,
-          to: nextRoute.fullPath
+          to: nextRoute.fullPath,
+          route: nextRoute.route.path,
+          params: nextRoute.params,
+          query: nextRoute.query,
+          source,
+          middleware: nextRoute.route.middleware,
+          guardName: middlewareResolution.guardName,
+          phase: "blocked",
+          durationMs
         });
 
         return {
@@ -409,10 +446,20 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
       }
 
       if (typeof middlewareResult === "string") {
+        const durationMs = Math.max(0, Date.now() - navigationStartedAt);
+
         Debug.emit("route:redirect", {
           from: from?.fullPath ?? null,
           to: nextRoute.fullPath,
-          redirectTo: middlewareResult
+          route: nextRoute.route.path,
+          params: nextRoute.params,
+          query: nextRoute.query,
+          source,
+          redirectTo: middlewareResult,
+          middleware: nextRoute.route.middleware,
+          guardName: middlewareResolution.guardName,
+          phase: "redirect",
+          durationMs
         });
 
         const redirectResult = await transitionTo(middlewareResult, "replace", false);
@@ -435,17 +482,24 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
       }
 
       currentRoute = nextRoute;
+      const durationMs = Math.max(0, Date.now() - navigationStartedAt);
+
       Debug.emit("route:changed", {
         from: from?.fullPath ?? null,
         to: nextRoute.fullPath,
         params: nextRoute.params,
         query: nextRoute.query,
-        route: nextRoute.route.path
+        route: nextRoute.route.path,
+        source,
+        phase: "resolved",
+        durationMs
       });
       Debug.emit("route:navigate:end", {
         from: from?.fullPath ?? null,
         to: nextRoute.fullPath,
-        source: fromHistory ? "history" : historyMode
+        source,
+        phase: "completed",
+        durationMs
       });
       notify();
 

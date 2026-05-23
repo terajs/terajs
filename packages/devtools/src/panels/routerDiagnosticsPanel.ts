@@ -74,6 +74,7 @@ export function renderRouterPanel(state: RouterStateLike): string {
           { label: "To", value: snapshot.to ?? "null" },
           { label: "Guard context", value: snapshot.guardContext ?? "none" },
           { label: "Phase", value: snapshot.phase ?? "unknown" },
+          { label: "Last duration", value: snapshot.durationMs === null ? "n/a" : `${snapshot.durationMs}ms` },
           { label: "Most active", value: metrics.mostActiveRoute ?? "none" },
         ])}
         <div class="structured-value-grid">

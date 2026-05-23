@@ -69,6 +69,7 @@ export async function loadRouteMatch<TData = unknown>(
     preferPrefetched?: boolean;
   } = {}
 ): Promise<LoadedRouteMatch<TData>> {
+  const loadStartedAt = Date.now();
   const hydrationSnapshot = options.hydrationSnapshot?.to === match.fullPath
     ? options.hydrationSnapshot
     : undefined;
@@ -86,7 +87,8 @@ export async function loadRouteMatch<TData = unknown>(
     route: match.route.path,
     params: match.params,
     query: match.query,
-    hydrated: hydrationSnapshot !== undefined
+    hydrated: hydrationSnapshot !== undefined,
+    phase: "loading"
   });
 
   try {
@@ -138,27 +140,44 @@ export async function loadRouteMatch<TData = unknown>(
       loaded.resolved = resolveLoadedRouteMetadata(loaded);
     }
 
+    const durationMs = Math.max(0, Date.now() - loadStartedAt);
+
     Debug.emit("route:load:end", {
       to: match.fullPath,
       route: match.route.path,
+      params: match.params,
+      query: match.query,
       layoutCount: layoutModules.length,
       hasData: data !== undefined,
       title: loaded.resolved.meta.title,
-      hydrated: hydrationSnapshot !== undefined
+      hydrated: hydrationSnapshot !== undefined,
+      phase: "loaded",
+      durationMs
     });
     Debug.emit("route:meta:resolved", {
       to: match.fullPath,
+      params: match.params,
+      query: match.query,
       meta: loaded.resolved.meta,
       ai: loaded.resolved.ai,
-      route: loaded.resolved.route
+      route: loaded.resolved.route,
+      phase: "resolved",
+      durationMs
     });
 
     return loaded;
   } catch (error) {
+    const durationMs = Math.max(0, Date.now() - loadStartedAt);
+
     Debug.emit("error:router", {
       message: error instanceof Error ? error.message : "Route load failed",
       to: match.fullPath,
       route: match.route.path,
+      params: match.params,
+      query: match.query,
+      hydrated: hydrationSnapshot !== undefined,
+      phase: "load-failed",
+      durationMs,
       error
     });
     throw error;

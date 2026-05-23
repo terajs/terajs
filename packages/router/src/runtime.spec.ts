@@ -67,6 +67,7 @@ describe("createRouter", () => {
   });
 
   it("navigates and notifies subscribers", async () => {
+    const debugSpy = vi.spyOn(Debug, "emit");
     const history = createMemoryHistory("/");
     const router = createRouter([
       route({ path: "/", filePath: "/pages/index.tera" }),
@@ -82,6 +83,40 @@ describe("createRouter", () => {
     expect(router.getCurrentRoute()?.params).toEqual({ section: "router" });
     expect(history.getLocation()).toBe("/docs/router");
     expect(listener).toHaveBeenCalledTimes(2);
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:navigate:start",
+      expect.objectContaining({
+        from: "/",
+        to: "/docs/router",
+        source: "push",
+        query: {},
+        phase: "start"
+      })
+    );
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:changed",
+      expect.objectContaining({
+        from: "/",
+        to: "/docs/router",
+        route: "/docs/:section",
+        source: "push",
+        phase: "resolved",
+        params: { section: "router" },
+        query: {},
+        durationMs: expect.any(Number)
+      })
+    );
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:navigate:end",
+      expect.objectContaining({
+        from: "/",
+        to: "/docs/router",
+        source: "push",
+        phase: "completed",
+        durationMs: expect.any(Number)
+      })
+    );
+    debugSpy.mockRestore();
   });
 
   it("tracks pending navigation state around async transitions", async () => {
@@ -158,13 +193,33 @@ describe("createRouter", () => {
     expect(router.getCurrentRoute()?.pathname).toBe("/");
     expect(history.getLocation()).toBe("/");
     expect(debugSpy).toHaveBeenCalledWith(
+      "route:blocked",
+      expect.objectContaining({
+        from: "/",
+        to: "/admin",
+        route: "/admin",
+        source: "push",
+        middleware: ["auth"],
+        guardName: "auth",
+        phase: "blocked",
+        durationMs: expect.any(Number)
+      })
+    );
+    expect(debugSpy).toHaveBeenCalledWith(
       "route:warn",
-      expect.objectContaining({ to: "/admin" })
+      expect.objectContaining({
+        to: "/admin",
+        source: "push",
+        guardName: "auth",
+        phase: "blocked",
+        durationMs: expect.any(Number)
+      })
     );
     debugSpy.mockRestore();
   });
 
   it("redirects navigation when middleware returns a path", async () => {
+    const debugSpy = vi.spyOn(Debug, "emit");
     const authGuard: NavigationGuard = ({ to }) =>
       to.pathname === "/admin" ? "/signin?redirect=%2Fadmin" : true;
     const history = createMemoryHistory("/");
@@ -187,6 +242,21 @@ describe("createRouter", () => {
     expect(router.getCurrentRoute()?.pathname).toBe("/signin");
     expect(router.getCurrentRoute()?.query).toEqual({ redirect: "/admin" });
     expect(history.getLocation()).toBe("/signin?redirect=%2Fadmin");
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:redirect",
+      expect.objectContaining({
+        from: "/",
+        to: "/admin",
+        route: "/admin",
+        source: "push",
+        redirectTo: "/signin?redirect=%2Fadmin",
+        middleware: ["auth"],
+        guardName: "auth",
+        phase: "redirect",
+        durationMs: expect.any(Number)
+      })
+    );
+    debugSpy.mockRestore();
   });
 
   it("emits a router error when no route matches", async () => {
@@ -202,7 +272,12 @@ describe("createRouter", () => {
     });
     expect(debugSpy).toHaveBeenCalledWith(
       "error:router",
-      expect.objectContaining({ to: "/missing" })
+      expect.objectContaining({
+        to: "/missing",
+        source: "push",
+        phase: "not-found",
+        durationMs: expect.any(Number)
+      })
     );
     debugSpy.mockRestore();
   });

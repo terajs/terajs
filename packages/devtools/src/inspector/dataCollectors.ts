@@ -214,6 +214,7 @@ export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
   let query: unknown = undefined;
   let guardContext: string | null = null;
   let phase: string | null = null;
+  let durationMs: number | null = null;
   let lastEventType: string | null = null;
 
   for (let index = events.length - 1; index >= 0; index -= 1) {
@@ -252,6 +253,13 @@ export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
       phase = readString(payload, "phase") ?? null;
     }
 
+    if (durationMs === null) {
+      const nextDuration = readNumber(payload, "durationMs");
+      if (nextDuration !== undefined) {
+        durationMs = nextDuration;
+      }
+    }
+
     if (!guardContext) {
       const guardName = readString(payload, "guardName");
       if (guardName) {
@@ -278,6 +286,7 @@ export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
     query,
     guardContext,
     phase,
+    durationMs,
     lastEventType
   };
 }

@@ -267,6 +267,7 @@ describe("primaryPanels", () => {
           route: "/docs/intro",
           source: "link",
           phase: "resolved",
+          durationMs: 24,
           params: { slug: "intro" },
           query: {
             filters: {
@@ -333,6 +334,8 @@ describe("primaryPanels", () => {
     expect(routerMarkup).toContain('data-router-view="overview"');
     expect(routerMarkup).toContain('data-router-view="timeline"');
     expect(routerMarkup).toContain("Latest route snapshot");
+    expect(routerMarkup).toContain("Last duration");
+    expect(routerMarkup).toContain("24ms");
     expect(routerMarkup).toContain("Route params");
     expect(routerMarkup).toContain("Route query");
     expect(routerMarkup).toContain("structured-value-viewer");

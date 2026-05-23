@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { Debug } from "@terajs/shared";
 import type { RouteDefinition } from "./definition";
 import {
   clearPrefetchedRouteMatches,
@@ -94,6 +95,63 @@ describe("loadRouteMatch", () => {
     expect(loaded.data).toEqual({ id: "42", view: "full" });
     expect(loaded.resolved.meta).toEqual({});
     expect(loaded.resolved.route.layouts).toEqual(["root", "products"]);
+  });
+
+  it("emits load phases and duration for route loads", async () => {
+    const debugSpy = vi.spyOn(Debug, "emit");
+    const matched = matchRoute(
+      [
+        route({
+          path: "/docs",
+          filePath: "/pages/docs.tera",
+          component: async () => ({
+            default: "DocsPage",
+            load: () => ({ section: "docs" })
+          })
+        })
+      ],
+      "/docs"
+    );
+
+    expect(matched).not.toBeNull();
+
+    await loadRouteMatch(matched!);
+
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:load:start",
+      expect.objectContaining({
+        to: "/docs",
+        route: "/docs",
+        params: {},
+        query: {},
+        hydrated: false,
+        phase: "loading"
+      })
+    );
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:load:end",
+      expect.objectContaining({
+        to: "/docs",
+        route: "/docs",
+        params: {},
+        query: {},
+        hasData: true,
+        hydrated: false,
+        phase: "loaded",
+        durationMs: expect.any(Number)
+      })
+    );
+    expect(debugSpy).toHaveBeenCalledWith(
+      "route:meta:resolved",
+      expect.objectContaining({
+        to: "/docs",
+        params: {},
+        query: {},
+        phase: "resolved",
+        durationMs: expect.any(Number)
+      })
+    );
+    debugSpy.mockRestore();
   });
 
   it("starts layout imports before the route component resolves", async () => {
