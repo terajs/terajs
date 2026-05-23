@@ -47,6 +47,40 @@ async function createNativeWorkspace(): Promise<{
   };
 }
 
+async function createBootstrapComponentWorkspace(): Promise<{
+  cwd: string;
+  sourceRoot: string;
+  generatedBase: string;
+  hostsBase: string;
+}> {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "terajs-native-build-components-"));
+  tempDirs.push(cwd);
+
+  const sourceRoot = path.join(cwd, "src", "shared");
+  const generatedBase = path.join(cwd, ".terajs", "generated");
+  const hostsBase = path.join(cwd, ".terajs", "hosts");
+
+  await mkdir(path.join(sourceRoot, "pages"), { recursive: true });
+  await mkdir(path.join(sourceRoot, "components"), { recursive: true });
+  await writeFile(
+    path.join(sourceRoot, "pages", "index.tera"),
+    `<template><section><StarterHero title="Route bootstrap" /></section></template>\n<script>\nimport StarterHero from "../components/StarterHero.tera";\n</script>\n`,
+    "utf8"
+  );
+  await writeFile(
+    path.join(sourceRoot, "components", "StarterHero.tera"),
+    `<template><h1>{{ title() }}</h1></template>\n<script>\nfunction title() {\n  return typeof props.title === "string" && props.title.length > 0\n    ? props.title\n    : "Fallback hero"\n}\n</script>\n`,
+    "utf8"
+  );
+
+  return {
+    cwd,
+    sourceRoot,
+    generatedBase,
+    hostsBase
+  };
+}
+
 afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dirPath) => rm(dirPath, { recursive: true, force: true })));
 });
@@ -186,6 +220,9 @@ describe("native target build output", () => {
       renderer: string;
       generatedManifest: string;
       routesFile: string;
+      bootstrap?: {
+        initialCommandBatchFile?: string;
+      };
     };
 
     expect(hostManifest.target).toBe(target);
@@ -193,8 +230,55 @@ describe("native target build output", () => {
     expect(hostManifest.generatedManifest).toBe(`../../generated/${target}/terajs-target.json`);
     expect(hostManifest.routesFile).toBe(`../../generated/${target}/routes.json`);
 
+    if (target === "android") {
+      expect(hostManifest.bootstrap).toEqual({
+        initialCommandBatchFile: "../../generated/android/bootstrap/root-command-batch.json"
+      });
+
+      const bootstrapPayload = await readFile(
+        path.join(generatedDir, "bootstrap", "root-command-batch.json"),
+        "utf8"
+      );
+      expect(bootstrapPayload.trim().startsWith("[")).toBe(true);
+      expect(bootstrapPayload).toContain('"create-element"');
+      expect(bootstrapPayload).toContain('"create-text"');
+      expect(bootstrapPayload).toContain("Layout");
+      expect(bootstrapPayload).not.toContain("Rendered from the generated Android command batch.");
+    }
+
     const hostReadme = await readFile(path.join(hostDir, "README.md"), "utf8");
     expect(hostReadme).toContain(`tera build --target ${target}`);
     expect(hostReadme).toContain("compiled Terajs module artifacts");
+
+    if (target === "android") {
+      expect(hostReadme).toContain("bootstrap/root-command-batch.json");
+    }
+  });
+
+  it("emits an Android bootstrap batch from a route that imports a component", async () => {
+    const workspace = await createBootstrapComponentWorkspace();
+    const generatedDir = path.join(workspace.generatedBase, "android");
+    const hostDir = path.join(workspace.hostsBase, "android");
+
+    await buildNativeTarget(
+      {
+        target: "android",
+        kind: "native",
+        sourceRoot: workspace.sourceRoot,
+        generatedDir,
+        hostDir
+      },
+      {
+        cwd: workspace.cwd
+      }
+    );
+
+    const bootstrapPayload = await readFile(
+      path.join(generatedDir, "bootstrap", "root-command-batch.json"),
+      "utf8"
+    );
+
+    expect(bootstrapPayload).toContain("Route bootstrap");
+    expect(bootstrapPayload).not.toContain("Rendered from the generated Android command batch.");
   });
 });

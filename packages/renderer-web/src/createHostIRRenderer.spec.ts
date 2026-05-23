@@ -7,10 +7,10 @@ import type {
   IRInterpolationNode,
   IRSlotNode,
 } from "@terajs/compiler";
+import { createHostBindings } from "../../renderer/src/hostBindings.js";
+import { createHostIRRenderer } from "../../renderer/src/createHostIRRenderer.js";
 import { signal } from "@terajs/reactivity";
 
-import { createHostBindings } from "./hostBindings.js";
-import { createHostIRRenderer } from "./createHostIRRenderer.js";
 import {
   createSimulationHost,
   nextSimulationTick,
@@ -144,6 +144,56 @@ describe("createHostIRRenderer", () => {
     }) as SimulationNode;
 
     expect(simulationTextContent(rendered)).toBe("alphabeta");
+  });
+
+  it("renders uppercase component tags from the component registry against a non-DOM host", () => {
+    const host = createSimulationHost();
+    const renderer = createHostIRRenderer({
+      host,
+      bindings: createHostBindings(host)
+    });
+
+    const Hero = (props?: { title?: string; children?: () => SimulationNode }) => {
+      const article = host.createElement("article");
+      const heading = host.createElement("h1");
+      host.insert(heading, host.createText(props?.title ?? "Fallback"));
+      host.insert(article, heading);
+
+      if (typeof props?.children === "function") {
+        host.insert(article, props.children());
+      }
+
+      return article;
+    };
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "Hero",
+      props: [
+        {
+          kind: "static",
+          name: "title",
+          value: "Route bootstrap"
+        }
+      ],
+      children: [
+        {
+          type: "text",
+          value: "Child body",
+          loc: undefined,
+          flags: { static: true }
+        }
+      ],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const rendered = renderer.renderIRNode(node, {
+      __components: { Hero }
+    }) as SimulationElementNode;
+
+    expect(rendered.tag).toBe("article");
+    expect(simulationTextContent(rendered)).toBe("Route bootstrapChild body");
   });
 
   it("renders reactive for nodes against a non-DOM host", async () => {

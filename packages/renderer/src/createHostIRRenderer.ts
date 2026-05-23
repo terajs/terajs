@@ -1,4 +1,5 @@
 import type { RendererHost } from "@terajs/renderer";
+import type { FrameworkComponent } from "./component.js";
 
 import { dispose, effect } from "@terajs/reactivity";
 
@@ -22,6 +23,7 @@ import {
 import {
   isDirectBindingSource,
   resolveDirectTextSource,
+  resolveEventHandler,
   resolveExpr,
   resolveHintedDirectSource,
   resolveHintedPath,
@@ -51,6 +53,7 @@ export function createHostIRRenderer<
     createText,
     getNextSibling,
     getParent,
+    isFragment,
     isNode,
     setClass,
     setProp,
@@ -160,9 +163,14 @@ export function createHostIRRenderer<
   }
 
   function renderIRElement(node: HostIRElementNode, ctx: any, isSvg: boolean): ElementLike | null {
+    const component = resolveComponentBinding(ctx, node.tag);
+    if (component) {
+      return renderIRComponent(node, component, ctx, isSvg);
+    }
+
     if (isComponentTag(node.tag)) {
       emitRendererDebug("error:renderer", () => ({
-        message: `Component tags are not supported by the host-simulation renderer yet: ${node.tag}`,
+        message: `Component tag is missing from the host component registry: ${node.tag}`,
         node
       }));
       return null;
@@ -183,6 +191,23 @@ export function createHostIRRenderer<
     }
 
     return el;
+  }
+
+  function renderIRComponent(
+    node: HostIRElementNode,
+    component: FrameworkComponent,
+    ctx: any,
+    isSvg: boolean
+  ): ElementLike | null {
+    emitRendererDebug("ir:render:component", () => ({ tag: node.tag }));
+
+    const props = buildComponentProps(node, ctx, isSvg);
+    const rendered = component(props);
+    const normalized = normalizeRenderedComponentValue(rendered, ctx);
+
+    return normalized && isNode(normalized)
+      ? normalized as ElementLike
+      : null;
   }
 
   function renderIRSlot(node: HostIRSlotNode, ctx: any, isSvg: boolean): NodeLike {
@@ -253,6 +278,82 @@ export function createHostIRRenderer<
 
   function applyIRProps(el: ElementLike, props: HostIRPropNode[], ctx: any): void {
     applyHostIRProps(el, props, ctx, hostIRPropRuntime);
+  }
+
+  function resolveComponentBinding(ctx: any, tag: string): FrameworkComponent | null {
+    if (!isComponentTag(tag)) {
+      return null;
+    }
+
+    const registry = ctx?.__components;
+    if (!registry || typeof registry !== "object") {
+      return null;
+    }
+
+    const resolved = registry[tag];
+    return typeof resolved === "function" ? resolved as FrameworkComponent : null;
+  }
+
+  function buildComponentProps(node: HostIRElementNode, ctx: any, isSvg: boolean): Record<string, unknown> {
+    const props: Record<string, unknown> = {};
+
+    for (const prop of node.props) {
+      if (prop.kind === "static") {
+        props[prop.name] = prop.value;
+        continue;
+      }
+
+      if (prop.kind === "bind") {
+        props[prop.name] = prop.binding?.kind === "simple-path"
+          ? resolveHintedPath(ctx, prop.binding, true)
+          : resolveExpr(ctx, String(prop.value));
+        continue;
+      }
+
+      if (prop.kind === "event") {
+        const handler = resolveEventHandler(ctx, String(prop.value));
+        if (typeof handler === "function") {
+          props[`on${capitalize(prop.name)}`] = handler;
+        }
+      }
+    }
+
+    if (node.children.length > 0) {
+      props.children = () => {
+        const fragment = createFragment();
+
+        for (const child of node.children) {
+          const rendered = renderIRNode(child, ctx, isSvg);
+          if (rendered) {
+            insert(fragment as NodeLike, rendered);
+          }
+        }
+
+        return fragment;
+      };
+    }
+
+    return props;
+  }
+
+  function normalizeRenderedComponentValue(value: unknown, ctx: any): NodeLike {
+    if (typeof value === "function") {
+      return normalizeRenderedComponentValue((value as (componentCtx: any) => unknown)(ctx), ctx);
+    }
+
+    const normalized = normalizeHostSlotValue(value, hostSlotRuntime) as NodeLike;
+    if (isFragment(normalized)) {
+      const children = runtime.host.getChildren(normalized);
+      if (children.length === 1) {
+        return children[0];
+      }
+    }
+
+    return normalized;
+  }
+
+  function capitalize(value: string): string {
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   function applyStaticProp(el: ElementLike, prop: HostIRPropNode): void {

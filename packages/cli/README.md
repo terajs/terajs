@@ -50,7 +50,7 @@ Pass `--target web` or `--target web,android` to narrow the build to a comma-sep
 The `web` target emits the production Vite bundle.
 The `android` and `ios` targets emit compiled Terajs module artifacts plus a serializable route manifest into `.terajs/generated/<target>` and write thin host metadata into `.terajs/hosts/<target>` for the native host runtime contract.
 
-`tera shell init android` builds the current Android target artifacts, copies the Android host module scaffold into `android/terajs-host`, creates a runnable `android/app` shell, and syncs `.terajs` host metadata plus generated artifacts into app assets at build time. The shell path is target-neutral so iOS can later adopt the same `tera shell init <target>` flow without changing the universal workspace contract.
+`tera shell init android` builds the current Android target artifacts, copies the Android host module scaffold into `android/terajs-host`, creates a runnable `android/app` shell, and syncs `.terajs` host metadata plus generated artifacts into app assets at build time. The generated shell now boots from `.terajs/generated/android/bootstrap/root-command-batch.json` so it can render a real native bootstrap tree through the Android host runtime before the full JS bridge loop is wired. The shell path is target-neutral so iOS can later adopt the same `tera shell init <target>` flow without changing the universal workspace contract.
 
 ## Notes
 

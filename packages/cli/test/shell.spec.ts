@@ -43,6 +43,7 @@ describe("cli initTargetShell", () => {
 
     expect(await exists(join(appRoot, ".terajs", "generated", "android", "terajs-target.json"))).toBe(true);
     expect(await exists(join(appRoot, ".terajs", "hosts", "android", "terajs-host.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "generated", "android", "bootstrap", "root-command-batch.json"))).toBe(true);
 
     expect(await exists(join(appRoot, "android", "gradlew"))).toBe(true);
     expect(await exists(join(appRoot, "android", "gradle", "wrapper", "gradle-wrapper.properties"))).toBe(true);
@@ -64,9 +65,15 @@ describe("cli initTargetShell", () => {
     const appManifest = await readText(join(appRoot, "android", "app", "src", "main", "AndroidManifest.xml"));
     expect(appManifest).toContain("android.intent.category.LAUNCHER");
 
+    const mainActivity = await readText(join(appRoot, "android", "app", "src", "main", "kotlin", "dev", "terajs", "apps", "universal", "app", "android", "MainActivity.kt"));
+    expect(mainActivity).toContain("AndroidHostRuntime");
+    expect(mainActivity).toContain("receiveCommandBatchPayload");
+    expect(mainActivity).toContain("root-command-batch.json");
+
     const readme = await readText(join(appRoot, "android", "README.md"));
     expect(readme).toContain("tera build --target android");
     expect(readme).toContain("./gradlew assembleDebug");
+    expect(readme).toContain("render a real native bootstrap tree");
   });
 
   it("rejects Android shell initialization for non-universal workspaces", async () => {

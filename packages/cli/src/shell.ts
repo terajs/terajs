@@ -274,55 +274,89 @@ function createAndroidMainActivity(namespace: string): string {
 import android.app.Activity
 import android.graphics.Typeface
 import android.os.Bundle
+import android.view.View
 import android.widget.ScrollView
 import android.widget.TextView
+import dev.terajs.renderer.android.AndroidHostRuntime
 import org.json.JSONObject
 
 class MainActivity : Activity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val status = runCatching { buildStatusMessage() }
+    val content = runCatching { createBootstrapView() }
       .getOrElse { error ->
-        """
-        Terajs Android shell
+        createStatusView(
+          """
+          Terajs Android shell
 
-        Failed to read synced Terajs assets.
-        ${"${"}error.message ?: error.javaClass.simpleName}
+          Failed to read synced Terajs assets.
+          ${"${"}error.message ?: error.javaClass.simpleName}
 
-        Re-run tera build --target android and assemble again.
-        """.trimIndent()
+          Re-run tera build --target android and assemble again.
+          """.trimIndent()
+        )
       }
 
+    setContentView(content)
+  }
+
+  private fun createBootstrapView(): View {
+    val hostManifest = readAssetJson(".terajs/hosts/android/terajs-host.json")
+    val bootstrapAssetPath = resolveBootstrapAssetPath(hostManifest)
+    val commandBatchPayload = assets.open(bootstrapAssetPath).bufferedReader().use { reader ->
+      reader.readText()
+    }
+
+    val runtime = AndroidHostRuntime(this)
+    runtime.receiveCommandBatchPayload(commandBatchPayload)
+
+    return runtime.rootView ?: createStatusView(
+      """
+      Terajs Android shell
+
+      The bootstrap command batch did not produce a root view.
+      Check ${"${"}bootstrapAssetPath} and re-run tera build --target android.
+      """.trimIndent()
+    )
+  }
+
+  private fun resolveBootstrapAssetPath(hostManifest: JSONObject): String {
+    val relativePath = hostManifest.optJSONObject("bootstrap")
+      ?.optString("initialCommandBatchFile")
+      ?.takeIf { it.isNotBlank() }
+      ?: "../../generated/android/bootstrap/root-command-batch.json"
+
+    return resolveAssetPath(".terajs/hosts/android/terajs-host.json", relativePath)
+  }
+
+  private fun resolveAssetPath(baseAssetPath: String, relativePath: String): String {
+    val baseSegments = baseAssetPath.split('/').dropLast(1).toMutableList()
+
+    for (segment in relativePath.split('/')) {
+      when (segment) {
+        "", "." -> Unit
+        ".." -> if (baseSegments.isNotEmpty()) {
+          baseSegments.removeAt(baseSegments.lastIndex)
+        }
+        else -> baseSegments.add(segment)
+      }
+    }
+
+    return baseSegments.joinToString("/")
+  }
+
+  private fun createStatusView(message: String): View {
     val content = TextView(this).apply {
-      text = status
+      text = message
       typeface = Typeface.MONOSPACE
       textSize = 14f
       setPadding(48, 48, 48, 48)
     }
 
-    setContentView(ScrollView(this).apply {
+    return ScrollView(this).apply {
       addView(content)
-    })
-  }
-
-  private fun buildStatusMessage(): String {
-    val hostManifest = readAssetJson(".terajs/hosts/android/terajs-host.json")
-    val targetManifest = readAssetJson(".terajs/generated/android/terajs-target.json")
-
-    return """
-      Terajs Android shell ready
-
-      Target: ${"${"}hostManifest.optString("target")}
-      Renderer: ${"${"}hostManifest.optString("renderer")}
-      Bridge model: ${"${"}hostManifest.optString("bridgeModel")}
-      Source root: ${"${"}hostManifest.optString("sourceRoot")}
-      Route count: ${"${"}targetManifest.optInt("routeCount")}
-      Module count: ${"${"}targetManifest.optInt("moduleCount")}
-
-      This shell is synced from the universal workspace .terajs output.
-      The next Android milestone is connecting the JS runtime and bridge loop for end-to-end rendering.
-    """.trimIndent()
+    }
   }
 
   private fun readAssetJson(assetPath: String): JSONObject {
@@ -359,7 +393,8 @@ This Android workspace shell was materialized by \`tera shell init android\`.
 
 - a real Android Gradle project exists under \`android/\`
 - the shell syncs \`.terajs/generated/android\` and \`.terajs/hosts/android\` into app assets at build time
-- the app can read the synced Terajs host and target manifests directly from the packaged assets
+- the app can read the synced Terajs host metadata directly from the packaged assets
+- the app can render a real native bootstrap tree from \`.terajs/generated/android/bootstrap/root-command-batch.json\`
 
 The next Android milestone is connecting the JS runtime and bridge loop so the shell can mount the compiled Terajs output end-to-end.
 `;
