@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { build as viteBuild } from "vite";
 
 import { getWorkspaceConfig } from "@terajs/app/vite";
 
@@ -15,6 +16,38 @@ afterEach(async () => {
 });
 
 describe("proof workspace", () => {
+  it("materializes a universal workspace fixture that the CLI can build for web", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+
+    process.chdir(tempWorkspace);
+    const workspace = getWorkspaceConfig();
+
+    expect(workspace.mode).toBe("universal");
+    expect(workspace.targets.selected).toEqual(["web", "android", "ios"]);
+    expect(path.relative(tempWorkspace, workspace.sourceRoot).replace(/\\/g, "/")).toBe("src/shared");
+
+    const result = await runBuildCommand({ target: ["web"] }, {
+      cwd: tempWorkspace,
+      viteBuild
+    });
+
+    expect(result.targets).toEqual(["web"]);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toMatchObject({
+      target: "web",
+      status: "built",
+      detail: "Production web bundle written to dist."
+    });
+
+    const manifest = JSON.parse(
+      await readFile(path.join(tempWorkspace, "dist", ".vite", "manifest.json"), "utf8")
+    ) as Record<string, unknown>;
+
+    expect(manifest).toBeTruthy();
+    expect(Object.keys(manifest).length).toBeGreaterThan(0);
+    await expect(readFile(path.join(tempWorkspace, "dist", "index.html"), "utf8")).resolves.toContain("<script");
+  });
+
   it("materializes a universal workspace fixture that the CLI can build for android", async () => {
     const tempWorkspace = await copyProofWorkspace();
 

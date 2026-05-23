@@ -1,9 +1,10 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const originalCwd = process.cwd();
+const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 export const proofWorkspaceRoot = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -22,6 +23,11 @@ export async function copyProofWorkspace(): Promise<string> {
 
   const tempWorkspace = path.join(tempRoot, "shared-workspace");
   await cp(proofWorkspaceRoot, tempWorkspace, { recursive: true });
+  await symlink(
+    path.join(repoRoot, "node_modules"),
+    path.join(tempWorkspace, "node_modules"),
+    process.platform === "win32" ? "junction" : "dir"
+  );
   return tempWorkspace;
 }
 
