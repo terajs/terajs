@@ -33,6 +33,9 @@ jobs:
       - name: Run Typecheck
         run: npm run typecheck
 
+      - name: Run Renderer-Web Focused Gate
+        run: npm run test:renderer-web:focused
+
       - name: Run Sanity Critical Gate
         run: npm run test:sanity
 
