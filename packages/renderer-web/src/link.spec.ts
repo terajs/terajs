@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMemoryHistory, createRouter, type RouteDefinition } from "@terajs/router";
+import { clearPrefetchedRouteMatches, createMemoryHistory, createRouter, type RouteDefinition } from "@terajs/router";
 import { component } from "@terajs/runtime";
 
 import { Link } from "./link";
@@ -212,6 +212,59 @@ describe("Link", () => {
     expect(anchor.className).toBe("active");
     expect(docsComponent).toHaveBeenCalledTimes(1);
 
+    unmount(root);
+  });
+
+  it("cancels prefetched intent on pointer exit and retries on the next intent", async () => {
+    clearPrefetchedRouteMatches();
+
+    let releaseDocsComponent: ((value: { default: () => Text }) => void) | undefined;
+    const docsComponent = vi.fn()
+      .mockImplementationOnce(() => new Promise<{ default: () => Text }>((resolve) => {
+        releaseDocsComponent = resolve;
+      }))
+      .mockResolvedValueOnce({
+        default: () => document.createTextNode("docs")
+      });
+    const root = document.createElement("div");
+    const router = createRouter([
+      route({ path: "/" }),
+      route({
+        id: "docs",
+        path: "/docs",
+        component: docsComponent
+      })
+    ], {
+      history: createMemoryHistory("/")
+    });
+
+    const App = component({ name: "App" }, () => () => withRouterContext(router, () => Link({
+      to: "/docs",
+      prefetch: true,
+      children: "Docs"
+    })));
+
+    await router.start();
+    mount(App, root);
+
+    const anchor = root.querySelector("a") as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await flush();
+
+    expect(docsComponent).toHaveBeenCalledTimes(1);
+
+    anchor.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    releaseDocsComponent?.({
+      default: () => document.createTextNode("docs")
+    });
+    await flush();
+
+    anchor.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await flush();
+
+    expect(docsComponent).toHaveBeenCalledTimes(2);
+
+    clearPrefetchedRouteMatches();
     unmount(root);
   });
 });

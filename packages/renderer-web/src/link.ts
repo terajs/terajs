@@ -19,7 +19,9 @@ export interface LinkProps {
   children?: any;
   onClick?: (event: MouseEvent) => void;
   onMouseEnter?: (event: MouseEvent) => void;
+  onMouseLeave?: (event: MouseEvent) => void;
   onFocus?: (event: FocusEvent) => void;
+  onBlur?: (event: FocusEvent) => void;
   onTouchStart?: (event: TouchEvent) => void;
   [key: string]: unknown;
 }
@@ -77,6 +79,10 @@ function isLinkActive(currentPath: string | undefined, target: string, exact: bo
   return currentPath === target || currentPath.startsWith(`${target}/`);
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 export function Link(props: LinkProps): Node {
   const {
     router: explicitRouter,
@@ -90,7 +96,9 @@ export function Link(props: LinkProps): Node {
     ariaCurrent = "page",
     onClick,
     onMouseEnter,
+    onMouseLeave,
     onFocus,
+    onBlur,
     onTouchStart,
     children,
     ...rest
@@ -99,17 +107,59 @@ export function Link(props: LinkProps): Node {
   const currentRoute = useCurrentRoute(router);
   const navigationState = useNavigationState(router);
   const baseClassName = normalizeClassName(rest.className ?? rest.class);
-  let hasPrefetched = false;
+  let prefetchState: "idle" | "pending" | "complete" = "idle";
+  let prefetchController: AbortController | null = null;
 
   const isPending = () => isLinkActive(navigationState().to ?? undefined, to, exact === true);
 
-  const prefetchTarget = () => {
-    if (!prefetch || hasPrefetched || isExternalTarget(to)) {
+  const cancelPrefetchTarget = () => {
+    if (prefetchState !== "pending" || !prefetchController) {
       return;
     }
 
-    hasPrefetched = true;
-    void prefetchRoute(router, to);
+    const controller = prefetchController;
+    prefetchController = null;
+    prefetchState = "idle";
+    controller.abort("prefetch-intent-ended");
+  };
+
+  const preservePrefetchTarget = () => {
+    if (!prefetchController) {
+      return;
+    }
+
+    prefetchController = null;
+    prefetchState = "complete";
+  };
+
+  const prefetchTarget = () => {
+    if (!prefetch || prefetchState !== "idle" || isExternalTarget(to)) {
+      return;
+    }
+
+    const controller = new AbortController();
+    prefetchController = controller;
+    prefetchState = "pending";
+
+    void prefetchRoute(router, to, controller.signal)
+      .then(() => {
+        if (prefetchController !== controller) {
+          return;
+        }
+
+        prefetchController = null;
+        prefetchState = "complete";
+      })
+      .catch((error) => {
+        if (prefetchController === controller) {
+          prefetchController = null;
+          prefetchState = "idle";
+        }
+
+        if (!isAbortError(error) && !controller.signal.aborted) {
+          return;
+        }
+      });
   };
 
   const resolveClassName = () => {
@@ -133,9 +183,17 @@ export function Link(props: LinkProps): Node {
       onMouseEnter?.(event);
       prefetchTarget();
     },
+    onMouseLeave: (event: MouseEvent) => {
+      onMouseLeave?.(event);
+      cancelPrefetchTarget();
+    },
     onFocus: (event: FocusEvent) => {
       onFocus?.(event);
       prefetchTarget();
+    },
+    onBlur: (event: FocusEvent) => {
+      onBlur?.(event);
+      cancelPrefetchTarget();
     },
     onTouchStart: (event: TouchEvent) => {
       onTouchStart?.(event);
@@ -148,6 +206,7 @@ export function Link(props: LinkProps): Node {
       }
 
       event.preventDefault();
+      preservePrefetchTarget();
       if (replace) {
         await router.replace(to);
         return;
