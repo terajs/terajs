@@ -128,6 +128,14 @@ describe("proof workspace", () => {
         exposedBindings: []
       }
     ]));
+    expect(generatedManifest.modules).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "component",
+        filePath: "/src/shared/components/ProofStateBoard.tera",
+        outputPath: "modules/components/ProofStateBoard.json",
+        name: "ProofStateBoard"
+      })
+    ]));
 
     const hostManifest = JSON.parse(
       await readFile(path.join(tempWorkspace, ".terajs", "hosts", "android", "terajs-host.json"), "utf8")
@@ -145,6 +153,10 @@ describe("proof workspace", () => {
       sourceRoot: "src/shared",
       generatedManifest: "../../generated/android/terajs-target.json",
       routesFile: "../../generated/android/routes.json"
+    });
+
+    await expect(readFile(path.join(tempWorkspace, "dist", "index.html"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT"
     });
   });
 });
