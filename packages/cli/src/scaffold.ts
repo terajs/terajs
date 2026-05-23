@@ -262,8 +262,8 @@ export async function scaffoldProject(name: string, options: ScaffoldProjectOpti
   await mkdir(middleware, { recursive: true });
   await mkdir(plugins, { recursive: true });
   await mkdir(publicDir, { recursive: true });
-  await mkdir(terajs, { recursive: true });
   if (mode === "universal") {
+    await mkdir(terajs, { recursive: true });
     await mkdir(generatedAndroid, { recursive: true });
     await mkdir(generatedIos, { recursive: true });
     await mkdir(hostsAndroid, { recursive: true });

@@ -86,6 +86,12 @@ describe("cli scaffoldProject", () => {
     const pluginEntry = await readText(join(appRoot, "src", "plugins", "index.ts"));
     expect(pluginEntry).toContain('import "../styles.css"');
 
+    const gitIgnore = await readText(join(appRoot, ".gitignore"));
+    expect(gitIgnore).toContain("node_modules");
+    expect(gitIgnore).toContain("dist");
+    expect(gitIgnore).not.toContain(".terajs/generated");
+    expect(gitIgnore).not.toContain(".terajs/hosts");
+
     const styles = await readText(join(appRoot, "src", "styles.css"));
     expect(styles).toContain(".starter-shell");
     expect(styles).toContain(".starter-stage");
@@ -121,8 +127,15 @@ describe("cli scaffoldProject", () => {
     const hasAbout = await exists(join(appRoot, "src", "pages", "about.tera"));
     expect(hasAbout).toBe(false);
 
+    const hasWebOnlyTargetOutput = await exists(join(appRoot, ".terajs"));
+    expect(hasWebOnlyTargetOutput).toBe(false);
+
     const hasSharedPages = await exists(join(appRoot, "src", "shared", "pages"));
     expect(hasSharedPages).toBe(false);
+
+    const cliReadme = await readText(join(originalCwd, "packages", "cli", "README.md"));
+    expect(cliReadme).toContain("The default scaffold stays web-first and targets `@terajs/app`.");
+    expect(cliReadme).toContain("Use universal mode when one workspace should own shared `.tera` source");
 
     const heroLogo = await readFile(join(appRoot, "public", "terajs-logo.png"));
     const shellLogo = await readFile(join(appRoot, "public", "terajs-logo-extension.png"));
