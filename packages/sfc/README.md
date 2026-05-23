@@ -24,6 +24,8 @@ Those blocks are all part of the shipped surface. `meta`, `ai`, and `route` are 
 - `parseSFC()` for turning source text into a parsed descriptor
 - `compileTemplate()` for template compilation work
 - `compileScript()` for script transformation work
+- `annotateRuntimeDebugNames()` for stable top-level signal/watch/computed naming during script compilation
+- `compileComponentModuleParts()` for reusable SFC script + IR preparation outside the Vite-only wrapper
 - SFC types and structured error helpers
 
 ## Minimal parse example
@@ -48,7 +50,8 @@ const parsed = parseSFC(source, "/src/pages/index.tera");
 ## Usage guidance
 
 - Use `.tera` files for route-facing authoring and cohesive page/layout composition.
-- Keep advanced transforms in tooling layers such as the Vite plugin or custom build tooling.
+- Keep app-facade module wrappers in tooling layers such as the Vite plugin or custom build tooling.
+- Reuse `compileComponentModuleParts()` when custom tooling needs neutral SFC script + template preparation without copying Vite plugin internals.
 - Use the package directly when you need parser/compiler behavior without the full application plugin.
 
 ## Related packages

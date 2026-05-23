@@ -8,3 +8,5 @@ export * from "./types.js";
 export * from "./errors.js";
 export * from "./compileTemplate.js";
 export * from "./compileScript.js";
+export * from "./annotateRuntimeDebugNames.js";
+export * from "./compileComponentModuleParts.js";

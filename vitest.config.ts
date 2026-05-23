@@ -39,6 +39,7 @@ export default defineConfig({
       "@terajs/renderer-ssr": path.resolve(__dirname, "./packages/renderer-ssr/src"),
       "@terajs/renderer-web": path.resolve(__dirname, "./packages/renderer-web/src"),
       "@terajs/router": path.resolve(__dirname, "./packages/router/src"),
+      "@terajs/router-manifest": path.resolve(__dirname, "./packages/router-manifest/src"),
       "@terajs/runtime": path.resolve(__dirname, "./packages/runtime/src"),
       "@terajs/sfc": path.resolve(__dirname, "./packages/sfc/src"),
       "@terajs/shared": path.resolve(__dirname, "./packages/shared/src"),

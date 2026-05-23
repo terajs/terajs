@@ -1,31 +1,21 @@
 import {
-  compileScript,
-  compileTemplateFromSFC,
+  compileComponentModuleParts,
   type ParsedSFC
 } from "@terajs/sfc";
-import { annotateRuntimeDebugNames } from "./annotateRuntimeDebugNames.js";
 
 export function compileSfcToComponent(sfc: ParsedSFC): string {
-  const scriptSource =
-    typeof sfc.script === "string"
-      ? sfc.script
-      : sfc.script?.content ?? "";
-
-  const script = compileScript(annotateRuntimeDebugNames(scriptSource));
-  const ir = compileTemplateFromSFC(sfc);
-  ir.hasAsyncResource = script.hasAsyncResource;
-  const name = inferComponentName(sfc.filePath);
-  const importedBindingMap = script.importedBindings.length > 0
+  const compiled = compileComponentModuleParts(sfc);
+  const importedBindingMap = compiled.importedBindings.length > 0
     ? `{
-${script.importedBindings.map((binding) => `  ${JSON.stringify(binding)}: typeof ${binding} !== "undefined" ? ${binding} : undefined`).join(",\n")}
+${compiled.importedBindings.map((binding) => `  ${JSON.stringify(binding)}: typeof ${binding} !== "undefined" ? ${binding} : undefined`).join(",\n")}
 }`
     : "{}";
-  const exposedBindings = JSON.stringify(script.exposed);
+  const exposedBindings = JSON.stringify(compiled.exposedBindings);
 
   return `
 import { component, applyHMRUpdate, renderIRModuleToFragment } from "@terajs/app";
 
-${script.setupCode}
+${compiled.setupCode}
 
 function normalizeComponentProps(input) {
   if (!input || typeof input !== "object") {
@@ -84,13 +74,13 @@ function createComponentRegistry(ctx) {
   };
 }
 
-export let ir = ${JSON.stringify(ir, null, 2)};
+export let ir = ${JSON.stringify(compiled.ir, null, 2)};
 
 export { __ssfc };
 
 const Comp = component(
   {
-    name: "${name}",
+    name: "${compiled.name}",
     meta: ir.meta,
     ai: ir.ai,
     route: ir.route
@@ -114,15 +104,10 @@ if (import.meta.hot) {
   import.meta.hot.accept((mod) => {
     const nextSetup = mod.__ssfc ?? null;
     const nextIR = ir;
-    applyHMRUpdate("${name}", nextSetup, nextIR);
+    applyHMRUpdate("${compiled.name}", nextSetup, nextIR);
   });
 }
 
 export default Comp;
 `;
-}
-
-function inferComponentName(filePath: string): string {
-  const base = filePath.split("/").pop() || "Component";
-  return base.replace(/\.\w+$/, "").replace(/[^A-Za-z0-9]/g, "") || "Component";
 }

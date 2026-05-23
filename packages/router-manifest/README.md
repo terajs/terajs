@@ -15,6 +15,8 @@ npm install @terajs/router-manifest
 - `inferPathFromFile(filePath)` for converting `.tera` route-file paths into route paths
 - `buildRouteFromSFC(parsedSfc)` for turning a parsed SFC into a `RouteDefinition`
 - `buildRouteManifest(inputs, options?)` for assembling an ordered route manifest
+- `generateRouteConfig(files, manifest?)` for producing route-module source from discovered file paths
+- `generateRoutesModuleSource(options)` for producing a richer virtual-routes module with meta, ai, layouts, and emitted asset paths
 - `RouteConfigInput`, `RouteManifestOptions`, and `RouteSourceInput` types
 
 ## Minimal example
@@ -34,4 +36,5 @@ const routes = buildRouteManifest([
 
 - Route-path inference converts `[param].tera` segments into `:param` route parameters.
 - `<route>` overrides, `meta`, and `ai` data from parsed SFCs are preserved in the resulting route definitions.
+- Route module source generation stays available here so alternative build flows can reuse route discovery without depending on the Vite plugin package.
 - This package is the direct route-manifest layer underneath the app-facing facade helpers.
