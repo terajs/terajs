@@ -21,6 +21,17 @@ This package represents the iOS-side exploration for rendering Terajs components
 - package-local style normalization now translates a small layout subset like row/column, spacing, alignment, and colors into UIKit-facing style keys
 - package-local native event ingress now normalizes beforeinput replacement previews, direct or item-shaped transfer payloads, delete-style payloads, multiline replacement ranges, text-input change, and text-limit-aware composition start or update previews with selection state, alongside structured text-selection payloads and switch change events, and syncs native state into the host-session proof tree
 
+## Local validation
+
+Run the renderer-ios validation slices from the Terajs root:
+
+```powershell
+npx vitest run packages/renderer-ios/src
+npx vitest run packages/cli/test/proofWorkspace.spec.ts packages/renderer-ios/src/proofWorkspaceSmoke.spec.ts
+```
+
+The proof smoke path materializes the shared proof workspace fixture, builds iOS artifacts through the CLI, and mounts the generated proof module through the package-local UIKit host session so proof output stays validated outside the main authored workspace.
+
 ## Direction
 
 - map Terajs renderer operations to UIKit view primitives first
