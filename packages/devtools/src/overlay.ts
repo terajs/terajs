@@ -7,20 +7,18 @@ import {
   resolveOverlayShellClass
 } from "./overlayHost.js";
 import { createInspectBridge } from "./overlayInspectBridge.js";
+import { mountOverlayLayoutPreferencesBridge } from "./overlayLayoutPreferencesBridge.js";
 import { overlayStyles } from "./overlayRuntimeStyles.js";
+import { mountOverlayShellWindowActionBridge } from "./overlayShellWindowActionBridge.js";
 import {
   applyPersistedOverlayOptions,
-  clearPersistedOverlayPreferences,
   getDefaultOverlayOptions,
-  isOverlayPosition,
-  isOverlaySize,
   normalizeOverlayOptions,
   savePersistedOverlayPreferences,
   type DevtoolsOverlayOptions,
   type DevtoolsOverlayPosition,
   type DevtoolsOverlaySize,
-  type NormalizedOverlayOptions,
-  type OverlayPreferencesPayload
+  type NormalizedOverlayOptions
 } from "./overlayOptions.js";
 import {
   autoAttachVsCodeDevtoolsBridge,
@@ -72,9 +70,7 @@ export {
   type WaitForDevtoolsBridgeOptions
 } from "./devtoolsBridge.js";
 
-const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
 const DEVTOOLS_INSPECT_MODE_EVENT = "terajs:devtools:inspect-mode";
-const DEVTOOLS_SHELL_WINDOW_ACTION_EVENT = "terajs:devtools:shell-window-action";
 
 function devtoolsMountedFlagHost(): typeof globalThis & { __TERAJS_DEVTOOLS_MOUNTED__?: boolean } {
   return globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_MOUNTED__?: boolean };
@@ -92,8 +88,8 @@ let overlayEl: HTMLDivElement | null = null;
 let appHandle: DevtoolsAppHandle | null = null;
 let keyListener: ((event: KeyboardEvent) => void) | null = null;
 let wheelListener: EventListener | null = null;
-let layoutPreferencesListener: EventListener | null = null;
-let shellWindowActionListener: EventListener | null = null;
+let disposeLayoutPreferencesBridge: (() => void) | null = null;
+let disposeShellWindowActionBridge: (() => void) | null = null;
 let mountRootEl: HTMLElement | null = null;
 let panelVisible = false;
 let overlayVisible = true;
@@ -112,97 +108,38 @@ const inspectBridge = createInspectBridge({
 });
 
 function setupLayoutPreferencesBridge(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  layoutPreferencesListener = (rawEvent: Event) => {
-    const detail = (rawEvent as CustomEvent<unknown>).detail;
-    if (!detail || typeof detail !== "object") {
-      return;
-    }
-
-    const payload = detail as OverlayPreferencesPayload;
-    let layoutChanged = false;
-    let persistenceChanged = false;
-
-    if (typeof payload.persistPreferences === "boolean" && payload.persistPreferences !== activeOptions.persistPreferences) {
-      activeOptions.persistPreferences = payload.persistPreferences;
-      persistenceChanged = true;
-    }
-
-    if (isOverlayPosition(payload.position) && payload.position !== activeOptions.position) {
-      activeOptions.position = payload.position;
-      applyOverlayPosition(overlayEl, activeOptions.position);
-      layoutChanged = true;
-    }
-
-    if (isOverlaySize(payload.panelSize) && payload.panelSize !== activeOptions.panelSize) {
-      activeOptions.panelSize = payload.panelSize;
-      applyOverlayPanelSize(overlayEl, activeOptions.panelSize);
-      layoutChanged = true;
-    }
-
-    if (!layoutChanged && !persistenceChanged) {
-      return;
-    }
-
-    if (activeOptions.persistPreferences) {
-      savePersistedOverlayPreferences(activeOptions);
-      return;
-    }
-
-    if (persistenceChanged) {
-      clearPersistedOverlayPreferences();
-    }
-  };
-
-  window.addEventListener(DEVTOOLS_LAYOUT_PREFERENCES_EVENT, layoutPreferencesListener);
+  disposeLayoutPreferencesBridge = mountOverlayLayoutPreferencesBridge({
+    overlayElement: () => overlayEl,
+    readOptions: () => activeOptions
+  });
 }
 
 function teardownLayoutPreferencesBridge(): void {
-  if (!layoutPreferencesListener || typeof window === "undefined") {
+  if (!disposeLayoutPreferencesBridge) {
     return;
   }
 
-  window.removeEventListener(DEVTOOLS_LAYOUT_PREFERENCES_EVENT, layoutPreferencesListener);
-  layoutPreferencesListener = null;
+  disposeLayoutPreferencesBridge();
+  disposeLayoutPreferencesBridge = null;
 }
 
 function setupShellWindowActionBridge(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  shellWindowActionListener = (rawEvent: Event) => {
-    const detail = (rawEvent as CustomEvent<unknown>).detail;
-    if (!detail || typeof detail !== "object") {
-      return;
+  disposeShellWindowActionBridge = mountOverlayShellWindowActionBridge({
+    isPanelVisible: () => panelVisible,
+    minimizePanel: () => {
+      panelVisible = false;
+      applyPanelState();
     }
-
-    const action = (detail as { action?: unknown }).action;
-    if (action !== "minimize") {
-      return;
-    }
-
-    if (!panelVisible) {
-      return;
-    }
-
-    panelVisible = false;
-    applyPanelState();
-  };
-
-  window.addEventListener(DEVTOOLS_SHELL_WINDOW_ACTION_EVENT, shellWindowActionListener);
+  });
 }
 
 function teardownShellWindowActionBridge(): void {
-  if (!shellWindowActionListener || typeof window === "undefined") {
+  if (!disposeShellWindowActionBridge) {
     return;
   }
 
-  window.removeEventListener(DEVTOOLS_SHELL_WINDOW_ACTION_EVENT, shellWindowActionListener);
-  shellWindowActionListener = null;
+  disposeShellWindowActionBridge();
+  disposeShellWindowActionBridge = null;
 }
 
 
