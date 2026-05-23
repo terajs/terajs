@@ -47,3 +47,17 @@ internal fun TerajsJsonValue.toPlatformValue(): Any = when (this) {
     value.forEach { (key, item) -> objectValue.put(key, item.toPlatformValue()) }
   }
 }
+
+internal val TerajsJsonValue?.boolValue: Boolean?
+  get() = (this as? TerajsJsonBool)?.value
+
+internal val TerajsJsonValue?.isNullValue: Boolean
+  get() = this === null || this === TerajsJsonNull
+
+internal val TerajsJsonValue?.stringValue: String?
+  get() = when (this) {
+    is TerajsJsonString -> value
+    is TerajsJsonNumber -> value.toString()
+    TerajsJsonNull, null -> null
+    else -> null
+  }

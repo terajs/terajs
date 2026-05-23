@@ -13,6 +13,7 @@
     "changeset": "changeset",
     "test": "vitest",
     "test:renderer-web:focused": "vitest --run packages/renderer-web/src/renderFromIR.spec.ts packages/renderer-web/src/bindings.spec.ts packages/renderer-web/src/dom.spec.ts packages/renderer-web/src/hydrate.spec.ts packages/renderer-web/src/renderFromIRPerfCanary.spec.ts",
+    "test:renderer-android:kotlin": "node scripts/run-android-renderer-tests.mjs",
     "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
     "test:docs": "npm run audit:docs && vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
     "test:local-first": "vitest --run packages/runtime/src/queue/mutationQueue.spec.ts packages/runtime/src/action.spec.ts packages/runtime/src/resource.spec.ts packages/renderer-web/src/form.spec.ts packages/devtools/src/analytics.spec.ts",

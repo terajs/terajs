@@ -20,8 +20,11 @@ internal object AndroidHostViewUpdater {
       "hint" -> if (node.view is EditText) {
         node.view.hint = value.stringValue
       }
-      "checked" -> if (node.view is Switch && value.boolValue != null) {
-        node.view.isChecked = value.boolValue
+      "checked" -> {
+        val checked = value.boolValue
+        if (node.view is Switch && checked != null) {
+          node.view.isChecked = checked
+        }
       }
     }
   }
@@ -39,7 +42,7 @@ internal object AndroidHostViewUpdater {
         }
         "cornerRadius" -> parseDimension(value)?.let { radius ->
           val background = ensureBackground(node.view)
-          background.cornerRadius = radius
+          background.cornerRadius = radius.toFloat()
           node.view.background = background
         }
         "textSize" -> parseFloat(value)?.let { size ->
@@ -160,17 +163,3 @@ internal object AndroidHostViewUpdater {
     }
   }
 }
-
-private val TerajsJsonValue.boolValue: Boolean?
-  get() = (this as? TerajsJsonBool)?.value
-
-private val TerajsJsonValue.isNullValue: Boolean
-  get() = this === TerajsJsonNull
-
-private val TerajsJsonValue.stringValue: String?
-  get() = when (this) {
-    is TerajsJsonString -> value
-    is TerajsJsonNumber -> value.toString()
-    TerajsJsonNull -> null
-    else -> null
-  }

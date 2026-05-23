@@ -16,10 +16,21 @@ This package represents the Android-side exploration for rendering Terajs compon
 - package-local Android event bindings now cover basic press, text-input change, and switch change emission back into the JS-owned event packet loop
 - package-local Android text-input bindings now also emit structured selection-change packets through a package-local `TerajsSelectionEditText`
 - a minimal Android library Gradle scaffold now exists under `android/` so the host code has a package-local compile target
+- a package-local Gradle wrapper and Kotlin unit-test harness now exist under `android/`, with JUnit and Robolectric scoped to that host module
 - package-local primitive mapping now resolves standard tags and native-flavored tags into concrete Android View types
 - package-local bridge normalization now translates standard props and events such as `aria-label`, input placeholders, structured selection-range and caret props, textarea line-count, viewport, interaction, and text-limit props, secure input traits, keyboard and correction hints, image alt text, and `click` into native-facing Android names
 - package-local style normalization now translates a small layout subset like row/column, spacing, alignment, and colors into Android-facing style keys
 - package-local native event ingress now normalizes beforeinput replacement previews, direct or item-shaped transfer payloads, delete-style payloads, multiline replacement ranges, text-input change, and text-limit-aware composition start or update previews with selection state, alongside structured text-selection payloads and switch change events, and syncs native state into the host-session proof tree
+
+## Local validation
+
+Run the Android host unit harness from the Terajs root:
+
+```powershell
+npm run test:renderer-android:kotlin
+```
+
+The runner uses the package-local Gradle wrapper in `packages/renderer-android/android/`, prefers `JAVA_HOME` when it is already set, falls back to the Android Studio bundled JBR on Windows, and expects an Android SDK to be available through `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or the default local SDK install path.
 
 ## Direction
 

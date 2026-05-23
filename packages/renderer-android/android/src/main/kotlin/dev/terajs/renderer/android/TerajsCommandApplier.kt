@@ -224,6 +224,3 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     nodes.remove(node.nodeId)
   }
 }
-
-private val AndroidHostCommand.valueString: String?
-  get() = (value as? TerajsJsonString)?.value
