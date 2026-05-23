@@ -1,0 +1,53 @@
+name: Android Native
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: android-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+          cache-dependency-path: |
+            packages/renderer-android/android/build.gradle.kts
+            packages/renderer-android/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Renderer-Android TypeScript Suite
+        run: npm run test:renderer-android:ts
+
+      - name: Run Renderer-Android Kotlin Suite
+        run: npm run test:renderer-android:kotlin

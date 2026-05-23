@@ -24,13 +24,14 @@ This package represents the Android-side exploration for rendering Terajs compon
 
 ## Local validation
 
-Run the Android host unit harness from the Terajs root:
+Run the renderer-android validation slices from the Terajs root:
 
 ```powershell
+npm run test:renderer-android:ts
 npm run test:renderer-android:kotlin
 ```
 
-The runner uses the package-local Gradle wrapper in `packages/renderer-android/android/`, prefers `JAVA_HOME` when it is already set, falls back to the Android Studio bundled JBR on Windows, and expects an Android SDK to be available through `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or the default local SDK install path.
+The TypeScript slice covers the JS-owned bridge, transport, session, normalization, ingress, and conformance seams under `packages/renderer-android/src/`. The Kotlin runner uses the package-local Gradle wrapper in `packages/renderer-android/android/`, prefers `JAVA_HOME` when it is already set, falls back to the Android Studio bundled JBR on Windows, and expects an Android SDK to be available through `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or the default local SDK install path.
 
 ## Direction
 
