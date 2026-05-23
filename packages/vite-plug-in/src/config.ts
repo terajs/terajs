@@ -6,6 +6,24 @@ import type { RouteConfigInput } from "@terajs/router-manifest";
 const require = createRequire(import.meta.url);
 
 interface TerajsUserConfig {
+  workspace?: {
+    mode?: string;
+    sourceRoot?: string;
+    targets?: {
+      selected?: string[];
+      web?: {
+        outputDir?: string;
+      };
+      android?: {
+        generatedDir?: string;
+        hostDir?: string;
+      };
+      ios?: {
+        generatedDir?: string;
+        hostDir?: string;
+      };
+    };
+  };
   autoImportDirs?: string[];
   routeDirs?: string[];
   devtools?: {
@@ -107,28 +125,240 @@ export function getTerajsConfig(): TerajsUserConfig {
   return readTerajsConfig();
 }
 
+export type TerajsWorkspaceMode = "web" | "universal";
+export type TerajsWorkspaceTarget = "web" | "android" | "ios";
+
+export interface TerajsWorkspaceWebTargetConfig {
+  outputDir: string;
+}
+
+export interface TerajsWorkspaceNativeTargetConfig {
+  generatedDir: string;
+  hostDir: string;
+}
+
+export interface TerajsWorkspaceConfig {
+  mode: TerajsWorkspaceMode;
+  sourceRoot: string;
+  targets: {
+    selected: TerajsWorkspaceTarget[];
+    web: TerajsWorkspaceWebTargetConfig;
+    android: TerajsWorkspaceNativeTargetConfig;
+    ios: TerajsWorkspaceNativeTargetConfig;
+  };
+}
+
+function isWorkspaceMode(value: string): value is TerajsWorkspaceMode {
+  return value === "web" || value === "universal";
+}
+
+function isWorkspaceTarget(value: string): value is TerajsWorkspaceTarget {
+  return value === "web" || value === "android" || value === "ios";
+}
+
+function resolveConfiguredDirectory(cwd: string, value: unknown, fallback: string, label: string): string {
+  if (typeof value === "undefined") {
+    return path.resolve(cwd, fallback);
+  }
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
+
+  return path.resolve(cwd, value.trim());
+}
+
+function normalizeConfiguredDirectoryList(cwd: string, value: unknown, label: string): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const resolved: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      throw new Error(`${label} must only contain non-empty string paths.`);
+    }
+
+    const nextValue = path.resolve(cwd, entry.trim());
+    if (!resolved.includes(nextValue)) {
+      resolved.push(nextValue);
+    }
+  }
+
+  return resolved;
+}
+
+function normalizeSelectedTargets(value: unknown, mode: TerajsWorkspaceMode): TerajsWorkspaceTarget[] {
+  if (typeof value === "undefined") {
+    if (mode === "web") {
+      return ["web"];
+    }
+
+    throw new Error(
+      'terajs workspace.targets.selected must include at least one target when workspace.mode is "universal".'
+    );
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(
+      'terajs workspace.targets.selected must include at least one target when workspace.mode is "universal".'
+    );
+  }
+
+  const selected: TerajsWorkspaceTarget[] = [];
+
+  for (const entry of value) {
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      throw new Error("terajs workspace.targets.selected must only contain non-empty string target names.");
+    }
+
+    const normalized = entry.trim();
+    if (!isWorkspaceTarget(normalized)) {
+      throw new Error(
+        `Invalid terajs workspace.targets.selected value "${normalized}". Expected one of: web, android, ios.`
+      );
+    }
+
+    if (!selected.includes(normalized)) {
+      selected.push(normalized);
+    }
+  }
+
+  return selected;
+}
+
+function hasStructuredTargetConfig(value: unknown): boolean {
+  return value !== null && typeof value === "object" && Object.keys(value as Record<string, unknown>).length > 0;
+}
+
+function assertUniversalSourceDirectories(
+  cwd: string,
+  configuredDirs: unknown,
+  expectedDir: string,
+  label: string,
+  mode: TerajsWorkspaceMode
+): void {
+  if (mode !== "universal" || !Array.isArray(configuredDirs) || configuredDirs.length === 0) {
+    return;
+  }
+
+  const resolved = normalizeConfiguredDirectoryList(cwd, configuredDirs, label);
+  if (resolved.length !== 1 || resolved[0] !== expectedDir) {
+    throw new Error(`${label} must resolve to ${JSON.stringify(path.relative(cwd, expectedDir))} when workspace.mode is "universal".`);
+  }
+}
+
+export function getWorkspaceConfig(): TerajsWorkspaceConfig {
+  const cwd = process.cwd();
+  const config = readTerajsConfig();
+  const workspace = config.workspace && typeof config.workspace === "object"
+    ? config.workspace
+    : {};
+  const configuredMode = typeof workspace.mode === "string" && workspace.mode.trim().length > 0
+    ? workspace.mode.trim()
+    : "web";
+
+  if (!isWorkspaceMode(configuredMode)) {
+    throw new Error(`Invalid terajs workspace.mode "${configuredMode}". Expected one of: web, universal.`);
+  }
+
+  const targets = workspace.targets && typeof workspace.targets === "object"
+    ? workspace.targets
+    : {};
+  const selected = normalizeSelectedTargets(targets.selected, configuredMode);
+
+  if (configuredMode === "web" && selected.some((target) => target !== "web")) {
+    throw new Error('terajs workspace.targets.selected can only include "web" when workspace.mode is "web".');
+  }
+
+  if (configuredMode === "web" && (hasStructuredTargetConfig(targets.android) || hasStructuredTargetConfig(targets.ios))) {
+    throw new Error('terajs workspace.targets.android and workspace.targets.ios require workspace.mode "universal".');
+  }
+
+  const sourceRoot = resolveConfiguredDirectory(
+    cwd,
+    workspace.sourceRoot,
+    configuredMode === "universal" ? "src/shared" : "src",
+    "terajs workspace.sourceRoot"
+  );
+  const expectedRouteDir = path.join(sourceRoot, "pages");
+  const expectedAutoImportDir = path.join(sourceRoot, "components");
+
+  assertUniversalSourceDirectories(cwd, config.routeDirs, expectedRouteDir, "terajs routeDirs", configuredMode);
+  assertUniversalSourceDirectories(cwd, config.autoImportDirs, expectedAutoImportDir, "terajs autoImportDirs", configuredMode);
+
+  return {
+    mode: configuredMode,
+    sourceRoot,
+    targets: {
+      selected,
+      web: {
+        outputDir: resolveConfiguredDirectory(
+          cwd,
+          targets.web?.outputDir,
+          "dist",
+          "terajs workspace.targets.web.outputDir"
+        )
+      },
+      android: {
+        generatedDir: resolveConfiguredDirectory(
+          cwd,
+          targets.android?.generatedDir,
+          ".terajs/generated/android",
+          "terajs workspace.targets.android.generatedDir"
+        ),
+        hostDir: resolveConfiguredDirectory(
+          cwd,
+          targets.android?.hostDir,
+          ".terajs/hosts/android",
+          "terajs workspace.targets.android.hostDir"
+        )
+      },
+      ios: {
+        generatedDir: resolveConfiguredDirectory(
+          cwd,
+          targets.ios?.generatedDir,
+          ".terajs/generated/ios",
+          "terajs workspace.targets.ios.generatedDir"
+        ),
+        hostDir: resolveConfiguredDirectory(
+          cwd,
+          targets.ios?.hostDir,
+          ".terajs/hosts/ios",
+          "terajs workspace.targets.ios.hostDir"
+        )
+      }
+    }
+  };
+}
+
 export function getAutoImportDirs(): string[] {
   const cwd = process.cwd();
   const config = readTerajsConfig();
-  const defaultDirs = [path.resolve(cwd, "packages/devtools/src/components")];
-  const configuredDirs = Array.isArray(config.autoImportDirs) ? config.autoImportDirs : [];
+  const workspace = getWorkspaceConfig();
+  const defaultDirs = workspace.mode === "universal"
+    ? [path.join(workspace.sourceRoot, "components")]
+    : [path.resolve(cwd, "packages/devtools/src/components")];
+  const configuredDirs = normalizeConfiguredDirectoryList(cwd, config.autoImportDirs, "terajs autoImportDirs");
 
   if (configuredDirs.length === 0) {
     return defaultDirs;
   }
 
-  return configuredDirs.map((dir) => path.resolve(cwd, dir));
+  return configuredDirs;
 }
 
 export function getRouteDirs(): string[] {
   const cwd = process.cwd();
   const config = readTerajsConfig();
-  const configuredDirs = Array.isArray(config.routeDirs) ? config.routeDirs : [];
-  const defaultDirs = ["src/pages"];
+  const workspace = getWorkspaceConfig();
+  const configuredDirs = normalizeConfiguredDirectoryList(cwd, config.routeDirs, "terajs routeDirs");
+  const defaultDirs = workspace.mode === "universal"
+    ? [path.join(workspace.sourceRoot, "pages")]
+    : [path.resolve(cwd, "src/pages")];
   const dirs = configuredDirs.length > 0 ? configuredDirs : defaultDirs;
 
   return dirs
-    .map((dir) => path.resolve(cwd, dir))
     .filter((dir, index, values) => fs.existsSync(dir) && values.indexOf(dir) === index);
 }
 

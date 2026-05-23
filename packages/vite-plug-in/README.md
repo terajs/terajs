@@ -45,6 +45,41 @@ module.exports = {
 };
 ```
 
+For shared-source multi-target workspaces, add an explicit `workspace` block instead of treating the default web-first scaffold as already agnostic.
+
+```js
+module.exports = {
+  workspace: {
+    mode: "universal",
+    sourceRoot: "src/shared",
+    targets: {
+      selected: ["web", "android", "ios"],
+      web: {
+        outputDir: "dist"
+      },
+      android: {
+        generatedDir: ".terajs/generated/android",
+        hostDir: ".terajs/hosts/android"
+      },
+      ios: {
+        generatedDir: ".terajs/generated/ios",
+        hostDir: ".terajs/hosts/ios"
+      }
+    }
+  },
+  routeDirs: ["src/shared/pages"],
+  autoImportDirs: ["src/shared/components"],
+  router: {
+    rootTarget: "app",
+    middlewareDir: "src/middleware",
+    keepPreviousDuringLoading: true,
+    applyMeta: true
+  }
+};
+```
+
+Universal mode requires an explicit `workspace.targets.selected` array. Invalid target names, blank generated or host directories, and shared-source directory overrides that drift from `workspace.sourceRoot` fail early during config loading.
+
 ## File-based routes
 
 The plugin scans `routeDirs` for `.tera` pages and exposes the result through `virtual:terajs-routes`.
