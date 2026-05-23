@@ -8,6 +8,12 @@ import terajsPlugin, {
 } from "@terajs/app/vite";
 import type { InlineConfig } from "vite";
 
+import {
+  buildNativeTarget,
+  type NativeBuildOutput,
+  type NativeBuildStep
+} from "./nativeBuild.js";
+
 const TARGET_ORDER: TerajsWorkspaceTarget[] = ["web", "android", "ios"];
 const VITE_CONFIG_FILES = [
   "vite.config.ts",
@@ -33,10 +39,11 @@ export interface BuildCommandResult {
 }
 
 interface BuildDependencies {
-  viteBuild(config: InlineConfig): Promise<unknown>;
+  viteBuild?(config: InlineConfig): Promise<unknown>;
   cwd?: string;
   hasFile?(filePath: string): boolean;
   getWorkspaceConfig?(): TerajsWorkspaceConfig;
+  nativeBuild?(step: NativeBuildStep, dependencies?: { cwd?: string }): Promise<NativeBuildOutput>;
   pluginFactory?: typeof terajsPlugin;
 }
 
@@ -46,14 +53,7 @@ interface WebBuildPlanStep {
   outputDir: string;
 }
 
-interface PendingNativeBuildPlanStep {
-  target: "android" | "ios";
-  kind: "pending-native";
-  generatedDir: string;
-  hostDir: string;
-}
-
-type BuildPlanStep = WebBuildPlanStep | PendingNativeBuildPlanStep;
+type BuildPlanStep = WebBuildPlanStep | NativeBuildStep;
 
 function isWorkspaceTarget(value: string): value is TerajsWorkspaceTarget {
   return value === "web" || value === "android" || value === "ios";
@@ -138,10 +138,11 @@ export function createBuildPlan(
     const targetConfig = workspace.targets[target];
     return {
       target,
-      kind: "pending-native",
+      kind: "native",
+      sourceRoot: workspace.sourceRoot,
       generatedDir: targetConfig.generatedDir,
       hostDir: targetConfig.hostDir
-    } satisfies PendingNativeBuildPlanStep;
+    } satisfies NativeBuildStep;
   });
 }
 
@@ -149,6 +150,10 @@ export async function buildWebTarget(
   step: WebBuildPlanStep,
   dependencies: BuildDependencies
 ): Promise<BuildResult> {
+  if (!dependencies.viteBuild) {
+    throw new Error("Vite build dependency is required for the web target.");
+  }
+
   const cwd = dependencies.cwd ?? process.cwd();
   const hasFile = dependencies.hasFile ?? fs.existsSync;
   const outputDir = formatRelativePath(cwd, step.outputDir);
@@ -179,6 +184,7 @@ export async function executeBuildPlan(
   dependencies: BuildDependencies
 ): Promise<BuildResult[]> {
   const cwd = dependencies.cwd ?? process.cwd();
+  const runNativeBuild = dependencies.nativeBuild ?? buildNativeTarget;
   const results: BuildResult[] = [];
 
   for (const step of plan) {
@@ -187,10 +193,12 @@ export async function executeBuildPlan(
       continue;
     }
 
+    const nativeOutput = await runNativeBuild(step, { cwd });
+
     results.push({
       target: step.target,
-      status: "pending",
-      detail: `Native builder not implemented yet. Reserved output remains ${formatRelativePath(cwd, step.generatedDir)} with host shell at ${formatRelativePath(cwd, step.hostDir)}.`
+      status: "built",
+      detail: `Native ${step.target} artifacts written to ${formatRelativePath(cwd, step.generatedDir)} (${nativeOutput.moduleCount} modules, ${nativeOutput.routeCount} routes) with host metadata in ${formatRelativePath(cwd, step.hostDir)}.`
     });
   }
 
@@ -206,12 +214,6 @@ export async function runBuildCommand(
   const requestedTargets = parseBuildTargets(options.target);
   const targets = resolveBuildTargets(workspace, requestedTargets);
   const results = await executeBuildPlan(createBuildPlan(workspace, requestedTargets), dependencies);
-
-  if (!results.some((result) => result.status === "built")) {
-    throw new Error(
-      `None of the requested targets are implemented yet. Requested: ${targets.join(", ")}.`
-    );
-  }
 
   return {
     workspace,

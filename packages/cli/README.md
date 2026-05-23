@@ -46,7 +46,8 @@ Universal workspaces keep the default web preview path but move shared route and
 `tera build` now reads the authoritative workspace target contract from `terajs.config.*`.
 When no `--target` override is provided, it builds the targets listed in `workspace.targets.selected`.
 Pass `--target web` or `--target web,android` to narrow the build to a comma-separated subset.
-At this stage the command builds the `web` target and reports `android` and `ios` as pending until their target builders land.
+The `web` target emits the production Vite bundle.
+The `android` and `ios` targets emit compiled Terajs module artifacts plus a serializable route manifest into `.terajs/generated/<target>` and write thin host metadata into `.terajs/hosts/<target>` for the native host runtime contract.
 
 ## Notes
 

@@ -11,6 +11,7 @@
   "include": ["src"],
   "exclude": ["dist"],
   "references": [
+    { "path": "../sfc" },
     { "path": "../terajs" }
   ]
 }

@@ -9,6 +9,7 @@ import {
   runBuildCommand
 } from "../src/build.js";
 import type { TerajsWorkspaceConfig } from "@terajs/app/vite";
+import type { NativeBuildStep } from "../src/nativeBuild.js";
 
 function createWorkspaceConfig(overrides: Partial<TerajsWorkspaceConfig> = {}): TerajsWorkspaceConfig {
   return {
@@ -67,7 +68,7 @@ describe("cli build planning", () => {
     expect(() => resolveBuildTargets(workspace, ["android"])).toThrow('Target "android" is not enabled');
   });
 
-  it("creates a mixed build plan with web output and pending native targets", () => {
+  it("creates a mixed build plan with web output and native targets", () => {
     const workspace = createWorkspaceConfig();
 
     expect(createBuildPlan(workspace)).toEqual([
@@ -78,13 +79,15 @@ describe("cli build planning", () => {
       },
       {
         target: "android",
-        kind: "pending-native",
+        kind: "native",
+        sourceRoot: "C:/workspace/src/shared",
         generatedDir: "C:/workspace/.terajs/generated/android",
         hostDir: "C:/workspace/.terajs/hosts/android"
       },
       {
         target: "ios",
-        kind: "pending-native",
+        kind: "native",
+        sourceRoot: "C:/workspace/src/shared",
         generatedDir: "C:/workspace/.terajs/generated/ios",
         hostDir: "C:/workspace/.terajs/hosts/ios"
       }
@@ -148,13 +151,22 @@ describe("cli web build execution", () => {
     });
   });
 
-  it("reports pending native targets but still completes when web builds", async () => {
+  it("reports built native targets alongside the web build", async () => {
+    const nativeBuild = vi.fn(async (step: NativeBuildStep) => ({
+      target: step.target,
+      moduleCount: step.target === "android" ? 4 : 3,
+      routeCount: 2,
+      generatedManifestPath: `${step.generatedDir}/terajs-target.json`,
+      hostManifestPath: `${step.hostDir}/terajs-host.json`
+    }));
+
     const result = await runBuildCommand(
       {},
       {
         cwd: "C:/workspace",
         getWorkspaceConfig: () => createWorkspaceConfig(),
         hasFile: () => true,
+        nativeBuild,
         viteBuild: vi.fn(async () => undefined)
       }
     );
@@ -168,26 +180,42 @@ describe("cli web build execution", () => {
       },
       {
         target: "android",
-        status: "pending",
-        detail: "Native builder not implemented yet. Reserved output remains .terajs/generated/android with host shell at .terajs/hosts/android."
+        status: "built",
+        detail: "Native android artifacts written to .terajs/generated/android (4 modules, 2 routes) with host metadata in .terajs/hosts/android."
       },
       {
         target: "ios",
-        status: "pending",
-        detail: "Native builder not implemented yet. Reserved output remains .terajs/generated/ios with host shell at .terajs/hosts/ios."
+        status: "built",
+        detail: "Native ios artifacts written to .terajs/generated/ios (3 modules, 2 routes) with host metadata in .terajs/hosts/ios."
       }
     ]);
   });
 
-  it("fails when only unimplemented native targets are requested", async () => {
-    await expect(() => runBuildCommand(
+  it("can build only native targets without invoking Vite", async () => {
+    const nativeBuild = vi.fn(async (step: NativeBuildStep) => ({
+      target: step.target,
+      moduleCount: 2,
+      routeCount: 1,
+      generatedManifestPath: `${step.generatedDir}/terajs-target.json`,
+      hostManifestPath: `${step.hostDir}/terajs-host.json`
+    }));
+
+    const result = await runBuildCommand(
       { target: ["android"] },
       {
         cwd: "C:/workspace",
         getWorkspaceConfig: () => createWorkspaceConfig(),
-        hasFile: () => true,
-        viteBuild: vi.fn(async () => undefined)
+        nativeBuild
       }
-    )).rejects.toThrow('None of the requested targets are implemented yet. Requested: android.');
+    );
+
+    expect(result.targets).toEqual(["android"]);
+    expect(result.results).toEqual([
+      {
+        target: "android",
+        status: "built",
+        detail: "Native android artifacts written to .terajs/generated/android (2 modules, 1 routes) with host metadata in .terajs/hosts/android."
+      }
+    ]);
   });
 });
