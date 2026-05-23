@@ -54,6 +54,25 @@ function hasLoadFunction<TData>(value: unknown): value is RouteModule<unknown, T
   return typeof value === "object" && value !== null && "load" in value && typeof (value as RouteModule).load === "function";
 }
 
+function createAbortError(reason?: unknown): Error {
+  if (typeof DOMException === "function") {
+    return new DOMException(
+      typeof reason === "string" && reason.length > 0 ? reason : "Aborted",
+      "AbortError"
+    );
+  }
+
+  const error = new Error(typeof reason === "string" && reason.length > 0 ? reason : "Aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw createAbortError(signal.reason);
+  }
+}
+
 /**
  * Loads a matched route module, its layouts, and optional route data.
  *
@@ -73,6 +92,8 @@ export async function loadRouteMatch<TData = unknown>(
   const hydrationSnapshot = options.hydrationSnapshot?.to === match.fullPath
     ? options.hydrationSnapshot
     : undefined;
+
+  throwIfAborted(options.signal);
 
   if (!hydrationSnapshot && options.preferPrefetched !== false) {
     const prefetched = prefetchedRouteMatches.get(match.fullPath);
@@ -106,6 +127,8 @@ export async function loadRouteMatch<TData = unknown>(
       )
     ]);
 
+    throwIfAborted(options.signal);
+
     let data: TData | undefined = hydrationSnapshot?.data;
 
     if (!hydrationSnapshot && hasLoadFunction<TData>(routeModule)) {
@@ -125,6 +148,8 @@ export async function loadRouteMatch<TData = unknown>(
         signal: options.signal,
         server: options.serverContext
       });
+
+      throwIfAborted(options.signal);
     }
 
     const loaded = {
@@ -139,6 +164,8 @@ export async function loadRouteMatch<TData = unknown>(
     if (!hydrationSnapshot) {
       loaded.resolved = resolveLoadedRouteMetadata(loaded);
     }
+
+    throwIfAborted(options.signal);
 
     const durationMs = Math.max(0, Date.now() - loadStartedAt);
 
@@ -204,7 +231,8 @@ export function createRouteHydrationSnapshot<TData = unknown>(
  * Prefetches a route match and caches the pending result by full path.
  */
 export function prefetchRouteMatch<TData = unknown>(
-  match: RouteMatch
+  match: RouteMatch,
+  signal?: AbortSignal
 ): Promise<LoadedRouteMatch<TData>> {
   const existing = prefetchedRouteMatches.get(match.fullPath);
   if (existing) {
@@ -212,7 +240,8 @@ export function prefetchRouteMatch<TData = unknown>(
   }
 
   const pending = loadRouteMatch<TData>(match, {
-    preferPrefetched: false
+    preferPrefetched: false,
+    signal
   }).catch((error) => {
     prefetchedRouteMatches.delete(match.fullPath);
     throw error;
@@ -241,12 +270,13 @@ export function clearPrefetchedRouteMatches(target?: string): void {
  */
 export async function prefetchRoute<TData = unknown>(
   router: Router,
-  target: string
+  target: string,
+  signal?: AbortSignal
 ): Promise<LoadedRouteMatch<TData> | null> {
   const match = router.resolve(target);
   if (!match) {
     return null;
   }
 
-  return prefetchRouteMatch<TData>(match);
+  return prefetchRouteMatch<TData>(match, signal);
 }

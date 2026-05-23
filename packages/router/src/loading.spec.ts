@@ -5,6 +5,7 @@ import {
   clearPrefetchedRouteMatches,
   createRouteHydrationSnapshot,
   loadRouteMatch,
+  prefetchRouteMatch,
   prefetchRoute,
   type RouteLoadContext
 } from "./loading";
@@ -197,6 +198,92 @@ describe("loadRouteMatch", () => {
     const loaded = await pending;
     expect(loaded.component).toBe("ProductPage");
     expect(loaded.layouts.map((layout) => layout.component)).toEqual(["RootLayout"]);
+  });
+
+  it("rejects a route load when the abort signal fires before the module resolves", async () => {
+    let releaseRouteModule: ((value: { default: string }) => void) | undefined;
+    const routeStarted = vi.fn();
+    const layoutStarted = vi.fn();
+    const matched = matchRoute(
+      [
+        route({
+          path: "/products/:id",
+          filePath: "/pages/products/[id].tera",
+          component: () => {
+            routeStarted();
+            return new Promise<{ default: string }>((resolve) => {
+              releaseRouteModule = resolve;
+            });
+          },
+          layouts: [
+            {
+              id: "root",
+              filePath: "/pages/layout.tera",
+              component: async () => {
+                layoutStarted();
+                return { default: "RootLayout" };
+              }
+            }
+          ]
+        })
+      ],
+      "/products/42"
+    );
+
+    expect(matched).not.toBeNull();
+
+    const controller = new AbortController();
+    const pending = loadRouteMatch(matched!, {
+      signal: controller.signal
+    });
+    await Promise.resolve();
+
+    expect(routeStarted).toHaveBeenCalledTimes(1);
+    expect(layoutStarted).toHaveBeenCalledTimes(1);
+
+    controller.abort("prefetch-cancelled");
+    releaseRouteModule?.({ default: "ProductPage" });
+
+    await expect(pending).rejects.toMatchObject({
+      name: "AbortError"
+    });
+  });
+
+  it("does not reuse a prefetched route load after that prefetch is aborted", async () => {
+    let releaseRouteModule: ((value: { default: string }) => void) | undefined;
+    const componentSpy = vi.fn()
+      .mockImplementationOnce(() => new Promise<{ default: string }>((resolve) => {
+        releaseRouteModule = resolve;
+      }))
+      .mockResolvedValueOnce({ default: "DocsPage" });
+    const router = createRouter([
+      route({
+        id: "docs",
+        path: "/docs",
+        filePath: "/pages/docs.tera",
+        component: componentSpy
+      })
+    ]);
+
+    const matched = router.resolve("/docs");
+    expect(matched).not.toBeNull();
+
+    const controller = new AbortController();
+    const pendingPrefetch = prefetchRouteMatch(matched!, controller.signal);
+    await Promise.resolve();
+
+    controller.abort("prefetch-cancelled");
+    releaseRouteModule?.({ default: "DocsPage" });
+
+    await expect(pendingPrefetch).rejects.toMatchObject({
+      name: "AbortError"
+    });
+
+    const loaded = await loadRouteMatch(matched!);
+    expect(loaded.component).toBe("DocsPage");
+    expect(componentSpy).toHaveBeenCalledTimes(2);
+
+    clearPrefetchedRouteMatches();
   });
 
   it("reuses a hydration snapshot instead of rerunning the route loader", async () => {
