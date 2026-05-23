@@ -120,6 +120,33 @@ describe("renderer-android transport codec", () => {
     expect(JSON.parse(stringifyAndroidBridgeCommands(commands))).toEqual(JSON.parse(fixture));
   });
 
+  it("matches the committed Kotlin native event conformance fixture", () => {
+    const packet: AndroidNativeEventPacket = {
+      nodeId: 7,
+      name: "beforeinput",
+      payload: {
+        inputType: "insertFromPaste",
+        targetRange: [1, 3],
+        clipboardData: {
+          items: [{ type: "text/plain", data: "eta" }]
+        },
+        selection: {
+          start: 1,
+          end: 3
+        },
+        composing: false
+      }
+    };
+
+    const fixture = readFileSync(
+      resolve(process.cwd(), "packages/renderer-android/android/src/test/resources/kotlin-native-event-packet-conformance.json"),
+      "utf8"
+    );
+
+    expect(parseAndroidNativeEventPacket(fixture)).toEqual(packet);
+    expect(JSON.parse(stringifyAndroidNativeEventPacket(packet))).toEqual(JSON.parse(fixture));
+  });
+
   it("round-trips JSON-safe bridge command batches", () => {
     const commands: AndroidBridgeCommand[] = [
       {
