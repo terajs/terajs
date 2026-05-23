@@ -110,7 +110,8 @@ Target selection lives in \`terajs.config.cjs\`.
 
 1. Open \`src/shared/pages\` and shape the shared route surface.
 2. Use \`npm run dev\` to preview the shared source on the web target.
-3. Keep generated native output under \`.terajs\` until you are ready to adopt a committed native host.
+3. Run \`tera shell init android\` when you want a real Android workspace shell wired to the generated native target output.
+4. Keep generated native output under \`.terajs\` until you are ready to adopt a committed native host.
 
 More guidance: ${DOCS_URL}
 `;

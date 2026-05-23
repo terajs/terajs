@@ -546,6 +546,7 @@ This reference intentionally documents shipped web-first APIs.
 Still directional or intentionally outside this file:
 
 - native renderer implementation details
+- `@terajs/renderer-android` Android shell and host-runtime package details
 - animation / transition frameworks
 - broader Kit-level conventions beyond current exports
 

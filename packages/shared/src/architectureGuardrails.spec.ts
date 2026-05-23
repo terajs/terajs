@@ -63,6 +63,7 @@ const allowedPackageExternalDependencies = new Map<string, Set<string>>([
   ["vite-plug-in", new Set<string>()],
   ["renderer-web", new Set<string>()],
   ["renderer-ssr", new Set<string>()],
+  ["renderer-android", new Set<string>()],
   ["compiler", new Set<string>()],
   ["devtools", new Set<string>()],
   ["reactivity", new Set<string>()],

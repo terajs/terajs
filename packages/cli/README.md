@@ -29,6 +29,7 @@ npm create terajs@latest my-app -- --mode universal
 - `tera doctor`: inspect a Terajs project and report missing or broken setup
 - `tera dev --port <number>`: start Vite dev server with Terajs plugin
 - `tera build [--target <web,android,ios>]`: build configured workspace targets for production
+- `tera shell init <android|ios> [--dir <directory>]`: materialize a target shell for the current universal workspace
 
 Scaffolded projects target the app-facing launch surface:
 
@@ -48,6 +49,8 @@ When no `--target` override is provided, it builds the targets listed in `worksp
 Pass `--target web` or `--target web,android` to narrow the build to a comma-separated subset.
 The `web` target emits the production Vite bundle.
 The `android` and `ios` targets emit compiled Terajs module artifacts plus a serializable route manifest into `.terajs/generated/<target>` and write thin host metadata into `.terajs/hosts/<target>` for the native host runtime contract.
+
+`tera shell init android` builds the current Android target artifacts, copies the Android host module scaffold into `android/terajs-host`, creates a runnable `android/app` shell, and syncs `.terajs` host metadata plus generated artifacts into app assets at build time. The shell path is target-neutral so iOS can later adopt the same `tera shell init <target>` flow without changing the universal workspace contract.
 
 ## Notes
 

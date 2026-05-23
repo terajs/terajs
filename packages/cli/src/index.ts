@@ -7,6 +7,7 @@ import { build, createServer } from "vite";
 import { scaffoldProject, type ScaffoldHubType, type ScaffoldProjectMode } from "./scaffold.js";
 import { collectBuildTarget, runBuildCommand } from "./build.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
+import { initTargetShell } from "./shell.js";
 
 const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -167,6 +168,39 @@ export function createProgram(): Command {
       console.log(formatDoctorReport(report));
 
       if (!report.ok) {
+        process.exitCode = 1;
+      }
+    });
+
+  const shell = program
+    .command("shell")
+    .description("Materialize target workspace shells");
+
+  shell
+    .command("init <target>")
+    .description("Materialize a target shell for the current universal workspace")
+    .option("--dir <directory>", "destination directory for the generated shell")
+    .action(async (target: string, options: { dir?: string }) => {
+      console.log(`Preparing ${target} shell...`);
+
+      try {
+        const shellResult = await initTargetShell(target, {
+          cwd: process.cwd(),
+          destinationDir: options.dir
+        });
+
+        const relativeShellDir = path.relative(process.cwd(), shellResult.shellDir) || ".";
+        console.log(`Target shell ready at ${relativeShellDir.replace(/\\/g, "/")}.`);
+
+        if (shellResult.target === "android") {
+          const buildCommand = process.platform === "win32"
+            ? "gradlew.bat assembleDebug"
+            : "./gradlew assembleDebug";
+          console.log(`Run 'cd ${relativeShellDir.replace(/\\/g, "/")} && ${buildCommand}' to build the Android shell.`);
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        console.error(`Terajs shell init failed: ${reason}`);
         process.exitCode = 1;
       }
     });
