@@ -104,6 +104,20 @@ function getBindingHint(value: unknown): IRBindingHint | undefined {
   };
 }
 
+function normalizeProp(prop: { kind: string; name: string; value: unknown }) {
+  if (prop.kind === "bind") {
+    const binding = getBindingHint(prop.value);
+    if (binding) {
+      return {
+        ...prop,
+        binding
+      };
+    }
+  }
+
+  return { ...prop };
+}
+
 /**
  * Normalizes an ASTNode into an IRNode.
  *
@@ -141,21 +155,7 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
 
     case "element": {
       // Copy props from AST
-      const props = node.props.map((p) => {
-        const prop = { ...p };
-
-        if (prop.kind === "bind") {
-          const binding = getBindingHint(prop.value);
-          if (binding) {
-            return {
-              ...prop,
-              binding
-            };
-          }
-        }
-
-        return prop;
-      });
+      const props = node.props.map((p) => normalizeProp(p));
 
       // Inject scoped style attribute
       if (scopeId) {
@@ -216,6 +216,7 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
         ...base,
         type: "for",
         each: node.each,
+        key: node.key ? normalizeProp(node.key) : undefined,
         item: node.item,
         index: node.index,
         isStructural: !!node.isStructural,

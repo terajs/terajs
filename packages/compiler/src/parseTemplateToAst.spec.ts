@@ -215,6 +215,41 @@ describe("parseTemplateToAst", () => {
     ])
   })
 
+  it("captures v-for key bindings while preserving the wrapped element", () => {
+    const ast = parseTemplateToAst(`<li v-for="item in items" :key="item.slug">{{ item.label }}</li>`)
+
+    expect(ast).toEqual([
+      {
+        type: "for",
+        each: "items",
+        item: "item",
+        isStructural: true,
+        index: undefined,
+        key: {
+          name: "key",
+          value: "item.slug",
+          kind: "bind"
+        },
+        body: [
+          {
+            type: "element",
+            tag: "li",
+            props: [
+              {
+                name: "key",
+                value: "item.slug",
+                kind: "bind"
+              }
+            ],
+            children: [
+              { type: "interp", expression: "item.label" }
+            ]
+          }
+        ]
+      }
+    ])
+  })
+
   it("parses slot outlets with fallback content", () => {
     const ast = parseTemplateToAst(`<slot name="header">Fallback</slot>`)
 

@@ -495,6 +495,134 @@ describe("IR -> DOM Renderer", () => {
     expect(root.textContent).not.toContain("signal");
   });
 
+  it("reuses structural row DOM when authored list keys reorder", async () => {
+    const items = signal([
+      { slug: "alpha", label: "A" },
+      { slug: "bravo", label: "B" }
+    ]);
+
+    const node = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      isStructural: true,
+      key: {
+        kind: "bind",
+        name: "key",
+        value: "item.slug",
+        binding: {
+          kind: "simple-path",
+          segments: ["item", "slug"]
+        }
+      },
+      body: [
+        {
+          type: "element",
+          tag: "li",
+          props: [
+            {
+              kind: "bind",
+              name: "data-row-slug",
+              value: "item.slug",
+              binding: {
+                kind: "simple-path",
+                segments: ["item", "slug"]
+              }
+            }
+          ],
+          children: [
+            {
+              type: "interp",
+              expression: "item.label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    } as IRForNode;
+
+    const root = document.createElement("ul");
+    root.appendChild(renderIRNode(node, { items })!);
+
+    const firstNode = root.children[0];
+    const secondNode = root.children[1];
+    expect(root.textContent).toBe("AB");
+
+    items.set([
+      { slug: "bravo", label: "B2" },
+      { slug: "alpha", label: "A" }
+    ]);
+    await tick();
+
+    expect(root.textContent).toBe("B2A");
+    expect((root.children[0] as HTMLElement).dataset.rowSlug).toBe("bravo");
+    expect(root.children[0]).toBe(secondNode);
+    expect(root.children[1]).toBe(firstNode);
+  });
+
+  it("keeps later siblings mounted when rebuild for nodes update", async () => {
+    const items = signal([
+      { label: "A" },
+      { label: "B" }
+    ]);
+
+    const node: IRForNode = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      body: [
+        {
+          type: "element",
+          tag: "span",
+          props: [],
+          children: [
+            {
+              type: "interp",
+              expression: "item.label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode,
+        {
+          type: "text",
+          value: ".",
+          loc: undefined,
+          flags: {}
+        } as IRTextNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const root = document.createElement("section");
+    root.appendChild(renderIRNode(node, { items })!);
+
+    const tail = document.createElement("p");
+    tail.dataset.tail = "true";
+    tail.textContent = "tail";
+    root.appendChild(tail);
+
+    items.set([
+      { label: "A" },
+      { label: "B" },
+      { label: "C" }
+    ]);
+    await tick();
+
+    expect(root.textContent).toContain("tail");
+    expect(root.querySelector("[data-tail]")).toBe(tail);
+  });
+
   it("renders slot content before fallback", () => {
     const node: IRSlotNode = createProjectedDefaultSlotNode();
 

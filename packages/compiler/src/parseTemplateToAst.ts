@@ -211,12 +211,14 @@ class ParserContext {
 
     if (forDir) {
       const { each, item, index } = parseForExpression(forDir.value);
+      const key = props.find((p) => p.kind !== "directive" && p.name === "key");
       return {
         type: "for",
         isStructural: true,
         each,
         item,
         index,
+        key,
         body: [
           {
             type: "element",

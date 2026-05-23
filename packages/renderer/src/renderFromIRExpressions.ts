@@ -6,7 +6,9 @@ import type { HostIRBindingHint } from "./hostIRTypes.js";
 const SIMPLE_PATH_RE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
 const SIMPLE_IDENTIFIER_RE = /^[A-Za-z_$][\w$]*$/;
 const RESERVED_LITERAL_RE = /^(?:true|false|null|undefined|NaN|Infinity)$/;
+export const EXPRESSION_UNWRAP_LOCALS = Symbol.for("@terajs/expression-unwrap-locals");
 const expressionEvaluatorCache = new Map<string, (ctx: any, event: Event | undefined) => any>();
+const expressionScopeCache = new WeakMap<object, object>();
 
 export function isDirectBindingSource(value: unknown): value is Signal<unknown> | Ref<unknown> {
   return (typeof value === "function" && value !== null && "_dep" in value && "_value" in value)
@@ -101,7 +103,7 @@ function evaluateExpression(ctx: any, expr: string, event: Event | undefined): a
   const evaluator = getExpressionEvaluator(expr);
 
   try {
-    return evaluator(ctx, event);
+    return evaluator(getExpressionScope(ctx), event);
   } catch (error) {
     emitRendererDebug("error:renderer", () => ({
       message: `Failed to evaluate expression '${expr}'`,
@@ -132,4 +134,37 @@ function getExpressionEvaluator(expr: string): (ctx: any, event: Event | undefin
 
   expressionEvaluatorCache.set(expr, evaluator);
   return evaluator;
+}
+
+function getExpressionScope(ctx: any): any {
+  if (!ctx || typeof ctx !== "object") {
+    return ctx;
+  }
+
+  const unwrapLocals = ctx[EXPRESSION_UNWRAP_LOCALS];
+  if (!(unwrapLocals instanceof Set) || unwrapLocals.size === 0) {
+    return ctx;
+  }
+
+  const cached = expressionScopeCache.get(ctx as object);
+  if (cached) {
+    return cached;
+  }
+
+  const scope = new Proxy(ctx, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof property === "string" && unwrapLocals.has(property) && typeof value === "function" && value !== null && "_dep" in value && "_value" in value) {
+        return value();
+      }
+
+      return value;
+    },
+    has(target, property) {
+      return Reflect.has(target, property);
+    },
+  });
+
+  expressionScopeCache.set(ctx as object, scope);
+  return scope;
 }

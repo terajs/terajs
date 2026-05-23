@@ -117,6 +117,7 @@ export interface IRForNode extends IRNodeBase {
   type: "for"
   isStructural?: boolean // Indicates if this node should be treated as a structural directive
   each: string
+  key?: IRPropNode
   item: string
   index?: string
   body: IRNode[]

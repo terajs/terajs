@@ -16,7 +16,7 @@ import {
 } from "@terajs/runtime";
 
 import { emitRendererDebug } from "./debug.js";
-import { resolveExpr } from "./renderFromIRExpressions.js";
+import { EXPRESSION_UNWRAP_LOCALS, resolveExpr } from "./renderFromIRExpressions.js";
 import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
 
 type RenderIRNode<NodeLike> = (node: IRNode, ctx: any, isSvg?: boolean) => NodeLike | null;
@@ -72,8 +72,24 @@ export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = No
 
     const ownerContext = getCurrentContext();
     const identityState = createIRForIdentityState();
-    const supportsKeyedReuse = node.body.length === 1 && node.isStructural !== true;
+    const supportsKeyedReuse = node.body.length === 1;
     let rows: IRForRowRecord<NodeLike>[] = [];
+    let rebuiltNodes: NodeLike[] = [];
+
+    const clearRows = () => {
+      for (const row of rows) {
+        remove(row.node);
+        disposeIRForRowRecord(row);
+      }
+      rows = [];
+    };
+
+    const clearRebuiltNodes = () => {
+      for (const rebuiltNode of rebuiltNodes) {
+        remove(rebuiltNode);
+      }
+      rebuiltNodes = [];
+    };
 
     const run = () => {
       const array = resolveExpr(ctx, node.each) || [];
@@ -94,6 +110,10 @@ export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = No
         );
 
         if (reusedRows) {
+          if (rebuiltNodes.length > 0) {
+            clearRebuiltNodes();
+          }
+
           updateKeyedList(
             mountTarget,
             rows,
@@ -110,13 +130,14 @@ export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = No
           return;
         }
 
-        for (const row of rows) {
-          disposeIRForRowRecord(row);
-        }
-        rows = [];
+        clearRows();
       }
 
-      renderIRForByRebuild(
+      if (rows.length > 0) {
+        clearRows();
+      }
+
+      rebuiltNodes = renderIRForByRebuild(
         node,
         ctx,
         isSvg,
@@ -124,10 +145,12 @@ export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = No
         mountTarget,
         anchor as NodeLike,
         renderNode,
-        createFragment,
+        isFragment,
+        getChildren,
         getNextSibling,
         insert,
         remove,
+        rebuiltNodes,
       );
     };
 
@@ -135,10 +158,8 @@ export function createIRForRenderer<NodeLike, FragmentLike extends NodeLike = No
 
     addNodeCleanup(anchor as NodeLike, () => {
       dispose(effectFn);
-      for (const row of rows) {
-        disposeIRForRowRecord(row);
-      }
-      rows = [];
+      clearRows();
+      clearRebuiltNodes();
     });
 
     return parent as NodeLike;
@@ -153,11 +174,17 @@ function renderIRForByRebuild(
   parent: any,
   anchor: any,
   renderNode: RenderIRNode<any>,
-  createFragment: () => any,
+  isFragment: (node: any) => boolean,
+  getChildren: (node: any) => any[],
   getNextSibling: (node: any) => any,
   insert: (parent: any, child: any, anchor?: any | null) => void,
   remove: (node: any) => void,
-): void {
+  ownedNodes: any[],
+): any[] {
+  for (const ownedNode of ownedNodes) {
+    remove(ownedNode);
+  }
+
   const nodes: any[] = [];
 
   for (let index = 0; index < array.length; index += 1) {
@@ -167,22 +194,12 @@ function renderIRForByRebuild(
       [node.index ?? "i"]: index,
     };
 
-    const frag = createFragment();
     for (const child of node.body) {
       const dom = renderNode(child, childCtx, isSvg);
       if (dom) {
-        insert(frag, dom);
+        nodes.push(...collectIRForRenderedNodes(dom, isFragment, getChildren));
       }
     }
-
-    nodes.push(frag);
-  }
-
-  let next = getNextSibling(anchor);
-  while (next) {
-    const toRemove = next;
-    next = getNextSibling(next);
-    remove(toRemove);
   }
 
   let ref = getNextSibling(anchor);
@@ -190,6 +207,8 @@ function renderIRForByRebuild(
     insert(parent, renderedNode, ref ?? null);
     ref = null;
   }
+
+  return nodes;
 }
 
 function createKeyedIRForRows<NodeLike>(
@@ -210,12 +229,17 @@ function createKeyedIRForRows<NodeLike>(
 
   for (let index = 0; index < array.length; index += 1) {
     const item = array[index];
-    const key = createIRForRowKey(item, index, identityState, seenCounts);
+    const key = createIRForRowKey(node, ctx, item, index, identityState, seenCounts);
     const existing = currentRowsByKey.get(key);
 
     if (existing) {
-      existing.itemSignal.set(item);
-      existing.indexSignal.set(index);
+      currentRowsByKey.delete(key);
+
+      withDetachedCurrentEffect(() => {
+        existing.itemSignal.set(item);
+        existing.indexSignal.set(index);
+      });
+
       nextRows.push(existing);
       continue;
     }
@@ -243,16 +267,58 @@ function createIRForIdentityState(): IRForIdentityState {
   };
 }
 
+function collectIRForRenderedNodes<NodeLike>(
+  node: NodeLike,
+  isFragment: (node: NodeLike) => boolean,
+  getChildren: (node: NodeLike) => NodeLike[],
+): NodeLike[] {
+  if (isFragment(node)) {
+    return getChildren(node);
+  }
+
+  return [node];
+}
+
 function createIRForRowKey(
+  node: IRForNode,
+  ctx: any,
   item: unknown,
   index: number,
   identityState: IRForIdentityState,
   seenCounts: Map<string, number>,
 ): string {
-  const base = describeIRForRowIdentity(item, index, identityState);
+  const base = describeIRForRowIdentity(resolveIRForRowIdentity(node, ctx, item, index) ?? item, index, identityState);
   const count = seenCounts.get(base) ?? 0;
   seenCounts.set(base, count + 1);
   return `${base}::${count}`;
+}
+
+function resolveIRForRowIdentity(
+  node: IRForNode,
+  ctx: any,
+  item: unknown,
+  index: number,
+): unknown {
+  if (!node.key) {
+    return undefined;
+  }
+
+  if (node.key.kind === "static") {
+    return node.key.value;
+  }
+
+  if (typeof node.key.value === "string") {
+    return resolveExpr(
+      {
+        ...ctx,
+        [node.item]: item,
+        [node.index ?? "i"]: index,
+      },
+      node.key.value,
+    );
+  }
+
+  return node.key.value;
 }
 
 function describeIRForRowIdentity(
@@ -310,11 +376,7 @@ function createIRForRowRecord<NodeLike>(
     rowContext.ai = ownerContext.ai;
   }
 
-  const rowChildContext = {
-    ...ctx,
-    [node.item]: itemSignal,
-    [node.index ?? "i"]: indexSignal,
-  };
+  const rowChildContext = createIRForRowContext(node, ctx, itemSignal, indexSignal);
 
   const previousContext = getCurrentContext();
   let renderedNode: NodeLike | null = null;
@@ -339,6 +401,33 @@ function createIRForRowRecord<NodeLike>(
     indexSignal,
     ownerContext: rowContext,
   };
+}
+
+function createIRForRowContext(
+  node: IRForNode,
+  ctx: any,
+  itemSignal: Signal<unknown>,
+  indexSignal: Signal<number>,
+): any {
+  const indexName = node.index ?? "i";
+  const inheritedUnwrapLocals = ctx?.[EXPRESSION_UNWRAP_LOCALS];
+  const unwrapLocals = new Set<string>(inheritedUnwrapLocals instanceof Set ? inheritedUnwrapLocals : []);
+  const rowChildContext = {
+    ...ctx,
+    [node.item]: itemSignal,
+    [indexName]: indexSignal,
+  };
+
+  unwrapLocals.add(node.item);
+  unwrapLocals.add(indexName);
+
+  Object.defineProperty(rowChildContext, EXPRESSION_UNWRAP_LOCALS, {
+    configurable: true,
+    enumerable: false,
+    value: unwrapLocals,
+  });
+
+  return rowChildContext;
 }
 
 function normalizeIRForRowNode<NodeLike>(

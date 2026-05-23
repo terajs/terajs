@@ -63,6 +63,7 @@ export interface HostIRForNode extends HostIRNodeBase {
   type: "for";
   isStructural?: boolean;
   each: string;
+  key?: HostIRPropNode;
   item: string;
   index?: string;
   body: HostIRNode[];

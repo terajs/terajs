@@ -250,4 +250,140 @@ describe("createHostIRRenderer", () => {
     expect(reorderedRows[0]).toBe(secondNode);
     expect(reorderedRows[1]).toBe(firstNode);
   });
+
+  it("reuses structural row nodes against a non-DOM host when an authored key expression is provided", async () => {
+    const host = createSimulationHost();
+    const renderer = createHostIRRenderer({
+      host,
+      bindings: createHostBindings(host)
+    });
+
+    const items = signal([
+      { slug: "alpha", label: "A" },
+      { slug: "bravo", label: "B" }
+    ]);
+    const node = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      isStructural: true,
+      key: {
+        kind: "bind",
+        name: "key",
+        value: "item.slug",
+        binding: {
+          kind: "simple-path",
+          segments: ["item", "slug"]
+        }
+      },
+      body: [
+        {
+          type: "element",
+          tag: "div",
+          props: [
+            {
+              kind: "bind",
+              name: "data-row-slug",
+              value: "item.slug",
+              binding: {
+                kind: "simple-path",
+                segments: ["item", "slug"]
+              }
+            }
+          ],
+          children: [
+            {
+              type: "interp",
+              expression: "item.label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    } as IRForNode;
+
+    const root = host.createElement("root");
+    const rendered = renderer.renderIRNode(node, { items }) as SimulationNode;
+    host.insert(root, rendered);
+
+    const initialRows = simulationElementChildren(root);
+    const bravoNode = initialRows[1];
+
+    items.set([
+      { slug: "bravo", label: "B2" },
+      { slug: "alpha", label: "A" }
+    ]);
+    await nextSimulationTick();
+
+    const reorderedRows = simulationElementChildren(root);
+    expect(simulationTextContent(root)).toBe("B2A");
+    expect(reorderedRows[0]).toBe(bravoNode);
+  });
+
+  it("keeps later siblings mounted during rebuild updates against a non-DOM host", async () => {
+    const host = createSimulationHost();
+    const renderer = createHostIRRenderer({
+      host,
+      bindings: createHostBindings(host)
+    });
+
+    const items = signal([
+      { label: "A" },
+      { label: "B" }
+    ]);
+    const node: IRForNode = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      body: [
+        {
+          type: "element",
+          tag: "span",
+          props: [],
+          children: [
+            {
+              type: "interp",
+              expression: "item.label",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode,
+        {
+          type: "text",
+          value: ".",
+          loc: undefined,
+          flags: {}
+        } as IRInterpolationNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+
+    const root = host.createElement("root");
+    const rendered = renderer.renderIRNode(node, { items }) as SimulationNode;
+    host.insert(root, rendered);
+
+    const tail = host.createElement("tail");
+    host.setProp(tail, "data-tail", true);
+    host.insert(root, tail);
+
+    items.set([
+      { label: "A" },
+      { label: "B" },
+      { label: "C" }
+    ]);
+    await nextSimulationTick();
+
+    expect(root.children.includes(tail)).toBe(true);
+  });
 });

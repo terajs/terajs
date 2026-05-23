@@ -146,6 +146,52 @@ describe("IRModule Generator (integration)", () => {
     });
   });
 
+  it("promotes structural v-for key bindings into IR list metadata", () => {
+    const sfc: ParsedSFC = {
+      filePath: "/pages/list.tera",
+      template: `<li v-for="item in items" :key="item.slug">{{ item.label }}</li>`,
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
+
+    const ir = generateIRModule(sfc);
+
+    expect(ir.template[0]).toMatchObject({
+      type: "for",
+      each: "items",
+      item: "item",
+      isStructural: true,
+      key: {
+        kind: "bind",
+        name: "key",
+        value: "item.slug",
+        binding: {
+          kind: "simple-path",
+          segments: ["item", "slug"]
+        }
+      },
+      body: [
+        {
+          type: "element",
+          tag: "li",
+          props: [
+            {
+              kind: "bind",
+              name: "key",
+              value: "item.slug",
+              binding: {
+                kind: "simple-path",
+                segments: ["item", "slug"]
+              }
+            }
+          ]
+        }
+      ]
+    });
+  });
+
   it("normalizes Portal nodes into portal IR", () => {
     const sfc: ParsedSFC = {
       filePath: "/pages/modal.tera",

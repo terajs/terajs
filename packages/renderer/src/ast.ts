@@ -90,6 +90,7 @@ export interface ForNode {
   type: "for";
   each: string;
   isStructural?: boolean; // Indicates if this node should be treated as a structural directive
+  key?: PropNode;
   item: string;
   index?: string;
   body: ASTNode[];

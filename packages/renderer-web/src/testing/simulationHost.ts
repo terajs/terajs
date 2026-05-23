@@ -80,6 +80,28 @@ export function createSimulationHost(): RendererHost<
     }
   }
 
+  function insertNode(parent: SimulationNode, child: SimulationNode, anchor: SimulationNode | null = null): void {
+    if (child.kind === "fragment") {
+      const children = [...child.children];
+      child.children.length = 0;
+      for (const fragmentChild of children) {
+        insertNode(parent, fragmentChild, anchor);
+      }
+      return;
+    }
+
+    detach(child);
+
+    const anchorIndex = anchor ? parent.children.indexOf(anchor) : -1;
+    if (anchorIndex >= 0) {
+      parent.children.splice(anchorIndex, 0, child);
+    } else {
+      parent.children.push(child);
+    }
+
+    child.parent = parent;
+  }
+
   return {
     createAnchor(label = "") {
       return {
@@ -129,25 +151,7 @@ export function createSimulationHost(): RendererHost<
       return [...node.children];
     },
     insert(parent, child, anchor = null) {
-      if (child.kind === "fragment") {
-        const children = [...child.children];
-        child.children.length = 0;
-        for (const fragmentChild of children) {
-          this.insert(parent, fragmentChild, anchor);
-        }
-        return;
-      }
-
-      detach(child);
-
-      const anchorIndex = anchor ? parent.children.indexOf(anchor) : -1;
-      if (anchorIndex >= 0) {
-        parent.children.splice(anchorIndex, 0, child);
-      } else {
-        parent.children.push(child);
-      }
-
-      child.parent = parent;
+      insertNode(parent, child, anchor);
     },
     remove(node) {
       disposeNode(node);
