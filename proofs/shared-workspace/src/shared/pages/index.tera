@@ -1,7 +1,10 @@
 <template>
-  <ProofCallout
-    title="Minimal proof workspace"
-    body="This workspace is separate from terajs-com, keeps shared route modules under src/shared/pages, and reserves generated Android and iOS output under .terajs for later build slices." />
+  <div class="proof-home">
+    <ProofCallout
+      title="Minimal proof workspace"
+      body="This workspace is separate from terajs-com, keeps shared route modules under src/shared/pages, and now proves shared state, conditional rendering, and keyed host-target lists without widening the renderer-neutral contract." />
+    <ProofStateBoard />
+  </div>
 </template>
 
 <meta>
@@ -10,9 +13,11 @@
 </meta>
 
 <ai>
-  summary: "A minimal Terajs proof workspace route that keeps shared source separate from terajs-com and declares explicit web, Android, and iOS targets."
+  summary: "A minimal Terajs proof workspace route that keeps shared source separate from terajs-com and now proves local state, conditionals, and keyed list updates across explicit web, Android, and iOS targets."
   tags:
     - terajs
     - proof-workspace
     - universal
+    - state
+    - keyed-list
 </ai>

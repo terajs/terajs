@@ -1,0 +1,349 @@
+<template>
+  <section class="proof-state-board">
+    <div class="proof-state-board__intro">
+      <p class="proof-state-board__eyebrow">Interactive shared-state proof</p>
+      <h2 class="proof-state-board__title">One shared route, thin host targets, and stable keyed updates.</h2>
+      <p class="proof-state-board__summary">{{ boardSummary() }}</p>
+    </div>
+
+    <div class="proof-state-board__controls">
+      <button type="button" class="proof-state-board__control" data-action="toggle-queue" @click="toggleQueue()">
+        {{ queueVisible() ? 'Hide queue' : 'Show queue' }}
+      </button>
+      <button type="button" class="proof-state-board__control" data-action="promote-selected" @click="promoteSelected()">
+        Promote selected
+      </button>
+      <button type="button" class="proof-state-board__control" data-action="rotate-queue" @click="rotateQueue()">
+        Rotate queue
+      </button>
+    </div>
+
+    <div class="proof-state-board__layout">
+      <section class="proof-state-board__panel">
+        <div class="proof-state-board__panel-header">
+          <p class="proof-state-board__label">Shared queue</p>
+          <p class="proof-state-board__meta">{{ queueMeta() }}</p>
+        </div>
+
+        <div v-if="queueVisible()" class="proof-state-board__queue-shell">
+          <ul class="proof-state-board__queue" data-queue-list>
+            <li
+              v-for="story in stories()"
+              :key="story.id"
+              :data-story-id="story.id"
+              class="proof-state-board__queue-item"
+            >
+              <button
+                type="button"
+                :class="storyButtonClass(story)"
+                :data-story-target="story.id"
+                @click="selectStory(story.id)"
+              >
+                <span class="proof-state-board__story-title">{{ story.title }}</span>
+                <span class="proof-state-board__story-meta">{{ story.hostLabel }}</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div v-else class="proof-state-board__empty" data-queue-hidden-state>
+          Queue hidden while the selected proof stays mounted for the active host target.
+        </div>
+      </section>
+
+      <section class="proof-state-board__panel">
+        <div class="proof-state-board__panel-header">
+          <p class="proof-state-board__label">Selected slice</p>
+          <p class="proof-state-board__meta">{{ selectedSummary() }}</p>
+        </div>
+
+        <div v-if="selectedStory()" class="proof-state-board__detail" data-selected-story>
+          <p class="proof-state-board__detail-host">{{ selectedStory().hostLabel }}</p>
+          <h3 class="proof-state-board__detail-title">{{ selectedStory().title }}</h3>
+          <p class="proof-state-board__detail-summary">{{ selectedStory().summary }}</p>
+
+          <dl class="proof-state-board__facts">
+            <div class="proof-state-board__fact">
+              <dt>Target</dt>
+              <dd data-selected-host>{{ selectedStory().host }}</dd>
+            </div>
+            <div class="proof-state-board__fact">
+              <dt>Status</dt>
+              <dd>{{ selectedStory().status }}</dd>
+            </div>
+          </dl>
+
+          <p v-if="hasSelectedHostNote()" class="proof-state-board__note" data-selected-note>
+            {{ selectedHostNote() }}
+          </p>
+        </div>
+      </section>
+    </div>
+  </section>
+</template>
+
+<script>
+const stories = signal([
+  {
+    id: 'alpha',
+    title: 'Web shell parity',
+    host: 'web',
+    hostLabel: 'Web host proof',
+    status: 'Ready',
+    summary: 'The shared route stays renderer-neutral while the web target keeps DOM work on the fast local path.',
+    hostNote: 'Web keeps DOM-specific optimizations inside renderer-web instead of widening shared helpers.'
+  },
+  {
+    id: 'bravo',
+    title: 'Android command fidelity',
+    host: 'android',
+    hostLabel: 'Android host proof',
+    status: 'Ready',
+    summary: 'The same route module drives Android views through host commands, event payloads, and keyed mutations.',
+    hostNote: 'Android stays command-oriented so JS owns reconciliation while native owns concrete view mutation.'
+  },
+  {
+    id: 'charlie',
+    title: 'iOS bridge readiness',
+    host: 'ios',
+    hostLabel: 'iOS host proof',
+    status: 'Planned locally',
+    summary: 'The shared source already reserves the iOS host surface without treating DOM output as the source of truth.',
+    hostNote: 'iOS remains a thin UIKit host target, with the bridge carrying commands and event payloads only.'
+  }
+])
+
+const queueVisible = signal(true)
+const selectedStoryId = signal('alpha')
+
+function boardSummary() {
+  return `${stories().length} proof slices are driven from shared source while each host target keeps its concrete view layer thin.`
+}
+
+function queueMeta() {
+  return queueVisible()
+    ? `${stories().length} keyed items ready`
+    : 'Queue collapsed'
+}
+
+function toggleQueue() {
+  queueVisible.set(!queueVisible())
+}
+
+function selectStory(id) {
+  selectedStoryId.set(id)
+}
+
+function selectedStory() {
+  return stories().find((story) => story.id === selectedStoryId()) || null
+}
+
+function selectedSummary() {
+  const story = selectedStory()
+  return story ? `${story.hostLabel} selected` : 'No proof slice selected'
+}
+
+function selectedHostNote() {
+  const story = selectedStory()
+  return story ? story.hostNote : ''
+}
+
+function hasSelectedHostNote() {
+  return selectedHostNote().length > 0
+}
+
+function promoteSelected() {
+  const currentId = selectedStoryId()
+
+  stories.update((list) => {
+    const index = list.findIndex((story) => story.id === currentId)
+
+    if (index <= 0) {
+      return list
+    }
+
+    const selected = list[index]
+    return [selected, ...list.slice(0, index), ...list.slice(index + 1)]
+  })
+}
+
+function rotateQueue() {
+  stories.update((list) => {
+    if (list.length < 2) {
+      return list
+    }
+
+    return [...list.slice(1), list[0]]
+  })
+}
+
+function storyButtonClass(story) {
+  return story.id === selectedStoryId()
+    ? 'proof-state-board__story proof-state-board__story--active'
+    : 'proof-state-board__story'
+}
+</script>
+
+<style scoped>
+.proof-state-board {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at top left, rgba(34, 211, 238, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88));
+  color: #e2e8f0;
+}
+
+.proof-state-board__intro {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.proof-state-board__eyebrow,
+.proof-state-board__label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #67e8f9;
+}
+
+.proof-state-board__title,
+.proof-state-board__detail-title {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.1;
+  color: #f8fafc;
+}
+
+.proof-state-board__summary,
+.proof-state-board__detail-summary,
+.proof-state-board__note,
+.proof-state-board__empty,
+.proof-state-board__meta {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+  line-height: 1.6;
+}
+
+.proof-state-board__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.proof-state-board__control,
+.proof-state-board__story {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.54);
+  color: #f8fafc;
+}
+
+.proof-state-board__control {
+  padding: 0.7rem 0.95rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.proof-state-board__layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.proof-state-board__panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1.2rem;
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.proof-state-board__panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.proof-state-board__queue {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.proof-state-board__story {
+  width: 100%;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.proof-state-board__story--active {
+  border-color: rgba(103, 232, 249, 0.45);
+  background: rgba(8, 47, 73, 0.5);
+}
+
+.proof-state-board__story-title {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.proof-state-board__story-meta,
+.proof-state-board__detail-host {
+  color: #93c5fd;
+}
+
+.proof-state-board__detail {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.proof-state-board__detail-host {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proof-state-board__facts {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.proof-state-board__fact {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.proof-state-board__fact dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.84);
+}
+
+.proof-state-board__fact dd {
+  margin: 0;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+@media (min-width: 768px) {
+  .proof-state-board__layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+  }
+}
+</style>
