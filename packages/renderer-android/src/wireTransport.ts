@@ -41,6 +41,16 @@ export function createAndroidWireTransport(
     return commands;
   }
 
+  function dispatchNativeEventPacket(packet: AndroidNativeEventPacket): void {
+    Debug.emit("bridge:event", {
+      target: "android",
+      direction: "host-to-js",
+      eventName: packet.name,
+      nodeId: packet.nodeId
+    });
+    session.dispatchNativeEventPacket(packet);
+  }
+
   return {
     session,
     drainCommandBatch,
@@ -48,17 +58,9 @@ export function createAndroidWireTransport(
       const commands = drainCommandBatch();
       return commands.length > 0 ? stringifyAndroidBridgeCommands(commands) : null;
     },
-    dispatchNativeEventPacket(packet) {
-      Debug.emit("bridge:event", {
-        target: "android",
-        direction: "host-to-js",
-        eventName: packet.name,
-        nodeId: packet.nodeId
-      });
-      session.dispatchNativeEventPacket(packet);
-    },
+    dispatchNativeEventPacket,
     dispatchNativeEventPacketPayload(payload) {
-      session.dispatchNativeEventPacket(parseAndroidNativeEventPacket(payload));
+      dispatchNativeEventPacket(parseAndroidNativeEventPacket(payload));
     }
   };
 }

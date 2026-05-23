@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compileComponentModuleParts, parseSFC } from "@terajs/sfc";
 import { signal } from "@terajs/reactivity";
+import { clearDebugHistory, normalizeSharedDebugEvent, readDebugHistory } from "@terajs/shared";
 
 import { renderIRModuleToFragment } from "./renderFromIR.js";
 
@@ -36,6 +37,10 @@ function click(element: Element | null): void {
   element?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
 }
 
+afterEach(() => {
+  clearDebugHistory();
+});
+
 describe("proof workspace interaction", () => {
   it("updates local state, toggles conditional content, and reorders keyed items", async () => {
     const filePath = resolve(
@@ -55,6 +60,7 @@ describe("proof workspace interaction", () => {
     const sfc = parseSFC(source, "/src/shared/components/ProofStateBoard.tera");
     const compiled = compileComponentModuleParts(sfc);
     const bindings = executeCompiledSetup(compiled.setupCode);
+    clearDebugHistory();
 
     const root = document.createElement("div");
     root.appendChild(renderIRModuleToFragment(compiled.ir, bindings));
@@ -85,5 +91,14 @@ describe("proof workspace interaction", () => {
     await tick();
 
     expect(storyIds()).toEqual(["bravo", "alpha", "charlie"]);
+
+    const stateEvents = readDebugHistory().flatMap((event) => {
+      const normalized = normalizeSharedDebugEvent(event);
+      return normalized?.type === "reactive:updated" ? [normalized] : [];
+    });
+
+    expect(stateEvents.some((event) => event.payload.next === "bravo")).toBe(true);
+    expect(stateEvents.some((event) => event.payload.next === false)).toBe(true);
+    expect(stateEvents.some((event) => Array.isArray(event.payload.next))).toBe(true);
   });
 });

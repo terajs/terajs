@@ -4,9 +4,10 @@ import path from "node:path";
 
 import type { IRModule } from "@terajs/compiler";
 import { signal } from "@terajs/reactivity";
+import { clearDebugHistory, normalizeSharedDebugEvent, readDebugHistory } from "@terajs/shared";
 
 import type { AndroidNativeNode, AndroidNativeViewNode } from "./consumer.js";
-import { createAndroidHostSession } from "./index.js";
+import { createAndroidWireTransport } from "./index.js";
 import { runBuildCommand } from "../../cli/src/build.js";
 import {
   cleanupProofWorkspaceCopies,
@@ -67,6 +68,7 @@ describe("renderer-android proof workspace smoke", () => {
     const tempWorkspace = await copyProofWorkspace();
 
     process.chdir(tempWorkspace);
+    clearDebugHistory();
     await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
 
     const generatedModule = JSON.parse(
@@ -80,24 +82,46 @@ describe("renderer-android proof workspace smoke", () => {
     };
 
     const bindings = executeCompiledSetup(generatedModule.setupCode);
-    const session = createAndroidHostSession();
-    session.mountIRModule(generatedModule.ir, bindings);
+    const transport = createAndroidWireTransport();
+    transport.session.mountIRModule(generatedModule.ir, bindings);
+    expect(transport.drainCommandBatchPayload()).not.toBeNull();
 
-    const initialTexts = collectTextValues(session.root);
+    const initialTexts = collectTextValues(transport.session.root);
     expect(initialTexts).toEqual(expect.arrayContaining([
       "Shared queue",
       "Selected slice",
       "Web host proof"
     ]));
 
-    const toggleQueueButton = findButtonByText(session.root, "Hide queue");
+    const toggleQueueButton = findButtonByText(transport.session.root, "Hide queue");
     expect(toggleQueueButton.subscribedEvents).toContain("press");
 
-    session.dispatchNativeEvent(toggleQueueButton.id, "press", { source: "native" });
+    transport.dispatchNativeEventPacket({
+      nodeId: toggleQueueButton.id,
+      name: "press",
+      payload: { source: "native" }
+    });
     await Promise.resolve();
 
-    expect(collectTextValues(session.root)).toEqual(expect.arrayContaining([
+    expect(collectTextValues(transport.session.root)).toEqual(expect.arrayContaining([
       "Queue hidden while the selected proof stays mounted for the active host target."
     ]));
+
+    const bridgeEvents = readDebugHistory().flatMap((event) => {
+      const normalized = normalizeSharedDebugEvent(event);
+      return normalized && normalized.type.startsWith("bridge:") ? [normalized] : [];
+    });
+
+    expect(bridgeEvents.find((event) => event.type === "bridge:commands")?.payload).toMatchObject({
+      target: "android",
+      direction: "js-to-host",
+      commandCount: expect.any(Number)
+    });
+    expect(bridgeEvents.find((event) => event.type === "bridge:event")?.payload).toMatchObject({
+      target: "android",
+      direction: "host-to-js",
+      eventName: "press",
+      nodeId: toggleQueueButton.id
+    });
   });
 });
