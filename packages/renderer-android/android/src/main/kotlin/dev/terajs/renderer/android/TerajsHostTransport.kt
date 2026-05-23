@@ -22,9 +22,18 @@ object AndroidWireCodec {
 class AndroidHostTransport(
   private val applyCommands: (List<AndroidHostCommand>) -> Unit,
   private val emitEventPayload: (String) -> Unit,
+  private val diagnostics: AndroidDiagnosticsSink = AndroidLogcatDiagnosticsSink,
 ) {
   fun receiveCommandBatchPayload(payload: String) {
-    applyCommands(AndroidWireCodec.decodeCommandBatch(payload))
+    val commands = AndroidWireCodec.decodeCommandBatch(payload)
+    diagnostics.record(
+      AndroidDiagnosticEvent(
+        area = "bridge",
+        message = "Received command batch",
+        details = mapOf("commandCount" to commands.size),
+      )
+    )
+    applyCommands(commands)
   }
 
   fun makeNativeEventPacketPayload(
@@ -42,6 +51,16 @@ class AndroidHostTransport(
     name: String,
     payload: TerajsJsonValue? = null,
   ) {
+    diagnostics.record(
+      AndroidDiagnosticEvent(
+        area = "bridge",
+        message = "Sent native event",
+        details = mapOf(
+          "nodeId" to nodeId,
+          "name" to name,
+        ),
+      )
+    )
     emitEventPayload(makeNativeEventPacketPayload(nodeId = nodeId, name = name, payload = payload))
   }
 }

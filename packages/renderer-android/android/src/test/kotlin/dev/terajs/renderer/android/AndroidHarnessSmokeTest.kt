@@ -52,4 +52,57 @@ class AndroidHarnessSmokeTest {
     assertEquals("press", payload.getString("name"))
     assertEquals("native", payload.getJSONObject("payload").getString("source"))
   }
+
+  @Test
+  fun recordsBridgeAndRuntimeDiagnosticsThroughPackageLocalSink() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val diagnostics = mutableListOf<AndroidDiagnosticEvent>()
+    val runtime = AndroidHostRuntime(
+      context = context,
+      diagnostics = AndroidDiagnosticsSink { event ->
+        diagnostics.add(event)
+      }
+    )
+
+    runtime.receiveCommandBatchPayload(
+      """
+      [
+        {
+          "type": "create-element",
+          "nodeId": 1,
+          "viewType": "Button"
+        }
+      ]
+      """.trimIndent()
+    )
+    runtime.sendNativeEvent(
+      nodeId = 1,
+      name = "press",
+      payload = TerajsJsonObject(mapOf("source" to TerajsJsonString("native")))
+    )
+
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "bridge"
+          && event.message == "Received command batch"
+          && event.details["commandCount"] == 1
+      }
+    )
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "runtime"
+          && event.message == "Applied command batch"
+          && event.details["commandCount"] == 1
+          && event.details["rootViewType"] == "Button"
+      }
+    )
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "bridge"
+          && event.message == "Sent native event"
+          && event.details["nodeId"] == 1
+          && event.details["name"] == "press"
+      }
+    )
+  }
 }

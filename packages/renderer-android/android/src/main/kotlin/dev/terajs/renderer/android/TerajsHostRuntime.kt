@@ -5,7 +5,8 @@ import android.view.View
 
 class AndroidHostRuntime(
   context: Context,
-  emitEventPayload: (String) -> Unit = {}
+  emitEventPayload: (String) -> Unit = {},
+  private val diagnostics: AndroidDiagnosticsSink = AndroidLogcatDiagnosticsSink,
 ) {
   val applier = AndroidCommandApplier(context)
   private lateinit var transportRef: AndroidHostTransport
@@ -19,7 +20,8 @@ class AndroidHostRuntime(
     applyCommands = { commands ->
       applyCommands(commands)
     },
-    emitEventPayload = emitEventPayload
+    emitEventPayload = emitEventPayload,
+    diagnostics = diagnostics,
   ).also { transportRef = it }
 
   val rootView: View?
@@ -52,6 +54,17 @@ class AndroidHostRuntime(
         }
       }
     }
+
+    diagnostics.record(
+      AndroidDiagnosticEvent(
+        area = "runtime",
+        message = "Applied command batch",
+        details = mapOf(
+          "commandCount" to commands.size,
+          "rootViewType" to (rootView?.javaClass?.simpleName ?: "null"),
+        ),
+      )
+    )
   }
 
   private fun removeBindings(nodeId: Int) {
