@@ -10,6 +10,11 @@ This document outlines the plan for building production-ready native renderers f
 - `@terajs/renderer-web` has been proven through that shared host contract with focused renderer tests and the browser regression guard.
 - DOM hot paths such as `renderFromIR.ts` prop and slot handling stay locally optimized in `@terajs/renderer-web`; share semantics through conformance tests instead of generic runtime helpers when the browser guard shows a targeted-update regression.
 - The current iOS and Android stubs now align to the shared host contract and point at UIKit and Android Views as the next imperative host targets.
+- Universal workspace proof builds now emit web, Android, and iOS artifacts from one shared source tree.
+- Proof output is validated outside the authored workspace through package-local Android and iOS host-session smoke paths.
+- The shared cross-target debug subset is now defined for state, route, queue, and bridge diagnostics, with conformance coverage at real producer seams.
+- Android now exposes package-local bridge and runtime diagnostics through a native sink validated in the Kotlin harness.
+- iOS native diagnostics remain blocked on Apple tooling; the Swift/UIKit seam exists, but runtime validation still requires macOS and Xcode.
 - SwiftUI, Jetpack Compose, and JSX-runtime neutralization are explicitly deferred until after the imperative host simulation milestone.
 
 ---
@@ -23,6 +28,7 @@ This document outlines the plan for building production-ready native renderers f
 - Use a thin JS-to-native bridge to run Terajs’s JS runtime in the host app and exchange renderer commands and events.
 - Expose native APIs to JS for view management and event handling.
 - Serialize renderer operations and view commands from JS to native, and events from native to JS.
+- Keep bridge diagnostics narrow: shared JS-visible bridge events belong in the canonical `bridge:*` subset, while host-specific logging stays package-local inside the native adapters.
 - Final engine selection remains open; do not block host-simulation work on a JavaScriptCore-only assumption.
 
 ## 3. Native Host App
@@ -41,7 +47,10 @@ This document outlines the plan for building production-ready native renderers f
 - Keep `npm run test:renderer-web:focused` and `npm run bench:browser:guard` green before and after renderer-boundary changes.
 - Add JS-side host simulation tests and renderer conformance tests before real host-app scaffolding.
 - Keep a narrower DOM prop/update perf canary alongside the broader browser guard so web hot-path regressions fail closer to the changed seam.
-- Build a minimal demo app for each platform after the host simulation proves the contract.
+- Keep the shared proof workspace fixture green across web, Android, and iOS target builds.
+- Keep proof smoke coverage outside the authored workspace so generated native artifacts are exercised through package-local host-session boundaries.
+- Keep proof diagnostics coverage for route, state, and bridge events aligned to the shared debug subset.
+- Build a minimal demo app for each platform after the host simulation and proof diagnostics checkpoints stay stable.
 
 ## 6. Documentation
 - Document the architecture, APIs, and usage for contributors and users.
@@ -61,9 +70,11 @@ This document outlines the plan for building production-ready native renderers f
 
 ## Next Steps
 - Keep `npm run test:renderer-web:focused` and `npm run bench:browser:guard` green while further neutral-renderer extraction continues.
-- Build a JS-side native host simulation for the shared contract and add conformance tests for the minimal imperative primitive set.
-- Decide the concrete bridge and engine shape only after the host simulation exposes the required command and lifecycle surface.
-- Start real host-app scaffolding after the shared contract and host simulation are stable.
+- Keep the proof workspace build, route, state, and smoke validations green as the standing proof gate for native-renderer work.
+- Finish iOS native diagnostics validation on macOS/Xcode instead of treating source-only Swift changes as sufficient proof.
+- Extend native host validation from the current Android package-local diagnostics sink toward matching Swift-side diagnostics once Apple tooling is available.
+- Decide the concrete bridge and engine shape only after the host simulation, proof smoke checks, and native diagnostics expose the required command and lifecycle surface.
+- Continue to defer SwiftUI and Jetpack Compose until the imperative UIKit and Android Views paths are fully validated.
 
 ---
 
