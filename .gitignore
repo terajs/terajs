@@ -5,3 +5,11 @@ benchmarks/.dist/
 .vitest/
 folder_dump/
 .vscode/
+.env
+proofs/
+packages/renderer-android/android/.gradle/
+packages/renderer-android/android/build/
+packages/renderer-android/android/local.properties
+packages/renderer-ios/ios/.build/
+packages/renderer-ios/ios/.swiftpm/
+packages/renderer-ios/ios/build/

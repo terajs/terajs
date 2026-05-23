@@ -4,8 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const originalCwd = process.cwd();
-export const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-export const proofWorkspaceRoot = path.join(repoRoot, "proofs", "shared-workspace");
+export const proofWorkspaceRoot = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "shared",
+  "test",
+  "fixtures",
+  "proof-workspace"
+);
 
 const tempDirs: string[] = [];
 

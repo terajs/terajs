@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { compileComponentModuleParts, parseSFC } from "@terajs/sfc";
 import { signal } from "@terajs/reactivity";
@@ -38,9 +39,13 @@ function click(element: Element | null): void {
 describe("proof workspace interaction", () => {
   it("updates local state, toggles conditional content, and reorders keyed items", async () => {
     const filePath = resolve(
-      process.cwd(),
-      "proofs",
-      "shared-workspace",
+      dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "..",
+      "shared",
+      "test",
+      "fixtures",
+      "proof-workspace",
       "src",
       "shared",
       "components",
@@ -69,7 +74,7 @@ describe("proof workspace interaction", () => {
     await tick();
 
     expect(storyIds()).toEqual(["bravo", "alpha", "charlie"]);
-  expect(root.querySelector("[data-selected-host]")?.textContent).toBe("android");
+    expect(root.querySelector("[data-selected-host]")?.textContent).toBe("android");
 
     click(root.querySelector('button[data-action="toggle-queue"]'));
     await tick();

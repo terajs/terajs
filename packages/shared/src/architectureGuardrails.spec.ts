@@ -368,6 +368,7 @@ describe("architecture guardrails", () => {
     expect(isApprovedTrackedCodeSurface("debug-check.ts")).toBe(false);
     expect(isApprovedTrackedCodeSurface("packages/shared/debug-check.ts")).toBe(false);
     expect(isApprovedTrackedCodeSurface("packages/router/notes.tera")).toBe(false);
+    expect(isApprovedTrackedCodeSurface("proofs/shared-workspace/src/shared/pages/index.tera")).toBe(false);
   });
 
   it("enforces manageable production source file sizes", () => {
@@ -427,6 +428,7 @@ function isSourceFile(filePath: string): boolean {
 
 function isProductionSourceFile(filePath: string): boolean {
   return isSourceFile(filePath)
+    && !/[\\/]test[\\/]/.test(filePath)
     && !/\.spec\.tsx?$/.test(filePath)
     && !/\.test\.tsx?$/.test(filePath)
     && !testSupportSourcePattern.test(filePath);
@@ -442,6 +444,7 @@ function getTrackedWorkspaceFiles(): string[] {
     .split("\0")
     .map((filePath) => filePath.trim())
     .filter(Boolean)
+    .filter((filePath) => fs.existsSync(path.join(workspaceRoot, filePath)))
     .map((filePath) => filePath.replace(/\\/g, "/"));
 }
 

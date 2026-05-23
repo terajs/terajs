@@ -8,8 +8,6 @@ import { runBuildCommand } from "../src/build.js";
 import {
   cleanupProofWorkspaceCopies,
   copyProofWorkspace,
-  proofWorkspaceRoot,
-  repoRoot,
 } from "./proofWorkspaceTestHarness.js";
 
 afterEach(async () => {
@@ -17,9 +15,7 @@ afterEach(async () => {
 });
 
 describe("proof workspace", () => {
-  it("keeps a separate universal workspace that the CLI can build for android", async () => {
-    expect(path.relative(repoRoot, proofWorkspaceRoot).replace(/\\/g, "/")).toBe("proofs/shared-workspace");
-
+  it("materializes a universal workspace fixture that the CLI can build for android", async () => {
     const tempWorkspace = await copyProofWorkspace();
 
     process.chdir(tempWorkspace);
