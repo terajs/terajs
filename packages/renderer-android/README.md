@@ -29,9 +29,11 @@ Run the renderer-android validation slices from the Terajs root:
 ```powershell
 npm run test:renderer-android:ts
 npm run test:renderer-android:kotlin
+npx vitest run packages/cli/test/proofWorkspace.spec.ts packages/renderer-android/src/proofWorkspaceSmoke.spec.ts
 ```
 
 The TypeScript slice covers the JS-owned bridge, transport, session, normalization, ingress, and conformance seams under `packages/renderer-android/src/`. The Kotlin runner uses the package-local Gradle wrapper in `packages/renderer-android/android/`, prefers `JAVA_HOME` when it is already set, falls back to the Android Studio bundled JBR on Windows, and expects an Android SDK to be available through `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or the default local SDK install path.
+The proof smoke path materializes the shared proof workspace fixture, builds Android artifacts through the CLI, and mounts the generated proof module through the package-local Android host session so proof output stays validated outside the main authored workspace.
 
 ## Direction
 
