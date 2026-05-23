@@ -24,7 +24,7 @@ const MODULE_PATH = import.meta.url.startsWith("file:")
   : import.meta.url;
 const CLI_ROOT = join(dirname(MODULE_PATH), "..");
 const CLI_ASSETS_DIR = join(CLI_ROOT, "assets");
-const FRAMEWORK_VERSION_SOURCE_PACKAGE = "@terajs/vite-plugin";
+const FRAMEWORK_VERSION_SOURCE_PACKAGE = "@terajs/app";
 
 function readScaffoldVersionRange(): string {
   try {

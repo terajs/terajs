@@ -32,6 +32,9 @@ export default defineConfig({
     // --- END MEMORY FIXES ---
 
     alias: {
+      "@terajs/app": path.resolve(__dirname, "./packages/terajs/src"),
+      "@terajs/app/vite": path.resolve(__dirname, "./packages/terajs/src/vite.ts"),
+      "@terajs/app/devtools": path.resolve(__dirname, "./packages/terajs/src/devtools.ts"),
       "@terajs/compiler": path.resolve(__dirname, "./packages/compiler/src"),
       "@terajs/devtools": path.resolve(__dirname, "./packages/devtools/src"),
       "@terajs/reactivity": path.resolve(__dirname, "./packages/reactivity/src"),

@@ -30,7 +30,7 @@
     }
   },
   "dependencies": {
-    "@terajs/vite-plugin": "^1.1.6",
+    "@terajs/app": "^1.1.8",
     "commander": "^11.0.0",
     "vite": "^8.0.0"
   },

@@ -5,6 +5,15 @@ import terajsPlugin from "@terajs/vite-plugin";
 
 export default terajsPlugin;
 
+export {
+	getWorkspaceConfig,
+	type TerajsWorkspaceConfig,
+	type TerajsWorkspaceMode,
+	type TerajsWorkspaceNativeTargetConfig,
+	type TerajsWorkspaceTarget,
+	type TerajsWorkspaceWebTargetConfig
+} from "@terajs/vite-plugin";
+
 /**
  * Options supported by the app-facing `@terajs/app/vite` entrypoint.
  */

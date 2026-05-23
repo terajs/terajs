@@ -22,10 +22,10 @@ async function readScaffoldVersionRange(workspaceRoot: string): Promise<string> 
     dependencies?: Record<string, string>;
   };
 
-  const frameworkVersionRange = cliManifest.dependencies?.["@terajs/vite-plugin"];
+  const frameworkVersionRange = cliManifest.dependencies?.["@terajs/app"];
 
   if (!frameworkVersionRange) {
-    throw new Error("packages/cli/package.json is missing the @terajs/vite-plugin dependency range");
+    throw new Error("packages/cli/package.json is missing the @terajs/app dependency range");
   }
 
   return frameworkVersionRange;

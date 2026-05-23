@@ -3,7 +3,9 @@ import { Command } from "commander";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build, createServer } from "vite";
 import { scaffoldProject, type ScaffoldHubType, type ScaffoldProjectMode } from "./scaffold.js";
+import { collectBuildTarget, runBuildCommand } from "./build.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 
 const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -98,9 +100,8 @@ export function createProgram(): Command {
     .description("Start the development server with Terajs DevTools")
     .option("-p, --port <number>", "port to run on", "3000")
     .action(async (options: { port: string }) => {
-      const [{ createServer }, { default: terajsPlugin }] = await Promise.all([
-        import("vite"),
-        import("@terajs/vite-plugin")
+      const [{ default: terajsPlugin }] = await Promise.all([
+        import("@terajs/app/vite")
       ]);
 
       const server = await createServer({
@@ -119,26 +120,36 @@ export function createProgram(): Command {
 
   program
     .command("build")
-    .description("Compile for production (Streaming SSR + Edge Optimized)")
-    .action(async () => {
-      console.log("Building for production...");
+    .description("Build configured workspace targets for production")
+    .option("-t, --target <target>", "build target list (comma-separated: web, android, ios)")
+    .action(async (options: { target?: string }) => {
+      console.log("Building configured Terajs targets...");
 
       try {
-        const [{ build: viteBuild }, { default: terajsPlugin }] = await Promise.all([
-          import("vite"),
-          import("@terajs/vite-plugin")
-        ]);
+        const buildOptions = typeof options.target === "string"
+          ? { target: collectBuildTarget(options.target) }
+          : {};
 
-        await viteBuild({
-          plugins: [
-            terajsPlugin({
-              serverFunctions: { endpoint: "/_terajs/server" }
-            })
-          ],
-          build: {
-            manifest: true
-          }
+        const buildReport = await runBuildCommand(buildOptions, {
+          viteBuild: build
         });
+
+        console.log(`Workspace mode: ${buildReport.workspace.mode}`);
+        console.log(`Targets: ${buildReport.targets.join(", ")}`);
+
+        for (const result of buildReport.results) {
+          const status = result.status === "built" ? "BUILT" : "PENDING";
+          console.log(`[${status}] ${result.target}: ${result.detail}`);
+        }
+
+        const pendingTargets = buildReport.results
+          .filter((result) => result.status === "pending")
+          .map((result) => result.target);
+
+        if (pendingTargets.length > 0) {
+          console.log(`Implemented targets built. Pending native target builders: ${pendingTargets.join(", ")}.`);
+          return;
+        }
 
         console.log("Terajs production build complete.");
       } catch (error) {

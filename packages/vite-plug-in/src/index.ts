@@ -23,7 +23,8 @@ import {
   getDevtoolsConfig,
   getRouteDirs,
   getRouterConfig,
-  getSyncHubConfig
+  getSyncHubConfig,
+  getWorkspaceConfig
 } from "./config.js";
 import { compileSfcToComponent } from "./compileSfcToComponent.js";
 import {
@@ -912,3 +913,12 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 }
 
 export default terajsPlugin;
+
+export {
+  getWorkspaceConfig,
+  type TerajsWorkspaceConfig,
+  type TerajsWorkspaceMode,
+  type TerajsWorkspaceNativeTargetConfig,
+  type TerajsWorkspaceTarget,
+  type TerajsWorkspaceWebTargetConfig
+} from "./config.js";

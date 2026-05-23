@@ -28,7 +28,7 @@ npm create terajs@latest my-app -- --mode universal
 - `tera init <name> --hub <signalr|socket.io|websockets> [--hub-url <url>]`: scaffold a project preconfigured for realtime hub transport
 - `tera doctor`: inspect a Terajs project and report missing or broken setup
 - `tera dev --port <number>`: start Vite dev server with Terajs plugin
-- `tera build`: build production output with Terajs plugin
+- `tera build [--target <web,android,ios>]`: build configured workspace targets for production
 
 Scaffolded projects target the app-facing launch surface:
 
@@ -42,6 +42,11 @@ Universal workspaces keep the default web preview path but move shared route and
 - `src/shared/pages`
 - `src/shared/components`
 - target selection and reserved native output directories declared in `terajs.config.cjs`
+
+`tera build` now reads the authoritative workspace target contract from `terajs.config.*`.
+When no `--target` override is provided, it builds the targets listed in `workspace.targets.selected`.
+Pass `--target web` or `--target web,android` to narrow the build to a comma-separated subset.
+At this stage the command builds the `web` target and reports `android` and `ios` as pending until their target builders land.
 
 ## Notes
 

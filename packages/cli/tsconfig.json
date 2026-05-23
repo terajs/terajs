@@ -11,6 +11,6 @@
   "include": ["src"],
   "exclude": ["dist"],
   "references": [
-    { "path": "../vite-plug-in" }
+    { "path": "../terajs" }
   ]
 }
