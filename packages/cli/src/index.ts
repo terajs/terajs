@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scaffoldProject, type ScaffoldHubType } from "./scaffold.js";
+import { scaffoldProject, type ScaffoldHubType, type ScaffoldProjectMode } from "./scaffold.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 
 const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,6 +37,19 @@ function parseHubType(value?: string): ScaffoldHubType | undefined {
   throw new Error(`Invalid --hub value \"${value}\". Expected one of: signalr, socket.io, websockets.`);
 }
 
+function parseMode(value?: string): ScaffoldProjectMode {
+  if (!value) {
+    return "web";
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "web" || normalized === "universal") {
+    return normalized;
+  }
+
+  throw new Error(`Invalid --mode value \"${value}\". Expected one of: web, universal.`);
+}
+
 export function createProgram(): Command {
   const program = new Command();
 
@@ -48,12 +61,15 @@ export function createProgram(): Command {
   program
     .command("init <name>")
     .description("Scaffold a new Terajs project")
+    .option("--mode <mode>", "scaffold mode (web | universal)", "web")
     .option("--hub <type>", "preconfigure sync hub type (signalr | socket.io | websockets)")
     .option("--hub-url <url>", "override sync hub URL used in scaffolded terajs.config.cjs")
-    .action(async (name: string, options: { hub?: string; hubUrl?: string }) => {
+    .action(async (name: string, options: { mode?: string; hub?: string; hubUrl?: string }) => {
       console.log("Initializing Terajs project...");
+      const mode = parseMode(options.mode);
       const hub = parseHubType(options.hub);
       await scaffoldProject(name, {
+        mode,
         hub,
         hubUrl: options.hubUrl
       });
@@ -64,6 +80,10 @@ export function createProgram(): Command {
         join(vscodeDir, "settings.json"),
         JSON.stringify({ files: { associations: { "*.tera": "html" } } }, null, 2)
       );
+
+      if (mode === "universal") {
+        console.log("Universal workspace scaffolded with shared source under src/shared.");
+      }
 
       if (hub) {
         const hubUrl = options.hubUrl?.trim();

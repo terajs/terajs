@@ -8,10 +8,13 @@ import {
   createStarterPage,
   createStarterStyles
 } from "./starterSurface.js";
+import { createUniversalPage, createUniversalWorkspaceReadme } from "./universalSurface.js";
 
 export type ScaffoldHubType = "signalr" | "socket.io" | "websockets";
+export type ScaffoldProjectMode = "web" | "universal";
 
 export interface ScaffoldProjectOptions {
+  mode?: ScaffoldProjectMode;
   hub?: ScaffoldHubType;
   hubUrl?: string;
 }
@@ -101,7 +104,28 @@ function createPackageJson(name: string, hubType?: ScaffoldHubType): string {
   }, null, 2);
 }
 
-function createTerajsConfig(hubType?: ScaffoldHubType, hubUrl = ""): string {
+function createTerajsConfig(mode: ScaffoldProjectMode, hubType?: ScaffoldHubType, hubUrl = ""): string {
+  const workspaceSection = mode === "universal"
+    ? `
+  workspace: {
+    mode: "universal",
+    sourceRoot: "src/shared",
+    targets: {
+      selected: ["web", "android", "ios"],
+      web: {
+        outputDir: "dist"
+      },
+      android: {
+        generatedDir: ".terajs/generated/android",
+        hostDir: ".terajs/hosts/android"
+      },
+      ios: {
+        generatedDir: ".terajs/generated/ios",
+        hostDir: ".terajs/hosts/ios"
+      }
+    }
+  },`
+    : "";
   const syncSection = hubType
     ? `
   sync: {
@@ -113,10 +137,17 @@ function createTerajsConfig(hubType?: ScaffoldHubType, hubUrl = ""): string {
     }
   },`
     : "";
+  const autoImportDirs = mode === "universal"
+    ? "[\"src/shared/components\"]"
+    : "[\"src/components\"]";
+  const routeDirs = mode === "universal"
+    ? "[\"src/shared/pages\"]"
+    : "[\"src/pages\"]";
 
   return `module.exports = {
-  autoImportDirs: ["src/components"],
-  routeDirs: ["src/pages"],
+${workspaceSection}
+  autoImportDirs: ${autoImportDirs},
+  routeDirs: ${routeDirs},
   devtools: {
     enabled: true,
     startOpen: false,
@@ -134,16 +165,23 @@ function createTerajsConfig(hubType?: ScaffoldHubType, hubUrl = ""): string {
 `;
 }
 
-function createIndexHtml(displayName: string): string {
+function createIndexHtml(displayName: string, mode: ScaffoldProjectMode): string {
+  const title = mode === "universal"
+    ? `${displayName} | Terajs Universal Workspace`
+    : `${displayName} | Terajs Starter`;
+  const description = mode === "universal"
+    ? "A shared-source Terajs workspace with explicit web, Android, and iOS target paths."
+    : "A spacious Terajs starter with the full-size logo, route-first scaffolding, and the official docs one click away.";
+
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${displayName} | Terajs Starter</title>
+    <title>${title}</title>
     <meta
       name="description"
-      content="A spacious Terajs starter with the full-size logo, route-first scaffolding, and the official docs one click away." />
+      content="${description}" />
     <link rel="icon" type="image/png" href="/terajs-logo-extension.png" />
     <link rel="apple-touch-icon" href="/terajs-logo-extension.png" />
   </head>
@@ -153,6 +191,14 @@ function createIndexHtml(displayName: string): string {
   </body>
 </html>
 `;
+}
+
+function createGitIgnore(mode: ScaffoldProjectMode): string {
+  const universalEntries = mode === "universal"
+    ? ".terajs/generated\n.terajs/hosts\n"
+    : "";
+
+  return `node_modules\ndist\n${universalEntries}`;
 }
 
 function createPluginEntry(): string {
@@ -191,12 +237,20 @@ async function copyBrandAssets(publicDir: string): Promise<void> {
 export async function scaffoldProject(name: string, options: ScaffoldProjectOptions = {}): Promise<void> {
   const root = join(process.cwd(), name);
   const src = join(root, "src");
-  const pages = join(src, "pages");
-  const components = join(src, "components");
+  const mode = options.mode ?? "web";
+  const sourceRoot = mode === "universal"
+    ? join(src, "shared")
+    : src;
+  const pages = join(sourceRoot, "pages");
+  const components = join(sourceRoot, "components");
   const middleware = join(src, "middleware");
   const plugins = join(src, "plugins");
   const publicDir = join(root, "public");
   const terajs = join(root, ".terajs");
+  const generatedAndroid = join(terajs, "generated", "android");
+  const generatedIos = join(terajs, "generated", "ios");
+  const hostsAndroid = join(terajs, "hosts", "android");
+  const hostsIos = join(terajs, "hosts", "ios");
   const displayName = toDisplayName(name);
   const hubType = options.hub;
   const hubUrl = hubType
@@ -209,10 +263,16 @@ export async function scaffoldProject(name: string, options: ScaffoldProjectOpti
   await mkdir(plugins, { recursive: true });
   await mkdir(publicDir, { recursive: true });
   await mkdir(terajs, { recursive: true });
+  if (mode === "universal") {
+    await mkdir(generatedAndroid, { recursive: true });
+    await mkdir(generatedIos, { recursive: true });
+    await mkdir(hostsAndroid, { recursive: true });
+    await mkdir(hostsIos, { recursive: true });
+  }
   await copyBrandAssets(publicDir);
 
   await writeFile(join(root, "package.json"), createPackageJson(name, hubType));
-  await writeFile(join(root, "terajs.config.cjs"), createTerajsConfig(hubType, hubUrl));
+  await writeFile(join(root, "terajs.config.cjs"), createTerajsConfig(mode, hubType, hubUrl));
   await writeFile(
     join(root, "vite.config.ts"),
     `import { defineConfig } from "vite";
@@ -226,12 +286,20 @@ export default defineConfig({
 });
 `
   );
-  await writeFile(join(root, "index.html"), createIndexHtml(displayName));
+  await writeFile(join(root, "index.html"), createIndexHtml(displayName, mode));
   await writeFile(join(src, "env.d.ts"), createEnvDeclarations());
-  await writeFile(join(root, ".gitignore"), `node_modules\ndist\n`);
+  await writeFile(join(root, ".gitignore"), createGitIgnore(mode));
   await writeFile(join(plugins, "index.ts"), createPluginEntry());
   await writeFile(join(src, "styles.css"), createStarterStyles());
   await writeFile(join(components, "StarterHero.tera"), createStarterHero());
   await writeFile(join(pages, "layout.tera"), createStarterLayout());
-  await writeFile(join(pages, "index.tera"), createStarterPage(displayName, hubType));
+  await writeFile(
+    join(pages, "index.tera"),
+    mode === "universal"
+      ? createUniversalPage(displayName)
+      : createStarterPage(displayName, hubType)
+  );
+  if (mode === "universal") {
+    await writeFile(join(root, "README.md"), createUniversalWorkspaceReadme(displayName));
+  }
 }

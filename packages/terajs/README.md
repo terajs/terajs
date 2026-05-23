@@ -13,6 +13,10 @@ npm install
 npm run dev
 ```
 
+The default create flow stays web-first.
+
+Use `npm create terajs@latest my-app -- --mode universal` when one workspace should own shared `.tera` source and explicit target mapping for web, Android, and iOS.
+
 ## Install into an existing Vite app
 
 ```bash

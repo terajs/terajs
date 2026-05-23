@@ -8,6 +8,14 @@ Create a new Terajs application with npm's `create` flow.
 npm create terajs@latest my-app
 ```
 
+That default create flow stays web-first.
+
+Use universal mode when one workspace should own shared `.tera` source and explicit target mapping for web, Android, and iOS:
+
+```bash
+npm create terajs@latest my-app -- --mode universal
+```
+
 ### Realtime preset
 
 ```bash

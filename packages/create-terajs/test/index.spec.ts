@@ -6,6 +6,11 @@ describe("create-terajs argument normalization", () => {
     expect(normalizeCreateArgs(["my-app"])).toEqual(["init", "my-app"]);
   });
 
+  it("preserves extra scaffold flags on bare project creation", () => {
+    expect(normalizeCreateArgs(["my-app", "--mode", "universal"]))
+      .toEqual(["init", "my-app", "--mode", "universal"]);
+  });
+
   it("passes through explicit CLI commands and help flags", () => {
     expect(normalizeCreateArgs(["init", "my-app"])).toEqual(["init", "my-app"]);
     expect(normalizeCreateArgs(["--help"])).toEqual(["--help"]);
