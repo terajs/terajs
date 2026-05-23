@@ -1,3 +1,5 @@
+import { Debug } from "@terajs/shared";
+
 import type { AndroidBridgeCommand, AndroidNativeEventPacket } from "./bridge.js";
 import { createAndroidHostSession, type AndroidHostSession } from "./session.js";
 import {
@@ -27,7 +29,16 @@ export function createAndroidWireTransport(
   const session = options.session ?? createAndroidHostSession();
 
   function drainCommandBatch(): AndroidBridgeCommand[] {
-    return session.bridge.drainCommands();
+    const commands = session.bridge.drainCommands();
+    if (commands.length > 0) {
+      Debug.emit("bridge:commands", {
+        target: "android",
+        direction: "js-to-host",
+        commandCount: commands.length
+      });
+    }
+
+    return commands;
   }
 
   return {
@@ -38,6 +49,12 @@ export function createAndroidWireTransport(
       return commands.length > 0 ? stringifyAndroidBridgeCommands(commands) : null;
     },
     dispatchNativeEventPacket(packet) {
+      Debug.emit("bridge:event", {
+        target: "android",
+        direction: "host-to-js",
+        eventName: packet.name,
+        nodeId: packet.nodeId
+      });
       session.dispatchNativeEventPacket(packet);
     },
     dispatchNativeEventPacketPayload(payload) {
