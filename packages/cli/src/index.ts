@@ -8,6 +8,7 @@ import { scaffoldProject, type ScaffoldHubType, type ScaffoldProjectMode } from 
 import { collectBuildTarget, runBuildCommand } from "./build.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 import { initTargetShell } from "./shell.js";
+import { inspectTargetShell } from "./shellDoctor.js";
 
 const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -197,10 +198,33 @@ export function createProgram(): Command {
             ? "gradlew.bat assembleDebug"
             : "./gradlew assembleDebug";
           console.log(`Run 'cd ${relativeShellDir.replace(/\\/g, "/")} && ${buildCommand}' to build the Android shell.`);
+          console.log("Run 'tera shell doctor android' to verify local Android build prerequisites and synced bootstrap assets.");
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         console.error(`Terajs shell init failed: ${reason}`);
+        process.exitCode = 1;
+      }
+    });
+
+  shell
+    .command("doctor <target>")
+    .description("Inspect shell prerequisites and synced target assets")
+    .option("--dir <directory>", "shell directory to inspect")
+    .action(async (target: string, options: { dir?: string }) => {
+      try {
+        const report = inspectTargetShell(target as "android" | "ios", {
+          cwd: process.cwd(),
+          destinationDir: options.dir
+        });
+
+        console.log(formatDoctorReport(report));
+        if (!report.ok) {
+          process.exitCode = 1;
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        console.error(`Terajs shell doctor failed: ${reason}`);
         process.exitCode = 1;
       }
     });

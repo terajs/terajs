@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { build as viteBuild } from "vite";
@@ -6,16 +7,155 @@ import { build as viteBuild } from "vite";
 import { getWorkspaceConfig } from "@terajs/app/vite";
 
 import { runBuildCommand } from "../src/build.js";
+import { initTargetShell } from "../src/shell.js";
+import {
+  inspectTargetShell,
+  resolveAndroidSdkRoot,
+  resolveJavaHome,
+} from "../src/shellDoctor.js";
 import {
   cleanupProofWorkspaceCopies,
   copyProofWorkspace,
+  originalCwd,
 } from "./proofWorkspaceTestHarness.js";
+
+async function runShellGradleAssemble(shellDir: string, env: NodeJS.ProcessEnv): Promise<void> {
+  const wrapperPath = path.join(shellDir, process.platform === "win32" ? "gradlew.bat" : "gradlew");
+  const command = process.platform === "win32" ? "cmd.exe" : wrapperPath;
+  const args = process.platform === "win32"
+    ? ["/d", "/s", "/c", wrapperPath, "--no-daemon", "assembleDebug"]
+    : ["--no-daemon", "assembleDebug"];
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: shellDir,
+      env,
+      stdio: "inherit"
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (signal) {
+        reject(new Error(`Android shell assemble terminated by signal ${signal}.`));
+        return;
+      }
+
+      if (code !== 0) {
+        reject(new Error(`Android shell assemble failed with exit code ${code ?? -1}.`));
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
 
 afterEach(async () => {
   await cleanupProofWorkspaceCopies();
 });
 
 describe("proof workspace", () => {
+  it("moves Android shell doctor from missing shell state to env-blocked once shell assets exist", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+    const shellEnv = {
+      ProgramFiles: tempWorkspace,
+      LOCALAPPDATA: tempWorkspace,
+      USERPROFILE: tempWorkspace,
+      HOME: tempWorkspace,
+      JAVA_HOME: "",
+      ANDROID_SDK_ROOT: "",
+      ANDROID_HOME: ""
+    };
+
+    process.chdir(tempWorkspace);
+
+    const beforeBuild = inspectTargetShell("android", {
+      cwd: tempWorkspace,
+      env: shellEnv
+    });
+
+    expect(beforeBuild.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "android-shell-dir")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "android-generated-manifest")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "android-bootstrap-batch")?.ok).toBe(false);
+
+    await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
+
+    const afterBuild = inspectTargetShell("android", {
+      cwd: tempWorkspace,
+      env: shellEnv
+    });
+
+    expect(afterBuild.ok).toBe(false);
+    expect(afterBuild.checks.find((check) => check.id === "android-generated-manifest")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "android-bootstrap-batch")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "android-shell-dir")?.ok).toBe(false);
+
+    await initTargetShell("android", {
+      cwd: tempWorkspace,
+      templateRoot: path.join(originalCwd, "packages", "renderer-android", "android")
+    });
+
+    const afterShellInit = inspectTargetShell("android", {
+      cwd: tempWorkspace,
+      env: shellEnv
+    });
+
+    expect(afterShellInit.ok).toBe(false);
+    expect(afterShellInit.checks.find((check) => check.id === "android-shell-dir")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-shell-wrapper")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-generated-manifest")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-bootstrap-batch")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-host-manifest")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-java-home")?.ok).toBe(false);
+    expect(afterShellInit.checks.find((check) => check.id === "android-sdk-root")?.ok).toBe(false);
+  });
+
+  it("assembles the generated Android proof shell when the local toolchain is available", async ({ skip }) => {
+    const tempWorkspace = await copyProofWorkspace();
+    const templateRoot = path.join(originalCwd, "packages", "renderer-android", "android");
+
+    process.chdir(tempWorkspace);
+    await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
+    await initTargetShell("android", {
+      cwd: tempWorkspace,
+      templateRoot
+    });
+
+    const report = inspectTargetShell("android", {
+      cwd: tempWorkspace,
+      env: process.env
+    });
+    const blockingChecks = report.checks.filter((check) => !check.ok);
+    const nonToolchainBlockers = blockingChecks.filter(
+      (check) => check.id !== "android-java-home" && check.id !== "android-sdk-root"
+    );
+
+    expect(nonToolchainBlockers).toEqual([]);
+
+    if (blockingChecks.length > 0) {
+      skip(`Skipping Android shell assemble smoke: ${blockingChecks.map((check) => check.label).join(", ")}.`);
+      return;
+    }
+
+    const javaHome = resolveJavaHome(process.env);
+    const androidSdkRoot = resolveAndroidSdkRoot(process.env);
+    expect(javaHome).toBeTruthy();
+    expect(androidSdkRoot).toBeTruthy();
+
+    const shellDir = path.join(tempWorkspace, "android");
+    await runShellGradleAssemble(shellDir, {
+      ...process.env,
+      JAVA_HOME: javaHome!,
+      ANDROID_HOME: androidSdkRoot!,
+      ANDROID_SDK_ROOT: androidSdkRoot!
+    });
+
+    await expect(
+      readFile(path.join(shellDir, "app", "build", "outputs", "apk", "debug", "app-debug.apk"))
+    ).resolves.toBeTruthy();
+  }, 300000);
+
   it("materializes a universal workspace fixture that the CLI can build for web", async () => {
     const tempWorkspace = await copyProofWorkspace();
 
