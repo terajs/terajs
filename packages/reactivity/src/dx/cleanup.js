@@ -1,0 +1,31 @@
+/**
+ * @file onCleanup.ts
+ * @description
+ * Registers cleanup functions for reactive effects.
+ *
+ * Cleanup functions run:
+ * - before the effect re-executes
+ * - when the effect is stopped
+ * - when the owning component is disposed
+ */
+import { getCurrentEffect } from "../deps.js";
+import { Debug } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
+/**
+ * Registers a cleanup function to be executed before the next run of the
+ * currently active reactive effect.
+ *
+ * @param fn - The cleanup function to register.
+ */
+export function onEffectCleanup(fn) {
+    const currentEffect = getCurrentEffect();
+    if (currentEffect) {
+        if (debugInstrumentationEnabled) {
+            Debug.emit("effect:cleanup:register", {
+                effect: currentEffect,
+                cleanup: fn
+            });
+        }
+        currentEffect.cleanups.push(fn);
+    }
+}

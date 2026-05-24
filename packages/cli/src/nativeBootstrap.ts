@@ -50,6 +50,14 @@ interface AndroidBootstrapRuntime {
 
 const NOOP = () => {};
 
+function importRuntimeModule<T = unknown>(specifier: string): Promise<T> {
+  return import(specifier) as Promise<T>;
+}
+
+function resolveRepoModuleHref(relativePath: string): string {
+  return new URL(relativePath, import.meta.url).href;
+}
+
 function normalizeComponentProps(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== "object") {
     return {};
@@ -205,11 +213,13 @@ function createBuildTimeSetupExecutor(runtime: BuildTimeSetupRuntime, setupCode:
 async function loadAndroidBootstrapRuntime(): Promise<AndroidBootstrapRuntime> {
   const rendererAndroidPackage = "@terajs/renderer-android";
   const rendererPackage = "@terajs/renderer";
+  const rendererAndroidSourceHref = resolveRepoModuleHref("../../renderer-android/src/index.js");
+  const rendererSourceHref = resolveRepoModuleHref("../../renderer/src/index.js");
 
   const androidModule = await import(rendererAndroidPackage)
-    .catch(() => import("../../renderer-android/src/index.js"));
+    .catch(() => importRuntimeModule(rendererAndroidSourceHref));
   const rendererModule = await import(rendererPackage)
-    .catch(() => import("../../renderer/src/index.js"));
+    .catch(() => importRuntimeModule(rendererSourceHref));
 
   return {
     createAndroidCommandBridge: androidModule.createAndroidCommandBridge,
@@ -221,8 +231,9 @@ async function loadAndroidBootstrapRuntime(): Promise<AndroidBootstrapRuntime> {
 
 async function loadBuildTimeSetupRuntime(): Promise<BuildTimeSetupRuntime> {
   const reactivityPackage = "@terajs/reactivity";
+  const reactivitySourceHref = resolveRepoModuleHref("../../reactivity/src/index.js");
   const reactivityModule = await import(reactivityPackage)
-    .catch(() => import("../../reactivity/src/index.js"));
+    .catch(() => importRuntimeModule(reactivitySourceHref));
 
   return {
     createResource: typeof reactivityModule.createResource === "function" ? reactivityModule.createResource : NOOP,

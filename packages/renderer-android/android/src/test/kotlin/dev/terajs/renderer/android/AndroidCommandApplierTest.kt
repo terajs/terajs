@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.Switch
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -88,6 +89,22 @@ class AndroidCommandApplierTest {
   }
 
   @Test
+  fun clearsBooleanPropsWhenRemovedFromNativeViews() {
+    val applier = AndroidCommandApplier(testContext())
+
+    applier.applyCommands(
+      listOf(
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 1, viewType = "Switch"),
+        AndroidHostCommand(type = AndroidHostCommandType.SetProp, nodeId = 1, name = "checked", value = TerajsJsonBool(true)),
+        AndroidHostCommand(type = AndroidHostCommandType.SetProp, nodeId = 1, name = "checked", value = TerajsJsonNull)
+      )
+    )
+
+    val switchNode = applier.node(1) as? AndroidHostElementNode ?: throw AssertionError("Missing switch element")
+    assertEquals(false, (switchNode.view as Switch).isChecked)
+  }
+
+  @Test
   fun removesSubtreesAndClearsRootOwnership() {
     val applier = AndroidCommandApplier(testContext())
 
@@ -112,6 +129,40 @@ class AndroidCommandApplierTest {
 
     assertNull(applier.root)
     assertNull(applier.node(1))
+  }
+
+  @Test
+  fun reparentsTextNodesAndResyncsNativeTextOwners() {
+    val applier = AndroidCommandApplier(testContext())
+
+    applier.applyCommands(
+      listOf(
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 1, viewType = "LinearLayout"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 2, viewType = "Button"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 3, viewType = "Button"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 4, value = TerajsJsonString("Ready")),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 2),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 3),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 2, childId = 4)
+      )
+    )
+
+    val firstButtonNode = applier.node(2) as? AndroidHostElementNode ?: throw AssertionError("Missing first button")
+    val secondButtonNode = applier.node(3) as? AndroidHostElementNode ?: throw AssertionError("Missing second button")
+    val textNode = applier.node(4) as? AndroidHostTextNode ?: throw AssertionError("Missing text node")
+
+    assertEquals("Ready", (firstButtonNode.view as Button).text.toString())
+    assertEquals("", (secondButtonNode.view as Button).text.toString())
+
+    applier.apply(
+      AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 3, childId = 4)
+    )
+
+    assertEquals(3, textNode.parentId)
+    assertTrue(firstButtonNode.childNodeIds.isEmpty())
+    assertEquals(listOf(4), secondButtonNode.childNodeIds)
+    assertEquals("", (firstButtonNode.view as Button).text.toString())
+    assertEquals("Ready", (secondButtonNode.view as Button).text.toString())
   }
 
   @Test

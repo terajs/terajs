@@ -1,0 +1,152 @@
+const AndroidInputTraitViewTypes = new Set(["EditText"]);
+import { normalizeAndroidSelectionProp } from "./selectionProps.js";
+function normalizeInputKey(name) {
+    return name.replace(/[-_\s]/g, "").toLowerCase();
+}
+function normalizeBooleanValue(value) {
+    if (value == null) {
+        return null;
+    }
+    if (typeof value === "boolean") {
+        return value;
+    }
+    if (typeof value === "number") {
+        return value !== 0;
+    }
+    if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) {
+            return false;
+        }
+        if (["false", "0", "off", "no"].includes(normalized)) {
+            return false;
+        }
+        if (["true", "1", "on", "yes"].includes(normalized)) {
+            return true;
+        }
+    }
+    return Boolean(value);
+}
+function normalizeStringValue(value) {
+    if (value == null) {
+        return null;
+    }
+    return String(value).trim().toLowerCase();
+}
+function resolveAndroidInputType(value) {
+    const normalized = normalizeStringValue(value);
+    if (!normalized) {
+        return null;
+    }
+    switch (normalized) {
+        case "email":
+        case "emailaddress":
+            return "textEmailAddress";
+        case "tel":
+        case "phone":
+        case "telephone":
+            return "phone";
+        case "url":
+            return "textUri";
+        case "numeric":
+        case "number":
+            return "number";
+        case "decimal":
+            return "numberDecimal";
+        case "search":
+            return "text";
+        default:
+            return "text";
+    }
+}
+function resolveAndroidImeOptions(value) {
+    const normalized = normalizeStringValue(value);
+    if (!normalized) {
+        return null;
+    }
+    switch (normalized) {
+        case "go":
+            return "actionGo";
+        case "next":
+            return "actionNext";
+        case "search":
+            return "actionSearch";
+        case "send":
+            return "actionSend";
+        default:
+            return "actionDone";
+    }
+}
+function resolveAndroidCapitalizeMode(value) {
+    const normalized = normalizeStringValue(value);
+    if (!normalized) {
+        return null;
+    }
+    switch (normalized) {
+        case "off":
+        case "false":
+        case "no":
+        case "none":
+            return "none";
+        case "words":
+            return "textCapWords";
+        case "characters":
+        case "allcharacters":
+            return "textCapCharacters";
+        default:
+            return "textCapSentences";
+    }
+}
+export function normalizeAndroidInputProp(viewType, name, value) {
+    const normalizedKey = normalizeInputKey(name);
+    if (viewType === "EditText" && ["placeholder", "hint", "placeholdertext"].includes(normalizedKey)) {
+        return {
+            name: "hint",
+            value
+        };
+    }
+    if (!AndroidInputTraitViewTypes.has(viewType)) {
+        return null;
+    }
+    if (["secure", "securetextentry", "password"].includes(normalizedKey)) {
+        return {
+            name: "password",
+            value: normalizeBooleanValue(value)
+        };
+    }
+    if (normalizedKey === "type") {
+        return {
+            name: "password",
+            value: normalizeStringValue(value) === "password"
+        };
+    }
+    if (["inputmode", "inputtype", "keyboardtype"].includes(normalizedKey)) {
+        return {
+            name: "inputType",
+            value: resolveAndroidInputType(value)
+        };
+    }
+    if (["enterkeyhint", "imeoptions", "imeoption"].includes(normalizedKey)) {
+        return {
+            name: "imeOptions",
+            value: resolveAndroidImeOptions(value)
+        };
+    }
+    if (["autocapitalize", "autocapitalization", "inputcapsmode"].includes(normalizedKey)) {
+        return {
+            name: "inputCapsMode",
+            value: resolveAndroidCapitalizeMode(value)
+        };
+    }
+    if (["autocorrect", "autocorrection"].includes(normalizedKey)) {
+        return {
+            name: "autoCorrect",
+            value: normalizeBooleanValue(value)
+        };
+    }
+    const selectionProp = normalizeAndroidSelectionProp(viewType, name, value);
+    if (selectionProp) {
+        return selectionProp;
+    }
+    return null;
+}

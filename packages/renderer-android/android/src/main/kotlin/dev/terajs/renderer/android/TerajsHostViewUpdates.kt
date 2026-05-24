@@ -22,8 +22,8 @@ internal object AndroidHostViewUpdater {
       }
       "checked" -> {
         val checked = value.boolValue
-        if (node.view is Switch && checked != null) {
-          node.view.isChecked = checked
+        if (node.view is Switch) {
+          node.view.isChecked = checked == true
         }
       }
     }

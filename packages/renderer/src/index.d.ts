@@ -1,0 +1,16 @@
+/**
+ * @file index.ts
+ * @description
+ * Public entry point for the platform-agnostic Terajs renderer package.
+ */
+export * from "./ast.js";
+export * from "./createHostIRRenderer.js";
+export * from "./host.js";
+export * from "./hostBindings.js";
+export * from "./renderer.js";
+export * from "./templateFn.js";
+export * from "./component.js";
+export * from "./mount.js";
+export * from "./hydration.js";
+export * from "./errors.js";
+//# sourceMappingURL=index.d.ts.map

@@ -1,0 +1,125 @@
+/**
+ * @file watch.ts
+ * @description
+ * High-level reactive watcher for Terajs's DX layer.
+ *
+ * `watch()` observes the *value* returned by a source getter and invokes a
+ * callback whenever that value changes.
+ *
+ * Unlike `watchEffect()`:
+ * - the callback does **not** run initially
+ * - only changes to the *returned value* trigger the callback
+ * - the callback receives `(newValue, oldValue, onCleanup)`
+ *
+ * ## Cleanup Semantics
+ * Cleanup functions registered via `onCleanup()`:
+ * - run before the next callback
+ * - run when the watcher is stopped
+ * - only one cleanup is active at a time
+ *
+ * ## Debug Events Emitted
+ * - `watch:create` - when the watcher is created
+ * - `watch:source` - when the source getter runs
+ * - `watch:callback` - when the callback executes
+ * - `watch:cleanup` - when the callback registers a cleanup
+ * - `watch:stop` - when the watcher is disposed
+ */
+import { watchEffect } from "./watchEffect.js";
+import { onEffectCleanup } from "./cleanup.js";
+import { Debug, getCurrentContext } from "@terajs/shared";
+import { debugInstrumentationEnabled } from "../debugRuntime.js";
+/**
+ * Watches a reactive source and invokes a callback whenever its value changes.
+ *
+ * @typeParam T - The type returned by the source getter.
+ *
+ * @param source - A getter whose reactive dependencies should be tracked.
+ * @param callback - Invoked whenever the source value changes.
+ * @returns A `stop()` function that disposes the watcher.
+ */
+export function watch(source, callback, options = {}) {
+    const ctx = getCurrentContext();
+    const owner = ctx
+        ? {
+            scope: ctx.name,
+            instance: ctx.instance
+        }
+        : undefined;
+    const context = ctx
+        ? {
+            name: ctx.name,
+            instance: ctx.instance
+        }
+        : undefined;
+    const debugName = typeof options.debugName === "string" && options.debugName.trim().length > 0
+        ? options.debugName.trim()
+        : undefined;
+    if (debugInstrumentationEnabled) {
+        Debug.emit("watch:create", {
+            source,
+            callback,
+            owner,
+            context,
+            debugName
+        });
+    }
+    let oldValue;
+    let initialized = false;
+    const internalWatchEffectOptions = {
+        internalRuntimeOwner: "watch"
+    };
+    const stop = watchEffect(() => {
+        const newValue = source();
+        if (debugInstrumentationEnabled) {
+            Debug.emit("watch:source", {
+                newValue,
+                initialized,
+                owner,
+                context,
+                debugName
+            });
+        }
+        if (!initialized) {
+            initialized = true;
+            oldValue = newValue;
+            return;
+        }
+        // Only trigger callback when the value actually changes
+        if (Object.is(newValue, oldValue)) {
+            return;
+        }
+        if (debugInstrumentationEnabled) {
+            Debug.emit("watch:callback", {
+                newValue,
+                oldValue,
+                owner,
+                context,
+                debugName
+            });
+        }
+        callback(newValue, oldValue, (fn) => {
+            if (debugInstrumentationEnabled) {
+                Debug.emit("watch:cleanup", {
+                    cleanup: fn,
+                    owner,
+                    context,
+                    debugName
+                });
+            }
+            onEffectCleanup(fn);
+        });
+        oldValue = newValue;
+    }, internalWatchEffectOptions);
+    return () => {
+        if (debugInstrumentationEnabled) {
+            Debug.emit("watch:stop", {
+                source,
+                callback,
+                owner,
+                context,
+                debugName
+            });
+        }
+        stop();
+    };
+}

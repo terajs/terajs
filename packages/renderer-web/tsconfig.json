@@ -19,7 +19,11 @@
   },
 
   "include": ["src/**/*"],
-  "exclude": ["dist"],
+  "exclude": [
+    "dist",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ],
 
   "references": [
     { "path": "../shared" },

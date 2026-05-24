@@ -1,0 +1,1 @@
+{"version":3,"file":"textLimitProps.d.ts","sourceRoot":"","sources":["textLimitProps.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,8BAA8B;IAC7C,IAAI,EAAE,MAAM,CAAC;IACb,KAAK,EAAE,OAAO,CAAC;CAChB;AAgCD,wBAAgB,6BAA6B,CAC3C,QAAQ,EAAE,MAAM,EAChB,IAAI,EAAE,MAAM,EACZ,KAAK,EAAE,OAAO,GACb,8BAA8B,GAAG,IAAI,CAevC"}

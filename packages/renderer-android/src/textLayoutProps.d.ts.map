@@ -1,0 +1,1 @@
+{"version":3,"file":"textLayoutProps.d.ts","sourceRoot":"","sources":["textLayoutProps.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,+BAA+B;IAC9C,IAAI,EAAE,MAAM,CAAC;IACb,KAAK,EAAE,OAAO,CAAC;CAChB;AAgCD,wBAAgB,8BAA8B,CAC5C,QAAQ,EAAE,MAAM,EAChB,IAAI,EAAE,MAAM,EACZ,KAAK,EAAE,OAAO,GACb,+BAA+B,GAAG,IAAI,CA6BxC"}

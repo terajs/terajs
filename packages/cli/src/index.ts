@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, createServer } from "vite";
 import { scaffoldProject, type ScaffoldHubType, type ScaffoldProjectMode } from "./scaffold.js";
@@ -190,7 +190,7 @@ export function createProgram(): Command {
           destinationDir: options.dir
         });
 
-        const relativeShellDir = path.relative(process.cwd(), shellResult.shellDir) || ".";
+        const relativeShellDir = relative(process.cwd(), shellResult.shellDir) || ".";
         console.log(`Target shell ready at ${relativeShellDir.replace(/\\/g, "/")}.`);
 
         if (shellResult.target === "android") {

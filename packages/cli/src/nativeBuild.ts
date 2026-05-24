@@ -108,6 +108,14 @@ const TARGET_LABEL: Record<NativeBuildTarget, string> = {
   ios: "UIKit"
 };
 
+function importRuntimeModule<T = unknown>(specifier: string): Promise<T> {
+  return import(specifier) as Promise<T>;
+}
+
+function resolveRepoModuleHref(relativePath: string): string {
+  return new URL(relativePath, import.meta.url).href;
+}
+
 function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
 }
@@ -300,8 +308,12 @@ async function createAndroidSummaryCommandBatch(options: {
   moduleCount: number;
 }): Promise<string> {
   const rendererAndroidPackage = "@terajs/renderer-android";
+  const rendererAndroidSourceHref = resolveRepoModuleHref("../../renderer-android/src/index.js");
   const { createAndroidWireTransport } = await import(rendererAndroidPackage)
-    .catch(() => import("../../renderer-android/src/index.js"));
+    .catch(() => importRuntimeModule<{ createAndroidWireTransport: () => {
+      session: { mountIRModule: (ir: IRModule, ctx: Record<string, unknown>) => void };
+      drainCommandBatchPayload: () => string | null;
+    } }>(rendererAndroidSourceHref));
   const transport = createAndroidWireTransport();
   transport.session.mountIRModule(createAndroidBootstrapModule(options), {});
   const payload = transport.drainCommandBatchPayload();
