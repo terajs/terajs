@@ -305,6 +305,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ScrollView
 import android.widget.TextView
+import dev.terajs.renderer.android.AndroidRhinoRuntime
 import dev.terajs.renderer.android.AndroidHostRuntime
 import dev.terajs.renderer.android.AndroidRuntimeAssetReader
 import org.json.JSONArray
@@ -334,11 +335,11 @@ class MainActivity : Activity() {
   private fun createBootstrapView(): View {
     val hostManifest = readAssetJson(".terajs/hosts/android/terajs-host.json")
     val runtimeDescriptorAssetPath = resolveRuntimeDescriptorAssetPath(hostManifest)
+    val runtimeEntryAssetPath = resolveRuntimeEntryAssetPath(hostManifest)
     ensureLiveRuntimeAssets(hostManifest)
     val bootstrapAssetPath = resolveBootstrapAssetPath(hostManifest)
-    val commandBatchPayload = assets.open(bootstrapAssetPath).bufferedReader().use { reader ->
-      reader.readText()
-    }
+    val commandBatchPayload = readAssetText(bootstrapAssetPath)
+    val liveRuntimeEntrySource = readAssetText(runtimeEntryAssetPath)
 
     val runtime = AndroidHostRuntime(
       context = this,
@@ -347,17 +348,34 @@ class MainActivity : Activity() {
         readAssetText(assetPath)
       }
     )
-    runtime.start()
-    runtime.receiveCommandBatchPayload(commandBatchPayload)
+    val liveRuntime = AndroidRhinoRuntime(runtime)
+    val liveRuntimeError = runCatching {
+      liveRuntime.start(liveRuntimeEntrySource)
+    }.exceptionOrNull()
 
-    return runtime.rootView ?: createStatusView(
-      """
-      Terajs Android shell
+    if (runtime.rootView == null) {
+      runtime.receiveCommandBatchPayload(commandBatchPayload)
+    }
 
-      The bootstrap command batch did not produce a root view.
-      Check ${"${"}bootstrapAssetPath} and re-run tera build --target android.
-      """.trimIndent()
-    )
+    val failureSummary = if (liveRuntimeError != null) {
+      buildString {
+        append("Live runtime failure: ")
+        append(liveRuntimeError.message ?: liveRuntimeError.javaClass.simpleName)
+        appendLine()
+        appendLine()
+      }
+    } else {
+      ""
+    }
+    val statusMessage = buildString {
+      appendLine("Terajs Android shell")
+      appendLine()
+      append(failureSummary)
+      appendLine("The live runtime and bootstrap fallback did not produce a root view.")
+      append("Check ${"$"}runtimeEntryAssetPath, ${"$"}bootstrapAssetPath, and re-run tera build --target android.")
+    }
+
+    return runtime.rootView ?: createStatusView(statusMessage)
   }
 
   private fun ensureLiveRuntimeAssets(hostManifest: JSONObject) {
@@ -373,15 +391,21 @@ class MainActivity : Activity() {
       runtimeDescriptor.optString("routesFile").takeIf { it.isNotBlank() }
         ?: "../routes.json"
     )
-    val runtimeEntryAssetPath = resolveAssetPath(
-      runtimeDescriptorAssetPath,
-      runtimeDescriptor.optString("entryScriptFile").takeIf { it.isNotBlank() }
-        ?: "live-runtime-entry.js"
-    )
+    val runtimeEntryAssetPath = resolveRuntimeEntryAssetPath(hostManifest)
 
     readAssetJson(generatedManifestAssetPath)
     readAssetArray(routesAssetPath)
     readAssetText(runtimeEntryAssetPath)
+  }
+
+  private fun resolveRuntimeEntryAssetPath(hostManifest: JSONObject): String {
+    val runtimeDescriptorAssetPath = resolveRuntimeDescriptorAssetPath(hostManifest)
+    val runtimeDescriptor = readAssetJson(runtimeDescriptorAssetPath)
+    val relativePath = runtimeDescriptor.optString("entryScriptFile")
+      .takeIf { it.isNotBlank() }
+      ?: "live-runtime-entry.js"
+
+    return resolveAssetPath(runtimeDescriptorAssetPath, relativePath)
   }
 
   private fun resolveBootstrapAssetPath(hostManifest: JSONObject): String {

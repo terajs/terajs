@@ -68,11 +68,13 @@ describe("cli initTargetShell", () => {
     expect(appManifest).toContain("android.intent.category.LAUNCHER");
 
     const mainActivity = await readText(join(appRoot, "android", "app", "src", "main", "kotlin", "dev", "terajs", "apps", "universal", "app", "android", "MainActivity.kt"));
+    expect(mainActivity).toContain("AndroidRhinoRuntime");
     expect(mainActivity).toContain("AndroidHostRuntime");
     expect(mainActivity).toContain("AndroidRuntimeAssetReader");
     expect(mainActivity).toContain("ensureLiveRuntimeAssets");
     expect(mainActivity).toContain("generated-route-runtime.json");
     expect(mainActivity).toContain("live-runtime-entry.js");
+    expect(mainActivity).toContain("liveRuntime.start(liveRuntimeEntrySource)");
     expect(mainActivity).toContain("runtimeDescriptorPath = runtimeDescriptorAssetPath");
     expect(mainActivity).toContain("receiveCommandBatchPayload");
     expect(mainActivity).toContain("root-command-batch.json");
