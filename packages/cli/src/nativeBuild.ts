@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { build as viteBuild } from "vite";
 
 import { buildRouteManifest } from "@terajs/app";
 import type { IRModule } from "@terajs/compiler";
@@ -71,6 +73,10 @@ export interface NativeBuildManifest {
   bootstrap?: {
     initialCommandBatchFile?: string;
   };
+  runtime?: {
+    descriptorFile: string;
+    kind: "generated-route-runtime";
+  };
 }
 
 export interface NativeHostManifest {
@@ -84,6 +90,18 @@ export interface NativeHostManifest {
   bootstrap?: {
     initialCommandBatchFile?: string;
   };
+  runtime?: {
+    descriptorFile: string;
+    kind: "generated-route-runtime";
+  };
+}
+
+export interface NativeRuntimeDescriptor {
+  entryScriptFile?: string;
+  generatedManifestFile: string;
+  initialRoutePath: string;
+  kind: "generated-route-runtime";
+  routesFile: string;
 }
 
 export interface NativeBuildOutput {
@@ -215,7 +233,9 @@ function createHostReadme(
   hostManifestPath: string,
   generatedManifestPath: string,
   routesPath: string,
-  bootstrapCommandBatchPath?: string
+  bootstrapCommandBatchPath?: string,
+  runtimeDescriptorPath?: string,
+  runtimeEntryScriptPath?: string
 ): string {
   const lines = [
     `# Terajs ${step.target === "android" ? "Android" : "iOS"} Host Output`,
@@ -229,6 +249,14 @@ function createHostReadme(
 
   if (bootstrapCommandBatchPath) {
     lines.push(`- Bootstrap command batch: ${formatRelativePath(step.hostDir, bootstrapCommandBatchPath)}`);
+  }
+
+  if (runtimeDescriptorPath) {
+    lines.push(`- Generated route runtime descriptor: ${formatRelativePath(step.hostDir, runtimeDescriptorPath)}`);
+  }
+
+  if (runtimeEntryScriptPath) {
+    lines.push(`- Live runtime entry bundle: ${formatRelativePath(step.hostDir, runtimeEntryScriptPath)}`);
   }
 
   lines.push(
@@ -302,6 +330,69 @@ function createAndroidBootstrapModule(options: {
   } as IRModule;
 }
 
+function createIOSBootstrapModule(options: {
+  sourceRoot: string;
+  routeCount: number;
+  moduleCount: number;
+}): IRModule {
+  const summaryLines = [
+    `Source root: ${options.sourceRoot}`,
+    `Routes: ${options.routeCount}`,
+    `Modules: ${options.moduleCount}`,
+    "Rendered from the generated iOS command batch."
+  ];
+
+  return {
+    filePath: "/.terajs/generated/ios/bootstrap/root-command-batch.tera",
+    template: [
+      {
+        type: "element",
+        tag: "stack-view",
+        props: [
+          {
+            kind: "static",
+            name: "style",
+            value: {
+              padding: "24"
+            }
+          }
+        ],
+        children: [
+          {
+            type: "element",
+            tag: "h2",
+            props: [],
+            children: [
+              {
+                type: "text",
+                value: "Terajs iOS shell ready",
+                flags: { static: true }
+              }
+            ],
+            flags: { static: true }
+          },
+          ...summaryLines.map((line) => ({
+            type: "element",
+            tag: "p",
+            props: [],
+            children: [
+              {
+                type: "text",
+                value: line,
+                flags: { static: true }
+              }
+            ],
+            flags: { static: true }
+          }))
+        ],
+        flags: { static: true }
+      }
+    ],
+    meta: {},
+    route: null
+  } as IRModule;
+}
+
 async function createAndroidSummaryCommandBatch(options: {
   sourceRoot: string;
   routeCount: number;
@@ -325,23 +416,352 @@ async function createAndroidSummaryCommandBatch(options: {
   return payload;
 }
 
+async function createIOSSummaryCommandBatch(options: {
+  sourceRoot: string;
+  routeCount: number;
+  moduleCount: number;
+}): Promise<string> {
+  const rendererIOSPackage = "@terajs/renderer-ios";
+  const rendererIOSSourceHref = resolveRepoModuleHref("../../renderer-ios/src/index.js");
+  const { createUIKitWireTransport } = await import(rendererIOSPackage)
+    .catch(() => importRuntimeModule<{ createUIKitWireTransport: () => {
+      session: { mountIRModule: (ir: IRModule, ctx: Record<string, unknown>) => void };
+      drainCommandBatchPayload: () => string | null;
+    } }>(rendererIOSSourceHref));
+  const transport = createUIKitWireTransport();
+  transport.session.mountIRModule(createIOSBootstrapModule(options), {});
+  const payload = transport.drainCommandBatchPayload();
+
+  if (!payload) {
+    throw new Error("Failed to generate iOS bootstrap command batch.");
+  }
+
+  return payload;
+}
+
+function createAndroidLiveRuntimeEntrySource(): string {
+  return [
+    'import { createAndroidGeneratedRouteTransport } from "@terajs/renderer-android";',
+    '',
+    'function normalizeAssetPath(assetPath) {',
+    '  return assetPath.replace(/\\\\/g, "/");',
+    '}',
+    '',
+    'function resolveAssetPath(baseAssetPath, relativePath) {',
+    '  const base = normalizeAssetPath(baseAssetPath);',
+    '  const target = normalizeAssetPath(relativePath);',
+    '  if (target.startsWith("/")) {',
+    '    return target;',
+    '  }',
+    '  const parts = base.split("/");',
+    '  parts.pop();',
+    '  for (const part of target.split("/")) {',
+    '    if (!part || part === ".") {',
+    '      continue;',
+    '    }',
+    '    if (part === "..") {',
+    '      if (parts.length > 0) {',
+    '        parts.pop();',
+    '      }',
+    '      continue;',
+    '    }',
+    '    parts.push(part);',
+    '  }',
+    '  return parts.join("/");',
+    '}',
+    '',
+    'function requireHostMethod(host, methodName) {',
+    '  const value = host && host[methodName];',
+    '  if (typeof value !== "function") {',
+    '    throw new Error(`Android native runtime host is missing ${methodName}().`);',
+    '  }',
+    '  return value.bind(host);',
+    '}',
+    '',
+    'async function readTextAsset(host, assetPath) {',
+    '  const value = await Promise.resolve(host.readTextAsset(assetPath));',
+    '  if (typeof value !== "string") {',
+    '    throw new Error(`Android native runtime host returned a non-string asset for ${assetPath}.`);',
+    '  }',
+    '  return value;',
+    '}',
+    '',
+    'async function readJsonAsset(host, assetPath) {',
+    '  return JSON.parse(await readTextAsset(host, assetPath));',
+    '}',
+    '',
+    'async function loadRuntimeAssets(host, descriptorAssetPath, descriptor) {',
+    '  const generatedManifestAssetPath = resolveAssetPath(',
+    '    descriptorAssetPath,',
+    '    typeof descriptor.generatedManifestFile === "string" && descriptor.generatedManifestFile.length > 0',
+    '      ? descriptor.generatedManifestFile',
+    '      : "../terajs-target.json"',
+    '  );',
+    '  const routesAssetPath = resolveAssetPath(',
+    '    descriptorAssetPath,',
+    '    typeof descriptor.routesFile === "string" && descriptor.routesFile.length > 0',
+    '      ? descriptor.routesFile',
+    '      : "../routes.json"',
+    '  );',
+    '  const generatedManifest = await readJsonAsset(host, generatedManifestAssetPath);',
+    '  const routes = await readJsonAsset(host, routesAssetPath);',
+    '  const modules = await Promise.all((generatedManifest.modules || []).map(async (moduleRecord) => {',
+    '    const compiledAssetPath = resolveAssetPath(generatedManifestAssetPath, moduleRecord.outputPath);',
+    '    const compiledModule = await readJsonAsset(host, compiledAssetPath);',
+    '    return {',
+    '      ...moduleRecord,',
+    '      setupCode: compiledModule.setupCode,',
+    '      ir: compiledModule.ir,',
+    '    };',
+    '  }));',
+    '  return { modules, routes };',
+    '}',
+    '',
+    'const runtime = {',
+    '  async start(host) {',
+    '    requireHostMethod(host, "readTextAsset");',
+    '    const emitCommandBatch = requireHostMethod(host, "emitCommandBatch");',
+    '    const descriptorAssetPath = typeof host.runtimeDescriptorPath === "string" && host.runtimeDescriptorPath.length > 0',
+    '      ? host.runtimeDescriptorPath',
+    '      : ".terajs/generated/android/runtime/generated-route-runtime.json";',
+    '    const descriptor = await readJsonAsset(host, descriptorAssetPath);',
+    '    const { modules, routes } = await loadRuntimeAssets(host, descriptorAssetPath, descriptor);',
+    '    const { route, transport } = createAndroidGeneratedRouteTransport({',
+    '      modules,',
+    '      routes,',
+    '      initialPath: typeof descriptor.initialRoutePath === "string" && descriptor.initialRoutePath.length > 0',
+    '        ? descriptor.initialRoutePath',
+    '        : "/",',
+    '    });',
+    '    const flushPendingCommands = () => {',
+    '      const payload = transport.drainCommandBatchPayload();',
+    '      if (payload) {',
+    '        void emitCommandBatch(payload);',
+    '      }',
+    '      return payload;',
+    '    };',
+    '    const dispatchNativeEventPayload = (payload) => {',
+    '      transport.dispatchNativeEventPacketPayload(payload);',
+    '      flushPendingCommands();',
+    '    };',
+    '    if (typeof host.onNativeEvent === "function") {',
+    '      host.onNativeEvent(dispatchNativeEventPayload);',
+    '    } else if (typeof host.setNativeEventHandler === "function") {',
+    '      host.setNativeEventHandler(dispatchNativeEventPayload);',
+    '    }',
+    '    flushPendingCommands();',
+    '    return {',
+    '      descriptor,',
+    '      route,',
+    '      dispatchNativeEventPayload,',
+    '      flushPendingCommands,',
+    '    };',
+    '  },',
+    '};',
+    '',
+    'globalThis.__terajsNativeRuntime = runtime;',
+    '',
+    'export default runtime;',
+  ].join("\n");
+}
+
+function createIOSLiveRuntimeEntrySource(): string {
+  return [
+    'import { createUIKitGeneratedRouteTransport } from "@terajs/renderer-ios";',
+    '',
+    'function normalizeAssetPath(assetPath) {',
+    '  return assetPath.replace(/\\\\/g, "/");',
+    '}',
+    '',
+    'function resolveAssetPath(baseAssetPath, relativePath) {',
+    '  const base = normalizeAssetPath(baseAssetPath);',
+    '  const target = normalizeAssetPath(relativePath);',
+    '  if (target.startsWith("/")) {',
+    '    return target;',
+    '  }',
+    '  const parts = base.split("/");',
+    '  parts.pop();',
+    '  for (const part of target.split("/")) {',
+    '    if (!part || part === ".") {',
+    '      continue;',
+    '    }',
+    '    if (part === "..") {',
+    '      if (parts.length > 0) {',
+    '        parts.pop();',
+    '      }',
+    '      continue;',
+    '    }',
+    '    parts.push(part);',
+    '  }',
+    '  return parts.join("/");',
+    '}',
+    '',
+    'function requireHostMethod(host, methodName) {',
+    '  const value = host && host[methodName];',
+    '  if (typeof value !== "function") {',
+    '    throw new Error(`iOS native runtime host is missing ${methodName}().`);',
+    '  }',
+    '  return value.bind(host);',
+    '}',
+    '',
+    'async function readTextAsset(host, assetPath) {',
+    '  const value = await Promise.resolve(host.readTextAsset(assetPath));',
+    '  if (typeof value !== "string") {',
+    '    throw new Error(`iOS native runtime host returned a non-string asset for ${assetPath}.`);',
+    '  }',
+    '  return value;',
+    '}',
+    '',
+    'async function readJsonAsset(host, assetPath) {',
+    '  return JSON.parse(await readTextAsset(host, assetPath));',
+    '}',
+    '',
+    'async function loadRuntimeAssets(host, descriptorAssetPath, descriptor) {',
+    '  const generatedManifestAssetPath = resolveAssetPath(',
+    '    descriptorAssetPath,',
+    '    typeof descriptor.generatedManifestFile === "string" && descriptor.generatedManifestFile.length > 0',
+    '      ? descriptor.generatedManifestFile',
+    '      : "../terajs-target.json"',
+    '  );',
+    '  const routesAssetPath = resolveAssetPath(',
+    '    descriptorAssetPath,',
+    '    typeof descriptor.routesFile === "string" && descriptor.routesFile.length > 0',
+    '      ? descriptor.routesFile',
+    '      : "../routes.json"',
+    '  );',
+    '  const generatedManifest = await readJsonAsset(host, generatedManifestAssetPath);',
+    '  const routes = await readJsonAsset(host, routesAssetPath);',
+    '  const modules = await Promise.all((generatedManifest.modules || []).map(async (moduleRecord) => {',
+    '    const compiledAssetPath = resolveAssetPath(generatedManifestAssetPath, moduleRecord.outputPath);',
+    '    const compiledModule = await readJsonAsset(host, compiledAssetPath);',
+    '    return {',
+    '      ...moduleRecord,',
+    '      setupCode: compiledModule.setupCode,',
+    '      ir: compiledModule.ir,',
+    '    };',
+    '  }));',
+    '  return { modules, routes };',
+    '}',
+    '',
+    'const runtime = {',
+    '  async start(host) {',
+    '    requireHostMethod(host, "readTextAsset");',
+    '    const emitCommandBatch = requireHostMethod(host, "emitCommandBatch");',
+    '    const descriptorAssetPath = typeof host.runtimeDescriptorPath === "string" && host.runtimeDescriptorPath.length > 0',
+    '      ? host.runtimeDescriptorPath',
+    '      : ".terajs/generated/ios/runtime/generated-route-runtime.json";',
+    '    const descriptor = await readJsonAsset(host, descriptorAssetPath);',
+    '    const { modules, routes } = await loadRuntimeAssets(host, descriptorAssetPath, descriptor);',
+    '    const { route, transport } = createUIKitGeneratedRouteTransport({',
+    '      modules,',
+    '      routes,',
+    '      initialPath: typeof descriptor.initialRoutePath === "string" && descriptor.initialRoutePath.length > 0',
+    '        ? descriptor.initialRoutePath',
+    '        : "/",',
+    '    });',
+    '    const flushPendingCommands = () => {',
+    '      const payload = transport.drainCommandBatchPayload();',
+    '      if (payload) {',
+    '        void emitCommandBatch(payload);',
+    '      }',
+    '      return payload;',
+    '    };',
+    '    const dispatchNativeEventPayload = (payload) => {',
+    '      transport.dispatchNativeEventPacketPayload(payload);',
+    '      flushPendingCommands();',
+    '    };',
+    '    if (typeof host.onNativeEvent === "function") {',
+    '      host.onNativeEvent(dispatchNativeEventPayload);',
+    '    } else if (typeof host.setNativeEventHandler === "function") {',
+    '      host.setNativeEventHandler(dispatchNativeEventPayload);',
+    '    }',
+    '    flushPendingCommands();',
+    '    return {',
+    '      descriptor,',
+    '      route,',
+    '      dispatchNativeEventPayload,',
+    '      flushPendingCommands,',
+    '    };',
+    '  },',
+    '};',
+    '',
+    'globalThis.__terajsNativeRuntime = runtime;',
+    '',
+    'export default runtime;',
+  ].join("\n");
+}
+
+async function createNativeLiveRuntimeBundle(outputPath: string, tempPrefix: string, entrySource: string): Promise<void> {
+  const runtimeDir = path.dirname(outputPath);
+  const tempBuildDir = await fs.mkdtemp(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), tempPrefix)
+  );
+  const tempEntryPath = path.join(tempBuildDir, "entry.mjs");
+
+  await writeText(tempEntryPath, entrySource);
+
+  try {
+    await viteBuild({
+      configFile: false,
+      publicDir: false,
+      logLevel: "silent",
+      root: tempBuildDir,
+      build: {
+        emptyOutDir: false,
+        minify: false,
+        outDir: runtimeDir,
+        sourcemap: false,
+        target: "es2018",
+        rollupOptions: {
+          input: tempEntryPath,
+          output: {
+            entryFileNames: path.basename(outputPath),
+            format: "iife",
+            inlineDynamicImports: true,
+            name: "TerajsNativeRuntime"
+          }
+        }
+      }
+    });
+  } finally {
+    await fs.rm(tempBuildDir, { recursive: true, force: true });
+  }
+}
+
+async function createAndroidLiveRuntimeBundle(outputPath: string): Promise<void> {
+  await createNativeLiveRuntimeBundle(outputPath, ".android-live-runtime-", createAndroidLiveRuntimeEntrySource());
+}
+
+async function createIOSLiveRuntimeBundle(outputPath: string): Promise<void> {
+  await createNativeLiveRuntimeBundle(outputPath, ".ios-live-runtime-", createIOSLiveRuntimeEntrySource());
+}
+
 export async function buildNativeTarget(
   step: NativeBuildStep,
   dependencies: NativeBuildDependencies = {}
 ): Promise<NativeBuildOutput> {
   const cwd = dependencies.cwd ?? process.cwd();
+  const sourceRoot = path.resolve(cwd, step.sourceRoot);
+  const generatedDir = path.resolve(cwd, step.generatedDir);
+  const hostDir = path.resolve(cwd, step.hostDir);
+  const resolvedStep: NativeBuildStep = {
+    ...step,
+    sourceRoot,
+    generatedDir,
+    hostDir
+  };
   const generatedAt = new Date().toISOString();
-  const sourceFiles = await collectTeraFiles(step.sourceRoot);
+  const sourceFiles = await collectTeraFiles(sourceRoot);
 
   if (sourceFiles.length === 0) {
     throw new Error(
-      `No .tera files found under ${formatRelativePath(cwd, step.sourceRoot)} for ${step.target} build.`
+      `No .tera files found under ${formatRelativePath(cwd, sourceRoot)} for ${step.target} build.`
     );
   }
 
-  await fs.rm(step.generatedDir, { recursive: true, force: true });
-  await fs.mkdir(step.generatedDir, { recursive: true });
-  await fs.mkdir(step.hostDir, { recursive: true });
+  await fs.rm(generatedDir, { recursive: true, force: true });
+  await fs.mkdir(generatedDir, { recursive: true });
+  await fs.mkdir(hostDir, { recursive: true });
 
   const modules: NativeBuildModuleRecord[] = [];
   const compiledModules: NativeCompiledModule[] = [];
@@ -351,10 +771,10 @@ export async function buildNativeTarget(
     const workspaceFilePath = toWorkspaceFilePath(cwd, filePath);
     const parsed = parseSFC(source, workspaceFilePath);
     const compiled = compileComponentModuleParts(parsed);
-    const kind = classifyModule(step.sourceRoot, filePath);
-    const outputPath = createModuleOutputPath(step.sourceRoot, filePath);
+    const kind = classifyModule(sourceRoot, filePath);
+    const outputPath = createModuleOutputPath(sourceRoot, filePath);
 
-    await writeJson(path.join(step.generatedDir, outputPath), {
+    await writeJson(path.join(generatedDir, outputPath), {
       kind,
       filePath: workspaceFilePath,
       name: compiled.name,
@@ -387,8 +807,8 @@ export async function buildNativeTarget(
 
   const routeFiles = Array.from(
     new Set([
-      ...(await collectTeraFiles(path.join(step.sourceRoot, "pages"))),
-      ...(await collectTeraFiles(path.join(step.sourceRoot, "routes")))
+      ...(await collectTeraFiles(path.join(sourceRoot, "pages"))),
+      ...(await collectTeraFiles(path.join(sourceRoot, "routes")))
     ])
   ).sort((left, right) => normalizePath(left).localeCompare(normalizePath(right)));
   const routes = buildRouteManifest(
@@ -400,52 +820,79 @@ export async function buildNativeTarget(
     )
   ).map(serializeRoute);
 
-  const routesPath = path.join(step.generatedDir, "routes.json");
-  const generatedManifestPath = path.join(step.generatedDir, "terajs-target.json");
-  const hostManifestPath = path.join(step.hostDir, "terajs-host.json");
-  const readmePath = path.join(step.hostDir, "README.md");
-  const bootstrapCommandBatchPath = step.target === "android"
-    ? path.join(step.generatedDir, "bootstrap", "root-command-batch.json")
-    : undefined;
+  const routesPath = path.join(generatedDir, "routes.json");
+  const generatedManifestPath = path.join(generatedDir, "terajs-target.json");
+  const hostManifestPath = path.join(hostDir, "terajs-host.json");
+  const readmePath = path.join(hostDir, "README.md");
+  const runtimeDescriptorPath = path.join(generatedDir, "runtime", "generated-route-runtime.json");
+  const runtimeEntryScriptPath = path.join(generatedDir, "runtime", "live-runtime-entry.js");
+  const bootstrapCommandBatchPath = path.join(generatedDir, "bootstrap", "root-command-batch.json");
 
   await writeJson(routesPath, routes);
 
-  if (bootstrapCommandBatchPath) {
-    const routeBootstrapPayload = await createAndroidRouteBootstrapCommandBatch({
-      modules: compiledModules,
-      routes
-    }).catch(() => null);
+  const initialRoutePath = routes.find((candidate) => candidate.path === "/")?.path
+    ?? routes[0]?.path
+    ?? "/";
+  const runtimeDescriptor: NativeRuntimeDescriptor = {
+    kind: "generated-route-runtime",
+    initialRoutePath,
+    generatedManifestFile: formatRelativePath(path.dirname(runtimeDescriptorPath), generatedManifestPath),
+    routesFile: formatRelativePath(path.dirname(runtimeDescriptorPath), routesPath),
+    entryScriptFile: formatRelativePath(path.dirname(runtimeDescriptorPath), runtimeEntryScriptPath)
+  };
+  await writeJson(runtimeDescriptorPath, runtimeDescriptor);
 
-    await writeText(
-      bootstrapCommandBatchPath,
-      routeBootstrapPayload ?? await createAndroidSummaryCommandBatch({
-        sourceRoot: formatRelativePath(cwd, step.sourceRoot),
-        routeCount: routes.length,
-        moduleCount: modules.length
-      })
-    );
+  if (step.target === "android") {
+    await createAndroidLiveRuntimeBundle(runtimeEntryScriptPath);
+  } else {
+    await createIOSLiveRuntimeBundle(runtimeEntryScriptPath);
   }
 
-  const bootstrap = bootstrapCommandBatchPath
-    ? {
-        initialCommandBatchFile: formatRelativePath(step.hostDir, bootstrapCommandBatchPath)
-      }
-    : undefined;
+  const routeBootstrapPayload = step.target === "android"
+    ? await createAndroidRouteBootstrapCommandBatch({
+        modules: compiledModules,
+        routes
+      }).catch(() => null)
+    : null;
+
+  await writeText(
+    bootstrapCommandBatchPath,
+    routeBootstrapPayload ?? await (step.target === "android"
+      ? createAndroidSummaryCommandBatch({
+          sourceRoot: formatRelativePath(cwd, sourceRoot),
+          routeCount: routes.length,
+          moduleCount: modules.length
+        })
+      : createIOSSummaryCommandBatch({
+          sourceRoot: formatRelativePath(cwd, sourceRoot),
+          routeCount: routes.length,
+          moduleCount: modules.length
+        }))
+  );
+
+  const bootstrap = {
+    initialCommandBatchFile: formatRelativePath(generatedDir, bootstrapCommandBatchPath)
+  };
+  const runtime = {
+    kind: "generated-route-runtime" as const,
+    descriptorFile: formatRelativePath(generatedDir, runtimeDescriptorPath)
+  };
 
   const manifest: NativeBuildManifest = {
     target: step.target,
     renderer: TARGET_RENDERER[step.target],
     bridgeModel: "thin-command-bridge",
     generatedAt,
-    sourceRoot: formatRelativePath(cwd, step.sourceRoot),
-    generatedDir: formatRelativePath(cwd, step.generatedDir),
-    hostDir: formatRelativePath(cwd, step.hostDir),
+    sourceRoot: formatRelativePath(cwd, sourceRoot),
+    generatedDir: formatRelativePath(cwd, generatedDir),
+    hostDir: formatRelativePath(cwd, hostDir),
     routesFile: path.basename(routesPath),
-    hostManifestFile: formatRelativePath(step.generatedDir, hostManifestPath),
+    hostManifestFile: formatRelativePath(generatedDir, hostManifestPath),
     moduleCount: modules.length,
     routeCount: routes.length,
     modules,
-    bootstrap
+    bootstrap,
+    runtime
   };
 
   const hostManifest: NativeHostManifest = {
@@ -453,17 +900,31 @@ export async function buildNativeTarget(
     renderer: TARGET_RENDERER[step.target],
     bridgeModel: "thin-command-bridge",
     generatedAt,
-    generatedManifest: formatRelativePath(step.hostDir, generatedManifestPath),
-    routesFile: formatRelativePath(step.hostDir, routesPath),
-    sourceRoot: formatRelativePath(cwd, step.sourceRoot),
-    bootstrap
+    generatedManifest: formatRelativePath(hostDir, generatedManifestPath),
+    routesFile: formatRelativePath(hostDir, routesPath),
+    sourceRoot: formatRelativePath(cwd, sourceRoot),
+    bootstrap: {
+      initialCommandBatchFile: formatRelativePath(hostDir, bootstrapCommandBatchPath)
+    },
+    runtime: {
+      ...runtime,
+      descriptorFile: formatRelativePath(hostDir, runtimeDescriptorPath)
+    }
   };
 
   await writeJson(generatedManifestPath, manifest);
   await writeJson(hostManifestPath, hostManifest);
   await fs.writeFile(
     readmePath,
-    `${createHostReadme(step, hostManifestPath, generatedManifestPath, routesPath, bootstrapCommandBatchPath)}\n`,
+    `${createHostReadme(
+      resolvedStep,
+      hostManifestPath,
+      generatedManifestPath,
+      routesPath,
+      bootstrapCommandBatchPath,
+      runtimeDescriptorPath,
+      runtimeEntryScriptPath
+    )}\n`,
     "utf8"
   );
 

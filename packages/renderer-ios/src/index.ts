@@ -33,6 +33,13 @@ export {
   type UIKitWireTransport
 } from "./wireTransport.js";
 export {
+  createUIKitGeneratedRouteTransport,
+  type CreateUIKitGeneratedRouteTransportOptions,
+  type UIKitGeneratedCompiledModule,
+  type UIKitGeneratedRouteRecord,
+  type UIKitGeneratedRouteTransport
+} from "./generatedRouteRuntime.js";
+export {
   normalizeUIKitEventName,
   normalizeUIKitProp,
   normalizeUIKitStyle,

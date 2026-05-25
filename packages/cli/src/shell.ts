@@ -117,6 +117,18 @@ async function resolveAndroidTemplateRoot(templateRoot?: string): Promise<string
   return resolved;
 }
 
+async function resolveIOSTemplateRoot(templateRoot?: string): Promise<string> {
+  const resolved = templateRoot
+    ? path.resolve(templateRoot)
+    : path.join(path.dirname(createRequire(import.meta.url).resolve("@terajs/renderer-ios/package.json")), "ios");
+
+  if (!await pathExists(path.join(resolved, "Package.swift"))) {
+    throw new Error(`iOS shell template not found at ${resolved}.`);
+  }
+
+  return resolved;
+}
+
 async function copyAndroidTemplateScaffold(templateRoot: string, androidRoot: string): Promise<void> {
   const hostModuleRoot = path.join(androidRoot, "terajs-host");
   await mkdir(hostModuleRoot, { recursive: true });
@@ -135,6 +147,14 @@ async function copyAndroidTemplateScaffold(templateRoot: string, androidRoot: st
   } catch {
     // Windows can ignore executable mode updates.
   }
+}
+
+async function copyIOSTemplateScaffold(templateRoot: string, shellDir: string): Promise<void> {
+  await mkdir(shellDir, { recursive: true });
+  await Promise.all([
+    cp(path.join(templateRoot, "Package.swift"), path.join(shellDir, "Package.swift")),
+    cp(path.join(templateRoot, "Sources"), path.join(shellDir, "Sources"), { recursive: true })
+  ]);
 }
 
 function createAndroidSettings(projectName: string): string {
@@ -172,6 +192,14 @@ build
 app/build
 terajs-host/build
 local.properties
+`;
+}
+
+function createIOSGitIgnore(): string {
+  return `.build
+.swiftpm
+build
+DerivedData
 `;
 }
 
@@ -278,6 +306,7 @@ import android.view.View
 import android.widget.ScrollView
 import android.widget.TextView
 import dev.terajs.renderer.android.AndroidHostRuntime
+import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : Activity() {
@@ -303,6 +332,7 @@ class MainActivity : Activity() {
 
   private fun createBootstrapView(): View {
     val hostManifest = readAssetJson(".terajs/hosts/android/terajs-host.json")
+    ensureLiveRuntimeAssets(hostManifest)
     val bootstrapAssetPath = resolveBootstrapAssetPath(hostManifest)
     val commandBatchPayload = assets.open(bootstrapAssetPath).bufferedReader().use { reader ->
       reader.readText()
@@ -321,11 +351,44 @@ class MainActivity : Activity() {
     )
   }
 
+  private fun ensureLiveRuntimeAssets(hostManifest: JSONObject) {
+    val runtimeDescriptorAssetPath = resolveRuntimeDescriptorAssetPath(hostManifest)
+    val runtimeDescriptor = readAssetJson(runtimeDescriptorAssetPath)
+    val generatedManifestAssetPath = resolveAssetPath(
+      runtimeDescriptorAssetPath,
+      runtimeDescriptor.optString("generatedManifestFile").takeIf { it.isNotBlank() }
+        ?: "../terajs-target.json"
+    )
+    val routesAssetPath = resolveAssetPath(
+      runtimeDescriptorAssetPath,
+      runtimeDescriptor.optString("routesFile").takeIf { it.isNotBlank() }
+        ?: "../routes.json"
+    )
+    val runtimeEntryAssetPath = resolveAssetPath(
+      runtimeDescriptorAssetPath,
+      runtimeDescriptor.optString("entryScriptFile").takeIf { it.isNotBlank() }
+        ?: "live-runtime-entry.js"
+    )
+
+    readAssetJson(generatedManifestAssetPath)
+    readAssetArray(routesAssetPath)
+    readAssetText(runtimeEntryAssetPath)
+  }
+
   private fun resolveBootstrapAssetPath(hostManifest: JSONObject): String {
     val relativePath = hostManifest.optJSONObject("bootstrap")
       ?.optString("initialCommandBatchFile")
       ?.takeIf { it.isNotBlank() }
       ?: "../../generated/android/bootstrap/root-command-batch.json"
+
+    return resolveAssetPath(".terajs/hosts/android/terajs-host.json", relativePath)
+  }
+
+  private fun resolveRuntimeDescriptorAssetPath(hostManifest: JSONObject): String {
+    val relativePath = hostManifest.optJSONObject("runtime")
+      ?.optString("descriptorFile")
+      ?.takeIf { it.isNotBlank() }
+      ?: "../../generated/android/runtime/generated-route-runtime.json"
 
     return resolveAssetPath(".terajs/hosts/android/terajs-host.json", relativePath)
   }
@@ -359,12 +422,18 @@ class MainActivity : Activity() {
     }
   }
 
-  private fun readAssetJson(assetPath: String): JSONObject {
-    val content = assets.open(assetPath).bufferedReader().use { reader ->
+  private fun readAssetText(assetPath: String): String {
+    return assets.open(assetPath).bufferedReader().use { reader ->
       reader.readText()
     }
+  }
 
-    return JSONObject(content)
+  private fun readAssetJson(assetPath: String): JSONObject {
+    return JSONObject(readAssetText(assetPath))
+  }
+
+  private fun readAssetArray(assetPath: String): JSONArray {
+    return JSONArray(readAssetText(assetPath))
   }
 }
 `;
@@ -394,9 +463,37 @@ This Android workspace shell was materialized by \`tera shell init android\`.
 - a real Android Gradle project exists under \`android/\`
 - the shell syncs \`.terajs/generated/android\` and \`.terajs/hosts/android\` into app assets at build time
 - the app can read the synced Terajs host metadata directly from the packaged assets
+- the app can resolve the generated route runtime descriptor plus the generated manifest, routes, and live runtime entry bundle it points at
 - the app can render a real native bootstrap tree from \`.terajs/generated/android/bootstrap/root-command-batch.json\`
 
-The next Android milestone is connecting the JS runtime and bridge loop so the shell can mount the compiled Terajs output end-to-end.
+The next Android milestone is embedding a JS engine that executes the generated live runtime entry and closes the bridge loop end-to-end.
+`;
+}
+
+function createIOSShellReadme(displayName: string): string {
+  return `# ${displayName} iOS Shell
+
+This iOS workspace shell was materialized by \`tera shell init ios\`.
+
+## Workflow
+
+1. Refresh generated artifacts from the universal workspace:
+
+  \`tera build --target ios\`
+
+2. On macOS, validate the packaged UIKit host surface:
+
+  \`swift build\`
+
+3. Open \`Package.swift\` in Xcode when you are ready to wire a real iOS app wrapper around the host package.
+
+## What this shell proves now
+
+- a real Swift package host exists under \`ios/\`
+- the universal workspace emits \`.terajs/generated/ios\` and \`.terajs/hosts/ios\` artifacts, including a bootstrap command batch, generated route runtime descriptor, and live runtime entry bundle
+- the CLI can materialize a concrete iOS host package instead of stopping at an unimplemented shell stub
+
+Hosted iOS compilation and simulator or device validation still require macOS with Xcode.
 `;
 }
 
@@ -423,13 +520,20 @@ async function materializeAndroidShell(cwd: string, shellDir: string, templateRo
   ]);
 }
 
+async function materializeIOSShell(cwd: string, shellDir: string, templateRoot: string): Promise<void> {
+  const packageName = await readWorkspacePackageName(cwd);
+  const displayName = createDisplayName(packageName);
+
+  await copyIOSTemplateScaffold(templateRoot, shellDir);
+  await Promise.all([
+    writeFile(path.join(shellDir, ".gitignore"), createIOSGitIgnore(), "utf8"),
+    writeFile(path.join(shellDir, "README.md"), createIOSShellReadme(displayName), "utf8")
+  ]);
+}
+
 export async function initTargetShell(targetInput: string, options: InitTargetShellOptions = {}): Promise<InitializedTargetShell> {
   const target = normalizeShellTarget(targetInput);
   const cwd = path.resolve(options.cwd ?? process.cwd());
-
-  if (target !== "android") {
-    throw new Error(`Target shell scaffolding for ${target} is not implemented yet.`);
-  }
 
   const shellDir = path.join(cwd, options.destinationDir ?? target);
   if (await pathExists(shellDir)) {
@@ -458,14 +562,23 @@ export async function initTargetShell(targetInput: string, options: InitTargetSh
       }
     );
 
-    const templateRoot = await resolveAndroidTemplateRoot(options.templateRoot);
-    await materializeAndroidShell(cwd, shellDir, templateRoot);
+    if (target === "android") {
+      const templateRoot = await resolveAndroidTemplateRoot(options.templateRoot);
+      await materializeAndroidShell(cwd, shellDir, templateRoot);
+    } else {
+      const templateRoot = await resolveIOSTemplateRoot(options.templateRoot);
+      await materializeIOSShell(cwd, shellDir, templateRoot);
+    }
+
+    const targetConfig = target === "android"
+      ? workspace.targets.android
+      : workspace.targets.ios;
 
     return {
       target,
       shellDir,
-      generatedManifestPath: path.join(cwd, workspace.targets.android.generatedDir, "terajs-target.json"),
-      hostManifestPath: path.join(cwd, workspace.targets.android.hostDir, "terajs-host.json")
+      generatedManifestPath: path.join(cwd, targetConfig.generatedDir, "terajs-target.json"),
+      hostManifestPath: path.join(cwd, targetConfig.hostDir, "terajs-host.json")
     };
   } finally {
     process.chdir(originalCwd);

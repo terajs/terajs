@@ -78,6 +78,8 @@ describe("proof workspace", () => {
     expect(beforeBuild.checks.find((check) => check.id === "android-shell-dir")?.ok).toBe(false);
     expect(beforeBuild.checks.find((check) => check.id === "android-generated-manifest")?.ok).toBe(false);
     expect(beforeBuild.checks.find((check) => check.id === "android-bootstrap-batch")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "android-runtime-descriptor")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "android-runtime-entry")?.ok).toBe(false);
 
     await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
 
@@ -89,6 +91,8 @@ describe("proof workspace", () => {
     expect(afterBuild.ok).toBe(false);
     expect(afterBuild.checks.find((check) => check.id === "android-generated-manifest")?.ok).toBe(true);
     expect(afterBuild.checks.find((check) => check.id === "android-bootstrap-batch")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "android-runtime-descriptor")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "android-runtime-entry")?.ok).toBe(true);
     expect(afterBuild.checks.find((check) => check.id === "android-shell-dir")?.ok).toBe(false);
 
     await initTargetShell("android", {
@@ -106,9 +110,62 @@ describe("proof workspace", () => {
     expect(afterShellInit.checks.find((check) => check.id === "android-shell-wrapper")?.ok).toBe(true);
     expect(afterShellInit.checks.find((check) => check.id === "android-generated-manifest")?.ok).toBe(true);
     expect(afterShellInit.checks.find((check) => check.id === "android-bootstrap-batch")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-runtime-descriptor")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "android-runtime-entry")?.ok).toBe(true);
     expect(afterShellInit.checks.find((check) => check.id === "android-host-manifest")?.ok).toBe(true);
     expect(afterShellInit.checks.find((check) => check.id === "android-java-home")?.ok).toBe(false);
     expect(afterShellInit.checks.find((check) => check.id === "android-sdk-root")?.ok).toBe(false);
+  });
+
+  it("moves iOS shell doctor from missing shell state to shell-ready once shell assets exist", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+
+    process.chdir(tempWorkspace);
+
+    const beforeBuild = inspectTargetShell("ios", {
+      cwd: tempWorkspace,
+      env: process.env
+    });
+
+    expect(beforeBuild.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "ios-shell-dir")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "ios-generated-manifest")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "ios-bootstrap-batch")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "ios-runtime-descriptor")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "ios-runtime-entry")?.ok).toBe(false);
+
+    await runBuildCommand({ target: ["ios"] }, { cwd: tempWorkspace });
+
+    const afterBuild = inspectTargetShell("ios", {
+      cwd: tempWorkspace,
+      env: process.env
+    });
+
+    expect(afterBuild.ok).toBe(false);
+    expect(afterBuild.checks.find((check) => check.id === "ios-generated-manifest")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "ios-bootstrap-batch")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "ios-runtime-descriptor")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "ios-runtime-entry")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "ios-shell-dir")?.ok).toBe(false);
+
+    await initTargetShell("ios", {
+      cwd: tempWorkspace,
+      templateRoot: path.join(originalCwd, "packages", "renderer-ios", "ios")
+    });
+
+    const afterShellInit = inspectTargetShell("ios", {
+      cwd: tempWorkspace,
+      env: process.env
+    });
+
+    expect(afterShellInit.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-shell-dir")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-package-swift")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-generated-manifest")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-bootstrap-batch")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-runtime-descriptor")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-runtime-entry")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "ios-host-manifest")?.ok).toBe(true);
   });
 
   it("assembles the generated Android proof shell when the local toolchain is available", async ({ skip }) => {
@@ -295,6 +352,32 @@ describe("proof workspace", () => {
       routesFile: "../../generated/android/routes.json"
     });
 
+    const runtimeDescriptor = JSON.parse(
+      await readFile(path.join(tempWorkspace, ".terajs", "generated", "android", "runtime", "generated-route-runtime.json"), "utf8")
+    ) as {
+      kind: string;
+      initialRoutePath: string;
+      generatedManifestFile: string;
+      routesFile: string;
+      entryScriptFile?: string;
+    };
+
+    expect(runtimeDescriptor).toMatchObject({
+      kind: "generated-route-runtime",
+      initialRoutePath: "/",
+      generatedManifestFile: "../terajs-target.json",
+      routesFile: "../routes.json",
+      entryScriptFile: "live-runtime-entry.js"
+    });
+
+    const runtimeEntry = await readFile(
+      path.join(tempWorkspace, ".terajs", "generated", "android", "runtime", "live-runtime-entry.js"),
+      "utf8"
+    );
+
+    expect(runtimeEntry).toContain("__terajsNativeRuntime");
+    expect(runtimeEntry).toContain("emitCommandBatch");
+
     await expect(readFile(path.join(tempWorkspace, "dist", "index.html"), "utf8")).rejects.toMatchObject({
       code: "ENOENT"
     });
@@ -333,6 +416,13 @@ describe("proof workspace", () => {
       generatedDir: string;
       hostDir: string;
       hostManifestFile: string;
+      bootstrap?: {
+        initialCommandBatchFile?: string;
+      };
+      runtime?: {
+        descriptorFile: string;
+        kind: string;
+      };
       modules: Array<{
         kind: string;
         filePath: string;
@@ -350,7 +440,14 @@ describe("proof workspace", () => {
       sourceRoot: "src/shared",
       generatedDir: ".terajs/generated/ios",
       hostDir: ".terajs/hosts/ios",
-      hostManifestFile: "../../hosts/ios/terajs-host.json"
+      hostManifestFile: "../../hosts/ios/terajs-host.json",
+      bootstrap: {
+        initialCommandBatchFile: "bootstrap/root-command-batch.json"
+      },
+      runtime: {
+        kind: "generated-route-runtime",
+        descriptorFile: "runtime/generated-route-runtime.json"
+      }
     });
     expect(generatedManifest.moduleCount).toBeGreaterThanOrEqual(3);
     expect(generatedManifest.routeCount).toBeGreaterThanOrEqual(1);
@@ -371,6 +468,13 @@ describe("proof workspace", () => {
       sourceRoot: string;
       generatedManifest: string;
       routesFile: string;
+      bootstrap?: {
+        initialCommandBatchFile?: string;
+      };
+      runtime?: {
+        descriptorFile: string;
+        kind: string;
+      };
     };
 
     expect(hostManifest).toMatchObject({
@@ -378,8 +482,49 @@ describe("proof workspace", () => {
       renderer: "uikit-views",
       sourceRoot: "src/shared",
       generatedManifest: "../../generated/ios/terajs-target.json",
-      routesFile: "../../generated/ios/routes.json"
+      routesFile: "../../generated/ios/routes.json",
+      bootstrap: {
+        initialCommandBatchFile: "../../generated/ios/bootstrap/root-command-batch.json"
+      },
+      runtime: {
+        kind: "generated-route-runtime",
+        descriptorFile: "../../generated/ios/runtime/generated-route-runtime.json"
+      }
     });
+
+    const runtimeDescriptor = JSON.parse(
+      await readFile(path.join(tempWorkspace, ".terajs", "generated", "ios", "runtime", "generated-route-runtime.json"), "utf8")
+    ) as {
+      kind: string;
+      initialRoutePath: string;
+      generatedManifestFile: string;
+      routesFile: string;
+      entryScriptFile?: string;
+    };
+
+    expect(runtimeDescriptor).toMatchObject({
+      kind: "generated-route-runtime",
+      initialRoutePath: "/",
+      generatedManifestFile: "../terajs-target.json",
+      routesFile: "../routes.json",
+      entryScriptFile: "live-runtime-entry.js"
+    });
+
+    const runtimeEntry = await readFile(
+      path.join(tempWorkspace, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"),
+      "utf8"
+    );
+
+    expect(runtimeEntry).toContain("__terajsNativeRuntime");
+    expect(runtimeEntry).toContain("emitCommandBatch");
+
+    const iosBootstrap = await readFile(
+      path.join(tempWorkspace, ".terajs", "generated", "ios", "bootstrap", "root-command-batch.json"),
+      "utf8"
+    );
+
+    expect(iosBootstrap).toContain("Terajs iOS shell ready");
+    expect(iosBootstrap).toContain("Rendered from the generated iOS command batch.");
 
     await expect(readFile(path.join(tempWorkspace, "dist", "index.html"), "utf8")).rejects.toMatchObject({
       code: "ENOENT"

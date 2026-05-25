@@ -1,8 +1,10 @@
-import path from "node:path";
-
 import type { IRModule } from "@terajs/compiler";
+import { computed, reactive, ref, signal, watch, watchEffect } from "@terajs/reactivity";
+import { createHostBindings, createHostIRRenderer } from "@terajs/renderer";
 
-export interface NativeBootstrapCompiledModule {
+import { createAndroidWireTransport, type AndroidWireTransport } from "./wireTransport.js";
+
+export interface AndroidGeneratedCompiledModule {
   kind: "page" | "layout" | "component" | "module";
   filePath: string;
   name: string;
@@ -12,7 +14,7 @@ export interface NativeBootstrapCompiledModule {
   ir: IRModule;
 }
 
-export interface NativeBootstrapRouteRecord {
+export interface AndroidGeneratedRouteRecord {
   id: string;
   path: string;
   filePath: string;
@@ -22,7 +24,19 @@ export interface NativeBootstrapRouteRecord {
   }>;
 }
 
-type BuildTimeSetupRuntime = {
+export interface CreateAndroidGeneratedRouteTransportOptions {
+  modules: AndroidGeneratedCompiledModule[];
+  routes: AndroidGeneratedRouteRecord[];
+  initialPath?: string;
+  transport?: AndroidWireTransport;
+}
+
+export interface AndroidGeneratedRouteTransport {
+  route: AndroidGeneratedRouteRecord;
+  transport: AndroidWireTransport;
+}
+
+type GeneratedSetupRuntime = {
   createResource: (...args: unknown[]) => unknown;
   computed: (...args: unknown[]) => unknown;
   onCleanup: (...args: unknown[]) => void;
@@ -35,27 +49,70 @@ type BuildTimeSetupRuntime = {
   watchEffect: (...args: unknown[]) => unknown;
 };
 
-interface AndroidBootstrapRuntime {
-  createAndroidCommandBridge: () => {
-    drainCommands(): unknown[];
-    host: any;
-    root: any;
-  };
-  createHostBindings: (host: any) => any;
-  createHostIRRenderer: (runtime: { host: any; bindings: any }) => {
-    renderIRModule(ir: IRModule, ctx: any): any;
-  };
-  stringifyAndroidBridgeCommands: (commands: unknown[]) => string;
-}
-
 const NOOP = () => {};
 
-function importRuntimeModule<T = unknown>(specifier: string): Promise<T> {
-  return import(specifier) as Promise<T>;
+const GENERATED_SETUP_RUNTIME: GeneratedSetupRuntime = {
+  createResource: NOOP,
+  computed,
+  onCleanup: NOOP,
+  onMounted: NOOP,
+  onUnmounted: NOOP,
+  reactive,
+  ref,
+  signal,
+  watch,
+  watchEffect,
+};
+
+function normalizePosixPath(input: string): string {
+  const absolute = input.startsWith("/");
+  const segments: string[] = [];
+
+  for (const part of input.split("/")) {
+    if (!part || part === ".") {
+      continue;
+    }
+
+    if (part === "..") {
+      const previous = segments[segments.length - 1];
+      if (previous && previous !== "..") {
+        segments.pop();
+      } else if (!absolute) {
+        segments.push(part);
+      }
+      continue;
+    }
+
+    segments.push(part);
+  }
+
+  if (absolute) {
+    return segments.length > 0 ? `/${segments.join("/")}` : "/";
+  }
+
+  return segments.join("/") || ".";
 }
 
-function resolveRepoModuleHref(relativePath: string): string {
-  return new URL(relativePath, import.meta.url).href;
+function dirnamePosix(filePath: string): string {
+  const normalized = normalizePosixPath(filePath);
+  if (normalized === "/") {
+    return "/";
+  }
+
+  const lastSlash = normalized.lastIndexOf("/");
+  if (lastSlash < 0) {
+    return ".";
+  }
+
+  if (lastSlash === 0) {
+    return "/";
+  }
+
+  return normalized.slice(0, lastSlash);
+}
+
+function resolvePosixPath(fromDir: string, targetPath: string): string {
+  return normalizePosixPath(targetPath.startsWith("/") ? targetPath : `${fromDir}/${targetPath}`);
 }
 
 function normalizeComponentProps(input: unknown): Record<string, unknown> {
@@ -72,14 +129,24 @@ function normalizeComponentProps(input: unknown): Record<string, unknown> {
 function normalizeSlots(input: unknown): Record<string, () => unknown> {
   const slots: Record<string, () => unknown> = {};
 
-  if (input && typeof input === "object" && (input as Record<string, unknown>).slots && typeof (input as Record<string, unknown>).slots === "object") {
+  if (
+    input
+    && typeof input === "object"
+    && (input as Record<string, unknown>).slots
+    && typeof (input as Record<string, unknown>).slots === "object"
+  ) {
     for (const key of Object.keys((input as { slots: Record<string, unknown> }).slots)) {
       const value = (input as { slots: Record<string, unknown> }).slots[key];
       slots[key] = typeof value === "function" ? value as () => unknown : () => value;
     }
   }
 
-  if (input && typeof input === "object" && Object.prototype.hasOwnProperty.call(input, "children") && (input as Record<string, unknown>).children != null) {
+  if (
+    input
+    && typeof input === "object"
+    && Object.prototype.hasOwnProperty.call(input, "children")
+    && (input as Record<string, unknown>).children != null
+  ) {
     const value = (input as Record<string, unknown>).children;
     slots.default = typeof value === "function" ? value as () => unknown : () => value;
   }
@@ -112,7 +179,7 @@ function extractImportStatements(setupCode: string): Array<{ clause: string; sou
 
     return [{
       clause: fromMatch[1].trim(),
-      source: fromMatch[2]
+      source: fromMatch[2],
     }];
   });
 }
@@ -162,13 +229,7 @@ function resolveTerajsImportPath(moduleFilePath: string, importSource: string): 
     return null;
   }
 
-  if (importSource.startsWith(".")) {
-    return path.posix.normalize(path.posix.resolve(path.posix.dirname(moduleFilePath), importSource));
-  }
-
-  return importSource.startsWith("/")
-    ? path.posix.normalize(importSource)
-    : path.posix.normalize(path.posix.join(path.posix.dirname(moduleFilePath), importSource));
+  return resolvePosixPath(dirnamePosix(moduleFilePath), importSource);
 }
 
 function extractLocalTerajsImportMap(setupCode: string, moduleFilePath: string): Map<string, string> {
@@ -193,14 +254,14 @@ function extractExecutableSetupCode(setupCode: string): string {
   return setupStart >= 0 ? setupCode.slice(setupStart) : setupCode;
 }
 
-function createBuildTimeSetupExecutor(runtime: BuildTimeSetupRuntime, setupCode: string): (ctx: {
+function createGeneratedSetupExecutor(runtime: GeneratedSetupRuntime, setupCode: string): (ctx: {
   emit: (...args: unknown[]) => void;
   props: Record<string, unknown>;
   slots: Record<string, () => unknown>;
 }) => Record<string, unknown> {
   const executableSetupCode = extractExecutableSetupCode(setupCode);
   const argNames = Object.keys(runtime);
-  const argValues = argNames.map((name) => runtime[name as keyof BuildTimeSetupRuntime]);
+  const argValues = argNames.map((name) => runtime[name as keyof GeneratedSetupRuntime]);
   const factory = new Function(...argNames, `${executableSetupCode}\nreturn __ssfc;`) as (...args: unknown[]) => (ctx: {
     emit: (...args: unknown[]) => void;
     props: Record<string, unknown>;
@@ -210,77 +271,35 @@ function createBuildTimeSetupExecutor(runtime: BuildTimeSetupRuntime, setupCode:
   return factory(...argValues);
 }
 
-async function loadAndroidBootstrapRuntime(): Promise<AndroidBootstrapRuntime> {
-  const rendererAndroidPackage = "@terajs/renderer-android";
-  const rendererPackage = "@terajs/renderer";
-  const rendererAndroidSourceHref = resolveRepoModuleHref("../../renderer-android/src/index.js");
-  const rendererSourceHref = resolveRepoModuleHref("../../renderer/src/index.js");
-
-  const androidModule = await import(rendererAndroidPackage)
-    .catch(() => importRuntimeModule(rendererAndroidSourceHref));
-  const rendererModule = await import(rendererPackage)
-    .catch(() => importRuntimeModule(rendererSourceHref));
-
-  return {
-    createAndroidCommandBridge: androidModule.createAndroidCommandBridge,
-    createHostBindings: rendererModule.createHostBindings,
-    createHostIRRenderer: rendererModule.createHostIRRenderer,
-    stringifyAndroidBridgeCommands: androidModule.stringifyAndroidBridgeCommands
-  };
-}
-
-async function loadBuildTimeSetupRuntime(): Promise<BuildTimeSetupRuntime> {
-  const reactivityPackage = "@terajs/reactivity";
-  const reactivitySourceHref = resolveRepoModuleHref("../../reactivity/src/index.js");
-  const reactivityModule = await import(reactivityPackage)
-    .catch(() => importRuntimeModule(reactivitySourceHref));
-
-  return {
-    createResource: typeof reactivityModule.createResource === "function" ? reactivityModule.createResource : NOOP,
-    computed: typeof reactivityModule.computed === "function" ? reactivityModule.computed : NOOP,
-    onCleanup: NOOP,
-    onMounted: NOOP,
-    onUnmounted: NOOP,
-    reactive: typeof reactivityModule.reactive === "function" ? reactivityModule.reactive : NOOP,
-    ref: typeof reactivityModule.ref === "function" ? reactivityModule.ref : NOOP,
-    signal: typeof reactivityModule.signal === "function" ? reactivityModule.signal : NOOP,
-    watch: typeof reactivityModule.watch === "function" ? reactivityModule.watch : NOOP,
-    watchEffect: typeof reactivityModule.watchEffect === "function" ? reactivityModule.watchEffect : NOOP,
-  };
-}
-
-export async function createAndroidRouteBootstrapCommandBatch(options: {
-  modules: NativeBootstrapCompiledModule[];
-  routes: NativeBootstrapRouteRecord[];
-}): Promise<string | null> {
-  const route = options.routes.find((candidate) => candidate.path === "/") ?? options.routes[0];
+export function createAndroidGeneratedRouteTransport(
+  options: CreateAndroidGeneratedRouteTransportOptions,
+): AndroidGeneratedRouteTransport {
+  const route = options.routes.find((candidate) => candidate.path === (options.initialPath ?? "/"))
+    ?? options.routes[0];
   if (!route) {
-    return null;
+    throw new Error("Android generated route transport requires at least one route.");
   }
 
-  const modulesByFilePath = new Map(options.modules.map((module) => [module.filePath, module]));
-  const pageModule = modulesByFilePath.get(route.filePath);
+  const pageModule = options.modules.find((module) => module.filePath === route.filePath);
   if (!pageModule) {
-    return null;
+    throw new Error(`Missing Android generated page module for route ${route.path}.`);
   }
 
-  const bootstrapRuntime = await loadAndroidBootstrapRuntime();
-  const setupRuntime = await loadBuildTimeSetupRuntime();
-  const bridge = bootstrapRuntime.createAndroidCommandBridge();
-  const renderer = bootstrapRuntime.createHostIRRenderer({
-    host: bridge.host,
-    bindings: bootstrapRuntime.createHostBindings(bridge.host)
+  const transport = options.transport ?? createAndroidWireTransport();
+  const renderer = createHostIRRenderer({
+    host: transport.session.bridge.host,
+    bindings: createHostBindings(transport.session.bridge.host),
   });
+  const modulesByFilePath = new Map(options.modules.map((module) => [module.filePath, module]));
+  const setupExecutorCache = new Map<string, ReturnType<typeof createGeneratedSetupExecutor>>();
 
-  const setupExecutorCache = new Map<string, ReturnType<typeof createBuildTimeSetupExecutor>>();
-
-  function getSetupExecutor(module: NativeBootstrapCompiledModule) {
+  function getSetupExecutor(module: AndroidGeneratedCompiledModule) {
     const cached = setupExecutorCache.get(module.filePath);
     if (cached) {
       return cached;
     }
 
-    const next = createBuildTimeSetupExecutor(setupRuntime, module.setupCode);
+    const next = createGeneratedSetupExecutor(GENERATED_SETUP_RUNTIME, module.setupCode);
     setupExecutorCache.set(module.filePath, next);
     return next;
   }
@@ -293,20 +312,20 @@ export async function createAndroidRouteBootstrapCommandBatch(options: {
         continue;
       }
 
-      registry[candidate.name] = (componentInput?: unknown) => renderCompiledModule(candidate, componentInput);
+      registry[candidate.name] = (componentInput?: unknown) => renderGeneratedModule(candidate, componentInput);
     }
 
     return registry;
   }
 
-  function renderCompiledModule(module: NativeBootstrapCompiledModule, input?: unknown): any {
+  function renderGeneratedModule(module: AndroidGeneratedCompiledModule, input?: unknown): unknown {
     const props = normalizeComponentProps(input);
     const slots = normalizeSlots(input);
     const emit = () => {};
     const bindings = getSetupExecutor(module)({ props, slots, emit }) ?? {};
     const registry: Record<string, unknown> = {
       ...createNamedComponentRegistry(),
-      ...pickBindings(module.exposedBindings, bindings)
+      ...pickBindings(module.exposedBindings, bindings),
     };
 
     for (const [bindingName, importFilePath] of extractLocalTerajsImportMap(module.setupCode, module.filePath)) {
@@ -315,7 +334,7 @@ export async function createAndroidRouteBootstrapCommandBatch(options: {
         continue;
       }
 
-      registry[bindingName] = (componentInput?: unknown) => renderCompiledModule(importedModule, componentInput);
+      registry[bindingName] = (componentInput?: unknown) => renderGeneratedModule(importedModule, componentInput);
     }
 
     return renderer.renderIRModule(module.ir, {
@@ -323,11 +342,11 @@ export async function createAndroidRouteBootstrapCommandBatch(options: {
       props,
       slots,
       emit,
-      __components: registry
+      __components: registry,
     });
   }
 
-  let rootNode = renderCompiledModule(pageModule);
+  let rootNode = renderGeneratedModule(pageModule);
 
   for (let index = route.layouts.length - 1; index >= 0; index -= 1) {
     const layout = modulesByFilePath.get(route.layouts[index].filePath);
@@ -336,15 +355,18 @@ export async function createAndroidRouteBootstrapCommandBatch(options: {
     }
 
     const layoutContent = rootNode;
-    rootNode = renderCompiledModule(layout, {
+    rootNode = renderGeneratedModule(layout, {
       children: () => layoutContent,
       slots: {
-        default: () => layoutContent
-      }
+        default: () => layoutContent,
+      },
     });
   }
 
-  bridge.host.insert(bridge.root, rootNode);
-  const commands = bridge.drainCommands();
-  return commands.length > 0 ? bootstrapRuntime.stringifyAndroidBridgeCommands(commands) : null;
+  transport.session.bridge.host.insert(transport.session.bridge.root, rootNode);
+
+  return {
+    route,
+    transport,
+  };
 }

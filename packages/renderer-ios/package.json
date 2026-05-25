@@ -1,0 +1,42 @@
+{
+  "name": "@terajs/renderer-ios",
+  "version": "1.0.0",
+  "description": "Experimental UIKit renderer host and shell scaffold for Terajs universal workspaces.",
+  "author": "Terajs Labs",
+  "type": "module",
+  "files": [
+    "dist",
+    "ios",
+    "README.md",
+    "STUBS_AND_PLAN.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.d.ts.map"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@terajs/compiler": "^1.0.9",
+    "@terajs/reactivity": "^1.0.8",
+    "@terajs/renderer": "^1.0.6",
+    "@terajs/shared": "^1.1.0"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terajs/terajs.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -52,6 +52,10 @@ export interface NativeBuildManifest {
     bootstrap?: {
         initialCommandBatchFile?: string;
     };
+    runtime?: {
+        descriptorFile: string;
+        kind: "generated-route-runtime";
+    };
 }
 export interface NativeHostManifest {
     target: NativeBuildTarget;
@@ -64,6 +68,17 @@ export interface NativeHostManifest {
     bootstrap?: {
         initialCommandBatchFile?: string;
     };
+    runtime?: {
+        descriptorFile: string;
+        kind: "generated-route-runtime";
+    };
+}
+export interface NativeRuntimeDescriptor {
+    entryScriptFile?: string;
+    generatedManifestFile: string;
+    initialRoutePath: string;
+    kind: "generated-route-runtime";
+    routesFile: string;
 }
 export interface NativeBuildOutput {
     target: NativeBuildTarget;

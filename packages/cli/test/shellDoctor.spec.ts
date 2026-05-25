@@ -7,13 +7,14 @@ import { formatDoctorReport } from "../src/doctor.js";
 import { inspectTargetShell } from "../src/shellDoctor.js";
 
 describe("cli shell doctor", () => {
-  it("passes when Android shell files, bootstrap assets, JDK, and SDK are present", async () => {
+  it("passes when Android shell files, runtime assets, JDK, and SDK are present", async () => {
     const root = await mkdtemp(join(tmpdir(), "terajs-cli-shell-doctor-ok-"));
     const fakeJavaHome = join(root, "fake-jdk");
     const fakeSdk = join(root, "fake-sdk");
 
     await mkdir(join(root, "android"), { recursive: true });
     await mkdir(join(root, ".terajs", "generated", "android", "bootstrap"), { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "android", "runtime"), { recursive: true });
     await mkdir(join(root, ".terajs", "hosts", "android"), { recursive: true });
     await mkdir(join(fakeJavaHome, "bin"), { recursive: true });
     await mkdir(fakeSdk, { recursive: true });
@@ -22,6 +23,8 @@ describe("cli shell doctor", () => {
       writeFile(join(root, "android", process.platform === "win32" ? "gradlew.bat" : "gradlew"), "echo ok\n", "utf8"),
       writeFile(join(root, ".terajs", "generated", "android", "terajs-target.json"), "{}\n", "utf8"),
       writeFile(join(root, ".terajs", "generated", "android", "bootstrap", "root-command-batch.json"), "[]\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "android", "runtime", "generated-route-runtime.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "android", "runtime", "live-runtime-entry.js"), "globalThis.__terajsNativeRuntime = {};\n", "utf8"),
       writeFile(join(root, ".terajs", "hosts", "android", "terajs-host.json"), "{}\n", "utf8"),
       writeFile(join(fakeJavaHome, "bin", process.platform === "win32" ? "java.exe" : "java"), "", "utf8"),
       writeFile(join(fakeJavaHome, "bin", process.platform === "win32" ? "javac.exe" : "javac"), "", "utf8")
@@ -39,6 +42,8 @@ describe("cli shell doctor", () => {
 
     expect(report.ok).toBe(true);
     expect(report.checks.every((check) => check.ok)).toBe(true);
+    expect(report.checks.find((check) => check.id === "android-runtime-descriptor")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "android-runtime-entry")?.ok).toBe(true);
 
     const text = formatDoctorReport(report);
     expect(text).toContain("Doctor summary: setup is ready for development.");
@@ -64,5 +69,38 @@ describe("cli shell doctor", () => {
     expect(report.checks.some((check) => check.id === "android-shell-dir" && !check.ok)).toBe(true);
     expect(report.checks.some((check) => check.id === "android-java-home" && !check.ok)).toBe(true);
     expect(report.checks.some((check) => check.id === "android-sdk-root" && !check.ok)).toBe(true);
+  });
+
+  it("passes iOS shell checks when the scaffold and synced artifacts are present on a non-mac host", async () => {
+    const root = await mkdtemp(join(tmpdir(), "terajs-cli-shell-doctor-ios-ok-"));
+
+    await mkdir(join(root, "ios", "Sources", "TerajsRendererHost"), { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "ios", "bootstrap"), { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "ios", "runtime"), { recursive: true });
+    await mkdir(join(root, ".terajs", "hosts", "ios"), { recursive: true });
+
+    await Promise.all([
+      writeFile(join(root, "ios", "Package.swift"), "// swift-tools-version: 5.9\n", "utf8"),
+      writeFile(join(root, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntime.swift"), "struct Placeholder {}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "terajs-target.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "bootstrap", "root-command-batch.json"), "[]\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "runtime", "generated-route-runtime.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"), "globalThis.__terajsNativeRuntime = {};\n", "utf8"),
+      writeFile(join(root, ".terajs", "hosts", "ios", "terajs-host.json"), "{}\n", "utf8")
+    ]);
+
+    const report = inspectTargetShell("ios", {
+      cwd: root,
+      env: process.env
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-shell-dir")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-package-swift")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-generated-manifest")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-bootstrap-batch")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-runtime-descriptor")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-runtime-entry")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-host-manifest")?.ok).toBe(true);
   });
 });

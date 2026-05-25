@@ -7,6 +7,8 @@ import org.junit.Assert.assertNull
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -160,6 +162,163 @@ class AndroidHarnessSmokeTest {
     childButton.performClick()
 
     assertTrue(emitted.isEmpty())
+  }
+
+  @Test
+  fun replacesRootBindingsWhenReusingTheSameNodeId() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val emitted = mutableListOf<String>()
+    val runtime = AndroidHostRuntime(context, emitEventPayload = emitted::add)
+
+    runtime.receiveCommandBatchPayload(
+      """
+      [
+        {
+          "type": "create-element",
+          "nodeId": 1,
+          "viewType": "Button"
+        },
+        {
+          "type": "subscribe-event",
+          "nodeId": 1,
+          "name": "press"
+        }
+      ]
+      """.trimIndent()
+    )
+
+    val originalButton = runtime.rootView as? Button
+      ?: throw AssertionError("Expected original Android button root view")
+
+    emitted.clear()
+    runtime.receiveCommandBatchPayload(
+      """
+      [
+        {
+          "type": "remove",
+          "nodeId": 1
+        },
+        {
+          "type": "create-element",
+          "nodeId": 1,
+          "viewType": "Button"
+        },
+        {
+          "type": "subscribe-event",
+          "nodeId": 1,
+          "name": "press"
+        }
+      ]
+      """.trimIndent()
+    )
+
+    val replacementButton = runtime.rootView as? Button
+      ?: throw AssertionError("Expected replacement Android button root view")
+
+    assertNotSame(originalButton, replacementButton)
+
+    originalButton.performClick()
+    replacementButton.performClick()
+
+    assertEquals(1, emitted.size)
+
+    val payload = JSONObject(emitted.single())
+    assertEquals(1, payload.getInt("nodeId"))
+    assertEquals("press", payload.getString("name"))
+  }
+
+  @Test
+  fun reparentsBoundElementsAcrossParentsThroughRuntimeTransport() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val emitted = mutableListOf<String>()
+    val runtime = AndroidHostRuntime(context, emitEventPayload = emitted::add)
+
+    runtime.receiveCommandBatchPayload(
+      """
+      [
+        {
+          "type": "create-element",
+          "nodeId": 1,
+          "viewType": "LinearLayout"
+        },
+        {
+          "type": "create-element",
+          "nodeId": 2,
+          "viewType": "LinearLayout"
+        },
+        {
+          "type": "create-element",
+          "nodeId": 3,
+          "viewType": "LinearLayout"
+        },
+        {
+          "type": "create-element",
+          "nodeId": 4,
+          "viewType": "Button"
+        },
+        {
+          "type": "insert",
+          "parentId": 1,
+          "childId": 2
+        },
+        {
+          "type": "insert",
+          "parentId": 1,
+          "childId": 3
+        },
+        {
+          "type": "insert",
+          "parentId": 2,
+          "childId": 4
+        },
+        {
+          "type": "subscribe-event",
+          "nodeId": 4,
+          "name": "press"
+        }
+      ]
+      """.trimIndent()
+    )
+
+    val root = runtime.rootView as? android.widget.LinearLayout
+      ?: throw AssertionError("Expected Android root layout view")
+    val firstParent = root.getChildAt(0) as? android.widget.LinearLayout
+      ?: throw AssertionError("Expected first Android parent layout")
+    val secondParent = root.getChildAt(1) as? android.widget.LinearLayout
+      ?: throw AssertionError("Expected second Android parent layout")
+    val originalButton = firstParent.getChildAt(0) as? Button
+      ?: throw AssertionError("Expected original Android child button")
+
+    originalButton.performClick()
+    assertEquals(1, emitted.size)
+
+    emitted.clear()
+    runtime.receiveCommandBatchPayload(
+      """
+      [
+        {
+          "type": "insert",
+          "parentId": 3,
+          "childId": 4
+        }
+      ]
+      """.trimIndent()
+    )
+
+    assertEquals(0, firstParent.childCount)
+    assertEquals(1, secondParent.childCount)
+
+    val movedButton = secondParent.getChildAt(0) as? Button
+      ?: throw AssertionError("Expected moved Android child button")
+    assertSame(originalButton, movedButton)
+
+    movedButton.performClick()
+
+    assertEquals(1, emitted.size)
+
+    val payload = JSONObject(emitted.single())
+    assertEquals(4, payload.getInt("nodeId"))
+    assertEquals("press", payload.getString("name"))
   }
 
   @Test

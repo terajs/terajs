@@ -44,6 +44,8 @@ describe("cli initTargetShell", () => {
     expect(await exists(join(appRoot, ".terajs", "generated", "android", "terajs-target.json"))).toBe(true);
     expect(await exists(join(appRoot, ".terajs", "hosts", "android", "terajs-host.json"))).toBe(true);
     expect(await exists(join(appRoot, ".terajs", "generated", "android", "bootstrap", "root-command-batch.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "generated", "android", "runtime", "generated-route-runtime.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "generated", "android", "runtime", "live-runtime-entry.js"))).toBe(true);
 
     expect(await exists(join(appRoot, "android", "gradlew"))).toBe(true);
     expect(await exists(join(appRoot, "android", "gradle", "wrapper", "gradle-wrapper.properties"))).toBe(true);
@@ -67,12 +69,17 @@ describe("cli initTargetShell", () => {
 
     const mainActivity = await readText(join(appRoot, "android", "app", "src", "main", "kotlin", "dev", "terajs", "apps", "universal", "app", "android", "MainActivity.kt"));
     expect(mainActivity).toContain("AndroidHostRuntime");
+    expect(mainActivity).toContain("ensureLiveRuntimeAssets");
+    expect(mainActivity).toContain("generated-route-runtime.json");
+    expect(mainActivity).toContain("live-runtime-entry.js");
     expect(mainActivity).toContain("receiveCommandBatchPayload");
     expect(mainActivity).toContain("root-command-batch.json");
 
     const readme = await readText(join(appRoot, "android", "README.md"));
     expect(readme).toContain("tera build --target android");
     expect(readme).toContain("./gradlew assembleDebug");
+    expect(readme).toContain("generated route runtime descriptor");
+    expect(readme).toContain("live runtime entry bundle");
     expect(readme).toContain("render a real native bootstrap tree");
   });
 
@@ -85,6 +92,56 @@ describe("cli initTargetShell", () => {
 
     const appRoot = join(tempRoot, "web-app");
     await expect(initTargetShell("android", {
+      cwd: appRoot,
+      templateRoot
+    })).rejects.toThrow(/universal/i);
+  });
+
+  it("materializes an iOS shell for a universal workspace and builds its native artifacts", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "terajs-cli-shell-"));
+    const templateRoot = join(originalCwd, "packages", "renderer-ios", "ios");
+
+    process.chdir(tempRoot);
+    await scaffoldProject("universal-app", {
+      mode: "universal"
+    });
+
+    const appRoot = join(tempRoot, "universal-app");
+    await initTargetShell("ios", {
+      cwd: appRoot,
+      templateRoot
+    });
+
+    expect(await exists(join(appRoot, ".terajs", "generated", "ios", "terajs-target.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "hosts", "ios", "terajs-host.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "generated", "ios", "bootstrap", "root-command-batch.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "generated", "ios", "runtime", "generated-route-runtime.json"))).toBe(true);
+    expect(await exists(join(appRoot, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"))).toBe(true);
+
+    expect(await exists(join(appRoot, "ios", "Package.swift"))).toBe(true);
+    expect(await exists(join(appRoot, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntime.swift"))).toBe(true);
+    expect(await exists(join(appRoot, "ios", ".gitignore"))).toBe(true);
+
+    const packageSwift = await readText(join(appRoot, "ios", "Package.swift"));
+    expect(packageSwift).toContain("TerajsRendererHost");
+    expect(packageSwift).toContain(".iOS(.v15)");
+
+    const readme = await readText(join(appRoot, "ios", "README.md"));
+    expect(readme).toContain("tera build --target ios");
+    expect(readme).toContain("swift build");
+    expect(readme).toContain("live runtime entry bundle");
+    expect(readme).toContain("Hosted iOS compilation and simulator or device validation still require macOS with Xcode.");
+  });
+
+  it("rejects iOS shell initialization for non-universal workspaces", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "terajs-cli-shell-"));
+    const templateRoot = join(originalCwd, "packages", "renderer-ios", "ios");
+
+    process.chdir(tempRoot);
+    await scaffoldProject("web-app");
+
+    const appRoot = join(tempRoot, "web-app");
+    await expect(initTargetShell("ios", {
       cwd: appRoot,
       templateRoot
     })).rejects.toThrow(/universal/i);

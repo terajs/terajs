@@ -3,6 +3,7 @@ export { parseAndroidBridgeCommands, parseAndroidNativeEventPacket, stringifyAnd
 export { createAndroidCommandConsumer } from "./consumer.js";
 export { createAndroidHostSession } from "./session.js";
 export { createAndroidWireTransport } from "./wireTransport.js";
+export { createAndroidGeneratedRouteTransport } from "./generatedRouteRuntime.js";
 export { normalizeAndroidEventName, normalizeAndroidProp, normalizeAndroidStyle, resolveAndroidViewType } from "./primitives.js";
 export { AndroidViewAdapter } from "./hostAdapter.js";
 export { renderTerajsToAndroidViews } from "./render.js";

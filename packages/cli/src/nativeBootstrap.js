@@ -181,12 +181,23 @@ export async function createAndroidRouteBootstrapCommandBatch(options) {
         setupExecutorCache.set(module.filePath, next);
         return next;
     }
+    function createNamedComponentRegistry() {
+        const registry = {};
+        for (const candidate of options.modules) {
+            if (candidate.kind !== "component" || !candidate.name) {
+                continue;
+            }
+            registry[candidate.name] = (componentInput) => renderCompiledModule(candidate, componentInput);
+        }
+        return registry;
+    }
     function renderCompiledModule(module, input) {
         const props = normalizeComponentProps(input);
         const slots = normalizeSlots(input);
         const emit = () => { };
         const bindings = getSetupExecutor(module)({ props, slots, emit }) ?? {};
         const registry = {
+            ...createNamedComponentRegistry(),
             ...pickBindings(module.exposedBindings, bindings)
         };
         for (const [bindingName, importFilePath] of extractLocalTerajsImportMap(module.setupCode, module.filePath)) {

@@ -3,6 +3,7 @@ export { parseAndroidBridgeCommands, parseAndroidNativeEventPacket, stringifyAnd
 export { createAndroidCommandConsumer, type AndroidCommandConsumer, type AndroidNativeNode, type AndroidNativeTextNode, type AndroidNativeViewNode } from "./consumer.js";
 export { createAndroidHostSession, type AndroidHostSession, type AndroidMountedModule } from "./session.js";
 export { createAndroidWireTransport, type AndroidWireTransport, type CreateAndroidWireTransportOptions } from "./wireTransport.js";
+export { createAndroidGeneratedRouteTransport, type AndroidGeneratedCompiledModule, type AndroidGeneratedRouteRecord, type AndroidGeneratedRouteTransport, type CreateAndroidGeneratedRouteTransportOptions } from "./generatedRouteRuntime.js";
 export { normalizeAndroidEventName, normalizeAndroidProp, normalizeAndroidStyle, resolveAndroidViewType } from "./primitives.js";
 export { AndroidViewAdapter, type AndroidViewHostAdapter, type AndroidViewHostNode } from "./hostAdapter.js";
 export { renderTerajsToAndroidViews, type AndroidRenderResult } from "./render.js";

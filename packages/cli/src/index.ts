@@ -199,6 +199,13 @@ export function createProgram(): Command {
             : "./gradlew assembleDebug";
           console.log(`Run 'cd ${relativeShellDir.replace(/\\/g, "/")} && ${buildCommand}' to build the Android shell.`);
           console.log("Run 'tera shell doctor android' to verify local Android build prerequisites and synced bootstrap assets.");
+        } else {
+          console.log("Run 'tera shell doctor ios' to verify the iOS shell scaffold plus synced generated assets.");
+          if (process.platform === "darwin") {
+            console.log(`Run 'cd ${relativeShellDir.replace(/\\/g, "/")} && swift build' to validate the packaged UIKit host surface.`);
+          } else {
+            console.log("Hosted iOS compilation and simulator validation still require macOS with Xcode.");
+          }
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);

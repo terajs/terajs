@@ -33,6 +33,13 @@ export {
   type CreateAndroidWireTransportOptions
 } from "./wireTransport.js";
 export {
+  createAndroidGeneratedRouteTransport,
+  type AndroidGeneratedCompiledModule,
+  type AndroidGeneratedRouteRecord,
+  type AndroidGeneratedRouteTransport,
+  type CreateAndroidGeneratedRouteTransportOptions,
+} from "./generatedRouteRuntime.js";
+export {
   normalizeAndroidEventName,
   normalizeAndroidProp,
   normalizeAndroidStyle,
