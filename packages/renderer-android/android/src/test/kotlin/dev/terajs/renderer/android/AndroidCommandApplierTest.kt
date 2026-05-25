@@ -89,6 +89,36 @@ class AndroidCommandApplierTest {
   }
 
   @Test
+  fun flattensNestedTextDescendantsIntoNativeButtonLabels() {
+    val applier = AndroidCommandApplier(testContext())
+
+    applier.applyCommands(
+      listOf(
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 1, viewType = "LinearLayout"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 2, viewType = "Button"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 3, viewType = "TextView"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 4, value = TerajsJsonString("Alpha")),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 5, viewType = "TextView"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 6, value = TerajsJsonString("Beta")),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 2),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 2, childId = 3),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 3, childId = 4),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 2, childId = 5),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 5, childId = 6)
+      )
+    )
+
+    val buttonNode = applier.node(2) as? AndroidHostElementNode ?: throw AssertionError("Missing button element")
+    val buttonView = buttonNode.view as Button
+
+    assertEquals("Alpha Beta", buttonView.text.toString())
+
+    applier.apply(AndroidHostCommand(type = AndroidHostCommandType.SetText, nodeId = 6, value = TerajsJsonString("Gamma")))
+
+    assertEquals("Alpha Gamma", buttonView.text.toString())
+  }
+
+  @Test
   fun clearsBooleanPropsWhenRemovedFromNativeViews() {
     val applier = AndroidCommandApplier(testContext())
 

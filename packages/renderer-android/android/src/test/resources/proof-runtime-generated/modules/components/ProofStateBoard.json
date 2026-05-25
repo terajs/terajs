@@ -1,0 +1,1662 @@
+{
+  "kind": "component",
+  "filePath": "/src/shared/components/ProofStateBoard.tera",
+  "name": "ProofStateBoard",
+  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  const stories = signal([\r\n  {\r\n    id: 'alpha',\r\n    title: 'Web shell parity',\r\n    host: 'web',\r\n    hostLabel: 'Web host proof',\r\n    status: 'Ready',\r\n    summary: 'The shared route stays renderer-neutral while the web target keeps DOM work on the fast local path.',\r\n    hostNote: 'Web keeps DOM-specific optimizations inside renderer-web instead of widening shared helpers.'\r\n  },\r\n  {\r\n    id: 'bravo',\r\n    title: 'Android command fidelity',\r\n    host: 'android',\r\n    hostLabel: 'Android host proof',\r\n    status: 'Ready',\r\n    summary: 'The same route module drives Android views through host commands, event payloads, and keyed mutations.',\r\n    hostNote: 'Android stays command-oriented so JS owns reconciliation while native owns concrete view mutation.'\r\n  },\r\n  {\r\n    id: 'charlie',\r\n    title: 'iOS bridge readiness',\r\n    host: 'ios',\r\n    hostLabel: 'iOS host proof',\r\n    status: 'Planned locally',\r\n    summary: 'The shared source already reserves the iOS host surface without treating DOM output as the source of truth.',\r\n    hostNote: 'iOS remains a thin UIKit host target, with the bridge carrying commands and event payloads only.'\r\n  }\r\n], { key: \"stories\" })\r\n\r\nconst queueVisible = signal(true, { key: \"queueVisible\" })\r\nconst selectedStoryId = signal('alpha', { key: \"selectedStoryId\" })\r\nconst hostNoteFilter = signal('', { key: \"hostNoteFilter\" })\r\n\r\nfunction boardSummary() {\r\n  return `${stories().length} proof slices are driven from shared source while each host target keeps its concrete view layer thin.`\r\n}\r\n\r\nfunction queueMeta() {\r\n  return queueVisible()\r\n    ? `${stories().length} keyed items ready`\r\n    : 'Queue collapsed'\r\n}\r\n\r\nfunction toggleQueue() {\r\n  queueVisible.set(!queueVisible())\r\n}\r\n\r\nfunction selectStory(id) {\r\n  selectedStoryId.set(id)\r\n}\r\n\r\nfunction selectedStory() {\r\n  return stories().find((story) => story.id === selectedStoryId()) || null\r\n}\r\n\r\nfunction selectedSummary() {\r\n  const story = selectedStory()\r\n  return story ? `${story.hostLabel} selected` : 'No proof slice selected'\r\n}\r\n\r\nfunction selectedHostNote() {\r\n  const story = selectedStory()\r\n  return story ? story.hostNote : ''\r\n}\r\n\r\nfunction readEventTextValue(event) {\r\n  if (event && typeof event.value === 'string') {\r\n    return event.value\r\n  }\r\n\r\n  if (event && typeof event.text === 'string') {\r\n    return event.text\r\n  }\r\n\r\n  if (event && event.target && typeof event.target.value === 'string') {\r\n    return event.target.value\r\n  }\r\n\r\n  return ''\r\n}\r\n\r\nfunction normalizedHostNoteFilter() {\r\n  return hostNoteFilter().trim().toLowerCase()\r\n}\r\n\r\nfunction updateHostNoteFilter(event) {\r\n  hostNoteFilter.set(readEventTextValue(event))\r\n}\r\n\r\nfunction hasSelectedHostNote() {\r\n  return selectedHostNote().length > 0\r\n}\r\n\r\nfunction hostNoteFilterSummary() {\r\n  const filter = hostNoteFilter().trim()\r\n  return filter.length > 0\r\n    ? `Filtering host note by \"${filter}\".`\r\n    : 'Host note filter inactive.'\r\n}\r\n\r\nfunction showsSelectedHostNote() {\r\n  const note = selectedHostNote()\r\n  if (!note.length) {\r\n    return false\r\n  }\r\n\r\n  const filter = normalizedHostNoteFilter()\r\n  return filter.length === 0 || note.toLowerCase().includes(filter)\r\n}\r\n\r\nfunction filteredHostNoteSummary() {\r\n  const filter = hostNoteFilter().trim()\r\n  return filter.length > 0\r\n    ? `Current host note is hidden until it matches \"${filter}\".`\r\n    : ''\r\n}\r\n\r\nfunction promoteSelected() {\r\n  const currentId = selectedStoryId()\r\n\r\n  stories.update((list) => {\r\n    const index = list.findIndex((story) => story.id === currentId)\r\n\r\n    if (index <= 0) {\r\n      return list\r\n    }\r\n\r\n    const selected = list[index]\r\n    return [selected, ...list.slice(0, index), ...list.slice(index + 1)]\r\n  })\r\n}\r\n\r\nfunction rotateQueue() {\r\n  stories.update((list) => {\r\n    if (list.length < 2) {\r\n      return list\r\n    }\r\n\r\n    return [...list.slice(1), list[0]]\r\n  })\r\n}\r\n\r\nfunction storyButtonClass(story) {\r\n  return story.id === selectedStoryId()\r\n    ? 'proof-state-board__story proof-state-board__story--active'\r\n    : 'proof-state-board__story'\r\n}\n  return { stories, queueVisible, selectedStoryId, hostNoteFilter, boardSummary, queueMeta, toggleQueue, selectStory, selectedStory, selectedSummary, selectedHostNote, readEventTextValue, normalizedHostNoteFilter, updateHostNoteFilter, hasSelectedHostNote, hostNoteFilterSummary, showsSelectedHostNote, filteredHostNoteSummary, promoteSelected, rotateQueue, storyButtonClass };\n}",
+  "importedBindings": [],
+  "exposedBindings": [
+    "stories",
+    "queueVisible",
+    "selectedStoryId",
+    "hostNoteFilter",
+    "boardSummary",
+    "queueMeta",
+    "toggleQueue",
+    "selectStory",
+    "selectedStory",
+    "selectedSummary",
+    "selectedHostNote",
+    "readEventTextValue",
+    "normalizedHostNoteFilter",
+    "updateHostNoteFilter",
+    "hasSelectedHostNote",
+    "hostNoteFilterSummary",
+    "showsSelectedHostNote",
+    "filteredHostNoteSummary",
+    "promoteSelected",
+    "rotateQueue",
+    "storyButtonClass"
+  ],
+  "ir": {
+    "filePath": "/src/shared/components/ProofStateBoard.tera",
+    "template": [
+      {
+        "type": "element",
+        "flags": {
+          "hasDirectives": false,
+          "static": false
+        },
+        "tag": "section",
+        "props": [
+          {
+            "name": "class",
+            "value": "proof-state-board",
+            "kind": "static"
+          },
+          {
+            "kind": "static",
+            "name": "data-tera-fouvni",
+            "value": ""
+          }
+        ],
+        "children": [
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": false
+            },
+            "tag": "div",
+            "props": [
+              {
+                "name": "class",
+                "value": "proof-state-board__intro",
+                "kind": "static"
+              },
+              {
+                "kind": "static",
+                "name": "data-tera-fouvni",
+                "value": ""
+              }
+            ],
+            "children": [
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": true
+                },
+                "tag": "p",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__eyebrow",
+                    "kind": "static"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "Interactive shared-state proof"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": true
+                },
+                "tag": "h2",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__title",
+                    "kind": "static"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "One shared route, thin host targets, and stable keyed updates."
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "p",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__summary",
+                    "kind": "static"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "interp",
+                    "flags": {
+                      "dynamic": true
+                    },
+                    "expression": "boardSummary()"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n    "
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": false
+            },
+            "tag": "div",
+            "props": [
+              {
+                "name": "class",
+                "value": "proof-state-board__controls",
+                "kind": "static"
+              },
+              {
+                "kind": "static",
+                "name": "data-tera-fouvni",
+                "value": ""
+              }
+            ],
+            "children": [
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "button",
+                "props": [
+                  {
+                    "name": "type",
+                    "value": "button",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__control",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "data-action",
+                    "value": "toggle-queue",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "click",
+                    "value": "toggleQueue()",
+                    "kind": "event"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "interp",
+                    "flags": {
+                      "dynamic": true
+                    },
+                    "expression": "queueVisible() ? 'Hide queue' : 'Show queue'"
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "button",
+                "props": [
+                  {
+                    "name": "type",
+                    "value": "button",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__control",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "data-action",
+                    "value": "promote-selected",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "click",
+                    "value": "promoteSelected()",
+                    "kind": "event"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        Promote selected\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "button",
+                "props": [
+                  {
+                    "name": "type",
+                    "value": "button",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__control",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "data-action",
+                    "value": "rotate-queue",
+                    "kind": "static"
+                  },
+                  {
+                    "name": "click",
+                    "value": "rotateQueue()",
+                    "kind": "event"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        Rotate queue\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "div",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__filter",
+                    "kind": "static"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": true
+                    },
+                    "tag": "p",
+                    "props": [
+                      {
+                        "name": "class",
+                        "value": "proof-state-board__filter-label",
+                        "kind": "static"
+                      },
+                      {
+                        "kind": "static",
+                        "name": "data-tera-fouvni",
+                        "value": ""
+                      }
+                    ],
+                    "children": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "Host note filter"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": false
+                    },
+                    "tag": "input",
+                    "props": [
+                      {
+                        "name": "type",
+                        "value": "text",
+                        "kind": "static"
+                      },
+                      {
+                        "name": "class",
+                        "value": "proof-state-board__filter-input",
+                        "kind": "static"
+                      },
+                      {
+                        "name": "data-action",
+                        "value": "host-note-filter",
+                        "kind": "static"
+                      },
+                      {
+                        "name": "placeholder",
+                        "value": "Filter active host note",
+                        "kind": "static"
+                      },
+                      {
+                        "name": "value",
+                        "value": "hostNoteFilter()",
+                        "kind": "bind"
+                      },
+                      {
+                        "name": "input",
+                        "value": "updateHostNoteFilter($event)",
+                        "kind": "event"
+                      },
+                      {
+                        "kind": "static",
+                        "name": "data-tera-fouvni",
+                        "value": ""
+                      }
+                    ],
+                    "children": []
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n    "
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": false
+            },
+            "tag": "div",
+            "props": [
+              {
+                "name": "class",
+                "value": "proof-state-board__layout",
+                "kind": "static"
+              },
+              {
+                "kind": "static",
+                "name": "data-tera-fouvni",
+                "value": ""
+              }
+            ],
+            "children": [
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "section",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__panel",
+                    "kind": "static"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": false
+                    },
+                    "tag": "div",
+                    "props": [
+                      {
+                        "name": "class",
+                        "value": "proof-state-board__panel-header",
+                        "kind": "static"
+                      },
+                      {
+                        "kind": "static",
+                        "name": "data-tera-fouvni",
+                        "value": ""
+                      }
+                    ],
+                    "children": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": true
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__label",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "Shared queue"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__meta",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "queueMeta()"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n        "
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n\r\n        "
+                  },
+                  {
+                    "type": "if",
+                    "flags": {},
+                    "condition": "queueVisible()",
+                    "then": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "ul",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__queue",
+                            "kind": "static"
+                          },
+                          {
+                            "name": "data-queue-list",
+                            "value": "",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n            "
+                          },
+                          {
+                            "type": "for",
+                            "flags": {
+                              "hasDirectives": true
+                            },
+                            "each": "stories()",
+                            "key": {
+                              "name": "key",
+                              "value": "story.id",
+                              "kind": "bind",
+                              "binding": {
+                                "kind": "simple-path",
+                                "segments": [
+                                  "story",
+                                  "id"
+                                ]
+                              }
+                            },
+                            "item": "story",
+                            "isStructural": true,
+                            "body": [
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": false
+                                },
+                                "tag": "li",
+                                "props": [
+                                  {
+                                    "name": "key",
+                                    "value": "story.id",
+                                    "kind": "bind",
+                                    "binding": {
+                                      "kind": "simple-path",
+                                      "segments": [
+                                        "story",
+                                        "id"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "name": "data-story-id",
+                                    "value": "story.id",
+                                    "kind": "bind",
+                                    "binding": {
+                                      "kind": "simple-path",
+                                      "segments": [
+                                        "story",
+                                        "id"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "name": "class",
+                                    "value": "proof-state-board__queue-item",
+                                    "kind": "static"
+                                  },
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "text",
+                                    "flags": {
+                                      "static": true
+                                    },
+                                    "value": "\r\n              "
+                                  },
+                                  {
+                                    "type": "element",
+                                    "flags": {
+                                      "hasDirectives": false,
+                                      "static": false
+                                    },
+                                    "tag": "button",
+                                    "props": [
+                                      {
+                                        "name": "type",
+                                        "value": "button",
+                                        "kind": "static"
+                                      },
+                                      {
+                                        "name": "class",
+                                        "value": "storyButtonClass(story)",
+                                        "kind": "bind"
+                                      },
+                                      {
+                                        "name": "data-story-target",
+                                        "value": "story.id",
+                                        "kind": "bind",
+                                        "binding": {
+                                          "kind": "simple-path",
+                                          "segments": [
+                                            "story",
+                                            "id"
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "click",
+                                        "value": "selectStory(story.id)",
+                                        "kind": "event"
+                                      },
+                                      {
+                                        "kind": "static",
+                                        "name": "data-tera-fouvni",
+                                        "value": ""
+                                      }
+                                    ],
+                                    "children": [
+                                      {
+                                        "type": "text",
+                                        "flags": {
+                                          "static": true
+                                        },
+                                        "value": "\r\n                "
+                                      },
+                                      {
+                                        "type": "element",
+                                        "flags": {
+                                          "hasDirectives": false,
+                                          "static": false
+                                        },
+                                        "tag": "span",
+                                        "props": [
+                                          {
+                                            "name": "class",
+                                            "value": "proof-state-board__story-title",
+                                            "kind": "static"
+                                          },
+                                          {
+                                            "kind": "static",
+                                            "name": "data-tera-fouvni",
+                                            "value": ""
+                                          }
+                                        ],
+                                        "children": [
+                                          {
+                                            "type": "interp",
+                                            "flags": {
+                                              "dynamic": true
+                                            },
+                                            "expression": "story.title",
+                                            "binding": {
+                                              "kind": "simple-path",
+                                              "segments": [
+                                                "story",
+                                                "title"
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "text",
+                                        "flags": {
+                                          "static": true
+                                        },
+                                        "value": "\r\n                "
+                                      },
+                                      {
+                                        "type": "element",
+                                        "flags": {
+                                          "hasDirectives": false,
+                                          "static": false
+                                        },
+                                        "tag": "span",
+                                        "props": [
+                                          {
+                                            "name": "class",
+                                            "value": "proof-state-board__story-meta",
+                                            "kind": "static"
+                                          },
+                                          {
+                                            "kind": "static",
+                                            "name": "data-tera-fouvni",
+                                            "value": ""
+                                          }
+                                        ],
+                                        "children": [
+                                          {
+                                            "type": "interp",
+                                            "flags": {
+                                              "dynamic": true
+                                            },
+                                            "expression": "story.hostLabel",
+                                            "binding": {
+                                              "kind": "simple-path",
+                                              "segments": [
+                                                "story",
+                                                "hostLabel"
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "text",
+                                        "flags": {
+                                          "static": true
+                                        },
+                                        "value": "\r\n              "
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "text",
+                                    "flags": {
+                                      "static": true
+                                    },
+                                    "value": "\r\n            "
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n          "
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n        "
+                      }
+                    ],
+                    "else": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          Queue hidden while the selected proof stays mounted for the active host target.\r\n        "
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n\r\n        "
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "section",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-state-board__panel",
+                    "kind": "static"
+                  },
+                  {
+                    "kind": "static",
+                    "name": "data-tera-fouvni",
+                    "value": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": false
+                    },
+                    "tag": "div",
+                    "props": [
+                      {
+                        "name": "class",
+                        "value": "proof-state-board__panel-header",
+                        "kind": "static"
+                      },
+                      {
+                        "kind": "static",
+                        "name": "data-tera-fouvni",
+                        "value": ""
+                      }
+                    ],
+                    "children": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": true
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__label",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "Selected slice"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__meta",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "selectedSummary()"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n        "
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n\r\n        "
+                  },
+                  {
+                    "type": "if",
+                    "flags": {},
+                    "condition": "selectedStory()",
+                    "then": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__detail-host",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "selectedStory().hostLabel"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "h3",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__detail-title",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "selectedStory().title"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__detail-summary",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "selectedStory().summary"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "dl",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__facts",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n            "
+                          },
+                          {
+                            "type": "element",
+                            "flags": {
+                              "hasDirectives": false,
+                              "static": false
+                            },
+                            "tag": "div",
+                            "props": [
+                              {
+                                "name": "class",
+                                "value": "proof-state-board__fact",
+                                "kind": "static"
+                              },
+                              {
+                                "kind": "static",
+                                "name": "data-tera-fouvni",
+                                "value": ""
+                              }
+                            ],
+                            "children": [
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n              "
+                              },
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": true
+                                },
+                                "tag": "dt",
+                                "props": [
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "text",
+                                    "flags": {
+                                      "static": true
+                                    },
+                                    "value": "Target"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n              "
+                              },
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": false
+                                },
+                                "tag": "dd",
+                                "props": [
+                                  {
+                                    "name": "data-selected-host",
+                                    "value": "",
+                                    "kind": "static"
+                                  },
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "interp",
+                                    "flags": {
+                                      "dynamic": true
+                                    },
+                                    "expression": "selectedStory().host"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n            "
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n            "
+                          },
+                          {
+                            "type": "element",
+                            "flags": {
+                              "hasDirectives": false,
+                              "static": false
+                            },
+                            "tag": "div",
+                            "props": [
+                              {
+                                "name": "class",
+                                "value": "proof-state-board__fact",
+                                "kind": "static"
+                              },
+                              {
+                                "kind": "static",
+                                "name": "data-tera-fouvni",
+                                "value": ""
+                              }
+                            ],
+                            "children": [
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n              "
+                              },
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": true
+                                },
+                                "tag": "dt",
+                                "props": [
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "text",
+                                    "flags": {
+                                      "static": true
+                                    },
+                                    "value": "Status"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n              "
+                              },
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": false
+                                },
+                                "tag": "dd",
+                                "props": [
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "interp",
+                                    "flags": {
+                                      "dynamic": true
+                                    },
+                                    "expression": "selectedStory().status"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n            "
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n          "
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n\r\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__note-filter",
+                            "kind": "static"
+                          },
+                          {
+                            "name": "data-note-filter-summary",
+                            "value": "",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n            "
+                          },
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "hostNoteFilterSummary()"
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n          "
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n\r\n          "
+                      },
+                      {
+                        "type": "if",
+                        "flags": {},
+                        "condition": "showsSelectedHostNote()",
+                        "then": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n            "
+                          },
+                          {
+                            "type": "interp",
+                            "flags": {
+                              "dynamic": true
+                            },
+                            "expression": "selectedHostNote()"
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\r\n          "
+                          }
+                        ],
+                        "else": [
+                          {
+                            "type": "if",
+                            "flags": {},
+                            "condition": "hasSelectedHostNote()",
+                            "then": [
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n            "
+                              },
+                              {
+                                "type": "interp",
+                                "flags": {
+                                  "dynamic": true
+                                },
+                                "expression": "filteredHostNoteSummary()"
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\r\n          "
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n          "
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\r\n        "
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n    "
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n  "
+          }
+        ]
+      }
+    ],
+    "meta": {},
+    "route": null,
+    "scopeId": "tera-fouvni",
+    "hasAsyncResource": false
+  }
+}

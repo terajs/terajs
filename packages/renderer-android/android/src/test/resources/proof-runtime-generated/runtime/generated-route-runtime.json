@@ -1,0 +1,7 @@
+{
+  "kind": "generated-route-runtime",
+  "initialRoutePath": "/",
+  "generatedManifestFile": "../terajs-target.json",
+  "routesFile": "../routes.json",
+  "entryScriptFile": "live-runtime-entry.js"
+}

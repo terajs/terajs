@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as viteBuild } from "vite";
+import * as ts from "typescript";
 
 import { buildRouteManifest } from "@terajs/app";
 import type { IRModule } from "@terajs/compiler";
@@ -691,7 +692,12 @@ function createIOSLiveRuntimeEntrySource(): string {
   ].join("\n");
 }
 
-async function createNativeLiveRuntimeBundle(outputPath: string, tempPrefix: string, entrySource: string): Promise<void> {
+async function createNativeLiveRuntimeBundle(
+  outputPath: string,
+  tempPrefix: string,
+  entrySource: string,
+  postTransformTarget?: string
+): Promise<void> {
   const runtimeDir = path.dirname(outputPath);
   const tempBuildDir = await fs.mkdtemp(
     path.join(path.dirname(fileURLToPath(import.meta.url)), tempPrefix)
@@ -723,13 +729,32 @@ async function createNativeLiveRuntimeBundle(outputPath: string, tempPrefix: str
         }
       }
     });
+
+    if (postTransformTarget) {
+      const emittedEntry = await fs.readFile(outputPath, "utf8");
+      const transformedEntry = ts.transpileModule(emittedEntry, {
+        compilerOptions: {
+          allowJs: true,
+          module: ts.ModuleKind.None,
+          target: postTransformTarget === "es5" ? ts.ScriptTarget.ES5 : ts.ScriptTarget.ES2018,
+        },
+        fileName: path.basename(outputPath),
+      });
+
+      await writeText(outputPath, transformedEntry.outputText);
+    }
   } finally {
     await fs.rm(tempBuildDir, { recursive: true, force: true });
   }
 }
 
 async function createAndroidLiveRuntimeBundle(outputPath: string): Promise<void> {
-  await createNativeLiveRuntimeBundle(outputPath, ".android-live-runtime-", createAndroidLiveRuntimeEntrySource());
+  await createNativeLiveRuntimeBundle(
+    outputPath,
+    ".android-live-runtime-",
+    createAndroidLiveRuntimeEntrySource(),
+    "es5"
+  );
 }
 
 async function createIOSLiveRuntimeBundle(outputPath: string): Promise<void> {

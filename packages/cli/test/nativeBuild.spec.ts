@@ -321,7 +321,7 @@ describe("native target build output", () => {
       expect(runtimeEntry).toContain("__terajsNativeRuntime");
       expect(runtimeEntry).toContain("emitCommandBatch");
       if (target === "android") {
-        expect(runtimeEntry).toContain("start(host)");
+        expect(runtimeEntry).toMatch(/start(?:\s*:\s*function)?\s*\(host\)/);
         expect(runtimeEntry).not.toContain("async start");
         expect(runtimeEntry).not.toContain("Promise.resolve(host.readTextAsset");
       }

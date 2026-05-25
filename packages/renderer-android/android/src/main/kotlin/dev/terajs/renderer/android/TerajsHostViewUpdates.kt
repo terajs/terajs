@@ -87,11 +87,40 @@ internal object AndroidHostViewUpdater {
       return
     }
 
-    val text = node.childNodeIds.mapNotNull { childId ->
-      (allNodes[childId] as? AndroidHostTextNode)?.value
-    }.joinToString(separator = "")
+    val text = when (node.view) {
+      is Button -> collectDescendantTextSegments(node.childNodeIds, allNodes).joinToString(separator = " ")
+      else -> node.childNodeIds.mapNotNull { childId ->
+        (allNodes[childId] as? AndroidHostTextNode)?.value
+      }.joinToString(separator = "")
+    }
 
     applyText(text.ifEmpty { null }, node.view)
+  }
+
+  private fun collectDescendantTextSegments(
+    childNodeIds: List<Int>,
+    allNodes: Map<Int, AndroidHostNode>
+  ): List<String> {
+    return childNodeIds.flatMap { childId ->
+      collectDescendantTextSegments(childId, allNodes)
+    }
+  }
+
+  private fun collectDescendantTextSegments(
+    nodeId: Int,
+    allNodes: Map<Int, AndroidHostNode>
+  ): List<String> {
+    return when (val node = allNodes[nodeId]) {
+      is AndroidHostTextNode -> listOf(normalizeTextSegment(node.value)).filter { segment ->
+        segment.isNotEmpty()
+      }
+      is AndroidHostElementNode -> collectDescendantTextSegments(node.childNodeIds, allNodes)
+      else -> emptyList()
+    }
+  }
+
+  private fun normalizeTextSegment(value: String): String {
+    return value.replace(Regex("\\s+"), " ").trim()
   }
 
   private fun applyText(text: String?, view: View) {

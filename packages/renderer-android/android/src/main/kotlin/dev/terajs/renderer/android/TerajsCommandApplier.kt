@@ -67,9 +67,9 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
 
     if (child is AndroidHostElementNode) {
       attach(child.view, parent, command.anchorId)
-    } else if (child is AndroidHostTextNode) {
-      AndroidHostViewUpdater.syncTextChildren(parent, nodes)
     }
+
+    syncTextAncestors(parentId)
   }
 
   private fun remove(command: AndroidHostCommand) {
@@ -82,9 +82,8 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
         parent.childNodeIds.remove(node.nodeId)
         if (node is AndroidHostElementNode) {
           detach(node.view, parent.view)
-        } else if (node is AndroidHostTextNode) {
-          AndroidHostViewUpdater.syncTextChildren(parent, nodes)
         }
+        syncTextAncestors(parentId)
       }
     }
 
@@ -100,12 +99,7 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     val node = requireTextNode(nodeId)
     node.value = value
 
-    node.parentId?.let { parentId ->
-      val parent = nodes[parentId] as? AndroidHostElementNode
-      if (parent != null) {
-        AndroidHostViewUpdater.syncTextChildren(parent, nodes)
-      }
-    }
+    syncTextAncestors(node.parentId)
   }
 
   private fun setProp(command: AndroidHostCommand) {
@@ -173,10 +167,19 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     parent.childNodeIds.remove(node.nodeId)
     if (node is AndroidHostElementNode) {
       detach(node.view, parent.view)
-    } else if (node is AndroidHostTextNode) {
-      AndroidHostViewUpdater.syncTextChildren(parent, nodes)
     }
+    syncTextAncestors(parentId)
     node.parentId = null
+  }
+
+  private fun syncTextAncestors(parentId: Int?) {
+    var currentParentId = parentId
+
+    while (currentParentId != null) {
+      val parent = nodes[currentParentId] as? AndroidHostElementNode ?: break
+      AndroidHostViewUpdater.syncTextChildren(parent, nodes)
+      currentParentId = parent.parentId
+    }
   }
 
   private fun attach(childView: View, parent: AndroidHostElementNode, anchorId: Int?) {

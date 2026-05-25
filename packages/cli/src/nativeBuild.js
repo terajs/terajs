@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as viteBuild } from "vite";
+import * as ts from "typescript";
 import { buildRouteManifest } from "@terajs/app";
 import { compileComponentModuleParts, parseSFC } from "@terajs/sfc";
 import { createAndroidRouteBootstrapCommandBatch, } from "./nativeBootstrap.js";
@@ -508,7 +509,7 @@ function createIOSLiveRuntimeEntrySource() {
         'export default runtime;',
     ].join("\n");
 }
-async function createNativeLiveRuntimeBundle(outputPath, tempPrefix, entrySource) {
+async function createNativeLiveRuntimeBundle(outputPath, tempPrefix, entrySource, postTransformTarget) {
     const runtimeDir = path.dirname(outputPath);
     const tempBuildDir = await fs.mkdtemp(path.join(path.dirname(fileURLToPath(import.meta.url)), tempPrefix));
     const tempEntryPath = path.join(tempBuildDir, "entry.mjs");
@@ -536,13 +537,25 @@ async function createNativeLiveRuntimeBundle(outputPath, tempPrefix, entrySource
                 }
             }
         });
+        if (postTransformTarget) {
+            const emittedEntry = await fs.readFile(outputPath, "utf8");
+            const transformedEntry = ts.transpileModule(emittedEntry, {
+                compilerOptions: {
+                    allowJs: true,
+                    module: ts.ModuleKind.None,
+                    target: postTransformTarget === "es5" ? ts.ScriptTarget.ES5 : ts.ScriptTarget.ES2018
+                },
+                fileName: path.basename(outputPath)
+            });
+            await writeText(outputPath, transformedEntry.outputText);
+        }
     }
     finally {
         await fs.rm(tempBuildDir, { recursive: true, force: true });
     }
 }
 async function createAndroidLiveRuntimeBundle(outputPath) {
-    await createNativeLiveRuntimeBundle(outputPath, ".android-live-runtime-", createAndroidLiveRuntimeEntrySource());
+    await createNativeLiveRuntimeBundle(outputPath, ".android-live-runtime-", createAndroidLiveRuntimeEntrySource(), "es5");
 }
 async function createIOSLiveRuntimeBundle(outputPath) {
     await createNativeLiveRuntimeBundle(outputPath, ".ios-live-runtime-", createIOSLiveRuntimeEntrySource());

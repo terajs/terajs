@@ -1,0 +1,58 @@
+[
+  {
+    "id": "index",
+    "path": "/",
+    "filePath": "/src/shared/pages/index.tera",
+    "middleware": [],
+    "prerender": true,
+    "hydrate": "eager",
+    "edge": false,
+    "meta": {
+      "title": "\"Terajs Proof Workspace\"",
+      "description": "\"A minimal shared-source Terajs proof workspace with explicit web, Android, and iOS targets.\""
+    },
+    "ai": {
+      "summary": "\"A minimal Terajs proof workspace route that keeps shared source separate from terajs-com and now proves local state, conditionals, and keyed list updates across explicit web, Android, and iOS targets.\"",
+      "tags": [
+        "terajs",
+        "proof-workspace",
+        "universal",
+        "state",
+        "keyed-list"
+      ]
+    },
+    "layouts": [
+      {
+        "id": "root",
+        "filePath": "/src/shared/pages/layout.tera"
+      }
+    ]
+  },
+  {
+    "id": "stories/[id]",
+    "path": "/stories/:id",
+    "filePath": "/src/shared/pages/stories/[id].tera",
+    "middleware": [],
+    "prerender": true,
+    "hydrate": "eager",
+    "edge": false,
+    "meta": {
+      "title": "\"Terajs Proof Detail\"",
+      "description": "\"A parameterized proof route for the shared Terajs workspace.\""
+    },
+    "ai": {
+      "summary": "\"A parameterized proof route in the shared Terajs workspace for the later state and navigation slices.\"",
+      "tags": [
+        "terajs",
+        "proof-workspace",
+        "route-params"
+      ]
+    },
+    "layouts": [
+      {
+        "id": "root",
+        "filePath": "/src/shared/pages/layout.tera"
+      }
+    ]
+  }
+]

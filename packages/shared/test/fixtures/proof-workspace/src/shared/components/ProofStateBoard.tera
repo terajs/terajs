@@ -16,8 +16,8 @@
       <button type="button" class="proof-state-board__control" data-action="rotate-queue" @click="rotateQueue()">
         Rotate queue
       </button>
-      <label class="proof-state-board__filter">
-        <span class="proof-state-board__filter-label">Host note filter</span>
+      <div class="proof-state-board__filter">
+        <p class="proof-state-board__filter-label">Host note filter</p>
         <input
           type="text"
           class="proof-state-board__filter-input"
@@ -26,7 +26,7 @@
           :value="hostNoteFilter()"
           @input="updateHostNoteFilter($event)"
         />
-      </label>
+      </div>
     </div>
 
     <div class="proof-state-board__layout">
@@ -311,6 +311,7 @@ function storyButtonClass(story) {
 }
 
 .proof-state-board__filter-label {
+  margin: 0;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;

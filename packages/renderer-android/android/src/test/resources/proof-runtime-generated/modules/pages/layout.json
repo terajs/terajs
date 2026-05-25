@@ -1,0 +1,209 @@
+{
+  "kind": "layout",
+  "filePath": "/src/shared/pages/layout.tera",
+  "name": "layout",
+  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  \n  return {  };\n}",
+  "importedBindings": [],
+  "exposedBindings": [],
+  "ir": {
+    "filePath": "/src/shared/pages/layout.tera",
+    "template": [
+      {
+        "type": "element",
+        "flags": {
+          "hasDirectives": false,
+          "static": false
+        },
+        "tag": "main",
+        "props": [
+          {
+            "name": "class",
+            "value": "proof-shell",
+            "kind": "static"
+          }
+        ],
+        "children": [
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": false
+            },
+            "tag": "div",
+            "props": [
+              {
+                "name": "class",
+                "value": "proof-shell__frame",
+                "kind": "static"
+              }
+            ],
+            "children": [
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": true
+                },
+                "tag": "header",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-shell__header",
+                    "kind": "static"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": true
+                    },
+                    "tag": "p",
+                    "props": [
+                      {
+                        "name": "class",
+                        "value": "proof-shell__eyebrow",
+                        "kind": "static"
+                      }
+                    ],
+                    "children": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "Shared Proof Workspace"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": true
+                    },
+                    "tag": "h1",
+                    "props": [
+                      {
+                        "name": "class",
+                        "value": "proof-shell__title",
+                        "kind": "static"
+                      }
+                    ],
+                    "children": [
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "One source root. Explicit targets."
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n\r\n      "
+              },
+              {
+                "type": "element",
+                "flags": {
+                  "hasDirectives": false,
+                  "static": false
+                },
+                "tag": "section",
+                "props": [
+                  {
+                    "name": "class",
+                    "value": "proof-shell__body",
+                    "kind": "static"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n        "
+                  },
+                  {
+                    "type": "slot",
+                    "flags": {
+                      "dynamic": true
+                    },
+                    "fallback": []
+                  },
+                  {
+                    "type": "text",
+                    "flags": {
+                      "static": true
+                    },
+                    "value": "\r\n      "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "flags": {
+                  "static": true
+                },
+                "value": "\r\n    "
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n  "
+          }
+        ]
+      }
+    ],
+    "meta": {},
+    "route": null,
+    "hasAsyncResource": false
+  }
+}

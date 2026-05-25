@@ -377,7 +377,7 @@ describe("proof workspace", () => {
 
     expect(runtimeEntry).toContain("__terajsNativeRuntime");
     expect(runtimeEntry).toContain("emitCommandBatch");
-    expect(runtimeEntry).toContain("start(host)");
+    expect(runtimeEntry).toMatch(/start(?:\s*:\s*function)?\s*\(host\)/);
     expect(runtimeEntry).not.toContain("async start");
     expect(runtimeEntry).not.toContain("Promise.resolve(host.readTextAsset");
 

@@ -1,0 +1,87 @@
+{
+  "target": "android",
+  "renderer": "android-views",
+  "bridgeModel": "thin-command-bridge",
+  "generatedAt": "2026-05-25T05:31:28.355Z",
+  "sourceRoot": "src/shared",
+  "generatedDir": ".terajs/generated/android",
+  "hostDir": ".terajs/hosts/android",
+  "routesFile": "routes.json",
+  "hostManifestFile": "../../hosts/android/terajs-host.json",
+  "moduleCount": 5,
+  "routeCount": 2,
+  "modules": [
+    {
+      "kind": "component",
+      "filePath": "/src/shared/components/ProofCallout.tera",
+      "outputPath": "modules/components/ProofCallout.json",
+      "name": "ProofCallout",
+      "importedBindings": [],
+      "exposedBindings": [
+        "title",
+        "body"
+      ]
+    },
+    {
+      "kind": "component",
+      "filePath": "/src/shared/components/ProofStateBoard.tera",
+      "outputPath": "modules/components/ProofStateBoard.json",
+      "name": "ProofStateBoard",
+      "importedBindings": [],
+      "exposedBindings": [
+        "stories",
+        "queueVisible",
+        "selectedStoryId",
+        "hostNoteFilter",
+        "boardSummary",
+        "queueMeta",
+        "toggleQueue",
+        "selectStory",
+        "selectedStory",
+        "selectedSummary",
+        "selectedHostNote",
+        "readEventTextValue",
+        "normalizedHostNoteFilter",
+        "updateHostNoteFilter",
+        "hasSelectedHostNote",
+        "hostNoteFilterSummary",
+        "showsSelectedHostNote",
+        "filteredHostNoteSummary",
+        "promoteSelected",
+        "rotateQueue",
+        "storyButtonClass"
+      ]
+    },
+    {
+      "kind": "page",
+      "filePath": "/src/shared/pages/index.tera",
+      "outputPath": "modules/pages/index.json",
+      "name": "index",
+      "importedBindings": [],
+      "exposedBindings": []
+    },
+    {
+      "kind": "layout",
+      "filePath": "/src/shared/pages/layout.tera",
+      "outputPath": "modules/pages/layout.json",
+      "name": "layout",
+      "importedBindings": [],
+      "exposedBindings": []
+    },
+    {
+      "kind": "page",
+      "filePath": "/src/shared/pages/stories/[id].tera",
+      "outputPath": "modules/pages/stories/[id].json",
+      "name": "id",
+      "importedBindings": [],
+      "exposedBindings": []
+    }
+  ],
+  "bootstrap": {
+    "initialCommandBatchFile": "bootstrap/root-command-batch.json"
+  },
+  "runtime": {
+    "kind": "generated-route-runtime",
+    "descriptorFile": "runtime/generated-route-runtime.json"
+  }
+}

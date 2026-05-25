@@ -1,0 +1,105 @@
+{
+  "kind": "component",
+  "filePath": "/src/shared/components/ProofCallout.tera",
+  "name": "ProofCallout",
+  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  function title() {\r\n  return typeof props.title === 'string' && props.title.length > 0\r\n    ? props.title\r\n    : 'Proof callout'\r\n}\r\n\r\nfunction body() {\r\n  return typeof props.body === 'string' && props.body.length > 0\r\n    ? props.body\r\n    : 'Shared proof workspace guidance.'\r\n}\n  return { title, body };\n}",
+  "importedBindings": [],
+  "exposedBindings": [
+    "title",
+    "body"
+  ],
+  "ir": {
+    "filePath": "/src/shared/components/ProofCallout.tera",
+    "template": [
+      {
+        "type": "element",
+        "flags": {
+          "hasDirectives": false,
+          "static": false
+        },
+        "tag": "article",
+        "props": [
+          {
+            "name": "class",
+            "value": "proof-callout",
+            "kind": "static"
+          }
+        ],
+        "children": [
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": false
+            },
+            "tag": "h2",
+            "props": [
+              {
+                "name": "class",
+                "value": "proof-callout__title",
+                "kind": "static"
+              }
+            ],
+            "children": [
+              {
+                "type": "interp",
+                "flags": {
+                  "dynamic": true
+                },
+                "expression": "title()"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": false
+            },
+            "tag": "p",
+            "props": [
+              {
+                "name": "class",
+                "value": "proof-callout__body",
+                "kind": "static"
+              }
+            ],
+            "children": [
+              {
+                "type": "interp",
+                "flags": {
+                  "dynamic": true
+                },
+                "expression": "body()"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n  "
+          }
+        ]
+      }
+    ],
+    "meta": {},
+    "route": null,
+    "hasAsyncResource": false
+  }
+}

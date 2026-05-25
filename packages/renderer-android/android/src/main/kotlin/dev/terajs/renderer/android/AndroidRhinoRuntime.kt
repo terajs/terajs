@@ -33,6 +33,43 @@ class AndroidRhinoRuntime(
   private val hostRuntime: AndroidHostRuntime,
   private val diagnostics: AndroidDiagnosticsSink = AndroidLogcatDiagnosticsSink,
 ) {
+  private val finalizationRegistryShim = """
+    (function () {
+      if (typeof globalThis.FinalizationRegistry === "function") {
+        return;
+      }
+
+      function FinalizationRegistry() {}
+      FinalizationRegistry.prototype.register = function () { return void 0; };
+      FinalizationRegistry.prototype.unregister = function () { return false; };
+      globalThis.FinalizationRegistry = FinalizationRegistry;
+    }());
+  """.trimIndent()
+  private val hostBridgeBootstrap = """
+    (function () {
+      const bridge = globalThis.__terajsJavaHostBridge;
+      if (!bridge) {
+        throw new Error("Android Rhino runtime is missing the Java host bridge.");
+      }
+
+      globalThis.__terajsNativeHostBridge = {
+        runtimeDescriptorPath: String(bridge.runtimeDescriptorPath),
+        readTextAsset: function (assetPath) {
+          return String(bridge.readTextAsset(String(assetPath)));
+        },
+        emitCommandBatch: function (payload) {
+          bridge.emitCommandBatch(String(payload));
+        },
+        onNativeEvent: function (handler) {
+          bridge.onNativeEvent(handler);
+        },
+        setNativeEventHandler: function (handler) {
+          bridge.setNativeEventHandler(handler);
+        }
+      };
+    }());
+  """.trimIndent()
+
   private var scope: ScriptableObject? = null
   private var nativeEventCallback: Function? = null
   private val hostBridge = AndroidRhinoHostBridge(
@@ -49,8 +86,11 @@ class AndroidRhinoRuntime(
     return try {
       val scope = context.initStandardObjects()
       ScriptableObject.putProperty(scope, "globalThis", scope)
+      ScriptableObject.putProperty(scope, "__terajsJavaHostBridge", Context.javaToJS(hostBridge, scope))
       this.scope = scope
 
+      context.evaluateString(scope, finalizationRegistryShim, "android-rhino-polyfills.js", 1, null)
+      context.evaluateString(scope, hostBridgeBootstrap, "android-rhino-host-bridge.js", 1, null)
       context.evaluateString(scope, entryScript, "live-runtime-entry.js", 1, null)
 
       val runtimeObject = ScriptableObject.getProperty(scope, "__terajsNativeRuntime") as? Scriptable
@@ -72,11 +112,13 @@ class AndroidRhinoRuntime(
         )
       )
 
+      val runtimeHostObject = ScriptableObject.getProperty(scope, "__terajsNativeHostBridge")
+
       val result = startFunction.call(
         context,
         scope,
         runtimeObject,
-        arrayOf(Context.javaToJS(hostBridge, scope))
+        arrayOf(runtimeHostObject)
       )
 
       diagnostics.record(

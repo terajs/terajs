@@ -1,0 +1,98 @@
+{
+  "kind": "page",
+  "filePath": "/src/shared/pages/index.tera",
+  "name": "index",
+  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  \n  return {  };\n}",
+  "importedBindings": [],
+  "exposedBindings": [],
+  "ir": {
+    "filePath": "/src/shared/pages/index.tera",
+    "template": [
+      {
+        "type": "element",
+        "flags": {
+          "hasDirectives": false,
+          "static": true
+        },
+        "tag": "div",
+        "props": [
+          {
+            "name": "class",
+            "value": "proof-home",
+            "kind": "static"
+          }
+        ],
+        "children": [
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": true
+            },
+            "tag": "ProofCallout",
+            "props": [
+              {
+                "name": "title",
+                "value": "Minimal proof workspace",
+                "kind": "static"
+              },
+              {
+                "name": "body",
+                "value": "This workspace is separate from terajs-com, keeps shared route modules under src/shared/pages, and now proves shared state, conditional rendering, and keyed host-target lists without widening the renderer-neutral contract.",
+                "kind": "static"
+              }
+            ],
+            "children": []
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n    "
+          },
+          {
+            "type": "element",
+            "flags": {
+              "hasDirectives": false,
+              "static": true
+            },
+            "tag": "ProofStateBoard",
+            "props": [],
+            "children": []
+          },
+          {
+            "type": "text",
+            "flags": {
+              "static": true
+            },
+            "value": "\r\n  "
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "title": "\"Terajs Proof Workspace\"",
+      "description": "\"A minimal shared-source Terajs proof workspace with explicit web, Android, and iOS targets.\""
+    },
+    "ai": {
+      "summary": "\"A minimal Terajs proof workspace route that keeps shared source separate from terajs-com and now proves local state, conditionals, and keyed list updates across explicit web, Android, and iOS targets.\"",
+      "tags": [
+        "terajs",
+        "proof-workspace",
+        "universal",
+        "state",
+        "keyed-list"
+      ]
+    },
+    "route": null,
+    "hasAsyncResource": false
+  }
+}

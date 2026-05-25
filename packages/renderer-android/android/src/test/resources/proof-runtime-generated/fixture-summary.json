@@ -1,0 +1,13 @@
+{
+  "moduleCount": 5,
+  "routeFile": "routes.json",
+  "runtimeDescriptor": "runtime/generated-route-runtime.json",
+  "runtimeEntry": "runtime/live-runtime-entry.js",
+  "copiedModules": [
+    "modules/components/ProofCallout.json",
+    "modules/components/ProofStateBoard.json",
+    "modules/pages/index.json",
+    "modules/pages/layout.json",
+    "modules/pages/stories/[id].json"
+  ]
+}

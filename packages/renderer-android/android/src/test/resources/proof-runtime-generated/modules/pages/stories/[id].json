@@ -1,0 +1,48 @@
+{
+  "kind": "page",
+  "filePath": "/src/shared/pages/stories/[id].tera",
+  "name": "id",
+  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  \n  return {  };\n}",
+  "importedBindings": [],
+  "exposedBindings": [],
+  "ir": {
+    "filePath": "/src/shared/pages/stories/[id].tera",
+    "template": [
+      {
+        "type": "element",
+        "flags": {
+          "hasDirectives": false,
+          "static": true
+        },
+        "tag": "ProofCallout",
+        "props": [
+          {
+            "name": "title",
+            "value": "Parameterized detail route",
+            "kind": "static"
+          },
+          {
+            "name": "body",
+            "value": "This route proves that one shared workspace can carry a bracket-parameter page file that maps to /stories/:id for later proof slices.",
+            "kind": "static"
+          }
+        ],
+        "children": []
+      }
+    ],
+    "meta": {
+      "title": "\"Terajs Proof Detail\"",
+      "description": "\"A parameterized proof route for the shared Terajs workspace.\""
+    },
+    "ai": {
+      "summary": "\"A parameterized proof route in the shared Terajs workspace for the later state and navigation slices.\"",
+      "tags": [
+        "terajs",
+        "proof-workspace",
+        "route-params"
+      ]
+    },
+    "route": null,
+    "hasAsyncResource": false
+  }
+}
