@@ -1,6 +1,7 @@
 package dev.terajs.renderer.android
 
 import android.view.View
+import android.widget.TextView
 
 sealed interface AndroidHostNode {
   val nodeId: Int
@@ -22,5 +23,6 @@ data class AndroidHostElementNode(
 data class AndroidHostTextNode(
   override val nodeId: Int,
   var value: String,
+  val view: TextView,
   override var parentId: Int? = null
 ) : AndroidHostNode

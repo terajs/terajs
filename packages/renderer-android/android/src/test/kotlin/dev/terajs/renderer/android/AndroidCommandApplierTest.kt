@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Switch
+import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -116,6 +117,29 @@ class AndroidCommandApplierTest {
     applier.apply(AndroidHostCommand(type = AndroidHostCommandType.SetText, nodeId = 6, value = TerajsJsonString("Gamma")))
 
     assertEquals("Alpha Gamma", buttonView.text.toString())
+  }
+
+  @Test
+  fun materializesDirectTextNodesInsideViewGroups() {
+    val applier = AndroidCommandApplier(testContext())
+
+    applier.applyCommands(
+      listOf(
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 1, viewType = "LinearLayout"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 2, value = TerajsJsonString("Collapsed")),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 2)
+      )
+    )
+
+    val rootNode = applier.node(1) as? AndroidHostElementNode ?: throw AssertionError("Missing root element")
+    val rootView = rootNode.view as LinearLayout
+    val textView = rootView.getChildAt(0) as? TextView ?: throw AssertionError("Expected materialized text view child")
+
+    assertEquals("Collapsed", textView.text.toString())
+
+    applier.apply(AndroidHostCommand(type = AndroidHostCommandType.SetText, nodeId = 2, value = TerajsJsonString("Expanded")))
+
+    assertEquals("Expanded", textView.text.toString())
   }
 
   @Test

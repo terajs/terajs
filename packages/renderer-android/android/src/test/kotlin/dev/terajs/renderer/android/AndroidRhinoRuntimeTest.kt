@@ -209,6 +209,65 @@ class AndroidRhinoRuntimeTest {
   }
 
   @Test
+  fun togglesConditionalQueueVisibilityFromGeneratedAndroidRuntimeEntry() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val diagnostics = mutableListOf<AndroidDiagnosticEvent>()
+    val emitted = mutableListOf<String>()
+    val hostRuntime = AndroidHostRuntime(
+      context = context,
+      runtimeDescriptorPath = ".terajs/generated/android/runtime/generated-route-runtime.json",
+      readTextAssetImpl = AndroidRuntimeAssetReader(::readGeneratedRuntimeFixtureAsset),
+      emitEventPayload = emitted::add,
+      diagnosticsSink = AndroidDiagnosticsSink { event ->
+        diagnostics.add(event)
+      }
+    )
+    val engine = AndroidRhinoRuntime(
+      hostRuntime = hostRuntime,
+      diagnostics = AndroidDiagnosticsSink { event ->
+        diagnostics.add(event)
+      }
+    )
+
+    engine.start(readResource("proof-runtime-generated/runtime/live-runtime-entry.js"))
+
+    val root = hostRuntime.rootView
+      ?: throw AssertionError("Expected Android root view from generated runtime entry")
+
+    assertEquals(
+      listOf("Web shell parity", "Android command fidelity", "iOS bridge readiness"),
+      collectStoryButtonTexts(root)
+    )
+
+    val hideQueueButton = findButtonByText(root, "Hide queue")
+    hideQueueButton.performClick()
+
+    val hiddenState = findFirstView(root) { view ->
+      view is TextView && view.text.toString().contains(
+        "Queue hidden while the selected proof stays mounted for the active host target."
+      )
+    } as? TextView
+      ?: throw AssertionError("Expected generated runtime queue hidden state. View tree:\n${describeViewTree(root)}")
+
+    assertTrue(hiddenState.text.toString().contains("Queue hidden while the selected proof stays mounted"))
+    assertTrue(collectStoryButtonTexts(root).isEmpty())
+
+    val showQueueButton = findButtonByText(root, "Show queue")
+    showQueueButton.performClick()
+
+    assertEquals(
+      listOf("Web shell parity", "Android command fidelity", "iOS bridge readiness"),
+      collectStoryButtonTexts(root)
+    )
+    assertTrue(emitted.count { payload -> payload.contains("\"name\":\"press\"") } >= 2)
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "engine" && event.message == "Dispatched Android native event into live runtime"
+      }
+    )
+  }
+
+  @Test
   fun rejectsEntriesThatDoNotPublishTheRuntimeGlobal() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val hostRuntime = AndroidHostRuntime(context = context)

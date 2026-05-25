@@ -139,7 +139,7 @@ internal object AndroidHostViewUpdater {
     }
   }
 
-  private fun supportsText(view: View): Boolean {
+  fun supportsText(view: View): Boolean {
     return view is Button || view is EditText || view is TextView
   }
 

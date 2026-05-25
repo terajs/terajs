@@ -50,7 +50,9 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     val value = command.value.stringValue ?: throw AndroidHostApplyException("${command.type} requires string value")
     require(nodes[nodeId] == null) { "Duplicate Android host node $nodeId" }
 
-    nodes[nodeId] = AndroidHostTextNode(nodeId = nodeId, value = value)
+    val textView = viewFactory.makeView("TextView") as android.widget.TextView
+    textView.text = value
+    nodes[nodeId] = AndroidHostTextNode(nodeId = nodeId, value = value, view = textView)
   }
 
   private fun insert(command: AndroidHostCommand) {
@@ -67,6 +69,9 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
 
     if (child is AndroidHostElementNode) {
       attach(child.view, parent, command.anchorId)
+    } else if (child is AndroidHostTextNode && !AndroidHostViewUpdater.supportsText(parent.view)) {
+      child.view.text = child.value
+      attach(child.view, parent, command.anchorId)
     }
 
     syncTextAncestors(parentId)
@@ -81,6 +86,8 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
       if (parent != null) {
         parent.childNodeIds.remove(node.nodeId)
         if (node is AndroidHostElementNode) {
+          detach(node.view, parent.view)
+        } else if (node is AndroidHostTextNode) {
           detach(node.view, parent.view)
         }
         syncTextAncestors(parentId)
@@ -98,6 +105,7 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     val value = command.value.stringValue ?: throw AndroidHostApplyException("${command.type} requires string value")
     val node = requireTextNode(nodeId)
     node.value = value
+    node.view.text = value
 
     syncTextAncestors(node.parentId)
   }
@@ -167,6 +175,8 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     parent.childNodeIds.remove(node.nodeId)
     if (node is AndroidHostElementNode) {
       detach(node.view, parent.view)
+    } else if (node is AndroidHostTextNode) {
+      detach(node.view, parent.view)
     }
     syncTextAncestors(parentId)
     node.parentId = null
@@ -187,8 +197,11 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
     detach(childView, childView.parent as? View)
 
     val index = if (anchorId != null) {
-      val anchorNode = nodes[anchorId] as? AndroidHostElementNode
-      val anchorView = anchorNode?.view
+      val anchorView = when (val anchorNode = nodes[anchorId]) {
+        is AndroidHostElementNode -> anchorNode.view
+        is AndroidHostTextNode -> anchorNode.view
+        else -> null
+      }
       if (anchorView != null) {
         val anchorIndex = parentView.indexOfChild(anchorView)
         if (anchorIndex >= 0) anchorIndex else parentView.childCount
