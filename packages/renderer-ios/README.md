@@ -13,6 +13,7 @@ This package represents the iOS-side exploration for rendering Terajs components
 - package-local native host transport source now exists under `ios/Sources/TerajsRendererHost/` for decoding command batches and encoding native event packets on the UIKit side
 - package-local UIKit host command applier source now exists under `ios/Sources/TerajsRendererHost/` for allocating concrete `UIView` instances, replaying command batches, and syncing text, props, styles, and event subscriptions into a native-owned tree
 - package-local UIKit host runtime source now exists under `ios/Sources/TerajsRendererHost/` to wire the transport and command applier together and expose the current native root view
+- package-local UIKit live-runtime host contract source now exists under `ios/Sources/TerajsRendererHost/` for asset reads, runtime descriptor resolution, command-batch emission, native-event handler registration, lifecycle, and diagnostics entry points ahead of hosted engine execution
 - package-local UIKit event bindings now cover basic button tap, text-input change, and switch change emission back into the JS-owned event packet loop
 - package-local UIKit text-input bindings now also emit structured selection-change packets for `UITextField` and `UITextView`
 - a minimal Swift Package scaffold now exists at `ios/Package.swift` so the UIKit host code has a package-local compile target

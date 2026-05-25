@@ -306,6 +306,7 @@ import android.view.View
 import android.widget.ScrollView
 import android.widget.TextView
 import dev.terajs.renderer.android.AndroidHostRuntime
+import dev.terajs.renderer.android.AndroidRuntimeAssetReader
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -332,13 +333,21 @@ class MainActivity : Activity() {
 
   private fun createBootstrapView(): View {
     val hostManifest = readAssetJson(".terajs/hosts/android/terajs-host.json")
+    val runtimeDescriptorAssetPath = resolveRuntimeDescriptorAssetPath(hostManifest)
     ensureLiveRuntimeAssets(hostManifest)
     val bootstrapAssetPath = resolveBootstrapAssetPath(hostManifest)
     val commandBatchPayload = assets.open(bootstrapAssetPath).bufferedReader().use { reader ->
       reader.readText()
     }
 
-    val runtime = AndroidHostRuntime(this)
+    val runtime = AndroidHostRuntime(
+      context = this,
+      runtimeDescriptorPath = runtimeDescriptorAssetPath,
+      readTextAssetImpl = AndroidRuntimeAssetReader { assetPath ->
+        readAssetText(assetPath)
+      }
+    )
+    runtime.start()
     runtime.receiveCommandBatchPayload(commandBatchPayload)
 
     return runtime.rootView ?: createStatusView(

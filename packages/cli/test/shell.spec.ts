@@ -69,9 +69,11 @@ describe("cli initTargetShell", () => {
 
     const mainActivity = await readText(join(appRoot, "android", "app", "src", "main", "kotlin", "dev", "terajs", "apps", "universal", "app", "android", "MainActivity.kt"));
     expect(mainActivity).toContain("AndroidHostRuntime");
+    expect(mainActivity).toContain("AndroidRuntimeAssetReader");
     expect(mainActivity).toContain("ensureLiveRuntimeAssets");
     expect(mainActivity).toContain("generated-route-runtime.json");
     expect(mainActivity).toContain("live-runtime-entry.js");
+    expect(mainActivity).toContain("runtimeDescriptorPath = runtimeDescriptorAssetPath");
     expect(mainActivity).toContain("receiveCommandBatchPayload");
     expect(mainActivity).toContain("root-command-batch.json");
 
@@ -119,6 +121,7 @@ describe("cli initTargetShell", () => {
     expect(await exists(join(appRoot, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"))).toBe(true);
 
     expect(await exists(join(appRoot, "ios", "Package.swift"))).toBe(true);
+    expect(await exists(join(appRoot, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntimeContract.swift"))).toBe(true);
     expect(await exists(join(appRoot, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntime.swift"))).toBe(true);
     expect(await exists(join(appRoot, "ios", ".gitignore"))).toBe(true);
 

@@ -10,6 +10,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -327,7 +328,7 @@ class AndroidHarnessSmokeTest {
     val diagnostics = mutableListOf<AndroidDiagnosticEvent>()
     val runtime = AndroidHostRuntime(
       context = context,
-      diagnostics = AndroidDiagnosticsSink { event ->
+      diagnosticsSink = AndroidDiagnosticsSink { event ->
         diagnostics.add(event)
       }
     )
@@ -370,6 +371,89 @@ class AndroidHarnessSmokeTest {
           && event.message == "Sent native event"
           && event.details["nodeId"] == 1
           && event.details["name"] == "press"
+      }
+    )
+  }
+
+  @Test
+  fun exposesFutureLiveRuntimeHostContractSurface() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val emitted = mutableListOf<String>()
+    val handled = mutableListOf<String>()
+    val diagnostics = mutableListOf<AndroidDiagnosticEvent>()
+    val runtime = AndroidHostRuntime(
+      context = context,
+      runtimeDescriptorPath = ".terajs/generated/android/runtime/generated-route-runtime.json",
+      readTextAssetImpl = AndroidRuntimeAssetReader { assetPath ->
+        when (assetPath) {
+          ".terajs/generated/android/runtime/generated-route-runtime.json" -> "{\"kind\":\"generated-route-runtime\"}"
+          else -> throw AssertionError("Unexpected asset path: $assetPath")
+        }
+      },
+      emitEventPayload = emitted::add,
+      diagnosticsSink = AndroidDiagnosticsSink { event ->
+        diagnostics.add(event)
+      }
+    )
+
+    assertEquals(
+      "{\"kind\":\"generated-route-runtime\"}",
+      runtime.readTextAsset(".terajs/generated/android/runtime/generated-route-runtime.json")
+    )
+    assertFalse(runtime.diagnostics().hasStarted)
+
+    val started = runtime.start()
+    assertTrue(started.hasStarted)
+    assertEquals(
+      ".terajs/generated/android/runtime/generated-route-runtime.json",
+      started.runtimeDescriptorPath
+    )
+
+    runtime.onNativeEvent(AndroidNativeEventHandler { payload ->
+      handled.add(payload)
+    })
+
+    runtime.emitCommandBatch(
+      """
+      [
+        {
+          "type": "create-element",
+          "nodeId": 1,
+          "viewType": "Button"
+        }
+      ]
+      """.trimIndent()
+    )
+
+    runtime.sendNativeEvent(
+      nodeId = 1,
+      name = "press",
+      payload = TerajsJsonObject(mapOf("source" to TerajsJsonString("native")))
+    )
+
+    assertNotNull(runtime.rootView)
+    assertTrue(emitted.single().contains("\"name\":\"press\""))
+    assertEquals(emitted, handled)
+    assertTrue(runtime.diagnostics().hasNativeEventHandler)
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "runtime" && event.message == "Android host runtime is ready for live runtime startup"
+      }
+    )
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "runtime" && event.message == "Registered native event handler"
+      }
+    )
+
+    runtime.shutdown()
+
+    val stopped = runtime.diagnostics()
+    assertFalse(stopped.hasStarted)
+    assertFalse(stopped.hasNativeEventHandler)
+    assertTrue(
+      diagnostics.any { event ->
+        event.area == "runtime" && event.message == "Android host runtime shut down"
       }
     )
   }
