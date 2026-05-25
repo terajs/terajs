@@ -377,6 +377,9 @@ describe("proof workspace", () => {
 
     expect(runtimeEntry).toContain("__terajsNativeRuntime");
     expect(runtimeEntry).toContain("emitCommandBatch");
+    expect(runtimeEntry).toContain("start(host)");
+    expect(runtimeEntry).not.toContain("async start");
+    expect(runtimeEntry).not.toContain("Promise.resolve(host.readTextAsset");
 
     await expect(readFile(path.join(tempWorkspace, "dist", "index.html"), "utf8")).rejects.toMatchObject({
       code: "ENOENT"
