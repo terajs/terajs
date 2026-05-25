@@ -16,6 +16,17 @@
       <button type="button" class="proof-state-board__control" data-action="rotate-queue" @click="rotateQueue()">
         Rotate queue
       </button>
+      <label class="proof-state-board__filter">
+        <span class="proof-state-board__filter-label">Host note filter</span>
+        <input
+          type="text"
+          class="proof-state-board__filter-input"
+          data-action="host-note-filter"
+          placeholder="Filter active host note"
+          :value="hostNoteFilter()"
+          @input="updateHostNoteFilter($event)"
+        />
+      </label>
     </div>
 
     <div class="proof-state-board__layout">
@@ -73,8 +84,15 @@
             </div>
           </dl>
 
-          <p v-if="hasSelectedHostNote()" class="proof-state-board__note" data-selected-note>
+          <p class="proof-state-board__note-filter" data-note-filter-summary>
+            {{ hostNoteFilterSummary() }}
+          </p>
+
+          <p v-if="showsSelectedHostNote()" class="proof-state-board__note" data-selected-note>
             {{ selectedHostNote() }}
+          </p>
+          <p v-else-if="hasSelectedHostNote()" class="proof-state-board__note proof-state-board__note--muted" data-selected-note-filtered>
+            {{ filteredHostNoteSummary() }}
           </p>
         </div>
       </section>
@@ -115,6 +133,7 @@ const stories = signal([
 
 const queueVisible = signal(true)
 const selectedStoryId = signal('alpha')
+const hostNoteFilter = signal('')
 
 function boardSummary() {
   return `${stories().length} proof slices are driven from shared source while each host target keeps its concrete view layer thin.`
@@ -148,8 +167,56 @@ function selectedHostNote() {
   return story ? story.hostNote : ''
 }
 
+function readEventTextValue(event) {
+  if (event && typeof event.value === 'string') {
+    return event.value
+  }
+
+  if (event && typeof event.text === 'string') {
+    return event.text
+  }
+
+  if (event && event.target && typeof event.target.value === 'string') {
+    return event.target.value
+  }
+
+  return ''
+}
+
+function normalizedHostNoteFilter() {
+  return hostNoteFilter().trim().toLowerCase()
+}
+
+function updateHostNoteFilter(event) {
+  hostNoteFilter.set(readEventTextValue(event))
+}
+
 function hasSelectedHostNote() {
   return selectedHostNote().length > 0
+}
+
+function hostNoteFilterSummary() {
+  const filter = hostNoteFilter().trim()
+  return filter.length > 0
+    ? `Filtering host note by "${filter}".`
+    : 'Host note filter inactive.'
+}
+
+function showsSelectedHostNote() {
+  const note = selectedHostNote()
+  if (!note.length) {
+    return false
+  }
+
+  const filter = normalizedHostNoteFilter()
+  return filter.length === 0 || note.toLowerCase().includes(filter)
+}
+
+function filteredHostNoteSummary() {
+  const filter = hostNoteFilter().trim()
+  return filter.length > 0
+    ? `Current host note is hidden until it matches "${filter}".`
+    : ''
 }
 
 function promoteSelected() {
@@ -222,6 +289,7 @@ function storyButtonClass(story) {
 
 .proof-state-board__summary,
 .proof-state-board__detail-summary,
+.proof-state-board__note-filter,
 .proof-state-board__note,
 .proof-state-board__empty,
 .proof-state-board__meta {
@@ -236,8 +304,23 @@ function storyButtonClass(story) {
   gap: 0.75rem;
 }
 
+.proof-state-board__filter {
+  min-width: min(100%, 18rem);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.proof-state-board__filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.9);
+}
+
 .proof-state-board__control,
-.proof-state-board__story {
+.proof-state-board__story,
+.proof-state-board__filter-input {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 0.9rem;
   background: rgba(15, 23, 42, 0.54);
@@ -248,6 +331,16 @@ function storyButtonClass(story) {
   padding: 0.7rem 0.95rem;
   font: inherit;
   cursor: pointer;
+}
+
+.proof-state-board__filter-input {
+  width: 100%;
+  padding: 0.72rem 0.9rem;
+  font: inherit;
+}
+
+.proof-state-board__filter-input::placeholder {
+  color: rgba(148, 163, 184, 0.72);
 }
 
 .proof-state-board__layout {
@@ -339,6 +432,10 @@ function storyButtonClass(story) {
   margin: 0;
   font-weight: 600;
   color: #f8fafc;
+}
+
+.proof-state-board__note--muted {
+  color: rgba(148, 163, 184, 0.94);
 }
 
 @media (min-width: 768px) {

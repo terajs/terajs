@@ -62,6 +62,15 @@ function findStoryButtonByTarget(root: AndroidNativeViewNode, targetId: string):
   return match;
 }
 
+function findTextInputByAction(root: AndroidNativeViewNode, action: string): AndroidNativeViewNode {
+  const match = collectViews(root, "EditText").find((node) => node.props["data-action"] === action);
+  if (!match) {
+    throw new Error(`Missing Android text input with action \"${action}\".`);
+  }
+
+  return match;
+}
+
 function collectStoryButtonTitles(root: AndroidNativeViewNode): string[] {
   return collectViews(root, "Button")
     .filter((node) => typeof node.props["data-story-target"] === "string")
@@ -134,7 +143,7 @@ function createGeneratedRuntimeHarness(workspaceRoot: string) {
         nativeEventHandler = handler;
       },
     },
-    dispatchNativeEvent(nodeId: number, name: string): void {
+    dispatchNativeEvent(nodeId: number, name: string, payload: unknown = { source: "native" }): void {
       if (!nativeEventHandler) {
         throw new Error("Generated Android runtime did not register a native event handler.");
       }
@@ -142,7 +151,7 @@ function createGeneratedRuntimeHarness(workspaceRoot: string) {
       nativeEventHandler(stringifyAndroidNativeEventPacket({
         nodeId,
         name,
-        payload: { source: "native" },
+        payload,
       }));
     },
   };
@@ -256,6 +265,52 @@ describe("renderer-android proof workspace smoke", () => {
     expect(harness.emittedBatches.length).toBeGreaterThan(batchCountBeforeEvent);
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
       "Queue hidden while the selected proof stays mounted for the active host target."
+    ]));
+  });
+
+  it("updates the host note filter through the emitted Android live runtime bundle", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+
+    process.chdir(tempWorkspace);
+    await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
+
+    const runtimeEntry = await readFile(
+      path.join(tempWorkspace, ".terajs", "generated", "android", "runtime", "live-runtime-entry.js"),
+      "utf8"
+    );
+    const harness = createGeneratedRuntimeHarness(tempWorkspace);
+    const context = createContext({
+      clearTimeout,
+      console,
+      queueMicrotask,
+      setTimeout,
+    }) as Record<string, unknown>;
+
+    context.globalThis = context;
+    context.__terajsNativeHost = harness.host;
+
+    runInContext(runtimeEntry, context, {
+      filename: "live-runtime-entry.js",
+    });
+    runInContext("globalThis.__terajsNativeRuntime.start(globalThis.__terajsNativeHost)", context, {
+      filename: "live-runtime-entry-start.js",
+    });
+
+    expect(harness.consumer.root).not.toBeNull();
+    expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
+      "Host note filter inactive."
+    ]));
+
+    const filterInput = findTextInputByAction(harness.consumer.root!, "host-note-filter");
+    expect(filterInput.subscribedEvents).toContain("change");
+
+    const batchCountBeforeEvent = harness.emittedBatches.length;
+    harness.dispatchNativeEvent(filterInput.id, "input", { text: "Android" });
+
+    expect(harness.emittedBatches.length).toBeGreaterThan(batchCountBeforeEvent);
+    expect(filterInput.props.text).toBe("Android");
+    expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
+      'Filtering host note by "Android".'
     ]));
   });
 

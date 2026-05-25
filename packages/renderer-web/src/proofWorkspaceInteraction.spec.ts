@@ -37,6 +37,15 @@ function click(element: Element | null): void {
   element?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
 }
 
+function inputText(element: Element | null, value: string): void {
+  if (!(element instanceof HTMLInputElement)) {
+    throw new Error("Expected a proof workspace text input.");
+  }
+
+  element.value = value;
+  element.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+}
+
 afterEach(() => {
   clearDebugHistory();
 });
@@ -70,11 +79,19 @@ describe("proof workspace interaction", () => {
 
     expect(storyIds()).toEqual(["alpha", "bravo", "charlie"]);
     expect(root.querySelector("[data-selected-host]")?.textContent).toBe("web");
+    expect(root.querySelector("[data-note-filter-summary]")?.textContent).toContain("inactive");
+
+    inputText(root.querySelector('input[data-action="host-note-filter"]'), "Android");
+    await tick();
+
+    expect((root.querySelector('input[data-action="host-note-filter"]') as HTMLInputElement | null)?.value).toBe("Android");
+    expect(root.querySelector("[data-note-filter-summary]")?.textContent).toContain("Android");
 
     click(root.querySelector('button[data-story-target="bravo"]'));
     await tick();
 
     expect(root.querySelector("[data-selected-host]")?.textContent).toBe("android");
+    expect(root.querySelector("[data-note-filter-summary]")?.textContent).toContain("Android");
 
     click(root.querySelector('button[data-action="promote-selected"]'));
     await tick();
@@ -98,6 +115,7 @@ describe("proof workspace interaction", () => {
     });
 
     expect(stateEvents.some((event) => event.payload.next === "bravo")).toBe(true);
+    expect(stateEvents.some((event) => event.payload.next === "Android")).toBe(true);
     expect(stateEvents.some((event) => event.payload.next === false)).toBe(true);
     expect(stateEvents.some((event) => Array.isArray(event.payload.next))).toBe(true);
   });
