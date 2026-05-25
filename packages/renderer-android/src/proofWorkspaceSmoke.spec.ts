@@ -53,6 +53,21 @@ function findButtonByText(root: AndroidNativeViewNode, label: string): AndroidNa
   return match;
 }
 
+function findStoryButtonByTarget(root: AndroidNativeViewNode, targetId: string): AndroidNativeViewNode {
+  const match = collectViews(root, "Button").find((node) => node.props["data-story-target"] === targetId);
+  if (!match) {
+    throw new Error(`Missing Android proof story button with target \"${targetId}\".`);
+  }
+
+  return match;
+}
+
+function collectStoryButtonTitles(root: AndroidNativeViewNode): string[] {
+  return collectViews(root, "Button")
+    .filter((node) => typeof node.props["data-story-target"] === "string")
+    .map((node) => collectTextValues(node)[0] ?? "");
+}
+
 async function loadGeneratedRuntimeInputs(tempWorkspace: string): Promise<{
   modules: AndroidGeneratedCompiledModule[];
   routes: AndroidGeneratedRouteRecord[];
@@ -242,5 +257,59 @@ describe("renderer-android proof workspace smoke", () => {
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
       "Queue hidden while the selected proof stays mounted for the active host target."
     ]));
+  });
+
+  it("preserves keyed queue identity through the emitted Android live runtime bundle", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+
+    process.chdir(tempWorkspace);
+    await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
+
+    const runtimeEntry = await readFile(
+      path.join(tempWorkspace, ".terajs", "generated", "android", "runtime", "live-runtime-entry.js"),
+      "utf8"
+    );
+    const harness = createGeneratedRuntimeHarness(tempWorkspace);
+    const context = createContext({
+      clearTimeout,
+      console,
+      queueMicrotask,
+      setTimeout,
+    }) as Record<string, unknown>;
+
+    context.globalThis = context;
+    context.__terajsNativeHost = harness.host;
+
+    runInContext(runtimeEntry, context, {
+      filename: "live-runtime-entry.js",
+    });
+    runInContext("globalThis.__terajsNativeRuntime.start(globalThis.__terajsNativeHost)", context, {
+      filename: "live-runtime-entry-start.js",
+    });
+
+    expect(harness.consumer.root).not.toBeNull();
+    expect(collectStoryButtonTitles(harness.consumer.root!)).toEqual([
+      "Web shell parity",
+      "Android command fidelity",
+      "iOS bridge readiness",
+    ]);
+
+    const selectedAndroidStory = findStoryButtonByTarget(harness.consumer.root!, "bravo");
+    harness.dispatchNativeEvent(selectedAndroidStory.id, "press");
+
+    expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
+      "Android host proof",
+      "Android command fidelity",
+    ]));
+
+    const promoteSelectedButton = findButtonByText(harness.consumer.root!, "Promote selected");
+    harness.dispatchNativeEvent(promoteSelectedButton.id, "press");
+
+    expect(collectStoryButtonTitles(harness.consumer.root!)).toEqual([
+      "Android command fidelity",
+      "Web shell parity",
+      "iOS bridge readiness",
+    ]);
+    expect(findStoryButtonByTarget(harness.consumer.root!, "bravo").id).toBe(selectedAndroidStory.id);
   });
 });
