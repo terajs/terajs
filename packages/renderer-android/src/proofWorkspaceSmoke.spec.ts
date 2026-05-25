@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { createContext, runInContext } from "node:vm";
 
 import type { IRModule } from "@terajs/compiler";
 import { clearDebugHistory, normalizeSharedDebugEvent, readDebugHistory } from "@terajs/shared";
 
 import type { AndroidNativeNode, AndroidNativeViewNode } from "./consumer.js";
 import {
+  createAndroidCommandConsumer,
   createAndroidGeneratedRouteTransport,
   parseAndroidBridgeCommands,
+  stringifyAndroidNativeEventPacket,
   type AndroidGeneratedCompiledModule,
   type AndroidGeneratedRouteRecord,
 } from "./index.js";
@@ -87,6 +91,48 @@ async function loadGeneratedRuntimeInputs(tempWorkspace: string): Promise<{
   return { modules, routes };
 }
 
+function resolveWorkspaceAssetPath(workspaceRoot: string, assetPath: string): string {
+  return path.join(workspaceRoot, ...assetPath.split("/").filter((segment) => segment.length > 0));
+}
+
+function createGeneratedRuntimeHarness(workspaceRoot: string) {
+  const consumer = createAndroidCommandConsumer();
+  const emittedBatches: string[] = [];
+  let nativeEventHandler: ((payload: string) => void) | null = null;
+
+  return {
+    consumer,
+    emittedBatches,
+    host: {
+      runtimeDescriptorPath: ".terajs/generated/android/runtime/generated-route-runtime.json",
+      readTextAsset(assetPath: string): string {
+        return readFileSync(resolveWorkspaceAssetPath(workspaceRoot, assetPath), "utf8");
+      },
+      emitCommandBatch(payload: string): void {
+        emittedBatches.push(payload);
+        consumer.applyCommands(parseAndroidBridgeCommands(payload));
+      },
+      onNativeEvent(handler: (payload: string) => void): void {
+        nativeEventHandler = handler;
+      },
+      setNativeEventHandler(handler: (payload: string) => void): void {
+        nativeEventHandler = handler;
+      },
+    },
+    dispatchNativeEvent(nodeId: number, name: string): void {
+      if (!nativeEventHandler) {
+        throw new Error("Generated Android runtime did not register a native event handler.");
+      }
+
+      nativeEventHandler(stringifyAndroidNativeEventPacket({
+        nodeId,
+        name,
+        payload: { source: "native" },
+      }));
+    },
+  };
+}
+
 describe("renderer-android proof workspace smoke", () => {
   it("mounts generated proof route output through the Android wire runtime and rerenders after native events", async () => {
     const tempWorkspace = await copyProofWorkspace();
@@ -148,5 +194,53 @@ describe("renderer-android proof workspace smoke", () => {
       eventName: "press",
       nodeId: toggleQueueButton.id
     });
+  });
+
+  it("evaluates the emitted Android live runtime bundle against the proof workspace host loop", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+
+    process.chdir(tempWorkspace);
+    await runBuildCommand({ target: ["android"] }, { cwd: tempWorkspace });
+
+    const runtimeEntry = await readFile(
+      path.join(tempWorkspace, ".terajs", "generated", "android", "runtime", "live-runtime-entry.js"),
+      "utf8"
+    );
+    const harness = createGeneratedRuntimeHarness(tempWorkspace);
+    const context = createContext({
+      clearTimeout,
+      console,
+      queueMicrotask,
+      setTimeout,
+    }) as Record<string, unknown>;
+
+    context.globalThis = context;
+    context.__terajsNativeHost = harness.host;
+
+    runInContext(runtimeEntry, context, {
+      filename: "live-runtime-entry.js",
+    });
+    runInContext("globalThis.__terajsNativeRuntime.start(globalThis.__terajsNativeHost)", context, {
+      filename: "live-runtime-entry-start.js",
+    });
+
+    expect(harness.emittedBatches.length).toBeGreaterThan(0);
+    expect(harness.consumer.root).not.toBeNull();
+    expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
+      "Shared queue",
+      "Selected slice",
+      "Web host proof"
+    ]));
+
+    const toggleQueueButton = findButtonByText(harness.consumer.root!, "Hide queue");
+    expect(toggleQueueButton.subscribedEvents).toContain("press");
+
+    const batchCountBeforeEvent = harness.emittedBatches.length;
+    harness.dispatchNativeEvent(toggleQueueButton.id, "press");
+
+    expect(harness.emittedBatches.length).toBeGreaterThan(batchCountBeforeEvent);
+    expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
+      "Queue hidden while the selected proof stays mounted for the active host target."
+    ]));
   });
 });
