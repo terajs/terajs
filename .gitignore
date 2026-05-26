@@ -5,3 +5,6 @@ benchmarks/.dist/
 .vitest/
 folder_dump/
 .vscode/
+.local/
+.github/copilot-instructions.md
+.github/instructions/
