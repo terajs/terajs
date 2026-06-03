@@ -20,6 +20,7 @@ npm run rc:check
 - iOS source-level release readiness doctor
 - Android/iOS generated artifact conformance
 - Android/iOS emitted live-runtime behavior conformance
+- iOS proof workspace shell source-level release readiness
 - Android renderer TypeScript tests
 - iOS renderer TypeScript tests
 
@@ -41,6 +42,7 @@ Last local checkpoint on this branch:
 - `npm run rc:native:android`: passing with Android Studio JBR and local Android SDK.
 - `npm run rc:native:android:shell-debug`: passing; generated proof workspace shell produced a debug APK.
 - `npm run rc:native:android:shell-release`: passing with ignored local proof signing inputs; generated proof workspace shell passed release doctor and produced a release APK.
+- `npm run rc:native:ios:source`: passing; generated proof workspace shell passed iOS source-level release doctor with the expected non-macOS warning.
 
 Local Android proof environment:
 
@@ -74,6 +76,7 @@ Current local limitation:
 Required before declaring iOS RC-ready:
 
 - `npm run rc:native`
+- `npm run rc:native:ios:source`
 - `tera shell doctor ios --release`
 - macOS `swift build` from the materialized `ios/` shell
 - Xcode app-wrapper validation using `ios/TerajsAppHost.json`
