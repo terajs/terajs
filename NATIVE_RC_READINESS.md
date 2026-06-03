@@ -38,6 +38,7 @@ Last local checkpoint on this branch:
 - `npm run bench:browser:guard`: passing in the latest run.
 - `npm run rc:native:android:doctor`: JDK and Gradle wrapper pass; blocked because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
 - `npm run rc:native:android`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
+- `npm run rc:native:android:shell-debug`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
 
 ## Android RC Requirements
 
@@ -46,7 +47,7 @@ Required before declaring Android RC-ready:
 - `npm run rc:native`
 - `npm run rc:native:android:doctor`
 - `npm run rc:native:android`
-- proof workspace Android shell `assembleDebug`
+- `npm run rc:native:android:shell-debug`
 - materialized universal Android shell `assembleDebug`
 - materialized universal Android shell `assembleRelease` with local `TERA_ANDROID_RELEASE_*` signing inputs
 - `tera shell doctor android --release` passes with real local signing inputs
@@ -54,6 +55,7 @@ Required before declaring Android RC-ready:
 Current local limitation:
 
 - Android real Gradle build validation requires a local JDK 17+ and Android SDK. This machine currently passes the JDK and Gradle wrapper checks, but fails `npm run rc:native:android:doctor` before Gradle starts because no Android SDK is configured.
+- `npm run rc:native:android:shell-debug` materializes the proof workspace Android shell, runs `assembleDebug`, and verifies that a debug APK exists once the SDK is available.
 - The TypeScript and generated-runtime proof gates do not replace a real Gradle build.
 
 ## iOS RC Requirements

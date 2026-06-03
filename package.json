@@ -20,6 +20,7 @@
     "rc:native": "npm run test:universal:native && npm run test:renderer-android:ts && npm run test:renderer-ios:ts",
     "rc:native:android:doctor": "node scripts/check-android-rc-toolchain.mjs",
     "rc:native:android": "npm run test:renderer-android:kotlin",
+    "rc:native:android:shell-debug": "node scripts/assemble-android-proof-shell.mjs",
     "test:sanity": "vitest --run packages/renderer-web/src/stressLeak.spec.ts packages/devtools/src/sanity.spec.ts",
     "test:docs": "npm run audit:docs && vitest --run packages/renderer-web/src/webAppFlow.spec.ts packages/renderer-web/src/hydrate.spec.ts",
     "test:local-first": "vitest --run packages/runtime/src/queue/mutationQueue.spec.ts packages/runtime/src/action.spec.ts packages/runtime/src/resource.spec.ts packages/renderer-web/src/form.spec.ts packages/devtools/src/analytics.spec.ts",
