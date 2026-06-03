@@ -70,7 +70,7 @@ This document outlines the plan for building production-ready native renderers f
 
 ## Next Steps
 - Keep `npm run test:renderer-web:focused` and `npm run bench:browser:guard` green while further neutral-renderer extraction continues.
-- Keep the proof workspace build, route, state, and smoke validations green as the standing proof gate for native-renderer work.
+- Keep `npm run test:universal:native` green as the standing proof gate for native-renderer work. It covers universal doctor readiness, proof workspace builds, shell materialization, release readiness doctors, generated Android/iOS artifact parity, emitted live-runtime behavior parity, and package-local Android/iOS smoke checks.
 - Finish iOS native diagnostics validation on macOS/Xcode instead of treating source-only Swift changes as sufficient proof.
 - Extend native host validation from the current Android package-local diagnostics sink toward matching Swift-side diagnostics once Apple tooling is available.
 - Decide the concrete bridge and engine shape only after the host simulation, proof smoke checks, and native diagnostics expose the required command and lifecycle surface.
