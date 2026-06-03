@@ -32,14 +32,23 @@ Run RC gates sequentially. `npm run build` starts with `npm run clean`, and runn
 Last local checkpoint on this branch:
 
 - `npm run rc:native`: passing.
-- `npm run test:universal:native`: passing, with the Android proof shell assemble smoke skipped when no local Android toolchain is available.
+- `npm run rc:check`: passing when the external smoke is allowed to fetch third-party registry dependencies.
+- `npm run test:universal:native`: passing, including Android proof shell assemble smoke on this machine.
 - `npm run build`: passing.
 - `npm run test:renderer-web:focused`: passing.
 - `npm run bench:browser:guard`: passing in the latest run.
-- `npm run rc:native:android:doctor`: JDK and Gradle wrapper pass; blocked because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
-- `npm run rc:native:android`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
-- `npm run rc:native:android:shell-debug`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
-- `npm run rc:native:android:shell-release`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME`, local `TERA_ANDROID_RELEASE_*` signing inputs, and release version metadata are not configured.
+- `npm run rc:native:android:doctor`: passing with Android Studio JBR and local Android SDK.
+- `npm run rc:native:android`: passing with Android Studio JBR and local Android SDK.
+- `npm run rc:native:android:shell-debug`: passing; generated proof workspace shell produced a debug APK.
+- `npm run rc:native:android:shell-release`: passing with ignored local proof signing inputs; generated proof workspace shell passed release doctor and produced a release APK.
+
+Local Android proof environment:
+
+- `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`
+- `ANDROID_SDK_ROOT=%LOCALAPPDATA%\Android\Sdk`
+- Android SDK platform `android-35` and build-tools `35.0.0` are installed.
+- Ignored proof signing keystore: `proofs/android-release-proof.keystore`
+- Release proof metadata used locally: `TERA_ANDROID_RELEASE_VERSION_CODE=2`, `TERA_ANDROID_RELEASE_VERSION_NAME=1.2.0-rc.1`
 
 ## Android RC Requirements
 
@@ -55,7 +64,7 @@ Required before declaring Android RC-ready:
 
 Current local limitation:
 
-- Android real Gradle build validation requires a local JDK 17+ and Android SDK. This machine currently passes the JDK and Gradle wrapper checks, but fails `npm run rc:native:android:doctor` before Gradle starts because no Android SDK is configured.
+- Android real Gradle build validation requires a local JDK 17+ and Android SDK.
 - `npm run rc:native:android:shell-debug` materializes the proof workspace Android shell, runs `assembleDebug`, and verifies that a debug APK exists once the SDK is available.
 - `npm run rc:native:android:shell-release` materializes the proof workspace Android shell, requires local `TERA_ANDROID_RELEASE_*` signing inputs plus `TERA_ANDROID_RELEASE_VERSION_CODE` and `TERA_ANDROID_RELEASE_VERSION_NAME`, runs `tera shell doctor android --release`, runs `assembleRelease`, and verifies that a release APK exists once the SDK and local release inputs are available.
 - The TypeScript and generated-runtime proof gates do not replace a real Gradle build.

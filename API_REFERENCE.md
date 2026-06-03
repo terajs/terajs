@@ -15,6 +15,8 @@ Release scope reflected here:
 - `@terajs/renderer`
 - `@terajs/renderer-web`
 - `@terajs/renderer-ssr`
+- `@terajs/renderer-android`
+- `@terajs/renderer-ios`
 - `@terajs/devtools`
 - `@terajs/vite-plugin`
 - `@terajs/sfc`
@@ -547,6 +549,7 @@ Still directional or intentionally outside this file:
 
 - native renderer implementation details
 - `@terajs/renderer-android` Android shell and host-runtime package details
+- `@terajs/renderer-ios` iOS shell and host-runtime package details
 - animation / transition frameworks
 - broader Kit-level conventions beyond current exports
 

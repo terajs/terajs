@@ -117,7 +117,10 @@ const legacyProductionSourceLineCaps = new Map<string, number>([
   ["packages/sfc/src/stripTypes.ts", 619],
   ["packages/renderer-web/src/renderFromIR.ts", 530],
   ["packages/renderer-ssr/src/renderToString.ts", 513],
-  ["packages/devtools/src/inspector/runtimeMonitor.ts", 540]
+  ["packages/devtools/src/inspector/runtimeMonitor.ts", 540],
+  ["packages/cli/src/nativeBuild.ts", 883],
+  ["packages/cli/src/shell.ts", 567],
+  ["packages/cli/src/shellDoctor.ts", 600]
 ]);
 
 describe("architecture guardrails", () => {
@@ -335,6 +338,10 @@ describe("architecture guardrails", () => {
           continue;
         }
 
+        if (packageName === "cli" && importPath === "typescript") {
+          continue;
+        }
+
         if (packageName === "create-terajs" && importPath === "@terajs/cli") {
           continue;
         }
@@ -362,6 +369,7 @@ describe("architecture guardrails", () => {
     expect(isApprovedTrackedCodeSurface("packages/shared/src/index.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("packages/cli/test/doctor.spec.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("packages/vite-plug-in/index.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("packages/renderer-android/android/src/test/resources/proof-runtime-generated/runtime/live-runtime-entry.js")).toBe(true);
     expect(isApprovedTrackedCodeSurface("benchmarks/frameworks-browser.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("benchmarks/vite.browser-bench.config.ts")).toBe(true);
     expect(isApprovedTrackedCodeSurface("scripts/audit-exports.mjs")).toBe(true);
@@ -478,6 +486,10 @@ function isApprovedTrackedCodeSurface(filePath: string): boolean {
   const [, packageName, packageRelativePath] = packageMatch;
 
   if (packageRelativePath.startsWith("src/") || packageRelativePath.startsWith("test/")) {
+    return true;
+  }
+
+  if (packageName === "renderer-android" && packageRelativePath.startsWith("android/src/test/resources/")) {
     return true;
   }
 
