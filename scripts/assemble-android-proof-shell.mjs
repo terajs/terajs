@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -25,6 +25,8 @@ const requiredReleaseEnv = [
   "TERA_ANDROID_RELEASE_STORE_PASSWORD",
   "TERA_ANDROID_RELEASE_KEY_ALIAS",
   "TERA_ANDROID_RELEASE_KEY_PASSWORD",
+  "TERA_ANDROID_RELEASE_VERSION_CODE",
+  "TERA_ANDROID_RELEASE_VERSION_NAME",
 ];
 
 function assertBuiltCliAvailable() {
@@ -70,7 +72,42 @@ function assertReleaseSigningEnv(env) {
     process.exit(1);
   }
 
+  if (!/^[1-9]\d*$/.test(env.TERA_ANDROID_RELEASE_VERSION_CODE)) {
+    console.error("TERA_ANDROID_RELEASE_VERSION_CODE must be a positive integer.");
+    process.exit(1);
+  }
+
+  if (env.TERA_ANDROID_RELEASE_VERSION_NAME === "0.0.0") {
+    console.error("TERA_ANDROID_RELEASE_VERSION_NAME must be set to the release version being validated.");
+    process.exit(1);
+  }
+
   env.TERA_ANDROID_RELEASE_STORE_FILE = storeFile;
+}
+
+async function applyReleaseVersionMetadata(shellDir, env) {
+  if (mode !== "release") {
+    return;
+  }
+
+  const appBuildPath = join(shellDir, "app", "build.gradle.kts");
+  const appBuild = await readFile(appBuildPath, "utf8");
+  const updatedAppBuild = appBuild
+    .replace(/versionCode = 1\b/, `versionCode = ${env.TERA_ANDROID_RELEASE_VERSION_CODE}`)
+    .replace(/versionName = "0\.0\.0"/, `versionName = ${JSON.stringify(env.TERA_ANDROID_RELEASE_VERSION_NAME)}`);
+
+  await writeFile(appBuildPath, updatedAppBuild, "utf8");
+}
+
+function assertReleaseDoctor(report, formatDoctorReport) {
+  if (mode !== "release") {
+    return;
+  }
+
+  console.log(formatDoctorReport(report));
+  if (!report.ok) {
+    throw new Error("Android proof shell release readiness failed before assembleRelease.");
+  }
 }
 
 async function copyProofWorkspace() {
@@ -131,6 +168,8 @@ assertReleaseSigningEnv(releaseEnv);
 const { androidSdkRoot, env, javaHome } = resolveAndroidEnv(releaseEnv);
 const { runBuildCommand } = await import("../packages/cli/dist/build.js");
 const { initTargetShell } = await import("../packages/cli/dist/shell.js");
+const { formatDoctorReport } = await import("../packages/cli/dist/doctor.js");
+const { inspectAndroidReleaseReadiness } = await import("../packages/cli/dist/shellDoctor.js");
 
 let tempRoot;
 
@@ -159,6 +198,8 @@ try {
   }
 
   const shellDir = join(tempWorkspace, "android");
+  await applyReleaseVersionMetadata(shellDir, env);
+  assertReleaseDoctor(inspectAndroidReleaseReadiness({ cwd: tempWorkspace, env }), formatDoctorReport);
   await runGradle(shellDir, env);
 
   const apkPath = join(shellDir, "app", "build", "outputs", "apk", apkVariantDir, apkFileName);

@@ -39,7 +39,7 @@ Last local checkpoint on this branch:
 - `npm run rc:native:android:doctor`: JDK and Gradle wrapper pass; blocked because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
 - `npm run rc:native:android`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
 - `npm run rc:native:android:shell-debug`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
-- `npm run rc:native:android:shell-release`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` and local `TERA_ANDROID_RELEASE_*` signing inputs are not configured.
+- `npm run rc:native:android:shell-release`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME`, local `TERA_ANDROID_RELEASE_*` signing inputs, and release version metadata are not configured.
 
 ## Android RC Requirements
 
@@ -57,7 +57,7 @@ Current local limitation:
 
 - Android real Gradle build validation requires a local JDK 17+ and Android SDK. This machine currently passes the JDK and Gradle wrapper checks, but fails `npm run rc:native:android:doctor` before Gradle starts because no Android SDK is configured.
 - `npm run rc:native:android:shell-debug` materializes the proof workspace Android shell, runs `assembleDebug`, and verifies that a debug APK exists once the SDK is available.
-- `npm run rc:native:android:shell-release` materializes the proof workspace Android shell, requires local `TERA_ANDROID_RELEASE_*` signing inputs, runs `assembleRelease`, and verifies that a release APK exists once the SDK and signing inputs are available.
+- `npm run rc:native:android:shell-release` materializes the proof workspace Android shell, requires local `TERA_ANDROID_RELEASE_*` signing inputs plus `TERA_ANDROID_RELEASE_VERSION_CODE` and `TERA_ANDROID_RELEASE_VERSION_NAME`, runs `tera shell doctor android --release`, runs `assembleRelease`, and verifies that a release APK exists once the SDK and local release inputs are available.
 - The TypeScript and generated-runtime proof gates do not replace a real Gradle build.
 
 ## iOS RC Requirements
