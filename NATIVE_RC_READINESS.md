@@ -40,6 +40,7 @@ Last local checkpoint on this branch:
 - `npm run bench:browser:guard`: passing in the latest run.
 - `npm run rc:native:android:doctor`: passing with Android Studio JBR and local Android SDK.
 - `npm run rc:native:android`: passing with Android Studio JBR and local Android SDK.
+- `npm run rc:native:android:full`: passing; runs build, doctor, Kotlin/Gradle tests, proof shell debug assemble, and proof shell release assemble with ignored local proof signing.
 - `npm run rc:native:android:shell-debug`: passing; generated proof workspace shell produced a debug APK.
 - `npm run rc:native:android:shell-release`: passing with ignored local proof signing inputs; generated proof workspace shell passed release doctor and produced a release APK.
 - `npm run rc:native:ios:source`: passing; generated proof workspace shell passed iOS source-level release doctor with the expected non-macOS warning.
@@ -57,6 +58,7 @@ Local Android proof environment:
 Required before declaring Android RC-ready:
 
 - `npm run rc:native`
+- `npm run rc:native:android:full`
 - `npm run rc:native:android:doctor`
 - `npm run rc:native:android`
 - `npm run rc:native:android:shell-debug`

@@ -20,6 +20,7 @@
     "rc:native": "npm run test:universal:native && npm run test:renderer-android:ts && npm run test:renderer-ios:ts && npm run rc:native:ios:source",
     "rc:native:android:doctor": "node scripts/check-android-rc-toolchain.mjs",
     "rc:native:android": "npm run test:renderer-android:kotlin",
+    "rc:native:android:full": "node scripts/run-android-rc-full.mjs",
     "rc:native:android:shell-debug": "node scripts/assemble-android-proof-shell.mjs",
     "rc:native:android:shell-release": "node scripts/assemble-android-proof-shell.mjs --release",
     "rc:native:ios:source": "node scripts/check-ios-proof-shell-source.mjs",
