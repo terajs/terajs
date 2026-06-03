@@ -93,6 +93,8 @@ Scope:
 
 Goal: users can prepare real deployables from a universal workspace.
 
+Use `NATIVE_RC_READINESS.md` as the concrete RC checklist for local gates, Android real-build validation, and macOS/Xcode validation.
+
 Web:
 
 - Production Vite bundle with manifest and app-facing package surface.
