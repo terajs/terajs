@@ -723,7 +723,6 @@ async function createNativeLiveRuntimeBundle(
           output: {
             entryFileNames: path.basename(outputPath),
             format: "iife",
-            inlineDynamicImports: true,
             name: "TerajsNativeRuntime"
           }
         }
