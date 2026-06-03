@@ -200,4 +200,48 @@ describe("cli doctor", () => {
     expect(report.checks.some((check) => check.id === "universal-android-generated-manifest" && !check.ok)).toBe(true);
     expect(report.checks.some((check) => check.id === "universal-ios-generated-manifest" && !check.ok)).toBe(true);
   });
+
+  it("loads universal workspace config from the requested cwd", async () => {
+    const originalCwd = process.cwd();
+    const outsideRoot = await mkdtemp(join(tmpdir(), "terajs-cli-universal-doctor-outside-"));
+    const root = join(outsideRoot, "workspace");
+
+    await mkdir(join(root, "src", "shared", "pages"), { recursive: true });
+    await mkdir(join(root, "src", "shared", "components"), { recursive: true });
+    await writeFile(join(root, "package.json"), JSON.stringify({
+      name: "universal-doctor-cwd",
+      private: true,
+      dependencies: { "@terajs/app": "*" },
+      devDependencies: { vite: "*" },
+      scripts: { dev: "vite", build: "tera build" }
+    }, null, 2));
+    await writeFile(join(root, "vite.config.ts"), "export default {};\n");
+    await writeFile(join(root, "src", "shared", "pages", "index.tera"), "<template><main/></template>\n");
+    await writeFile(join(root, "terajs.config.cjs"), `
+module.exports = {
+  workspace: {
+    mode: "universal",
+    sourceRoot: "src/shared",
+    targets: {
+      selected: ["web"],
+      web: { outputDir: "dist" }
+    }
+  },
+  autoImportDirs: ["src/shared/components"],
+  routeDirs: ["src/shared/pages"]
+};
+`);
+
+    process.chdir(originalCwd);
+    const report = await inspectUniversalWorkspace({
+      cwd: root,
+      env: process.env
+    });
+
+    expect(process.cwd()).toBe(originalCwd);
+    expect(report.root).toBe(root);
+    expect(report.checks.find((check) => check.id === "universal-mode")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "universal-source-root")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "universal-target:web")?.ok).toBe(true);
+  });
 });

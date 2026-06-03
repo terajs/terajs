@@ -89,15 +89,27 @@ function inspectSelectedNativeTarget(
   }).checks.map((check) => prefixShellCheck(target, check));
 }
 
+function loadWorkspaceConfigFromRoot(root: string): TerajsWorkspaceConfig {
+  const originalCwd = process.cwd();
+  process.chdir(root);
+
+  try {
+    return getWorkspaceConfig();
+  } finally {
+    process.chdir(originalCwd);
+  }
+}
+
 export async function inspectUniversalWorkspace(
   options: InspectUniversalWorkspaceOptions = {}
 ): Promise<DoctorReport> {
   const root = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
-  const loadWorkspaceConfig = options.getWorkspaceConfig ?? getWorkspaceConfig;
 
   const projectReport = await inspectTerajsProject(root);
-  const workspace = loadWorkspaceConfig();
+  const workspace = options.getWorkspaceConfig
+    ? options.getWorkspaceConfig()
+    : loadWorkspaceConfigFromRoot(root);
   const checks: DoctorCheck[] = [
     ...projectReport.checks,
     checkWorkspaceMode(workspace),
