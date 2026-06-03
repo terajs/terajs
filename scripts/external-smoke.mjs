@@ -103,12 +103,43 @@ async function collectTerajsPackages() {
     ) {
       packages.push({
         name: manifest.name,
-        directory
+        directory,
+        dependencies: Object.keys(manifest.dependencies ?? {})
       });
     }
   }
 
   return packages.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function collectTerajsDependencyClosure(rootNames) {
+  const packageEntries = await collectTerajsPackages();
+  const packageByName = new Map(packageEntries.map((pkg) => [pkg.name, pkg]));
+  const required = new Set();
+
+  function visit(packageName) {
+    if (required.has(packageName)) {
+      return;
+    }
+
+    const pkg = packageByName.get(packageName);
+    if (!pkg) {
+      return;
+    }
+
+    required.add(packageName);
+    for (const dependencyName of pkg.dependencies) {
+      if (dependencyName.startsWith("@terajs/")) {
+        visit(dependencyName);
+      }
+    }
+  }
+
+  for (const rootName of rootNames) {
+    visit(rootName);
+  }
+
+  return required;
 }
 
 async function packTerajsPackages(packDirectory, env) {
@@ -169,8 +200,12 @@ async function rewriteScaffoldPackage(appRoot, tarballs) {
     : {};
   manifest.overrides = { ...existingOverrides };
 
-  for (const [name, tarballPath] of tarballs.entries()) {
-    manifest.overrides[name] = toFileSpecifier(appRoot, tarballPath);
+  const requiredLocalPackages = await collectTerajsDependencyClosure([appFacadePackage]);
+  for (const name of requiredLocalPackages) {
+    const tarballPath = tarballs.get(name);
+    if (tarballPath) {
+      manifest.overrides[name] = toFileSpecifier(appRoot, tarballPath);
+    }
   }
 
   await writeFile(packagePath, `${JSON.stringify(manifest, null, 2)}\n`);
