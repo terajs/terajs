@@ -203,8 +203,10 @@ export function createProgram(): Command {
             : "./gradlew assembleDebug";
           console.log(`Run 'cd ${relativeShellDir.replace(/\\/g, "/")} && ${buildCommand}' to build the Android shell.`);
           console.log("Run 'tera shell doctor android' to verify local Android build prerequisites and synced bootstrap assets.");
+          console.log("Run 'tera shell doctor android --release' before assembling release artifacts.");
         } else {
           console.log("Run 'tera shell doctor ios' to verify the iOS shell scaffold plus synced generated assets.");
+          console.log("Run 'tera shell doctor ios --release' to inspect source-level iOS release readiness.");
           if (process.platform === "darwin") {
             console.log(`Run 'cd ${relativeShellDir.replace(/\\/g, "/")} && swift build' to validate the packaged UIKit host surface.`);
           } else {
