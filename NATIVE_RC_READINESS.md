@@ -25,6 +25,8 @@ npm run rc:check
 
 `npm run rc:check` now includes `npm run rc:native` in the full release-candidate gate.
 
+Run RC gates sequentially. `npm run build` starts with `npm run clean`, and running it in parallel with native proof gates can remove package `dist` files while proof tests are importing them.
+
 ## Local Status
 
 Last local checkpoint on this branch:
@@ -34,6 +36,7 @@ Last local checkpoint on this branch:
 - `npm run build`: passing.
 - `npm run test:renderer-web:focused`: passing.
 - `npm run bench:browser:guard`: passing in the latest run.
+- `npm run rc:native:android:doctor`: JDK and Gradle wrapper pass; blocked because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
 - `npm run rc:native:android`: blocked on this machine because `ANDROID_SDK_ROOT`/`ANDROID_HOME` is not configured.
 
 ## Android RC Requirements
@@ -41,6 +44,7 @@ Last local checkpoint on this branch:
 Required before declaring Android RC-ready:
 
 - `npm run rc:native`
+- `npm run rc:native:android:doctor`
 - `npm run rc:native:android`
 - proof workspace Android shell `assembleDebug`
 - materialized universal Android shell `assembleDebug`
@@ -49,7 +53,7 @@ Required before declaring Android RC-ready:
 
 Current local limitation:
 
-- Android real Gradle build validation requires a local JDK 17+ and Android SDK. This machine currently fails `npm run rc:native:android` before Gradle starts because no Android SDK is configured.
+- Android real Gradle build validation requires a local JDK 17+ and Android SDK. This machine currently passes the JDK and Gradle wrapper checks, but fails `npm run rc:native:android:doctor` before Gradle starts because no Android SDK is configured.
 - The TypeScript and generated-runtime proof gates do not replace a real Gradle build.
 
 ## iOS RC Requirements
