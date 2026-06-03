@@ -61,6 +61,7 @@ iOS:
 
 - Keep Swift package shell materialization reliable on non-macOS hosts.
 - Add source-level tests for generated asset and host metadata shape where macOS is unavailable.
+- Current checkpoint: `tera shell doctor ios --release` verifies app-wrapper metadata, Swift package shape, required UIKit host sources, generated asset contract, and reports macOS/Xcode validation as a warning on non-macOS hosts.
 - When macOS/Xcode is available, add Swift test target coverage for command applier, transport, event binding, diagnostics, and generated runtime host contracts.
 - Add macOS CI once the Swift test target exists.
 
@@ -103,7 +104,7 @@ iOS:
 
 - Swift package validation on macOS.
 - Xcode project or package-to-app workflow documented and checked.
-- Release readiness checks cover bundle id, generated asset sync, runtime entry presence, and platform validation status.
+- Release readiness checks cover bundle id, generated asset contract, runtime entry presence, host package source shape, and platform validation status.
 
 ## Jira Expansion Candidates
 
