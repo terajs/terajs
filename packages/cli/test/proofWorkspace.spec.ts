@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { build as viteBuild } from "vite";
 
@@ -8,6 +8,7 @@ import { getWorkspaceConfig } from "@terajs/app/vite";
 
 import { runBuildCommand } from "../src/build.js";
 import { initTargetShell } from "../src/shell.js";
+import { inspectUniversalWorkspace } from "../src/universalDoctor.js";
 import {
   inspectTargetShell,
   resolveAndroidSdkRoot,
@@ -48,6 +49,32 @@ async function runShellGradleAssemble(shellDir: string, env: NodeJS.ProcessEnv):
       resolve();
     });
   });
+}
+
+async function createFakeAndroidToolchain(root: string): Promise<NodeJS.ProcessEnv> {
+  const fakeJavaHome = path.join(root, "fake-jdk");
+  const fakeSdk = path.join(root, "fake-sdk");
+
+  await Promise.all([
+    mkdir(path.join(fakeJavaHome, "bin"), { recursive: true }),
+    mkdir(fakeSdk, { recursive: true })
+  ]);
+
+  await Promise.all([
+    writeFile(path.join(fakeJavaHome, "bin", process.platform === "win32" ? "java.exe" : "java"), ""),
+    writeFile(path.join(fakeJavaHome, "bin", process.platform === "win32" ? "javac.exe" : "javac"), "")
+  ]);
+
+  return {
+    ...process.env,
+    ProgramFiles: root,
+    LOCALAPPDATA: root,
+    USERPROFILE: root,
+    HOME: root,
+    JAVA_HOME: fakeJavaHome,
+    ANDROID_HOME: fakeSdk,
+    ANDROID_SDK_ROOT: fakeSdk
+  };
 }
 
 afterEach(async () => {
@@ -166,6 +193,63 @@ describe("proof workspace", () => {
     expect(afterShellInit.checks.find((check) => check.id === "ios-runtime-descriptor")?.ok).toBe(true);
     expect(afterShellInit.checks.find((check) => check.id === "ios-runtime-entry")?.ok).toBe(true);
     expect(afterShellInit.checks.find((check) => check.id === "ios-host-manifest")?.ok).toBe(true);
+  });
+
+  it("moves universal doctor from missing native artifacts to deploy-ready shell state", async () => {
+    const tempWorkspace = await copyProofWorkspace();
+    const shellEnv = await createFakeAndroidToolchain(tempWorkspace);
+
+    process.chdir(tempWorkspace);
+
+    const beforeBuild = await inspectUniversalWorkspace({
+      cwd: tempWorkspace,
+      env: shellEnv
+    });
+
+    expect(beforeBuild.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-mode")?.ok).toBe(true);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-source-root")?.ok).toBe(true);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-target:web")?.ok).toBe(true);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-target:android")?.ok).toBe(true);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-target:ios")?.ok).toBe(true);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-android-generated-manifest")?.ok).toBe(false);
+    expect(beforeBuild.checks.find((check) => check.id === "universal-ios-generated-manifest")?.ok).toBe(false);
+
+    await runBuildCommand({ target: ["android", "ios"] }, { cwd: tempWorkspace });
+
+    const afterBuild = await inspectUniversalWorkspace({
+      cwd: tempWorkspace,
+      env: shellEnv
+    });
+
+    expect(afterBuild.ok).toBe(false);
+    expect(afterBuild.checks.find((check) => check.id === "universal-android-generated-manifest")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "universal-android-runtime-entry")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "universal-ios-generated-manifest")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "universal-ios-runtime-entry")?.ok).toBe(true);
+    expect(afterBuild.checks.find((check) => check.id === "universal-android-shell-dir")?.ok).toBe(false);
+    expect(afterBuild.checks.find((check) => check.id === "universal-ios-shell-dir")?.ok).toBe(false);
+
+    await initTargetShell("android", {
+      cwd: tempWorkspace,
+      templateRoot: path.join(originalCwd, "packages", "renderer-android", "android")
+    });
+    await initTargetShell("ios", {
+      cwd: tempWorkspace,
+      templateRoot: path.join(originalCwd, "packages", "renderer-ios", "ios")
+    });
+
+    const afterShellInit = await inspectUniversalWorkspace({
+      cwd: tempWorkspace,
+      env: shellEnv
+    });
+
+    expect(afterShellInit.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "universal-android-shell-dir")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "universal-android-java-home")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "universal-android-sdk-root")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "universal-ios-shell-dir")?.ok).toBe(true);
+    expect(afterShellInit.checks.find((check) => check.id === "universal-ios-hosted-platform")?.level).toBe("warn");
   });
 
   it("assembles the generated Android proof shell when the local toolchain is available", async ({ skip }) => {
