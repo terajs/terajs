@@ -69,7 +69,7 @@ iOS:
 
 Goal: shared source behaves the same where platform capabilities overlap.
 
-Status: started. The proof workspace now has a native conformance matrix that builds Android and iOS from the same shared source and compares generated manifests, routes, runtime descriptors, and generated module files.
+Status: started. The proof workspace now has a native conformance matrix that builds Android and iOS from the same shared source, compares generated manifests, routes, runtime descriptors, and generated module files, and runs both emitted live runtime bundles through equivalent host-loop interactions.
 
 Scope:
 
