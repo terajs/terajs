@@ -28,6 +28,8 @@ A universal Terajs workspace should feel as direct as the DOM experience:
 
 Goal: make readiness visible from one command.
 
+Status: implemented. `tera doctor --universal` now aggregates project setup, universal workspace shape, selected target checks, native generated artifacts, host metadata, shell scaffolds, Android toolchain blockers, and non-macOS iOS host warnings.
+
 Scope:
 
 - Add a universal doctor mode that aggregates project setup plus selected target readiness.
@@ -40,6 +42,7 @@ Validation:
 
 - CLI doctor tests cover universal success and missing readiness.
 - Proof workspace tests keep Android and iOS shell readiness transitions covered.
+- Proof workspace tests cover the universal readiness transition from missing native artifacts, to built generated artifacts, to shell-ready workspace state.
 - Source artifacts stay out of package `src/` through `guard:source-artifacts`.
 
 ## Milestone 2: Deployable Target Shells
@@ -52,6 +55,7 @@ Android:
 - Keep generated assets synced into app assets at build time.
 - Keep Rhino runtime proof and command replay validated.
 - Add a release-oriented doctor path for signing/configuration readiness after debug shell remains stable.
+- Current checkpoint: `tera shell doctor android --release` verifies release build hooks, package id, version metadata, local signing inputs, and generated asset sync without committing credentials.
 
 iOS:
 
