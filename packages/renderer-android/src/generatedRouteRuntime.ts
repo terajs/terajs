@@ -36,18 +36,7 @@ export interface AndroidGeneratedRouteTransport {
   transport: AndroidWireTransport;
 }
 
-type GeneratedSetupRuntime = {
-  createResource: (...args: unknown[]) => unknown;
-  computed: (...args: unknown[]) => unknown;
-  onCleanup: (...args: unknown[]) => void;
-  onMounted: (...args: unknown[]) => void;
-  onUnmounted: (...args: unknown[]) => void;
-  reactive: (...args: unknown[]) => unknown;
-  ref: (...args: unknown[]) => unknown;
-  signal: (...args: unknown[]) => unknown;
-  watch: (...args: unknown[]) => unknown;
-  watchEffect: (...args: unknown[]) => unknown;
-};
+type GeneratedSetupRuntime = Record<string, unknown>;
 
 const NOOP = () => {};
 
@@ -346,7 +335,7 @@ export function createAndroidGeneratedRouteTransport(
     });
   }
 
-  let rootNode = renderGeneratedModule(pageModule);
+  let rootNode = renderGeneratedModule(pageModule) as Parameters<typeof transport.session.bridge.host.insert>[1];
 
   for (let index = route.layouts.length - 1; index >= 0; index -= 1) {
     const layout = modulesByFilePath.get(route.layouts[index].filePath);
@@ -360,7 +349,7 @@ export function createAndroidGeneratedRouteTransport(
       slots: {
         default: () => layoutContent,
       },
-    });
+    }) as typeof layoutContent;
   }
 
   transport.session.bridge.host.insert(transport.session.bridge.root, rootNode);

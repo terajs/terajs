@@ -41,6 +41,10 @@ function normalizeGeneratedManifest(text: string) {
   return parsed;
 }
 
+function normalizeTextNewlines(text: string): string {
+  return text.replace(/\r\n/g, "\n");
+}
+
 function collectTextValues(node: AndroidNativeNode): string[] {
   if (node.kind === "text") {
     const value = node.value.trim();
@@ -158,11 +162,11 @@ describe("renderer-android proof runtime fixture", () => {
       normalizeGeneratedManifest(generatedManifestText)
     );
 
-    await expect(readFile(resolveFixturePath("routes.json"), "utf8")).resolves.toBe(
-      await readFile(path.join(generatedRoot, "routes.json"), "utf8")
+    expect(normalizeTextNewlines(await readFile(resolveFixturePath("routes.json"), "utf8"))).toBe(
+      normalizeTextNewlines(await readFile(path.join(generatedRoot, "routes.json"), "utf8"))
     );
-    await expect(readFile(resolveFixturePath("runtime/generated-route-runtime.json"), "utf8")).resolves.toBe(
-      await readFile(path.join(generatedRoot, "runtime", "generated-route-runtime.json"), "utf8")
+    expect(normalizeTextNewlines(await readFile(resolveFixturePath("runtime/generated-route-runtime.json"), "utf8"))).toBe(
+      normalizeTextNewlines(await readFile(path.join(generatedRoot, "runtime", "generated-route-runtime.json"), "utf8"))
     );
 
     const fixtureManifest = JSON.parse(fixtureManifestText) as {
@@ -173,8 +177,8 @@ describe("renderer-android proof runtime fixture", () => {
     expect(moduleOutputPaths.length).toBeGreaterThan(0);
 
     for (const outputPath of moduleOutputPaths) {
-      await expect(readFile(resolveFixturePath(outputPath), "utf8")).resolves.toBe(
-        await readFile(path.join(generatedRoot, ...outputPath.split("/")), "utf8")
+      expect(normalizeTextNewlines(await readFile(resolveFixturePath(outputPath), "utf8"))).toBe(
+        normalizeTextNewlines(await readFile(path.join(generatedRoot, ...outputPath.split("/")), "utf8"))
       );
     }
 

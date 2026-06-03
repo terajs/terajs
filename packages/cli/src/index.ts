@@ -9,6 +9,7 @@ import { collectBuildTarget, runBuildCommand } from "./build.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 import { initTargetShell } from "./shell.js";
 import { inspectTargetShell } from "./shellDoctor.js";
+import { inspectUniversalWorkspace } from "./universalDoctor.js";
 
 const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -164,8 +165,11 @@ export function createProgram(): Command {
   program
     .command("doctor")
     .description("Inspect current project setup and report actionable issues")
-    .action(async () => {
-      const report = await inspectTerajsProject(process.cwd());
+    .option("--universal", "include shared-source web, Android, and iOS readiness checks")
+    .action(async (options: { universal?: boolean }) => {
+      const report = options.universal
+        ? await inspectUniversalWorkspace({ cwd: process.cwd() })
+        : await inspectTerajsProject(process.cwd());
       console.log(formatDoctorReport(report));
 
       if (!report.ok) {

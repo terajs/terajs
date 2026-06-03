@@ -4,7 +4,7 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
-    "build": "npm run clean && tsc -b",
+    "build": "npm run clean && tsc -b && npm run guard:source-artifacts",
     "bench:browser": "npm --prefix benchmarks run browser:run",
     "bench:browser:compare": "npm --prefix benchmarks run browser:compare",
     "bench:browser:guard": "npm --prefix benchmarks run browser:guard",
@@ -22,6 +22,7 @@
     "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts packages/shared/src/webBoundaryGuardrails.spec.ts",
     "typecheck": "npm run clean && tsc -b --pretty false",
     "smoke:external": "node scripts/external-smoke.mjs",
+    "guard:source-artifacts": "node scripts/guard-source-artifacts.mjs",
     "guard:publish-metadata": "node scripts/guard-publish-metadata.mjs",
     "prepublishOnly": "npm run guard:publish-metadata",
     "audit:docs": "node scripts/audit-docs.mjs",

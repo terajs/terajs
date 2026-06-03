@@ -400,12 +400,12 @@ async function createAndroidSummaryCommandBatch(options: {
   moduleCount: number;
 }): Promise<string> {
   const rendererAndroidPackage = "@terajs/renderer-android";
-  const rendererAndroidSourceHref = resolveRepoModuleHref("../../renderer-android/src/index.js");
+  const rendererAndroidDistHref = resolveRepoModuleHref("../../renderer-android/dist/index.js");
   const { createAndroidWireTransport } = await import(rendererAndroidPackage)
     .catch(() => importRuntimeModule<{ createAndroidWireTransport: () => {
       session: { mountIRModule: (ir: IRModule, ctx: Record<string, unknown>) => void };
       drainCommandBatchPayload: () => string | null;
-    } }>(rendererAndroidSourceHref));
+    } }>(rendererAndroidDistHref));
   const transport = createAndroidWireTransport();
   transport.session.mountIRModule(createAndroidBootstrapModule(options), {});
   const payload = transport.drainCommandBatchPayload();
@@ -423,12 +423,12 @@ async function createIOSSummaryCommandBatch(options: {
   moduleCount: number;
 }): Promise<string> {
   const rendererIOSPackage = "@terajs/renderer-ios";
-  const rendererIOSSourceHref = resolveRepoModuleHref("../../renderer-ios/src/index.js");
+  const rendererIOSDistHref = resolveRepoModuleHref("../../renderer-ios/dist/index.js");
   const { createUIKitWireTransport } = await import(rendererIOSPackage)
     .catch(() => importRuntimeModule<{ createUIKitWireTransport: () => {
       session: { mountIRModule: (ir: IRModule, ctx: Record<string, unknown>) => void };
       drainCommandBatchPayload: () => string | null;
-    } }>(rendererIOSSourceHref));
+    } }>(rendererIOSDistHref));
   const transport = createUIKitWireTransport();
   transport.session.mountIRModule(createIOSBootstrapModule(options), {});
   const payload = transport.drainCommandBatchPayload();

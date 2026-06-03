@@ -13,3 +13,12 @@ packages/renderer-android/android/local.properties
 packages/renderer-ios/ios/.build/
 packages/renderer-ios/ios/.swiftpm/
 packages/renderer-ios/ios/build/
+
+# TypeScript build output belongs in package dist/ directories, not src/.
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+!packages/cli/src/androidToolchain.js
+!packages/cli/src/commander.d.ts
+!packages/shared/test/fixtures/proof-workspace/src/env.d.ts
+!packages/vite-plug-in/src/autoImports.d.ts

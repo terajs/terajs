@@ -27,6 +27,7 @@ npm create terajs@latest my-app -- --mode universal
 - `tera init <name> --mode universal`: scaffold a shared-source workspace with `src/shared` plus reserved `.terajs/generated` and `.terajs/hosts` directories for native-target output
 - `tera init <name> --hub <signalr|socket.io|websockets> [--hub-url <url>]`: scaffold a project preconfigured for realtime hub transport
 - `tera doctor`: inspect a Terajs project and report missing or broken setup
+- `tera doctor --universal`: inspect shared-source workspace readiness across configured web, Android, and iOS targets
 - `tera dev --port <number>`: start Vite dev server with Terajs plugin
 - `tera build [--target <web,android,ios>]`: build configured workspace targets for production
 - `tera shell init <android|ios> [--dir <directory>]`: materialize a target shell for the current universal workspace
