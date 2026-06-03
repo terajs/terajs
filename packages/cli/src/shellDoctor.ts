@@ -27,6 +27,7 @@ interface AndroidShellPaths {
 }
 
 interface IOSShellPaths {
+  appHostConfigPath: string;
   bootstrapBatchPath: string;
   generatedManifestPath: string;
   hostManifestPath: string;
@@ -75,6 +76,7 @@ function resolveIOSShellPaths(root: string, destinationDir?: string): IOSShellPa
 
   return {
     shellDir,
+    appHostConfigPath: join(shellDir, "TerajsAppHost.json"),
     packageManifestPath: join(shellDir, "Package.swift"),
     generatedManifestPath: join(root, ".terajs", "generated", "ios", "terajs-target.json"),
     bootstrapBatchPath: join(root, ".terajs", "generated", "ios", "bootstrap", "root-command-batch.json"),
@@ -124,6 +126,26 @@ function readAndroidReleaseProperties(shellDir: string): Record<string, string> 
 
 function resolveReleaseInput(name: string, env: NodeJS.ProcessEnv, properties: Record<string, string>): string | null {
   const value = env[name] ?? properties[name];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readJsonIfExists(filePath: string): Record<string, unknown> | null {
+  const text = readTextIfExists(filePath);
+  if (!text) {
+    return null;
+  }
+
+  try {
+    const value = JSON.parse(text) as unknown;
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
@@ -490,6 +512,126 @@ export function inspectAndroidReleaseReadiness(options: InspectShellOptions = {}
       details: appBuild
         ? "Release builds depend on the same synced generated runtime and host assets as debug builds."
         : "Run tera shell init android to create android/app/build.gradle.kts."
+    }
+  ];
+  const checks = [
+    ...baseReport.checks,
+    ...releaseChecks
+  ];
+
+  return {
+    root,
+    checks,
+    ok: checks.every((check) => check.ok || check.level !== "error")
+  };
+}
+
+export function inspectIOSReleaseReadiness(options: InspectShellOptions = {}): DoctorReport {
+  const root = options.cwd ?? process.cwd();
+  const baseReport = inspectIOSShell(root, options);
+  const paths = resolveIOSShellPaths(root, options.destinationDir);
+  const packageSwift = readTextIfExists(paths.packageManifestPath);
+  const appHostConfig = readJsonIfExists(paths.appHostConfigPath);
+  const bundleIdentifier = stringValue(appHostConfig?.bundleIdentifier);
+  const minimumOSVersion = stringValue(appHostConfig?.minimumOSVersion);
+  const packageProduct = stringValue(appHostConfig?.packageProduct);
+  const generatedHostManifest = stringValue(appHostConfig?.generatedHostManifest);
+  const generatedRuntimeDescriptor = stringValue(appHostConfig?.generatedRuntimeDescriptor);
+  const generatedRuntimeEntry = stringValue(appHostConfig?.generatedRuntimeEntry);
+  const bootstrapCommandBatch = stringValue(appHostConfig?.bootstrapCommandBatch);
+  const hostSourceRoot = join(paths.shellDir, "Sources", "TerajsRendererHost");
+  const requiredHostSources = [
+    "TerajsCommandApplier.swift",
+    "TerajsHostRuntime.swift",
+    "TerajsHostRuntimeContract.swift",
+    "TerajsHostTransport.swift",
+    "TerajsWireTypes.swift"
+  ];
+  const missingHostSources = requiredHostSources.filter((fileName) => !existsSync(join(hostSourceRoot, fileName)));
+  const isMacHost = process.platform === "darwin";
+
+  const releaseChecks: DoctorCheck[] = [
+    checkPath(
+      "ios-release-app-host-config",
+      "iOS app wrapper metadata present",
+      paths.appHostConfigPath,
+      paths.appHostConfigPath,
+      "Run tera shell init ios to create TerajsAppHost.json for Xcode app-wrapper wiring."
+    ),
+    {
+      id: "ios-release-bundle-id",
+      label: "iOS bundle identifier configured",
+      ok: bundleIdentifier !== null && /^[A-Za-z][A-Za-z0-9-]*(\.[A-Za-z][A-Za-z0-9-]*)+$/.test(bundleIdentifier),
+      level: "error",
+      details: bundleIdentifier
+        ? `bundleIdentifier = ${bundleIdentifier}`
+        : "Set bundleIdentifier in ios/TerajsAppHost.json before wiring an Xcode app wrapper."
+    },
+    {
+      id: "ios-release-minimum-os",
+      label: "iOS minimum OS version configured",
+      ok: minimumOSVersion !== null && compareVersions(minimumOSVersion, "15.0") >= 0,
+      level: "error",
+      details: minimumOSVersion
+        ? `minimumOSVersion = ${minimumOSVersion}`
+        : "Set minimumOSVersion in ios/TerajsAppHost.json."
+    },
+    {
+      id: "ios-release-package-product",
+      label: "iOS host package product configured",
+      ok: packageProduct === "TerajsRendererHost",
+      level: "error",
+      details: packageProduct
+        ? `packageProduct = ${packageProduct}`
+        : "Set packageProduct to TerajsRendererHost in ios/TerajsAppHost.json."
+    },
+    {
+      id: "ios-release-package-platform",
+      label: "iOS Swift package platform configured",
+      ok: packageSwift?.includes(".iOS(.v15)") === true,
+      level: "error",
+      details: packageSwift
+        ? "Package.swift declares .iOS(.v15)."
+        : "Run tera shell init ios to create Package.swift."
+    },
+    {
+      id: "ios-release-package-library",
+      label: "iOS Swift package exposes host library",
+      ok: packageSwift?.includes("name: \"TerajsRendererHost\"") === true
+        && packageSwift.includes(".library(")
+        && packageSwift.includes("targets: [\"TerajsRendererHost\"]"),
+      level: "error",
+      details: packageSwift
+        ? "Package.swift exposes the TerajsRendererHost library target."
+        : "Run tera shell init ios to create Package.swift."
+    },
+    {
+      id: "ios-release-host-sources",
+      label: "iOS host source files present",
+      ok: missingHostSources.length === 0,
+      level: "error",
+      details: missingHostSources.length === 0
+        ? "Required UIKit host source files are present."
+        : `Missing iOS host source files: ${missingHostSources.join(", ")}.`
+    },
+    {
+      id: "ios-release-asset-contract",
+      label: "iOS app metadata points at generated Terajs assets",
+      ok: generatedHostManifest === "../.terajs/hosts/ios/terajs-host.json"
+        && generatedRuntimeDescriptor === "../.terajs/generated/ios/runtime/generated-route-runtime.json"
+        && generatedRuntimeEntry === "../.terajs/generated/ios/runtime/live-runtime-entry.js"
+        && bootstrapCommandBatch === "../.terajs/generated/ios/bootstrap/root-command-batch.json",
+      level: "error",
+      details: "TerajsAppHost.json should point at generated host manifest, runtime descriptor, runtime entry, and bootstrap command batch."
+    },
+    {
+      id: "ios-release-platform-validation",
+      label: "macOS host available for iOS release validation",
+      ok: isMacHost,
+      level: "warn",
+      details: isMacHost
+        ? "macOS host detected for Swift/Xcode release validation."
+        : "This source-level check is complete, but Swift build, simulator, archive, and signing validation require macOS with Xcode."
     }
   ];
   const checks = [

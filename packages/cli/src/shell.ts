@@ -90,6 +90,17 @@ function createDisplayName(packageName: string): string {
     .join(" ") || "Terajs";
 }
 
+function createAppleBundleIdentifier(packageName: string): string {
+  const segments = packageName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .split(".")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => (/^[a-z]/.test(segment) ? segment : `app${segment}`));
+
+  return ["dev", "terajs", "apps", ...(segments.length > 0 ? segments : ["shell"]), "ios"].join(".");
+}
+
 async function readAndroidPluginVersions(templateRoot: string): Promise<AndroidPluginVersions> {
   const templateBuild = await readFile(path.join(templateRoot, "build.gradle.kts"), "utf8");
   const androidGradlePlugin = templateBuild.match(/com\.android\.library"\)\s+version\s+"([^"]+)"/)?.[1];
@@ -566,7 +577,15 @@ This iOS workspace shell was materialized by \`tera shell init ios\`.
 
   \`swift build\`
 
-3. Open \`Package.swift\` in Xcode when you are ready to wire a real iOS app wrapper around the host package.
+3. Inspect source-level release readiness:
+
+  \`tera shell doctor ios --release\`
+
+4. Open \`Package.swift\` in Xcode when you are ready to wire a real iOS app wrapper around the host package.
+
+## App wrapper metadata
+
+\`TerajsAppHost.json\` records the bundle identifier, display name, minimum iOS version, package product, and generated Terajs asset contract a future Xcode app wrapper should use.
 
 ## What this shell proves now
 
@@ -576,6 +595,19 @@ This iOS workspace shell was materialized by \`tera shell init ios\`.
 
 Hosted iOS compilation and simulator or device validation still require macOS with Xcode.
 `;
+}
+
+function createIOSAppHostConfig(packageName: string, displayName: string): string {
+  return `${JSON.stringify({
+    bundleIdentifier: createAppleBundleIdentifier(packageName),
+    displayName: `${displayName} iOS Shell`,
+    minimumOSVersion: "15.0",
+    packageProduct: "TerajsRendererHost",
+    generatedHostManifest: "../.terajs/hosts/ios/terajs-host.json",
+    generatedRuntimeDescriptor: "../.terajs/generated/ios/runtime/generated-route-runtime.json",
+    generatedRuntimeEntry: "../.terajs/generated/ios/runtime/live-runtime-entry.js",
+    bootstrapCommandBatch: "../.terajs/generated/ios/bootstrap/root-command-batch.json"
+  }, null, 2)}\n`;
 }
 
 async function materializeAndroidShell(cwd: string, shellDir: string, templateRoot: string): Promise<void> {
@@ -608,7 +640,8 @@ async function materializeIOSShell(cwd: string, shellDir: string, templateRoot: 
   await copyIOSTemplateScaffold(templateRoot, shellDir);
   await Promise.all([
     writeFile(path.join(shellDir, ".gitignore"), createIOSGitIgnore(), "utf8"),
-    writeFile(path.join(shellDir, "README.md"), createIOSShellReadme(displayName), "utf8")
+    writeFile(path.join(shellDir, "README.md"), createIOSShellReadme(displayName), "utf8"),
+    writeFile(path.join(shellDir, "TerajsAppHost.json"), createIOSAppHostConfig(packageName, displayName), "utf8")
   ]);
 }
 

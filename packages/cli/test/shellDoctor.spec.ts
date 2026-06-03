@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { formatDoctorReport } from "../src/doctor.js";
-import { inspectAndroidReleaseReadiness, inspectTargetShell } from "../src/shellDoctor.js";
+import {
+  inspectAndroidReleaseReadiness,
+  inspectIOSReleaseReadiness,
+  inspectTargetShell,
+} from "../src/shellDoctor.js";
 
 describe("cli shell doctor", () => {
   it("passes when Android shell files, runtime assets, JDK, and SDK are present", async () => {
@@ -233,5 +237,103 @@ tasks.register("syncTerajsShellAssets") {
     expect(report.checks.find((check) => check.id === "ios-runtime-descriptor")?.ok).toBe(true);
     expect(report.checks.find((check) => check.id === "ios-runtime-entry")?.ok).toBe(true);
     expect(report.checks.find((check) => check.id === "ios-host-manifest")?.ok).toBe(true);
+  });
+
+  it("reports iOS release blockers when app wrapper metadata is missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "terajs-cli-ios-release-doctor-blocked-"));
+
+    await mkdir(join(root, "ios", "Sources", "TerajsRendererHost"), { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "ios", "bootstrap"), { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "ios", "runtime"), { recursive: true });
+    await mkdir(join(root, ".terajs", "hosts", "ios"), { recursive: true });
+
+    await Promise.all([
+      writeFile(join(root, "ios", "Package.swift"), "// swift-tools-version: 5.9\n", "utf8"),
+      writeFile(join(root, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntime.swift"), "struct Placeholder {}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "terajs-target.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "bootstrap", "root-command-batch.json"), "[]\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "runtime", "generated-route-runtime.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"), "globalThis.__terajsNativeRuntime = {};\n", "utf8"),
+      writeFile(join(root, ".terajs", "hosts", "ios", "terajs-host.json"), "{}\n", "utf8")
+    ]);
+
+    const report = inspectIOSReleaseReadiness({
+      cwd: root,
+      env: process.env
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.checks.find((check) => check.id === "ios-release-app-host-config")?.ok).toBe(false);
+    expect(report.checks.find((check) => check.id === "ios-release-package-platform")?.ok).toBe(false);
+    expect(report.checks.find((check) => check.id === "ios-release-host-sources")?.ok).toBe(false);
+  });
+
+  it("passes iOS source-level release readiness while warning about non-mac validation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "terajs-cli-ios-release-doctor-ok-"));
+    const hostSourceRoot = join(root, "ios", "Sources", "TerajsRendererHost");
+
+    await mkdir(hostSourceRoot, { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "ios", "bootstrap"), { recursive: true });
+    await mkdir(join(root, ".terajs", "generated", "ios", "runtime"), { recursive: true });
+    await mkdir(join(root, ".terajs", "hosts", "ios"), { recursive: true });
+
+    await Promise.all([
+      writeFile(join(root, "ios", "Package.swift"), `
+// swift-tools-version: 5.9
+
+import PackageDescription
+
+let package = Package(
+  name: "TerajsRendererHost",
+  platforms: [
+    .iOS(.v15)
+  ],
+  products: [
+    .library(
+      name: "TerajsRendererHost",
+      targets: ["TerajsRendererHost"]
+    )
+  ],
+  targets: [
+    .target(
+      name: "TerajsRendererHost",
+      path: "Sources/TerajsRendererHost"
+    )
+  ]
+)
+`, "utf8"),
+      writeFile(join(root, "ios", "TerajsAppHost.json"), JSON.stringify({
+        bundleIdentifier: "dev.terajs.apps.release.ready.ios",
+        displayName: "Release Ready iOS Shell",
+        minimumOSVersion: "15.0",
+        packageProduct: "TerajsRendererHost",
+        generatedHostManifest: "../.terajs/hosts/ios/terajs-host.json",
+        generatedRuntimeDescriptor: "../.terajs/generated/ios/runtime/generated-route-runtime.json",
+        generatedRuntimeEntry: "../.terajs/generated/ios/runtime/live-runtime-entry.js",
+        bootstrapCommandBatch: "../.terajs/generated/ios/bootstrap/root-command-batch.json"
+      }, null, 2), "utf8"),
+      writeFile(join(hostSourceRoot, "TerajsCommandApplier.swift"), "struct TerajsCommandApplier {}\n", "utf8"),
+      writeFile(join(hostSourceRoot, "TerajsHostRuntime.swift"), "struct TerajsHostRuntime {}\n", "utf8"),
+      writeFile(join(hostSourceRoot, "TerajsHostRuntimeContract.swift"), "struct TerajsHostRuntimeContract {}\n", "utf8"),
+      writeFile(join(hostSourceRoot, "TerajsHostTransport.swift"), "struct TerajsHostTransport {}\n", "utf8"),
+      writeFile(join(hostSourceRoot, "TerajsWireTypes.swift"), "struct TerajsWireTypes {}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "terajs-target.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "bootstrap", "root-command-batch.json"), "[]\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "runtime", "generated-route-runtime.json"), "{}\n", "utf8"),
+      writeFile(join(root, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"), "globalThis.__terajsNativeRuntime = {};\n", "utf8"),
+      writeFile(join(root, ".terajs", "hosts", "ios", "terajs-host.json"), "{}\n", "utf8")
+    ]);
+
+    const report = inspectIOSReleaseReadiness({
+      cwd: root,
+      env: process.env
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-release-bundle-id")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-release-package-library")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-release-host-sources")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-release-asset-contract")?.ok).toBe(true);
+    expect(report.checks.find((check) => check.id === "ios-release-platform-validation")?.level).toBe("warn");
   });
 });

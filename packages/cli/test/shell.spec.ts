@@ -129,6 +129,7 @@ describe("cli initTargetShell", () => {
     expect(await exists(join(appRoot, ".terajs", "generated", "ios", "runtime", "live-runtime-entry.js"))).toBe(true);
 
     expect(await exists(join(appRoot, "ios", "Package.swift"))).toBe(true);
+    expect(await exists(join(appRoot, "ios", "TerajsAppHost.json"))).toBe(true);
     expect(await exists(join(appRoot, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntimeContract.swift"))).toBe(true);
     expect(await exists(join(appRoot, "ios", "Sources", "TerajsRendererHost", "TerajsHostRuntime.swift"))).toBe(true);
     expect(await exists(join(appRoot, "ios", ".gitignore"))).toBe(true);
@@ -137,8 +138,23 @@ describe("cli initTargetShell", () => {
     expect(packageSwift).toContain("TerajsRendererHost");
     expect(packageSwift).toContain(".iOS(.v15)");
 
+    const appHostConfig = JSON.parse(await readText(join(appRoot, "ios", "TerajsAppHost.json"))) as {
+      bundleIdentifier: string;
+      generatedHostManifest: string;
+      generatedRuntimeEntry: string;
+      packageProduct: string;
+    };
+    expect(appHostConfig).toMatchObject({
+      bundleIdentifier: "dev.terajs.apps.universal.app.ios",
+      generatedHostManifest: "../.terajs/hosts/ios/terajs-host.json",
+      generatedRuntimeEntry: "../.terajs/generated/ios/runtime/live-runtime-entry.js",
+      packageProduct: "TerajsRendererHost"
+    });
+
     const readme = await readText(join(appRoot, "ios", "README.md"));
     expect(readme).toContain("tera build --target ios");
+    expect(readme).toContain("tera shell doctor ios --release");
+    expect(readme).toContain("TerajsAppHost.json");
     expect(readme).toContain("swift build");
     expect(readme).toContain("live runtime entry bundle");
     expect(readme).toContain("Hosted iOS compilation and simulator or device validation still require macOS with Xcode.");
