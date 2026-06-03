@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { DoctorCheck, DoctorReport } from "./doctor.js";
@@ -16,6 +16,7 @@ export interface InspectShellOptions {
 }
 
 interface AndroidShellPaths {
+  appBuildPath: string;
   bootstrapBatchPath: string;
   generatedManifestPath: string;
   gradleWrapperPath: string;
@@ -59,6 +60,7 @@ function resolveAndroidShellPaths(root: string, destinationDir?: string): Androi
 
   return {
     shellDir,
+    appBuildPath: join(shellDir, "app", "build.gradle.kts"),
     gradleWrapperPath: join(shellDir, process.platform === "win32" ? "gradlew.bat" : "gradlew"),
     generatedManifestPath: join(root, ".terajs", "generated", "android", "terajs-target.json"),
     bootstrapBatchPath: join(root, ".terajs", "generated", "android", "bootstrap", "root-command-batch.json"),
@@ -80,6 +82,49 @@ function resolveIOSShellPaths(root: string, destinationDir?: string): IOSShellPa
     runtimeDescriptorPath: join(root, ".terajs", "generated", "ios", "runtime", "generated-route-runtime.json"),
     hostManifestPath: join(root, ".terajs", "hosts", "ios", "terajs-host.json")
   };
+}
+
+function readTextIfExists(filePath: string): string | null {
+  try {
+    return readFileSync(filePath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function parseGradleAssignment(text: string, key: string): string | null {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = text.match(new RegExp(`${escaped}\\s*=\\s*(?:"([^"]*)"|([^\\s]+))`, "m"));
+  return match?.[1] ?? match?.[2] ?? null;
+}
+
+function readAndroidReleaseProperties(shellDir: string): Record<string, string> {
+  const gradleProperties = readTextIfExists(join(shellDir, "gradle.properties"));
+  if (!gradleProperties) {
+    return {};
+  }
+
+  const entries: Record<string, string> = {};
+  for (const line of gradleProperties.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    entries[trimmed.slice(0, separatorIndex).trim()] = trimmed.slice(separatorIndex + 1).trim();
+  }
+
+  return entries;
+}
+
+function resolveReleaseInput(name: string, env: NodeJS.ProcessEnv, properties: Record<string, string>): string | null {
+  const value = env[name] ?? properties[name];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function compareVersions(left: string, right: string): number {
@@ -357,4 +402,104 @@ export function inspectTargetShell(target: ShellTarget, options: InspectShellOpt
   }
 
   return inspectIOSShell(root, options);
+}
+
+export function inspectAndroidReleaseReadiness(options: InspectShellOptions = {}): DoctorReport {
+  const root = options.cwd ?? process.cwd();
+  const env = options.env ?? process.env;
+  const baseReport = inspectAndroidShell(root, options);
+  const paths = resolveAndroidShellPaths(root, options.destinationDir);
+  const appBuild = readTextIfExists(paths.appBuildPath);
+  const releaseProperties = readAndroidReleaseProperties(paths.shellDir);
+  const releaseStoreFile = resolveReleaseInput("TERA_ANDROID_RELEASE_STORE_FILE", env, releaseProperties);
+  const releaseStorePassword = resolveReleaseInput("TERA_ANDROID_RELEASE_STORE_PASSWORD", env, releaseProperties);
+  const releaseKeyAlias = resolveReleaseInput("TERA_ANDROID_RELEASE_KEY_ALIAS", env, releaseProperties);
+  const releaseKeyPassword = resolveReleaseInput("TERA_ANDROID_RELEASE_KEY_PASSWORD", env, releaseProperties);
+  const versionCode = appBuild ? parseGradleAssignment(appBuild, "versionCode") : null;
+  const versionName = appBuild ? parseGradleAssignment(appBuild, "versionName") : null;
+  const applicationId = appBuild ? parseGradleAssignment(appBuild, "applicationId") : null;
+  const hasSigningHooks = appBuild?.includes("TERA_ANDROID_RELEASE_STORE_FILE") === true
+    && appBuild.includes("signingConfigs")
+    && appBuild.includes("getByName(\"release\")");
+  const hasSigningInputs = releaseStoreFile !== null
+    && releaseStorePassword !== null
+    && releaseKeyAlias !== null
+    && releaseKeyPassword !== null
+    && existsSync(releaseStoreFile);
+
+  const releaseChecks: DoctorCheck[] = [
+    checkPath(
+      "android-release-app-build",
+      "Android app build script present",
+      paths.appBuildPath,
+      paths.appBuildPath,
+      "Run tera shell init android to materialize the Android application shell."
+    ),
+    {
+      id: "android-release-application-id",
+      label: "Android release application id configured",
+      ok: applicationId !== null && /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(applicationId),
+      level: "error",
+      details: applicationId
+        ? `applicationId = ${applicationId}`
+        : "Set android.defaultConfig.applicationId in android/app/build.gradle.kts."
+    },
+    {
+      id: "android-release-version",
+      label: "Android release version metadata configured",
+      ok: versionCode !== null && versionCode !== "1" && versionName !== null && versionName !== "0.0.0",
+      level: "error",
+      details: versionCode !== null && versionName !== null
+        ? `versionCode = ${versionCode}, versionName = ${versionName}`
+        : "Set android.defaultConfig.versionCode and versionName in android/app/build.gradle.kts."
+    },
+    {
+      id: "android-release-build-type",
+      label: "Android release build type configured",
+      ok: appBuild?.includes("getByName(\"release\")") === true || appBuild?.includes("release {") === true,
+      level: "error",
+      details: appBuild
+        ? "Release build type is declared in android/app/build.gradle.kts."
+        : "Run tera shell init android to create android/app/build.gradle.kts."
+    },
+    {
+      id: "android-release-signing-hooks",
+      label: "Android release signing hooks configured",
+      ok: hasSigningHooks,
+      level: "error",
+      details: hasSigningHooks
+        ? "Release signing can be supplied via TERA_ANDROID_RELEASE_* Gradle properties or environment variables."
+        : "Configure release signing in android/app/build.gradle.kts using local Gradle properties or environment variables."
+    },
+    {
+      id: "android-release-signing-inputs",
+      label: "Android release signing inputs available",
+      ok: hasSigningInputs,
+      level: "error",
+      details: hasSigningInputs
+        ? `Release keystore resolves to ${releaseStoreFile}`
+        : "Provide TERA_ANDROID_RELEASE_STORE_FILE, TERA_ANDROID_RELEASE_STORE_PASSWORD, TERA_ANDROID_RELEASE_KEY_ALIAS, and TERA_ANDROID_RELEASE_KEY_PASSWORD locally before assembleRelease."
+    },
+    {
+      id: "android-release-asset-sync",
+      label: "Android release assets sync generated Terajs output",
+      ok: appBuild?.includes("syncTerajsShellAssets") === true
+        && appBuild.includes(".terajs/generated/android")
+        && appBuild.includes(".terajs/hosts/android"),
+      level: "error",
+      details: appBuild
+        ? "Release builds depend on the same synced generated runtime and host assets as debug builds."
+        : "Run tera shell init android to create android/app/build.gradle.kts."
+    }
+  ];
+  const checks = [
+    ...baseReport.checks,
+    ...releaseChecks
+  ];
+
+  return {
+    root,
+    checks,
+    ok: checks.every((check) => check.ok || check.level !== "error")
+  };
 }

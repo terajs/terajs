@@ -8,7 +8,7 @@ import { scaffoldProject, type ScaffoldHubType, type ScaffoldProjectMode } from 
 import { collectBuildTarget, runBuildCommand } from "./build.js";
 import { formatDoctorReport, inspectTerajsProject } from "./doctor.js";
 import { initTargetShell } from "./shell.js";
-import { inspectTargetShell } from "./shellDoctor.js";
+import { inspectAndroidReleaseReadiness, inspectTargetShell } from "./shellDoctor.js";
 import { inspectUniversalWorkspace } from "./universalDoctor.js";
 
 const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -222,12 +222,23 @@ export function createProgram(): Command {
     .command("doctor <target>")
     .description("Inspect shell prerequisites and synced target assets")
     .option("--dir <directory>", "shell directory to inspect")
-    .action(async (target: string, options: { dir?: string }) => {
+    .option("--release", "include release deployment readiness checks")
+    .action(async (target: string, options: { dir?: string; release?: boolean }) => {
       try {
-        const report = inspectTargetShell(target as "android" | "ios", {
-          cwd: process.cwd(),
-          destinationDir: options.dir
-        });
+        const normalizedTarget = target.trim().toLowerCase();
+        if (options.release && normalizedTarget !== "android") {
+          throw new Error("Release readiness checks are currently available for the Android shell.");
+        }
+
+        const report = options.release
+          ? inspectAndroidReleaseReadiness({
+            cwd: process.cwd(),
+            destinationDir: options.dir
+          })
+          : inspectTargetShell(target as "android" | "ios", {
+            cwd: process.cwd(),
+            destinationDir: options.dir
+          });
 
         console.log(formatDoctorReport(report));
         if (!report.ok) {

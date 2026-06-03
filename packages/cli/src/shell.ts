@@ -211,6 +211,20 @@ function createAndroidAppBuild(namespace: string, versions: AndroidPluginVersion
 
 val workspaceRoot = rootProject.projectDir.parentFile
 val shellAssetsDir = layout.buildDirectory.dir("generated/terajs-shell-assets")
+val teraReleaseStoreFile = providers.gradleProperty("TERA_ANDROID_RELEASE_STORE_FILE")
+  .orElse(providers.environmentVariable("TERA_ANDROID_RELEASE_STORE_FILE"))
+val teraReleaseStorePassword = providers.gradleProperty("TERA_ANDROID_RELEASE_STORE_PASSWORD")
+  .orElse(providers.environmentVariable("TERA_ANDROID_RELEASE_STORE_PASSWORD"))
+val teraReleaseKeyAlias = providers.gradleProperty("TERA_ANDROID_RELEASE_KEY_ALIAS")
+  .orElse(providers.environmentVariable("TERA_ANDROID_RELEASE_KEY_ALIAS"))
+val teraReleaseKeyPassword = providers.gradleProperty("TERA_ANDROID_RELEASE_KEY_PASSWORD")
+  .orElse(providers.environmentVariable("TERA_ANDROID_RELEASE_KEY_PASSWORD"))
+val hasTeraReleaseSigning = listOf(
+  teraReleaseStoreFile,
+  teraReleaseStorePassword,
+  teraReleaseKeyAlias,
+  teraReleaseKeyPassword
+).all { provider -> provider.orNull?.isNotBlank() == true }
 
 val syncTerajsShellAssets by tasks.registering(Copy::class) {
   from(File(workspaceRoot, ".terajs/generated/android")) {
@@ -238,12 +252,31 @@ android {
   namespace = "${namespace}"
   compileSdk = 35
 
+  signingConfigs {
+    if (hasTeraReleaseSigning) {
+      create("release") {
+        storeFile = file(teraReleaseStoreFile.get())
+        storePassword = teraReleaseStorePassword.get()
+        keyAlias = teraReleaseKeyAlias.get()
+        keyPassword = teraReleaseKeyPassword.get()
+      }
+    }
+  }
+
   defaultConfig {
     applicationId = "${namespace}"
     minSdk = 26
     targetSdk = 35
     versionCode = 1
     versionName = "0.0.0"
+  }
+
+  buildTypes {
+    getByName("release") {
+      if (hasTeraReleaseSigning) {
+        signingConfig = signingConfigs.getByName("release")
+      }
+    }
   }
 
   buildFeatures {
@@ -487,9 +520,24 @@ This Android workspace shell was materialized by \`tera shell init android\`.
 
    \`./gradlew assembleDebug\`
 
-3. Install it on a connected device or emulator:
+3. Inspect release readiness before producing store-bound artifacts:
+
+   \`tera shell doctor android --release\`
+
+4. Install it on a connected device or emulator:
 
    \`./gradlew installDebug\`
+
+## Release signing
+
+Release signing is intentionally supplied through local Gradle properties or environment variables:
+
+- \`TERA_ANDROID_RELEASE_STORE_FILE\`
+- \`TERA_ANDROID_RELEASE_STORE_PASSWORD\`
+- \`TERA_ANDROID_RELEASE_KEY_ALIAS\`
+- \`TERA_ANDROID_RELEASE_KEY_PASSWORD\`
+
+Keep secrets out of Git. Once signing inputs and version metadata are configured, use \`./gradlew assembleRelease\`.
 
 ## What this shell proves now
 

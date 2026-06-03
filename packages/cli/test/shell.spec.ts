@@ -63,6 +63,9 @@ describe("cli initTargetShell", () => {
     expect(appBuild).toContain(".terajs/generated/android");
     expect(appBuild).toContain(".terajs/hosts/android");
     expect(appBuild).toContain("syncTerajsShellAssets");
+    expect(appBuild).toContain("TERA_ANDROID_RELEASE_STORE_FILE");
+    expect(appBuild).toContain("signingConfigs");
+    expect(appBuild).toContain("getByName(\"release\")");
 
     const appManifest = await readText(join(appRoot, "android", "app", "src", "main", "AndroidManifest.xml"));
     expect(appManifest).toContain("android.intent.category.LAUNCHER");
@@ -82,6 +85,9 @@ describe("cli initTargetShell", () => {
     const readme = await readText(join(appRoot, "android", "README.md"));
     expect(readme).toContain("tera build --target android");
     expect(readme).toContain("./gradlew assembleDebug");
+    expect(readme).toContain("tera shell doctor android --release");
+    expect(readme).toContain("TERA_ANDROID_RELEASE_STORE_FILE");
+    expect(readme).toContain("./gradlew assembleRelease");
     expect(readme).toContain("generated route runtime descriptor");
     expect(readme).toContain("live runtime entry bundle");
     expect(readme).toContain("render a real native bootstrap tree");
