@@ -790,15 +790,18 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       server.middlewares.use(createServerFunctionMiddleware(serverFunctionOptions));
     },
 
-    transformIndexHtml(html) {
-      if (typeof html !== "string") {
-        return html;
-      }
+    transformIndexHtml: {
+      order: "pre",
+      handler(html) {
+        if (typeof html !== "string") {
+          return html;
+        }
 
-      return injectAppBootstrapScript(html, {
-        command: config?.command,
-        base: config?.base
-      });
+        return injectAppBootstrapScript(html, {
+          command: config?.command,
+          base: config?.base
+        });
+      }
     },
 
     resolveId(id) {

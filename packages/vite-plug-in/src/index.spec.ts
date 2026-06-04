@@ -856,7 +856,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(html).toContain('src="/@id/__x00__virtual:terajs-bootstrap"');
   });
 
-  it("injects fixed bootstrap asset path in build mode", () => {
+  it("injects the bootstrap virtual module in build mode", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
     const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
@@ -871,7 +871,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 </html>`);
 
     expect(typeof html).toBe("string");
-    expect(html).toContain('src="/assets/terajs-bootstrap.js"');
+    expect(html).toContain('src="virtual:terajs-bootstrap"');
   });
 
   it("emits a fixed-name bootstrap chunk in build mode", () => {

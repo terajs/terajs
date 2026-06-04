@@ -239,10 +239,10 @@ val hasTeraReleaseSigning = listOf(
 
 val syncTerajsShellAssets by tasks.registering(Copy::class) {
   from(File(workspaceRoot, ".terajs/generated/android")) {
-    into(".terajs/generated/android")
+    into("terajs/generated/android")
   }
   from(File(workspaceRoot, ".terajs/hosts/android")) {
-    into(".terajs/hosts/android")
+    into("terajs/hosts/android")
   }
   into(shellAssetsDir)
 
@@ -377,7 +377,7 @@ class MainActivity : Activity() {
   }
 
   private fun createBootstrapView(): View {
-    val hostManifest = readAssetJson(".terajs/hosts/android/terajs-host.json")
+    val hostManifest = readAssetJson("terajs/hosts/android/terajs-host.json")
     val runtimeDescriptorAssetPath = resolveRuntimeDescriptorAssetPath(hostManifest)
     val runtimeEntryAssetPath = resolveRuntimeEntryAssetPath(hostManifest)
     ensureLiveRuntimeAssets(hostManifest)
@@ -458,7 +458,7 @@ class MainActivity : Activity() {
       ?.takeIf { it.isNotBlank() }
       ?: "../../generated/android/bootstrap/root-command-batch.json"
 
-    return resolveAssetPath(".terajs/hosts/android/terajs-host.json", relativePath)
+    return resolveAssetPath("terajs/hosts/android/terajs-host.json", relativePath)
   }
 
   private fun resolveRuntimeDescriptorAssetPath(hostManifest: JSONObject): String {
@@ -467,7 +467,7 @@ class MainActivity : Activity() {
       ?.takeIf { it.isNotBlank() }
       ?: "../../generated/android/runtime/generated-route-runtime.json"
 
-    return resolveAssetPath(".terajs/hosts/android/terajs-host.json", relativePath)
+    return resolveAssetPath("terajs/hosts/android/terajs-host.json", relativePath)
   }
 
   private fun resolveAssetPath(baseAssetPath: String, relativePath: String): String {
@@ -553,7 +553,7 @@ Keep secrets out of Git. Once signing inputs and version metadata are configured
 ## What this shell proves now
 
 - a real Android Gradle project exists under \`android/\`
-- the shell syncs \`.terajs/generated/android\` and \`.terajs/hosts/android\` into app assets at build time
+- the shell syncs \`.terajs/generated/android\` and \`.terajs/hosts/android\` into deployable \`terajs/...\` app assets at build time
 - the app can read the synced Terajs host metadata directly from the packaged assets
 - the app can resolve the generated route runtime descriptor plus the generated manifest, routes, and live runtime entry bundle it points at
 - the app can render a real native bootstrap tree from \`.terajs/generated/android/bootstrap/root-command-batch.json\`

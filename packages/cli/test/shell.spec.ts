@@ -62,6 +62,8 @@ describe("cli initTargetShell", () => {
     expect(appBuild).toContain('project(":terajs-host")');
     expect(appBuild).toContain(".terajs/generated/android");
     expect(appBuild).toContain(".terajs/hosts/android");
+    expect(appBuild).toContain('into("terajs/generated/android")');
+    expect(appBuild).toContain('into("terajs/hosts/android")');
     expect(appBuild).toContain("syncTerajsShellAssets");
     expect(appBuild).toContain("TERA_ANDROID_RELEASE_STORE_FILE");
     expect(appBuild).toContain("signingConfigs");
@@ -75,6 +77,7 @@ describe("cli initTargetShell", () => {
     expect(mainActivity).toContain("AndroidHostRuntime");
     expect(mainActivity).toContain("AndroidRuntimeAssetReader");
     expect(mainActivity).toContain("ensureLiveRuntimeAssets");
+    expect(mainActivity).toContain('readAssetJson("terajs/hosts/android/terajs-host.json")');
     expect(mainActivity).toContain("generated-route-runtime.json");
     expect(mainActivity).toContain("live-runtime-entry.js");
     expect(mainActivity).toContain("liveRuntime.start(liveRuntimeEntrySource)");

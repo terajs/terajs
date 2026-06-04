@@ -1,7 +1,6 @@
 import {
-  BUILD_BOOTSTRAP_FILE,
-  DEV_APP_BOOTSTRAP_MODULE_PATH,
-  toPublicAssetPath
+  APP_BOOTSTRAP_VIRTUAL_ID,
+  DEV_APP_BOOTSTRAP_MODULE_PATH
 } from "./bootstrapEntry.js";
 
 interface InjectAppBootstrapScriptOptions {
@@ -48,7 +47,7 @@ export function injectAppBootstrapScript(
   }
 
   const appEntrySpecifier = options.command === "build"
-    ? toPublicAssetPath(BUILD_BOOTSTRAP_FILE, options.base ?? "/")
+    ? APP_BOOTSTRAP_VIRTUAL_ID
     : DEV_APP_BOOTSTRAP_MODULE_PATH;
 
   const bootstrapTag = `    <script type="module" src="${appEntrySpecifier}"></script>`;
