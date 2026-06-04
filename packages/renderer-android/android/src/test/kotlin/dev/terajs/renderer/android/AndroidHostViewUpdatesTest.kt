@@ -45,6 +45,10 @@ class AndroidHostViewUpdatesTest {
       linkedMapOf(
         "paddingHorizontal" to "12",
         "paddingVertical" to "6",
+        "layoutMarginHorizontal" to "10",
+        "layoutMarginVertical" to "4",
+        "layoutMarginTop" to "6",
+        "layoutMarginBottom" to "8",
         "layoutWidth" to "match_parent",
         "layoutHeight" to "24"
       ),
@@ -59,6 +63,11 @@ class AndroidHostViewUpdatesTest {
     assertEquals(6, button.paddingBottom)
     assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, button.layoutParams.width)
     assertEquals(24, button.layoutParams.height)
+    val margins = button.layoutParams as ViewGroup.MarginLayoutParams
+    assertEquals(10, margins.leftMargin)
+    assertEquals(6, margins.topMargin)
+    assertEquals(10, margins.rightMargin)
+    assertEquals(8, margins.bottomMargin)
   }
 
   private fun testContext(): Context = ApplicationProvider.getApplicationContext()

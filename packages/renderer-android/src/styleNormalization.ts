@@ -82,6 +82,18 @@ export function normalizeAndroidStyle(viewType: string, style: Record<string, st
       case "margin":
         normalized.layoutMargin = value;
         break;
+      case "marginTop":
+        normalized.layoutMarginTop = value;
+        break;
+      case "marginRight":
+        normalized.layoutMarginRight = value;
+        break;
+      case "marginBottom":
+        normalized.layoutMarginBottom = value;
+        break;
+      case "marginLeft":
+        normalized.layoutMarginLeft = value;
+        break;
       case "marginHorizontal":
         normalized.layoutMarginHorizontal = value;
         break;

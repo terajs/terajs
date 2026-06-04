@@ -21,6 +21,8 @@ describe("renderer-ios style normalization", () => {
       alignItems: "center",
       gap: "12px",
       padding: "16px",
+      marginTop: "4px",
+      marginBottom: "8px",
       background: "tomato",
       color: "#fff"
     })).toEqual({
@@ -30,6 +32,8 @@ describe("renderer-ios style normalization", () => {
       stackAlignment: "center",
       stackSpacing: "12",
       contentPadding: "16",
+      layoutMarginTop: "4",
+      layoutMarginBottom: "8",
       backgroundColor: "tomato",
       textColor: "#fff"
     });

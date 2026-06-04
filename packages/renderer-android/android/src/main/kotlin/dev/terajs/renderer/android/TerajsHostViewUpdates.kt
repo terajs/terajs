@@ -72,6 +72,27 @@ internal object AndroidHostViewUpdater {
         "paddingVertical" -> parseDimension(value)?.let { inset ->
           node.view.setPadding(node.view.paddingLeft, inset, node.view.paddingRight, inset)
         }
+        "layoutMargin" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, inset, inset, inset, inset)
+        }
+        "layoutMarginTop" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, top = inset)
+        }
+        "layoutMarginRight" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, right = inset)
+        }
+        "layoutMarginBottom" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, bottom = inset)
+        }
+        "layoutMarginLeft" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, left = inset)
+        }
+        "layoutMarginHorizontal" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, left = inset, right = inset)
+        }
+        "layoutMarginVertical" -> parseDimension(value)?.let { inset ->
+          updateLayoutMargins(node.view, top = inset, bottom = inset)
+        }
         "layoutWidth" -> updateLayoutParams(node.view, width = dimensionOrLayout(value), height = null)
         "layoutHeight" -> updateLayoutParams(node.view, width = null, height = dimensionOrLayout(value))
       }
@@ -190,5 +211,31 @@ internal object AndroidHostViewUpdater {
         this.height = height
       }
     }
+  }
+
+  private fun updateLayoutMargins(
+    view: View,
+    top: Int? = null,
+    right: Int? = null,
+    bottom: Int? = null,
+    left: Int? = null
+  ) {
+    val current = view.layoutParams
+    val params = when (current) {
+      is ViewGroup.MarginLayoutParams -> current
+      null -> ViewGroup.MarginLayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+      )
+      else -> ViewGroup.MarginLayoutParams(current)
+    }
+
+    params.setMargins(
+      left ?: params.leftMargin,
+      top ?: params.topMargin,
+      right ?: params.rightMargin,
+      bottom ?: params.bottomMargin
+    )
+    view.layoutParams = params
   }
 }

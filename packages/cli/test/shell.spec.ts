@@ -71,20 +71,27 @@ describe("cli initTargetShell", () => {
 
     const appManifest = await readText(join(appRoot, "android", "app", "src", "main", "AndroidManifest.xml"));
     expect(appManifest).toContain("android.intent.category.LAUNCHER");
+    expect(appManifest).toContain('android:screenOrientation="portrait"');
 
     const mainActivity = await readText(join(appRoot, "android", "app", "src", "main", "kotlin", "dev", "terajs", "apps", "universal", "app", "android", "MainActivity.kt"));
     expect(mainActivity).toContain("AndroidRhinoRuntime");
     expect(mainActivity).toContain("AndroidHostRuntime");
     expect(mainActivity).toContain("AndroidRuntimeAssetReader");
     expect(mainActivity).toContain("ensureLiveRuntimeAssets");
+    expect(mainActivity).toContain('window.statusBarColor = Color.parseColor("#07111f")');
+    expect(mainActivity).toContain('window.navigationBarColor = Color.parseColor("#07111f")');
     expect(mainActivity).toContain('readAssetJson("terajs/hosts/android/terajs-host.json")');
     expect(mainActivity).toContain("wrapScrollableRoot(rootView)");
+    expect(mainActivity).toContain('setBackgroundColor(Color.parseColor("#07111f"))');
+    expect(mainActivity).toContain("systemTopInsetFallback()");
+    expect(mainActivity).toContain("systemBottomInsetFallback()");
     expect(mainActivity).toContain("generated-route-runtime.json");
     expect(mainActivity).toContain("live-runtime-entry.js");
     expect(mainActivity).toContain("liveRuntime.start(liveRuntimeEntrySource)");
     expect(mainActivity).toContain("runtimeDescriptorPath = runtimeDescriptorAssetPath");
     expect(mainActivity).toContain("receiveCommandBatchPayload");
     expect(mainActivity).toContain("root-command-batch.json");
+    expect(mainActivity).toContain("clipToPadding = true");
 
     const readme = await readText(join(appRoot, "android", "README.md"));
     expect(readme).toContain("tera build --target android");

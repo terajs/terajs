@@ -329,6 +329,7 @@ function createAndroidAppManifest(displayName: string): string {
     android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
     <activity
       android:name=".MainActivity"
+      android:screenOrientation="portrait"
       android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
@@ -344,6 +345,7 @@ function createAndroidMainActivity(namespace: string): string {
   return `package ${namespace}
 
 import android.app.Activity
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
@@ -358,6 +360,8 @@ import org.json.JSONObject
 class MainActivity : Activity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    window.statusBarColor = Color.parseColor("#07111f")
+    window.navigationBarColor = Color.parseColor("#07111f")
 
     val content = runCatching { createBootstrapView() }
       .getOrElse { error ->
@@ -428,8 +432,19 @@ class MainActivity : Activity() {
     }
 
     return ScrollView(this).apply {
+      clipToPadding = true
+      setBackgroundColor(Color.parseColor("#07111f"))
+      setPadding(0, systemTopInsetFallback(), 0, systemBottomInsetFallback())
       addView(rootView)
     }
+  }
+
+  private fun systemTopInsetFallback(): Int {
+    return (40 * resources.displayMetrics.density).toInt()
+  }
+
+  private fun systemBottomInsetFallback(): Int {
+    return (16 * resources.displayMetrics.density).toInt()
   }
 
   private fun ensureLiveRuntimeAssets(hostManifest: JSONObject) {
