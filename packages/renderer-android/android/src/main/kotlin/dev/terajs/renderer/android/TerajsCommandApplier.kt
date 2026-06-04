@@ -69,7 +69,11 @@ class AndroidCommandApplier(context: Context, private val viewFactory: AndroidHo
 
     if (child is AndroidHostElementNode) {
       attach(child.view, parent, command.anchorId)
-    } else if (child is AndroidHostTextNode && !AndroidHostViewUpdater.supportsText(parent.view)) {
+    } else if (
+      child is AndroidHostTextNode
+      && !AndroidHostViewUpdater.supportsText(parent.view)
+      && child.value.isNotBlank()
+    ) {
       child.view.text = child.value
       attach(child.view, parent, command.anchorId)
     }

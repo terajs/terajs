@@ -419,7 +419,17 @@ class MainActivity : Activity() {
       append("Check ${"$"}runtimeEntryAssetPath, ${"$"}bootstrapAssetPath, and re-run tera build --target android.")
     }
 
-    return runtime.rootView ?: createStatusView(statusMessage)
+    return runtime.rootView?.let { rootView -> wrapScrollableRoot(rootView) } ?: createStatusView(statusMessage)
+  }
+
+  private fun wrapScrollableRoot(rootView: View): View {
+    if (rootView is ScrollView) {
+      return rootView
+    }
+
+    return ScrollView(this).apply {
+      addView(rootView)
+    }
   }
 
   private fun ensureLiveRuntimeAssets(hostManifest: JSONObject) {

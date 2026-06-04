@@ -21,7 +21,7 @@ class AndroidHostViewFactory(private val context: Context) {
     "Spinner" -> Spinner(context)
     "Switch" -> Switch(context)
     "TextView" -> TextView(context)
-    "ViewGroup" -> FrameLayout(context)
-    else -> FrameLayout(context)
+    "ViewGroup" -> LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    else -> LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
   }
 }

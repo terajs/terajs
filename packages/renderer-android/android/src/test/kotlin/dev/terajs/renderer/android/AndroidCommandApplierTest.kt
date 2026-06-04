@@ -55,6 +55,57 @@ class AndroidCommandApplierTest {
   }
 
   @Test
+  fun materializesGenericViewGroupsAsVerticalLayouts() {
+    val applier = AndroidCommandApplier(testContext())
+
+    applier.applyCommands(
+      listOf(
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 1, viewType = "ViewGroup"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 2, viewType = "TextView"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 4, viewType = "TextView"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 3, value = TerajsJsonString("First")),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 5, value = TerajsJsonString("Second")),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 2),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 2, childId = 3),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 4),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 4, childId = 5)
+      )
+    )
+
+    val rootNode = applier.node(1) as? AndroidHostElementNode ?: throw AssertionError("Missing root element")
+    val rootView = rootNode.view as LinearLayout
+
+    assertEquals(LinearLayout.VERTICAL, rootView.orientation)
+    assertEquals(2, rootView.childCount)
+    assertEquals("First", (rootView.getChildAt(0) as TextView).text.toString())
+    assertEquals("Second", (rootView.getChildAt(1) as TextView).text.toString())
+  }
+
+  @Test
+  fun keepsWhitespaceOnlyTextNodesLayoutInertInsideViewGroups() {
+    val applier = AndroidCommandApplier(testContext())
+
+    applier.applyCommands(
+      listOf(
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 1, viewType = "ViewGroup"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 2, value = TerajsJsonString("\n    ")),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateElement, nodeId = 3, viewType = "TextView"),
+        AndroidHostCommand(type = AndroidHostCommandType.CreateText, nodeId = 4, value = TerajsJsonString("Visible")),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 2),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 1, childId = 3),
+        AndroidHostCommand(type = AndroidHostCommandType.Insert, parentId = 3, childId = 4)
+      )
+    )
+
+    val rootNode = applier.node(1) as? AndroidHostElementNode ?: throw AssertionError("Missing root element")
+    val rootView = rootNode.view as LinearLayout
+
+    assertEquals(listOf(2, 3), rootNode.childNodeIds)
+    assertEquals(1, rootView.childCount)
+    assertEquals("Visible", (rootView.getChildAt(0) as TextView).text.toString())
+  }
+
+  @Test
   fun appliesMutationCommandsToNativeViews() {
     val applier = AndroidCommandApplier(testContext())
 

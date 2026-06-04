@@ -36,14 +36,19 @@ class AndroidHostViewFactoryTest {
     assertTrue(factory.makeView("Spinner") is Spinner)
     assertTrue(factory.makeView("Switch") is Switch)
     assertTrue(factory.makeView("TextView") is TextView)
-    assertTrue(factory.makeView("ViewGroup") is FrameLayout)
+
+    val viewGroup = factory.makeView("ViewGroup") as? LinearLayout
+      ?: throw AssertionError("Expected ViewGroup to materialize as LinearLayout")
+    assertTrue(viewGroup.orientation == LinearLayout.VERTICAL)
   }
 
   @Test
-  fun fallsBackToFrameLayoutForUnknownViewTypes() {
+  fun fallsBackToVerticalLayoutForUnknownViewTypes() {
     val factory = AndroidHostViewFactory(testContext())
 
-    assertTrue(factory.makeView("UnknownNativeView") is FrameLayout)
+    val fallback = factory.makeView("UnknownNativeView") as? LinearLayout
+      ?: throw AssertionError("Expected unknown view types to materialize as LinearLayout")
+    assertTrue(fallback.orientation == LinearLayout.VERTICAL)
   }
 
   private fun testContext(): Context = ApplicationProvider.getApplicationContext()

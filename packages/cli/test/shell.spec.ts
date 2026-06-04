@@ -78,6 +78,7 @@ describe("cli initTargetShell", () => {
     expect(mainActivity).toContain("AndroidRuntimeAssetReader");
     expect(mainActivity).toContain("ensureLiveRuntimeAssets");
     expect(mainActivity).toContain('readAssetJson("terajs/hosts/android/terajs-host.json")');
+    expect(mainActivity).toContain("wrapScrollableRoot(rootView)");
     expect(mainActivity).toContain("generated-route-runtime.json");
     expect(mainActivity).toContain("live-runtime-entry.js");
     expect(mainActivity).toContain("liveRuntime.start(liveRuntimeEntrySource)");
