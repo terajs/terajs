@@ -42,7 +42,9 @@ function normalizeGeneratedManifest(text: string) {
 }
 
 function normalizeTextNewlines(text: string): string {
-  return text.replace(/\r\n/g, "\n");
+  return text
+    .replace(/\r\n/g, "\n")
+    .replace(/\\r\\n/g, "\\n");
 }
 
 function collectTextValues(node: AndroidNativeNode): string[] {
