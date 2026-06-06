@@ -77,7 +77,7 @@ describe("proof workspace interaction", () => {
     const storyIds = () => Array.from(root.querySelectorAll("[data-story-id]"))
       .map((node) => (node as HTMLElement).dataset.storyId);
 
-    expect(storyIds()).toEqual(["alpha", "bravo", "charlie"]);
+    expect(storyIds()).toEqual(["alpha", "bravo", "charlie", "delta", "echo", "foxtrot"]);
     expect(root.querySelector("[data-selected-host]")?.textContent).toBe("web");
     expect(root.querySelector("[data-note-filter-summary]")?.textContent).toContain("inactive");
 
@@ -96,7 +96,7 @@ describe("proof workspace interaction", () => {
     click(root.querySelector('button[data-action="promote-selected"]'));
     await tick();
 
-    expect(storyIds()).toEqual(["bravo", "alpha", "charlie"]);
+    expect(storyIds()).toEqual(["bravo", "alpha", "charlie", "delta", "echo", "foxtrot"]);
     expect(root.querySelector("[data-selected-host]")?.textContent).toBe("android");
 
     click(root.querySelector('button[data-action="toggle-queue"]'));
@@ -107,7 +107,7 @@ describe("proof workspace interaction", () => {
     click(root.querySelector('button[data-action="toggle-queue"]'));
     await tick();
 
-    expect(storyIds()).toEqual(["bravo", "alpha", "charlie"]);
+    expect(storyIds()).toEqual(["bravo", "alpha", "charlie", "delta", "echo", "foxtrot"]);
 
     const stateEvents = readDebugHistory().flatMap((event) => {
       const normalized = normalizeSharedDebugEvent(event);

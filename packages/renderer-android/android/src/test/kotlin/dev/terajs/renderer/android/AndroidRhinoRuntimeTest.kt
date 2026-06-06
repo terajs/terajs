@@ -122,15 +122,15 @@ class AndroidRhinoRuntimeTest {
     } as? TerajsSelectionEditText
       ?: throw AssertionError("Expected generated runtime EditText. View tree:\n${describeViewTree(root)}")
     val summary = findFirstView(root) { view ->
-      view is TextView && view.text.toString().contains("Host note filter inactive.")
+      view is TextView && view.text.toString().contains("Feed note filter inactive.")
     } as? TextView
       ?: throw AssertionError("Expected generated runtime host note summary text. View tree:\n${describeViewTree(root)}")
 
-    assertTrue(summary.text.toString().contains("Host note filter inactive."))
+    assertTrue(summary.text.toString().contains("Feed note filter inactive."))
 
     filterInput.setText("Android")
 
-    assertTrue(summary.text.toString().contains("Filtering host note by \"Android\"."))
+    assertTrue(summary.text.toString().contains("Filtering feed note by \"Android\"."))
     assertTrue(emitted.any { payload ->
       payload.contains("\"name\":\"textInput\"") && payload.contains("\"text\":\"Android\"")
     })
@@ -178,25 +178,32 @@ class AndroidRhinoRuntimeTest {
       initialStoryButtons.isNotEmpty()
     )
     assertEquals(
-      listOf("Web shell parity", "Android command fidelity", "iOS bridge readiness"),
+      storyLabels,
       initialStoryButtons
     )
 
-    val selectedAndroidStory = findStoryButtonByTitle(root, "Android command fidelity")
+    val selectedAndroidStory = findStoryButtonByTitle(root, "Android artifacts just landed")
     selectedAndroidStory.performClick()
 
     val selectedHostSummary = findFirstView(root) { view ->
-      view is TextView && view.text.toString().contains("Android host proof")
+      view is TextView && view.text.toString().contains("Android artifact proof")
     } as? TextView
       ?: throw AssertionError("Expected generated runtime Android story summary. View tree:\n${describeViewTree(root)}")
 
-    assertTrue(selectedHostSummary.text.toString().contains("Android host proof"))
+    assertTrue(selectedHostSummary.text.toString().contains("Android artifact proof"))
 
-    val promoteSelectedButton = findButtonByText(root, "Promote selected")
+    val promoteSelectedButton = findButtonByText(root, "Pin selected")
     promoteSelectedButton.performClick()
 
     assertEquals(
-      listOf("Android command fidelity", "Web shell parity", "iOS bridge readiness"),
+      listOf(
+        "Android artifacts just landed",
+        "The DOM build is live",
+        "Phone mirror is scrolling",
+        "Like, Reply, and Share controls",
+        "One source root builds deliberately",
+        "Final reveal"
+      ),
       collectStoryButtonTexts(root)
     )
     assertEquals(selectedAndroidStory, collectStoryButtons(root).first())
@@ -235,28 +242,28 @@ class AndroidRhinoRuntimeTest {
       ?: throw AssertionError("Expected Android root view from generated runtime entry")
 
     assertEquals(
-      listOf("Web shell parity", "Android command fidelity", "iOS bridge readiness"),
+      storyLabels,
       collectStoryButtonTexts(root)
     )
 
-    val hideQueueButton = findButtonByText(root, "Hide queue")
+    val hideQueueButton = findButtonByText(root, "Hide feed")
     hideQueueButton.performClick()
 
     val hiddenState = findFirstView(root) { view ->
       view is TextView && view.text.toString().contains(
-        "Queue hidden while the selected proof stays mounted for the active host target."
+        "Feed hidden while the selected social proof stays mounted for the active host target."
       )
     } as? TextView
       ?: throw AssertionError("Expected generated runtime queue hidden state. View tree:\n${describeViewTree(root)}")
 
-    assertTrue(hiddenState.text.toString().contains("Queue hidden while the selected proof stays mounted"))
+    assertTrue(hiddenState.text.toString().contains("Feed hidden while the selected social proof stays mounted"))
     assertTrue(collectStoryButtonTexts(root).isEmpty())
 
-    val showQueueButton = findButtonByText(root, "Show queue")
+    val showQueueButton = findButtonByText(root, "Show feed")
     showQueueButton.performClick()
 
     assertEquals(
-      listOf("Web shell parity", "Android command fidelity", "iOS bridge readiness"),
+      storyLabels,
       collectStoryButtonTexts(root)
     )
     assertTrue(emitted.count { payload -> payload.contains("\"name\":\"press\"") } >= 2)
@@ -350,19 +357,26 @@ class AndroidRhinoRuntimeTest {
   }
 
   private fun collectStoryButtons(root: View): List<Button> {
-    val labels = setOf("Web shell parity", "Android command fidelity", "iOS bridge readiness")
     return collectViews(root) { view ->
-      view is Button && labels.any { label -> view.text.toString().contains(label) }
+      view is Button && storyLabels.any { label -> view.text.toString().contains(label) }
     }.map { it as Button }
   }
 
   private fun collectStoryButtonTexts(root: View): List<String> {
-    val labels = listOf("Web shell parity", "Android command fidelity", "iOS bridge readiness")
     return collectStoryButtons(root).map { button ->
-      labels.firstOrNull { label -> button.text.toString().contains(label) }
+      storyLabels.firstOrNull { label -> button.text.toString().contains(label) }
         ?: button.text.toString().trim()
     }
   }
+
+  private val storyLabels = listOf(
+    "The DOM build is live",
+    "Android artifacts just landed",
+    "Phone mirror is scrolling",
+    "Like, Reply, and Share controls",
+    "One source root builds deliberately",
+    "Final reveal"
+  )
 
   private fun describeViewTree(root: View, depth: Int = 0): String {
     val indent = "  ".repeat(depth)
