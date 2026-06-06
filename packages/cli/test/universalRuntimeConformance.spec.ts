@@ -97,7 +97,7 @@ function findTextInputByAction(root: NativeRoot, viewType: string, action: strin
 function collectStoryButtonTitles(root: NativeRoot, viewType: string): string[] {
   return collectViews(root, viewType)
     .filter((node) => typeof node.props["data-story-target"] === "string")
-    .map((node) => collectTextValues(node)[0] ?? "");
+    .map((node) => String(node.props["data-story-title"] ?? ""));
 }
 
 function createAndroidRuntimeHarness(workspaceRoot: string): RuntimeHarness {
@@ -233,9 +233,9 @@ function visibleProofState(root: NativeRoot, storyButtonViewType: string): Recor
   const texts = collectTextValues(root);
 
   return {
-    hasHostNoteFilterInactive: texts.includes("Host note filter inactive."),
-    hasQueueHiddenMessage: texts.includes("Queue hidden while the selected proof stays mounted for the active host target."),
-    hasWebHostProof: texts.includes("Web host proof"),
+    hasHostNoteFilterInactive: texts.includes("Feed note filter inactive."),
+    hasQueueHiddenMessage: texts.includes("Feed hidden while the selected social proof stays mounted for the active host target."),
+    hasDomTargetProof: texts.includes("Production DOM proof"),
     storyButtons: collectStoryButtonTitles(root, storyButtonViewType),
   };
 }
@@ -266,33 +266,39 @@ describe("universal native runtime conformance", () => {
     android.dispatchNativeEvent(androidFilter.id, "input", { text: "Android" });
     ios.dispatchNativeEvent(iosFilter.id, "input", { value: "Android" });
 
-    expect(collectTextValues(android.root())).toContain('Filtering host note by "Android".');
-    expect(collectTextValues(ios.root())).toContain('Filtering host note by "Android".');
+    expect(collectTextValues(android.root())).toContain('Filtering feed note by "Android".');
+    expect(collectTextValues(ios.root())).toContain('Filtering feed note by "Android".');
 
-    const androidStory = findStoryButtonByTarget(android.root(), "Button", "bravo");
-    const iosStory = findStoryButtonByTarget(ios.root(), "UIButton", "bravo");
+    const androidStory = findStoryButtonByTarget(android.root(), "Button", "charlie");
+    const iosStory = findStoryButtonByTarget(ios.root(), "UIButton", "charlie");
     android.dispatchNativeEvent(androidStory.id, "press");
     ios.dispatchNativeEvent(iosStory.id, "tap");
 
-    const androidPromote = findButtonByText(android.root(), "Button", "Promote selected");
-    const iosPromote = findButtonByText(ios.root(), "UIButton", "Promote selected");
+    const androidPromote = findButtonByText(android.root(), "Button", "Pin selected");
+    const iosPromote = findButtonByText(ios.root(), "UIButton", "Pin selected");
     android.dispatchNativeEvent(androidPromote.id, "press");
     ios.dispatchNativeEvent(iosPromote.id, "tap");
 
     expect(visibleProofState(android.root(), "Button")).toEqual(visibleProofState(ios.root(), "UIButton"));
     expect(collectStoryButtonTitles(android.root(), "Button")).toEqual([
-      "Android command fidelity",
-      "Web shell parity",
-      "iOS bridge readiness",
+      "Phone mirror is scrolling through six real posts, not a placeholder splash screen.",
+      "The DOM build is live. Same Terajs route, same feed cards, production bundle ready.",
+      "Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime.",
+      "Like, Reply, and Share controls stay in the card so the native view tree has real buttons.",
+      "One source root builds deliberately: DOM first, Android next, iOS source smoke later.",
+      "Final reveal: desktop preview on the left, Android device on the right, same feed copy.",
     ]);
     expect(collectStoryButtonTitles(ios.root(), "UIButton")).toEqual([
-      "Android command fidelity",
-      "Web shell parity",
-      "iOS bridge readiness",
+      "Phone mirror is scrolling through six real posts, not a placeholder splash screen.",
+      "The DOM build is live. Same Terajs route, same feed cards, production bundle ready.",
+      "Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime.",
+      "Like, Reply, and Share controls stay in the card so the native view tree has real buttons.",
+      "One source root builds deliberately: DOM first, Android next, iOS source smoke later.",
+      "Final reveal: desktop preview on the left, Android device on the right, same feed copy.",
     ]);
 
-    const androidToggleQueue = findButtonByText(android.root(), "Button", "Hide queue");
-    const iosToggleQueue = findButtonByText(ios.root(), "UIButton", "Hide queue");
+    const androidToggleQueue = findButtonByText(android.root(), "Button", "Hide feed");
+    const iosToggleQueue = findButtonByText(ios.root(), "UIButton", "Hide feed");
     android.dispatchNativeEvent(androidToggleQueue.id, "press");
     ios.dispatchNativeEvent(iosToggleQueue.id, "tap");
 

@@ -2,7 +2,7 @@
   "kind": "component",
   "filePath": "/src/shared/components/ProofStateBoard.tera",
   "name": "ProofStateBoard",
-  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  const stories = signal([\r\n  {\r\n    id: 'alpha',\r\n    title: 'Web shell parity',\r\n    host: 'web',\r\n    hostLabel: 'Web host proof',\r\n    status: 'Ready',\r\n    summary: 'The shared route stays renderer-neutral while the web target keeps DOM work on the fast local path.',\r\n    hostNote: 'Web keeps DOM-specific optimizations inside renderer-web instead of widening shared helpers.'\r\n  },\r\n  {\r\n    id: 'bravo',\r\n    title: 'Android command fidelity',\r\n    host: 'android',\r\n    hostLabel: 'Android host proof',\r\n    status: 'Ready',\r\n    summary: 'The same route module drives Android views through host commands, event payloads, and keyed mutations.',\r\n    hostNote: 'Android stays command-oriented so JS owns reconciliation while native owns concrete view mutation.'\r\n  },\r\n  {\r\n    id: 'charlie',\r\n    title: 'iOS bridge readiness',\r\n    host: 'ios',\r\n    hostLabel: 'iOS host proof',\r\n    status: 'Planned locally',\r\n    summary: 'The shared source already reserves the iOS host surface without treating DOM output as the source of truth.',\r\n    hostNote: 'iOS remains a thin UIKit host target, with the bridge carrying commands and event payloads only.'\r\n  }\r\n], { key: \"stories\" })\r\n\r\nconst queueVisible = signal(true, { key: \"queueVisible\" })\r\nconst selectedStoryId = signal('alpha', { key: \"selectedStoryId\" })\r\nconst hostNoteFilter = signal('', { key: \"hostNoteFilter\" })\r\n\r\nfunction boardSummary() {\r\n  return `${stories().length} proof slices are driven from shared source while each host target keeps its concrete view layer thin.`\r\n}\r\n\r\nfunction queueMeta() {\r\n  return queueVisible()\r\n    ? `${stories().length} keyed items ready`\r\n    : 'Queue collapsed'\r\n}\r\n\r\nfunction toggleQueue() {\r\n  queueVisible.set(!queueVisible())\r\n}\r\n\r\nfunction selectStory(id) {\r\n  selectedStoryId.set(id)\r\n}\r\n\r\nfunction selectedStory() {\r\n  return stories().find((story) => story.id === selectedStoryId()) || null\r\n}\r\n\r\nfunction selectedSummary() {\r\n  const story = selectedStory()\r\n  return story ? `${story.hostLabel} selected` : 'No proof slice selected'\r\n}\r\n\r\nfunction selectedHostNote() {\r\n  const story = selectedStory()\r\n  return story ? story.hostNote : ''\r\n}\r\n\r\nfunction readEventTextValue(event) {\r\n  if (event && typeof event.value === 'string') {\r\n    return event.value\r\n  }\r\n\r\n  if (event && typeof event.text === 'string') {\r\n    return event.text\r\n  }\r\n\r\n  if (event && event.target && typeof event.target.value === 'string') {\r\n    return event.target.value\r\n  }\r\n\r\n  return ''\r\n}\r\n\r\nfunction normalizedHostNoteFilter() {\r\n  return hostNoteFilter().trim().toLowerCase()\r\n}\r\n\r\nfunction updateHostNoteFilter(event) {\r\n  hostNoteFilter.set(readEventTextValue(event))\r\n}\r\n\r\nfunction hasSelectedHostNote() {\r\n  return selectedHostNote().length > 0\r\n}\r\n\r\nfunction hostNoteFilterSummary() {\r\n  const filter = hostNoteFilter().trim()\r\n  return filter.length > 0\r\n    ? `Filtering host note by \"${filter}\".`\r\n    : 'Host note filter inactive.'\r\n}\r\n\r\nfunction showsSelectedHostNote() {\r\n  const note = selectedHostNote()\r\n  if (!note.length) {\r\n    return false\r\n  }\r\n\r\n  const filter = normalizedHostNoteFilter()\r\n  return filter.length === 0 || note.toLowerCase().includes(filter)\r\n}\r\n\r\nfunction filteredHostNoteSummary() {\r\n  const filter = hostNoteFilter().trim()\r\n  return filter.length > 0\r\n    ? `Current host note is hidden until it matches \"${filter}\".`\r\n    : ''\r\n}\r\n\r\nfunction promoteSelected() {\r\n  const currentId = selectedStoryId()\r\n\r\n  stories.update((list) => {\r\n    const index = list.findIndex((story) => story.id === currentId)\r\n\r\n    if (index <= 0) {\r\n      return list\r\n    }\r\n\r\n    const selected = list[index]\r\n    return [selected, ...list.slice(0, index), ...list.slice(index + 1)]\r\n  })\r\n}\r\n\r\nfunction rotateQueue() {\r\n  stories.update((list) => {\r\n    if (list.length < 2) {\r\n      return list\r\n    }\r\n\r\n    return [...list.slice(1), list[0]]\r\n  })\r\n}\r\n\r\nfunction storyButtonClass(story) {\r\n  return story.id === selectedStoryId()\r\n    ? 'proof-state-board__story proof-state-board__story--active'\r\n    : 'proof-state-board__story'\r\n}\n  return { stories, queueVisible, selectedStoryId, hostNoteFilter, boardSummary, queueMeta, toggleQueue, selectStory, selectedStory, selectedSummary, selectedHostNote, readEventTextValue, normalizedHostNoteFilter, updateHostNoteFilter, hasSelectedHostNote, hostNoteFilterSummary, showsSelectedHostNote, filteredHostNoteSummary, promoteSelected, rotateQueue, storyButtonClass };\n}",
+  "setupCode": "function __ssfc(ctx) {\n  const { props, slots, emit } = ctx;\n  const stories = signal([\n  {\n    id: 'alpha',\n    avatar: 'AL',\n    name: 'Ari Lane',\n    handle: '@ari',\n    time: '2m',\n    title: 'The DOM build is live. Same Terajs route, same feed cards, production bundle ready.',\n    host: 'web',\n    hostLabel: 'Production DOM proof',\n    status: 'Ready',\n    command: 'npm run build',\n    comments: 12,\n    likes: 128,\n    summary: 'This post anchors the desktop preview moment after the DOM bundle finishes.',\n    hostNote: 'DOM proof renders the light social feed from shared .tera source.'\n  },\n  {\n    id: 'bravo',\n    avatar: 'ND',\n    name: 'Noor Dev',\n    handle: '@noor',\n    time: '4m',\n    title: 'Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime.',\n    host: 'android',\n    hostLabel: 'Android artifact proof',\n    status: 'Ready',\n    command: 'tera build --target android',\n    comments: 9,\n    likes: 96,\n    summary: 'This post is the handoff point from shared source to generated Android assets.',\n    hostNote: 'Android proof receives command batches while JS owns reconciliation.'\n  },\n  {\n    id: 'charlie',\n    avatar: 'MK',\n    name: 'Mika Kane',\n    handle: '@mika',\n    time: '7m',\n    title: 'Phone mirror is scrolling through six real posts, not a placeholder splash screen.',\n    host: 'android',\n    hostLabel: 'Android scroll proof',\n    status: 'Recording beat',\n    command: 'adb install -r app-debug.apk',\n    comments: 18,\n    likes: 211,\n    summary: 'This post proves Android has enough vertical content for the final scroll shot.',\n    hostNote: 'Android scroll depth comes from six shared feed records plus proof cards.'\n  },\n  {\n    id: 'delta',\n    avatar: 'JS',\n    name: 'Jules Stone',\n    handle: '@jules',\n    time: '11m',\n    title: 'Like, Reply, and Share controls stay in the card so the native view tree has real buttons.',\n    host: 'shared',\n    hostLabel: 'Interaction proof',\n    status: 'Ready',\n    command: 'select, like, reply, share',\n    comments: 7,\n    likes: 74,\n    summary: 'This post keeps the feed visually credible while preserving button mapping coverage.',\n    hostNote: 'Shared actions render as DOM buttons and native buttons without widening the bridge.'\n  },\n  {\n    id: 'echo',\n    avatar: 'TC',\n    name: 'Tera Crew',\n    handle: '@terajs',\n    time: '15m',\n    title: 'One source root builds deliberately: DOM first, Android next, iOS source smoke later.',\n    host: 'universal',\n    hostLabel: 'Universal workflow proof',\n    status: 'Ready',\n    command: 'tera build --target web,android',\n    comments: 22,\n    likes: 305,\n    summary: 'This post connects the demo to the universal workspace readiness story.',\n    hostNote: 'Universal mode stays explicit so the default scaffold remains web-first.'\n  },\n  {\n    id: 'foxtrot',\n    avatar: 'SR',\n    name: 'Sam Rivera',\n    handle: '@sam',\n    time: '19m',\n    title: 'Final reveal: desktop preview on the left, Android device on the right, same feed copy.',\n    host: 'web + android',\n    hostLabel: 'Two-screen proof',\n    status: 'Ready to record',\n    command: 'zoom out',\n    comments: 15,\n    likes: 184,\n    summary: 'This post gives the recording a final side-by-side payoff.',\n    hostNote: 'The reveal shows the same shared route on DOM and Android.'\n  }\n], { key: \"stories\" })\n\nconst queueVisible = signal(true, { key: \"queueVisible\" })\nconst selectedStoryId = signal('alpha', { key: \"selectedStoryId\" })\nconst hostNoteFilter = signal('', { key: \"hostNoteFilter\" })\n\nfunction boardSummary() {\n  return `${stories().length} posts create real scroll depth while the selected card proves target-specific build output.`\n}\n\nfunction queueMeta() {\n  return queueVisible()\n    ? `${stories().length} posts ready`\n    : 'Feed collapsed'\n}\n\nfunction toggleQueue() {\n  queueVisible.set(!queueVisible())\n}\n\nfunction selectStory(id) {\n  selectedStoryId.set(id)\n}\n\nfunction selectedStory() {\n  return stories().find((story) => story.id === selectedStoryId()) || stories()[0]\n}\n\nfunction selectedSummary() {\n  const story = selectedStory()\n  return story ? `${story.hostLabel} selected` : 'No feed post selected'\n}\n\nfunction selectedHostNote() {\n  const story = selectedStory()\n  return story ? story.hostNote : ''\n}\n\nfunction readEventTextValue(event) {\n  if (event && typeof event.value === 'string') {\n    return event.value\n  }\n\n  if (event && typeof event.text === 'string') {\n    return event.text\n  }\n\n  if (event && event.target && typeof event.target.value === 'string') {\n    return event.target.value\n  }\n\n  return ''\n}\n\nfunction normalizedHostNoteFilter() {\n  return hostNoteFilter().trim().toLowerCase()\n}\n\nfunction updateHostNoteFilter(event) {\n  hostNoteFilter.set(readEventTextValue(event))\n}\n\nfunction hasSelectedHostNote() {\n  return selectedHostNote().length > 0\n}\n\nfunction hostNoteFilterSummary() {\n  const filter = hostNoteFilter().trim()\n  return filter.length > 0\n    ? `Filtering feed note by \"${filter}\".`\n    : 'Feed note filter inactive.'\n}\n\nfunction showsSelectedHostNote() {\n  const note = selectedHostNote()\n  if (!note.length) {\n    return false\n  }\n\n  const filter = normalizedHostNoteFilter()\n  return filter.length === 0 || note.toLowerCase().includes(filter)\n}\n\nfunction filteredHostNoteSummary() {\n  const filter = hostNoteFilter().trim()\n  return filter.length > 0\n    ? `Current feed note is hidden until it matches \"${filter}\".`\n    : ''\n}\n\nfunction promoteSelected() {\n  const currentId = selectedStoryId()\n\n  stories.update((list) => {\n    const index = list.findIndex((story) => story.id === currentId)\n\n    if (index <= 0) {\n      return list\n    }\n\n    const selected = list[index]\n    return [selected, ...list.slice(0, index), ...list.slice(index + 1)]\n  })\n}\n\nfunction rotateQueue() {\n  stories.update((list) => {\n    if (list.length < 2) {\n      return list\n    }\n\n    return [...list.slice(1), list[0]]\n  })\n}\n\nfunction storyCardClass(story) {\n  return story.id === selectedStoryId()\n    ? 'proof-state-board__post proof-state-board__post--active'\n    : 'proof-state-board__post'\n}\n  return { stories, queueVisible, selectedStoryId, hostNoteFilter, boardSummary, queueMeta, toggleQueue, selectStory, selectedStory, selectedSummary, selectedHostNote, readEventTextValue, normalizedHostNoteFilter, updateHostNoteFilter, hasSelectedHostNote, hostNoteFilterSummary, showsSelectedHostNote, filteredHostNoteSummary, promoteSelected, rotateQueue, storyCardClass };\n}",
   "importedBindings": [],
   "exposedBindings": [
     "stories",
@@ -25,7 +25,7 @@
     "filteredHostNoteSummary",
     "promoteSelected",
     "rotateQueue",
-    "storyButtonClass"
+    "storyCardClass"
   ],
   "ir": {
     "filePath": "/src/shared/components/ProofStateBoard.tera",
@@ -55,7 +55,7 @@
             "flags": {
               "static": true
             },
-            "value": "\r\n    "
+            "value": "\n    "
           },
           {
             "type": "element",
@@ -67,7 +67,12 @@
             "props": [
               {
                 "name": "class",
-                "value": "proof-state-board__intro",
+                "value": "proof-state-board__hero",
+                "kind": "static"
+              },
+              {
+                "name": "data-recording-zoom-target",
+                "value": "",
                 "kind": "static"
               },
               {
@@ -82,7 +87,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -109,7 +114,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "Interactive shared-state proof"
+                    "value": "Shared social feed proof"
                   }
                 ]
               },
@@ -118,7 +123,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -145,7 +150,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "One shared route, thin host targets, and stable keyed updates."
+                    "value": "One Terajs feed, built for DOM and Android."
                   }
                 ]
               },
@@ -154,7 +159,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -190,7 +195,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n    "
+                "value": "\n    "
               }
             ]
           },
@@ -199,7 +204,7 @@
             "flags": {
               "static": true
             },
-            "value": "\r\n\r\n    "
+            "value": "\n\n    "
           },
           {
             "type": "element",
@@ -226,7 +231,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -268,21 +273,21 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "interp",
                     "flags": {
                       "dynamic": true
                     },
-                    "expression": "queueVisible() ? 'Hide queue' : 'Show queue'"
+                    "expression": "queueVisible() ? 'Hide feed' : 'Show feed'"
                   },
                   {
                     "type": "text",
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n      "
+                    "value": "\n      "
                   }
                 ]
               },
@@ -291,7 +296,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -333,7 +338,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        Promote selected\r\n      "
+                    "value": "\n        Pin selected\n      "
                   }
                 ]
               },
@@ -342,7 +347,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -384,7 +389,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        Rotate queue\r\n      "
+                    "value": "\n        Rotate feed\n      "
                   }
                 ]
               },
@@ -393,7 +398,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -420,7 +425,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "element",
@@ -447,7 +452,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "Host note filter"
+                        "value": "Feed note filter"
                       }
                     ]
                   },
@@ -456,7 +461,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "element",
@@ -483,7 +488,7 @@
                       },
                       {
                         "name": "placeholder",
-                        "value": "Filter active host note",
+                        "value": "Filter selected proof note",
                         "kind": "static"
                       },
                       {
@@ -509,7 +514,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n      "
+                    "value": "\n      "
                   }
                 ]
               },
@@ -518,7 +523,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n    "
+                "value": "\n    "
               }
             ]
           },
@@ -527,7 +532,7 @@
             "flags": {
               "static": true
             },
-            "value": "\r\n\r\n    "
+            "value": "\n\n    "
           },
           {
             "type": "element",
@@ -554,7 +559,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n      "
+                "value": "\n      "
               },
               {
                 "type": "element",
@@ -566,7 +571,7 @@
                 "props": [
                   {
                     "name": "class",
-                    "value": "proof-state-board__panel",
+                    "value": "proof-state-board__feed-panel",
                     "kind": "static"
                   },
                   {
@@ -581,7 +586,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "element",
@@ -608,7 +613,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
@@ -635,7 +640,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "Shared queue"
+                            "value": "Timeline feed"
                           }
                         ]
                       },
@@ -644,7 +649,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
@@ -680,7 +685,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n        "
+                        "value": "\n        "
                       }
                     ]
                   },
@@ -689,7 +694,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n\r\n        "
+                    "value": "\n\n        "
                   },
                   {
                     "type": "if",
@@ -701,7 +706,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
@@ -733,7 +738,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n            "
+                            "value": "\n            "
                           },
                           {
                             "type": "for",
@@ -805,7 +810,7 @@
                                     "flags": {
                                       "static": true
                                     },
-                                    "value": "\r\n              "
+                                    "value": "\n              "
                                   },
                                   {
                                     "type": "element",
@@ -813,34 +818,12 @@
                                       "hasDirectives": false,
                                       "static": false
                                     },
-                                    "tag": "button",
+                                    "tag": "article",
                                     "props": [
                                       {
-                                        "name": "type",
-                                        "value": "button",
-                                        "kind": "static"
-                                      },
-                                      {
                                         "name": "class",
-                                        "value": "storyButtonClass(story)",
+                                        "value": "storyCardClass(story)",
                                         "kind": "bind"
-                                      },
-                                      {
-                                        "name": "data-story-target",
-                                        "value": "story.id",
-                                        "kind": "bind",
-                                        "binding": {
-                                          "kind": "simple-path",
-                                          "segments": [
-                                            "story",
-                                            "id"
-                                          ]
-                                        }
-                                      },
-                                      {
-                                        "name": "click",
-                                        "value": "selectStory(story.id)",
-                                        "kind": "event"
                                       },
                                       {
                                         "kind": "static",
@@ -854,7 +837,7 @@
                                         "flags": {
                                           "static": true
                                         },
-                                        "value": "\r\n                "
+                                        "value": "\n                "
                                       },
                                       {
                                         "type": "element",
@@ -862,26 +845,34 @@
                                           "hasDirectives": false,
                                           "static": false
                                         },
-                                        "tag": "span",
+                                        "tag": "button",
                                         "props": [
                                           {
-                                            "name": "class",
-                                            "value": "proof-state-board__story-title",
+                                            "name": "type",
+                                            "value": "button",
                                             "kind": "static"
                                           },
                                           {
-                                            "kind": "static",
-                                            "name": "data-tera-fouvni",
-                                            "value": ""
-                                          }
-                                        ],
-                                        "children": [
+                                            "name": "class",
+                                            "value": "proof-state-board__story-select",
+                                            "kind": "static"
+                                          },
                                           {
-                                            "type": "interp",
-                                            "flags": {
-                                              "dynamic": true
-                                            },
-                                            "expression": "story.title",
+                                            "name": "data-story-target",
+                                            "value": "story.id",
+                                            "kind": "bind",
+                                            "binding": {
+                                              "kind": "simple-path",
+                                              "segments": [
+                                                "story",
+                                                "id"
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "name": "data-story-title",
+                                            "value": "story.title",
+                                            "kind": "bind",
                                             "binding": {
                                               "kind": "simple-path",
                                               "segments": [
@@ -889,6 +880,361 @@
                                                 "title"
                                               ]
                                             }
+                                          },
+                                          {
+                                            "name": "click",
+                                            "value": "selectStory(story.id)",
+                                            "kind": "event"
+                                          },
+                                          {
+                                            "kind": "static",
+                                            "name": "data-tera-fouvni",
+                                            "value": ""
+                                          }
+                                        ],
+                                        "children": [
+                                          {
+                                            "type": "text",
+                                            "flags": {
+                                              "static": true
+                                            },
+                                            "value": "\n                  "
+                                          },
+                                          {
+                                            "type": "element",
+                                            "flags": {
+                                              "hasDirectives": false,
+                                              "static": false
+                                            },
+                                            "tag": "span",
+                                            "props": [
+                                              {
+                                                "name": "class",
+                                                "value": "proof-state-board__avatar",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "kind": "static",
+                                                "name": "data-tera-fouvni",
+                                                "value": ""
+                                              }
+                                            ],
+                                            "children": [
+                                              {
+                                                "type": "interp",
+                                                "flags": {
+                                                  "dynamic": true
+                                                },
+                                                "expression": "story.avatar",
+                                                "binding": {
+                                                  "kind": "simple-path",
+                                                  "segments": [
+                                                    "story",
+                                                    "avatar"
+                                                  ]
+                                                }
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "text",
+                                            "flags": {
+                                              "static": true
+                                            },
+                                            "value": "\n                  "
+                                          },
+                                          {
+                                            "type": "element",
+                                            "flags": {
+                                              "hasDirectives": false,
+                                              "static": false
+                                            },
+                                            "tag": "span",
+                                            "props": [
+                                              {
+                                                "name": "class",
+                                                "value": "proof-state-board__post-main",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "kind": "static",
+                                                "name": "data-tera-fouvni",
+                                                "value": ""
+                                              }
+                                            ],
+                                            "children": [
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "\n                    "
+                                              },
+                                              {
+                                                "type": "element",
+                                                "flags": {
+                                                  "hasDirectives": false,
+                                                  "static": false
+                                                },
+                                                "tag": "span",
+                                                "props": [
+                                                  {
+                                                    "name": "class",
+                                                    "value": "proof-state-board__post-line",
+                                                    "kind": "static"
+                                                  },
+                                                  {
+                                                    "kind": "static",
+                                                    "name": "data-tera-fouvni",
+                                                    "value": ""
+                                                  }
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "type": "text",
+                                                    "flags": {
+                                                      "static": true
+                                                    },
+                                                    "value": "\n                      "
+                                                  },
+                                                  {
+                                                    "type": "element",
+                                                    "flags": {
+                                                      "hasDirectives": false,
+                                                      "static": false
+                                                    },
+                                                    "tag": "span",
+                                                    "props": [
+                                                      {
+                                                        "name": "class",
+                                                        "value": "proof-state-board__story-title",
+                                                        "kind": "static"
+                                                      },
+                                                      {
+                                                        "kind": "static",
+                                                        "name": "data-tera-fouvni",
+                                                        "value": ""
+                                                      }
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "type": "interp",
+                                                        "flags": {
+                                                          "dynamic": true
+                                                        },
+                                                        "expression": "story.name",
+                                                        "binding": {
+                                                          "kind": "simple-path",
+                                                          "segments": [
+                                                            "story",
+                                                            "name"
+                                                          ]
+                                                        }
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "text",
+                                                    "flags": {
+                                                      "static": true
+                                                    },
+                                                    "value": "\n                      "
+                                                  },
+                                                  {
+                                                    "type": "element",
+                                                    "flags": {
+                                                      "hasDirectives": false,
+                                                      "static": false
+                                                    },
+                                                    "tag": "span",
+                                                    "props": [
+                                                      {
+                                                        "name": "class",
+                                                        "value": "proof-state-board__story-meta",
+                                                        "kind": "static"
+                                                      },
+                                                      {
+                                                        "kind": "static",
+                                                        "name": "data-tera-fouvni",
+                                                        "value": ""
+                                                      }
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "type": "interp",
+                                                        "flags": {
+                                                          "dynamic": true
+                                                        },
+                                                        "expression": "story.handle",
+                                                        "binding": {
+                                                          "kind": "simple-path",
+                                                          "segments": [
+                                                            "story",
+                                                            "handle"
+                                                          ]
+                                                        }
+                                                      },
+                                                      {
+                                                        "type": "text",
+                                                        "flags": {
+                                                          "static": true
+                                                        },
+                                                        "value": " · "
+                                                      },
+                                                      {
+                                                        "type": "interp",
+                                                        "flags": {
+                                                          "dynamic": true
+                                                        },
+                                                        "expression": "story.time",
+                                                        "binding": {
+                                                          "kind": "simple-path",
+                                                          "segments": [
+                                                            "story",
+                                                            "time"
+                                                          ]
+                                                        }
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "text",
+                                                    "flags": {
+                                                      "static": true
+                                                    },
+                                                    "value": "\n                    "
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "\n                    "
+                                              },
+                                              {
+                                                "type": "element",
+                                                "flags": {
+                                                  "hasDirectives": false,
+                                                  "static": false
+                                                },
+                                                "tag": "span",
+                                                "props": [
+                                                  {
+                                                    "name": "class",
+                                                    "value": "proof-state-board__post-body",
+                                                    "kind": "static"
+                                                  },
+                                                  {
+                                                    "kind": "static",
+                                                    "name": "data-tera-fouvni",
+                                                    "value": ""
+                                                  }
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "type": "interp",
+                                                    "flags": {
+                                                      "dynamic": true
+                                                    },
+                                                    "expression": "story.title",
+                                                    "binding": {
+                                                      "kind": "simple-path",
+                                                      "segments": [
+                                                        "story",
+                                                        "title"
+                                                      ]
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "\n                    "
+                                              },
+                                              {
+                                                "type": "element",
+                                                "flags": {
+                                                  "hasDirectives": false,
+                                                  "static": false
+                                                },
+                                                "tag": "span",
+                                                "props": [
+                                                  {
+                                                    "name": "class",
+                                                    "value": "proof-state-board__post-stats",
+                                                    "kind": "static"
+                                                  },
+                                                  {
+                                                    "kind": "static",
+                                                    "name": "data-tera-fouvni",
+                                                    "value": ""
+                                                  }
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "type": "interp",
+                                                    "flags": {
+                                                      "dynamic": true
+                                                    },
+                                                    "expression": "story.comments",
+                                                    "binding": {
+                                                      "kind": "simple-path",
+                                                      "segments": [
+                                                        "story",
+                                                        "comments"
+                                                      ]
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "text",
+                                                    "flags": {
+                                                      "static": true
+                                                    },
+                                                    "value": " comments · "
+                                                  },
+                                                  {
+                                                    "type": "interp",
+                                                    "flags": {
+                                                      "dynamic": true
+                                                    },
+                                                    "expression": "story.likes",
+                                                    "binding": {
+                                                      "kind": "simple-path",
+                                                      "segments": [
+                                                        "story",
+                                                        "likes"
+                                                      ]
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "text",
+                                                    "flags": {
+                                                      "static": true
+                                                    },
+                                                    "value": " likes"
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "\n                  "
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "text",
+                                            "flags": {
+                                              "static": true
+                                            },
+                                            "value": "\n                "
                                           }
                                         ]
                                       },
@@ -897,19 +1243,24 @@
                                         "flags": {
                                           "static": true
                                         },
-                                        "value": "\r\n                "
+                                        "value": "\n\n                "
                                       },
                                       {
                                         "type": "element",
                                         "flags": {
                                           "hasDirectives": false,
-                                          "static": false
+                                          "static": true
                                         },
-                                        "tag": "span",
+                                        "tag": "div",
                                         "props": [
                                           {
                                             "name": "class",
-                                            "value": "proof-state-board__story-meta",
+                                            "value": "proof-state-board__actions",
+                                            "kind": "static"
+                                          },
+                                          {
+                                            "name": "aria-label",
+                                            "value": "Post actions",
                                             "kind": "static"
                                           },
                                           {
@@ -920,18 +1271,134 @@
                                         ],
                                         "children": [
                                           {
-                                            "type": "interp",
+                                            "type": "text",
                                             "flags": {
-                                              "dynamic": true
+                                              "static": true
                                             },
-                                            "expression": "story.hostLabel",
-                                            "binding": {
-                                              "kind": "simple-path",
-                                              "segments": [
-                                                "story",
-                                                "hostLabel"
-                                              ]
-                                            }
+                                            "value": "\n                  "
+                                          },
+                                          {
+                                            "type": "element",
+                                            "flags": {
+                                              "hasDirectives": false,
+                                              "static": true
+                                            },
+                                            "tag": "button",
+                                            "props": [
+                                              {
+                                                "name": "type",
+                                                "value": "button",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "name": "class",
+                                                "value": "proof-state-board__action",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "kind": "static",
+                                                "name": "data-tera-fouvni",
+                                                "value": ""
+                                              }
+                                            ],
+                                            "children": [
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "Like"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "text",
+                                            "flags": {
+                                              "static": true
+                                            },
+                                            "value": "\n                  "
+                                          },
+                                          {
+                                            "type": "element",
+                                            "flags": {
+                                              "hasDirectives": false,
+                                              "static": true
+                                            },
+                                            "tag": "button",
+                                            "props": [
+                                              {
+                                                "name": "type",
+                                                "value": "button",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "name": "class",
+                                                "value": "proof-state-board__action",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "kind": "static",
+                                                "name": "data-tera-fouvni",
+                                                "value": ""
+                                              }
+                                            ],
+                                            "children": [
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "Reply"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "text",
+                                            "flags": {
+                                              "static": true
+                                            },
+                                            "value": "\n                  "
+                                          },
+                                          {
+                                            "type": "element",
+                                            "flags": {
+                                              "hasDirectives": false,
+                                              "static": true
+                                            },
+                                            "tag": "button",
+                                            "props": [
+                                              {
+                                                "name": "type",
+                                                "value": "button",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "name": "class",
+                                                "value": "proof-state-board__action",
+                                                "kind": "static"
+                                              },
+                                              {
+                                                "kind": "static",
+                                                "name": "data-tera-fouvni",
+                                                "value": ""
+                                              }
+                                            ],
+                                            "children": [
+                                              {
+                                                "type": "text",
+                                                "flags": {
+                                                  "static": true
+                                                },
+                                                "value": "Share"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "text",
+                                            "flags": {
+                                              "static": true
+                                            },
+                                            "value": "\n                "
                                           }
                                         ]
                                       },
@@ -940,7 +1407,7 @@
                                         "flags": {
                                           "static": true
                                         },
-                                        "value": "\r\n              "
+                                        "value": "\n              "
                                       }
                                     ]
                                   },
@@ -949,7 +1416,7 @@
                                     "flags": {
                                       "static": true
                                     },
-                                    "value": "\r\n            "
+                                    "value": "\n            "
                                   }
                                 ]
                               }
@@ -960,7 +1427,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n          "
+                            "value": "\n          "
                           }
                         ]
                       },
@@ -969,7 +1436,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n        "
+                        "value": "\n        "
                       }
                     ],
                     "else": [
@@ -978,7 +1445,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          Queue hidden while the selected proof stays mounted for the active host target.\r\n        "
+                        "value": "\n          Feed hidden while the selected social proof stays mounted for the active host target.\n        "
                       }
                     ]
                   },
@@ -987,14 +1454,14 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n\r\n        "
+                    "value": "\n\n        "
                   },
                   {
                     "type": "text",
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n      "
+                    "value": "\n      "
                   }
                 ]
               },
@@ -1003,7 +1470,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n\r\n      "
+                "value": "\n\n      "
               },
               {
                 "type": "element",
@@ -1011,11 +1478,11 @@
                   "hasDirectives": false,
                   "static": false
                 },
-                "tag": "section",
+                "tag": "aside",
                 "props": [
                   {
                     "name": "class",
-                    "value": "proof-state-board__panel",
+                    "value": "proof-state-board__side",
                     "kind": "static"
                   },
                   {
@@ -1030,19 +1497,19 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "element",
                     "flags": {
                       "hasDirectives": false,
-                      "static": false
+                      "static": true
                     },
-                    "tag": "div",
+                    "tag": "section",
                     "props": [
                       {
                         "name": "class",
-                        "value": "proof-state-board__panel-header",
+                        "value": "proof-state-board__composer",
                         "kind": "static"
                       },
                       {
@@ -1057,7 +1524,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
@@ -1084,7 +1551,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "Selected slice"
+                            "value": "Composer"
                           }
                         ]
                       },
@@ -1093,19 +1560,19 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
                         "flags": {
                           "hasDirectives": false,
-                          "static": false
+                          "static": true
                         },
-                        "tag": "p",
+                        "tag": "h3",
                         "props": [
                           {
                             "name": "class",
-                            "value": "proof-state-board__meta",
+                            "value": "proof-state-board__composer-title",
                             "kind": "static"
                           },
                           {
@@ -1116,11 +1583,11 @@
                         ],
                         "children": [
                           {
-                            "type": "interp",
+                            "type": "text",
                             "flags": {
-                              "dynamic": true
+                              "static": true
                             },
-                            "expression": "selectedSummary()"
+                            "value": "Record the same feed on both screens."
                           }
                         ]
                       },
@@ -1129,7 +1596,43 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n        "
+                        "value": "\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": true
+                        },
+                        "tag": "p",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__composer-copy",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\n            Build the DOM bundle, build Android artifacts, then scroll this timeline on the phone mirror.\n          "
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\n        "
                       }
                     ]
                   },
@@ -1138,19 +1641,147 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n\r\n        "
+                    "value": "\n\n        "
                   },
                   {
-                    "type": "if",
-                    "flags": {},
-                    "condition": "selectedStory()",
-                    "then": [
+                    "type": "element",
+                    "flags": {
+                      "hasDirectives": false,
+                      "static": false
+                    },
+                    "tag": "section",
+                    "props": [
+                      {
+                        "name": "class",
+                        "value": "proof-state-board__detail",
+                        "kind": "static"
+                      },
+                      {
+                        "name": "data-selected-story",
+                        "value": "",
+                        "kind": "static"
+                      },
+                      {
+                        "kind": "static",
+                        "name": "data-tera-fouvni",
+                        "value": ""
+                      }
+                    ],
+                    "children": [
                       {
                         "type": "text",
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
+                      },
+                      {
+                        "type": "element",
+                        "flags": {
+                          "hasDirectives": false,
+                          "static": false
+                        },
+                        "tag": "div",
+                        "props": [
+                          {
+                            "name": "class",
+                            "value": "proof-state-board__panel-header",
+                            "kind": "static"
+                          },
+                          {
+                            "kind": "static",
+                            "name": "data-tera-fouvni",
+                            "value": ""
+                          }
+                        ],
+                        "children": [
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\n            "
+                          },
+                          {
+                            "type": "element",
+                            "flags": {
+                              "hasDirectives": false,
+                              "static": true
+                            },
+                            "tag": "p",
+                            "props": [
+                              {
+                                "name": "class",
+                                "value": "proof-state-board__label",
+                                "kind": "static"
+                              },
+                              {
+                                "kind": "static",
+                                "name": "data-tera-fouvni",
+                                "value": ""
+                              }
+                            ],
+                            "children": [
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "Selected proof"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\n            "
+                          },
+                          {
+                            "type": "element",
+                            "flags": {
+                              "hasDirectives": false,
+                              "static": false
+                            },
+                            "tag": "p",
+                            "props": [
+                              {
+                                "name": "class",
+                                "value": "proof-state-board__meta",
+                                "kind": "static"
+                              },
+                              {
+                                "kind": "static",
+                                "name": "data-tera-fouvni",
+                                "value": ""
+                              }
+                            ],
+                            "children": [
+                              {
+                                "type": "interp",
+                                "flags": {
+                                  "dynamic": true
+                                },
+                                "expression": "selectedSummary()"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\n          "
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "flags": {
+                          "static": true
+                        },
+                        "value": "\n\n          "
                       },
                       {
                         "type": "element",
@@ -1186,7 +1817,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
@@ -1213,7 +1844,7 @@
                             "flags": {
                               "dynamic": true
                             },
-                            "expression": "selectedStory().title"
+                            "expression": "selectedStory().name"
                           }
                         ]
                       },
@@ -1222,7 +1853,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "element",
@@ -1258,7 +1889,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n\r\n          "
+                        "value": "\n\n          "
                       },
                       {
                         "type": "element",
@@ -1285,7 +1916,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n            "
+                            "value": "\n            "
                           },
                           {
                             "type": "element",
@@ -1312,7 +1943,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n              "
+                                "value": "\n              "
                               },
                               {
                                 "type": "element",
@@ -1343,7 +1974,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n              "
+                                "value": "\n              "
                               },
                               {
                                 "type": "element",
@@ -1379,7 +2010,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n            "
+                                "value": "\n            "
                               }
                             ]
                           },
@@ -1388,7 +2019,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n            "
+                            "value": "\n            "
                           },
                           {
                             "type": "element",
@@ -1415,7 +2046,105 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n              "
+                                "value": "\n              "
+                              },
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": true
+                                },
+                                "tag": "dt",
+                                "props": [
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "text",
+                                    "flags": {
+                                      "static": true
+                                    },
+                                    "value": "Command"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\n              "
+                              },
+                              {
+                                "type": "element",
+                                "flags": {
+                                  "hasDirectives": false,
+                                  "static": false
+                                },
+                                "tag": "dd",
+                                "props": [
+                                  {
+                                    "kind": "static",
+                                    "name": "data-tera-fouvni",
+                                    "value": ""
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "type": "interp",
+                                    "flags": {
+                                      "dynamic": true
+                                    },
+                                    "expression": "selectedStory().command"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\n            "
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "flags": {
+                              "static": true
+                            },
+                            "value": "\n            "
+                          },
+                          {
+                            "type": "element",
+                            "flags": {
+                              "hasDirectives": false,
+                              "static": false
+                            },
+                            "tag": "div",
+                            "props": [
+                              {
+                                "name": "class",
+                                "value": "proof-state-board__fact",
+                                "kind": "static"
+                              },
+                              {
+                                "kind": "static",
+                                "name": "data-tera-fouvni",
+                                "value": ""
+                              }
+                            ],
+                            "children": [
+                              {
+                                "type": "text",
+                                "flags": {
+                                  "static": true
+                                },
+                                "value": "\n              "
                               },
                               {
                                 "type": "element",
@@ -1446,7 +2175,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n              "
+                                "value": "\n              "
                               },
                               {
                                 "type": "element",
@@ -1477,7 +2206,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n            "
+                                "value": "\n            "
                               }
                             ]
                           },
@@ -1486,7 +2215,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n          "
+                            "value": "\n          "
                           }
                         ]
                       },
@@ -1495,7 +2224,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n\r\n          "
+                        "value": "\n\n          "
                       },
                       {
                         "type": "element",
@@ -1527,7 +2256,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n            "
+                            "value": "\n            "
                           },
                           {
                             "type": "interp",
@@ -1541,7 +2270,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n          "
+                            "value": "\n          "
                           }
                         ]
                       },
@@ -1550,7 +2279,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n\r\n          "
+                        "value": "\n\n          "
                       },
                       {
                         "type": "if",
@@ -1562,7 +2291,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n            "
+                            "value": "\n            "
                           },
                           {
                             "type": "interp",
@@ -1576,7 +2305,7 @@
                             "flags": {
                               "static": true
                             },
-                            "value": "\r\n          "
+                            "value": "\n          "
                           }
                         ],
                         "else": [
@@ -1590,7 +2319,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n            "
+                                "value": "\n            "
                               },
                               {
                                 "type": "interp",
@@ -1604,7 +2333,7 @@
                                 "flags": {
                                   "static": true
                                 },
-                                "value": "\r\n          "
+                                "value": "\n          "
                               }
                             ]
                           }
@@ -1615,14 +2344,14 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n          "
+                        "value": "\n          "
                       },
                       {
                         "type": "text",
                         "flags": {
                           "static": true
                         },
-                        "value": "\r\n        "
+                        "value": "\n        "
                       }
                     ]
                   },
@@ -1631,7 +2360,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n      "
+                    "value": "\n      "
                   }
                 ]
               },
@@ -1640,7 +2369,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n    "
+                "value": "\n    "
               }
             ]
           },
@@ -1649,7 +2378,7 @@
             "flags": {
               "static": true
             },
-            "value": "\r\n  "
+            "value": "\n  "
           }
         ]
       }

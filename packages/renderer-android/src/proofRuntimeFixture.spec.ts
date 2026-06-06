@@ -210,7 +210,7 @@ describe("renderer-android proof runtime fixture", () => {
       collectTextValues(freshHarness.consumer.root!)
     );
     expect(collectTextValues(fixtureHarness.consumer.root!)).toContain(
-      'Filtering host note by "Android".'
+      'Filtering feed note by "Android".'
     );
   });
 });

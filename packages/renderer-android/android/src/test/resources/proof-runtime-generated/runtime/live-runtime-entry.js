@@ -20,7 +20,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 (function () {
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/bridgeNodes.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/bridgeNodes.js
     function createAndroidBridgeNodeBase(id, kind) {
         return {
             kind: kind,
@@ -71,7 +71,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/bridgeNodeFactory.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/bridgeNodeFactory.js
     function createAndroidBridgeNodeFactory(options) {
         var nodes = options.nodes, pushCommand = options.pushCommand;
         var nextNodeId = 1;
@@ -118,7 +118,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/viewTypes.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/viewTypes.js
     var AndroidViewTypeByTag = {
         a: "TextView",
         article: "ViewGroup",
@@ -179,7 +179,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return trimmed;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/selectionProps.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/selectionProps.js
     var AndroidSelectionViewTypes = new Set(["EditText"]);
     function normalizeSelectionKey(name) {
         return name.replace(/[-_\s]/g, "").toLowerCase();
@@ -276,7 +276,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/inputProps.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/inputProps.js
     var AndroidInputTraitViewTypes = new Set(["EditText"]);
     function normalizeInputKey(name) {
         return name.replace(/[-_\s]/g, "").toLowerCase();
@@ -424,7 +424,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textInteractionProps.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textInteractionProps.js
     var AndroidTextInteractionViewTypes = new Set(["EditText"]);
     function normalizeInteractionKey(name) {
         return name.replace(/[-_\s]/g, "").toLowerCase();
@@ -487,7 +487,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textLayoutProps.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textLayoutProps.js
     var AndroidMultilineLayoutViewTypes = new Set(["EditText"]);
     function normalizeLayoutKey(name) {
         return name.replace(/[-_\s]/g, "").toLowerCase();
@@ -529,7 +529,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textLimitProps.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textLimitProps.js
     var AndroidTextLimitViewTypes = new Set(["EditText"]);
     function normalizeLimitKey(name) {
         return name.replace(/[-_\s]/g, "").toLowerCase();
@@ -566,7 +566,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textViewportProps.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textViewportProps.js
     var AndroidTextViewportViewTypes = new Set(["EditText"]);
     function normalizeViewportKey(name) {
         return name.replace(/[-_\s]/g, "").toLowerCase();
@@ -682,7 +682,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return null;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/normalization.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/normalization.js
     var AndroidTextPropViewTypes = new Set([
         "Button",
         "EditText",
@@ -804,7 +804,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return name;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/styleNormalization.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/styleNormalization.js
     function normalizeStyleValue(value) {
         var trimmed = value.trim();
         var pxMatch = /^(-?\d+(?:\.\d+)?)px$/i.exec(trimmed);
@@ -875,6 +875,18 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 case "margin":
                     normalized.layoutMargin = value;
                     break;
+                case "marginTop":
+                    normalized.layoutMarginTop = value;
+                    break;
+                case "marginRight":
+                    normalized.layoutMarginRight = value;
+                    break;
+                case "marginBottom":
+                    normalized.layoutMarginBottom = value;
+                    break;
+                case "marginLeft":
+                    normalized.layoutMarginLeft = value;
+                    break;
                 case "marginHorizontal":
                     normalized.layoutMarginHorizontal = value;
                     break;
@@ -910,7 +922,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return normalized;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/bridgeHost.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/bridgeHost.js
     function createAndroidBridgeHost(options) {
         var _options$rootViewType;
         var nodes = options.nodes, pushCommand = options.pushCommand;
@@ -1081,7 +1093,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/bridge.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/bridge.js
     /**
     * Creates a thin command-oriented Android bridge that keeps renderer ownership in JS
     * and emits only host operations plus event subscription state toward native.
@@ -1122,7 +1134,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/transportCodec.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/transportCodec.js
     function isRecord(value) {
         return typeof value === "object" && value !== null && !Array.isArray(value);
     }
@@ -1249,7 +1261,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return normalizeNativeEventPacket(parseJsonInput(input), "packet");
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/consumerNodes.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/consumerNodes.js
     function createAndroidNativeViewNode(nodeId, viewType) {
         return {
             id: nodeId,
@@ -1325,7 +1337,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         child.parent = parent;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/consumer.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/consumer.js
     /**
     * Replays thin Android bridge commands into an Android Views-shaped native tree
     * owned by the package-local consumer proof rather than the shared renderer.
@@ -1407,7 +1419,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/core/registry.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/core/registry.js
     /**
     * Debug registry for tracking composable instances and reactive primitives.
     */
@@ -1416,7 +1428,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return currentComposable;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/core/graphRegistry.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/core/graphRegistry.js
     /**
     * In‑memory dependency graph registry.
     * Keyed by reactive identity (RID).
@@ -1450,7 +1462,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         to.dependents.add(fromRid);
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/dependencyGraph.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/dependencyGraph.js
     /**
     * Public API for the dependency graph used by the rest of debug/core.
     * Re‑exports the underlying graph operations with stable names.
@@ -1463,7 +1475,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         addDependency$1(fromRid, toRid);
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/store.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/store.js
     function getSharedDebugState() {
         if (!globalThis.__TERAJS_SHARED_DEBUG_STATE__)
             globalThis.__TERAJS_SHARED_DEBUG_STATE__ = {
@@ -1473,7 +1485,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return globalThis.__TERAJS_SHARED_DEBUG_STATE__;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/history.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/history.js
     var MAX_PERSISTED_DEBUG_EVENTS = 4e3;
     var MAX_SERIALIZATION_DEPTH = 5;
     var MAX_ARRAY_ITEMS = 40;
@@ -1550,7 +1562,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return level;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/events.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/events.js
     /**
     * @file events.ts
     * @description
@@ -1592,7 +1604,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
     };
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/debug/sharedEventSchema.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/debug/sharedEventSchema.js
     var sharedDebugEventDefinitions = [
         {
             type: "reactive:updated",
@@ -1824,7 +1836,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     new Map(sharedDebugEventDefinitions.map(function (definition) { return [definition.type, definition]; }));
     new Set(SHARED_DEBUG_EVENT_TYPES);
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/shared/dist/context.js
+    //#region ../../../../../source/repos/terajs/packages/shared/dist/context.js
     var currentContext = null;
     function getCurrentContext() {
         return currentContext;
@@ -1849,7 +1861,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/debugRuntime.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/debugRuntime.js
     var metadataPlaceholders = {
         ref: Object.freeze({
             rid: "",
@@ -1905,7 +1917,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return metadataPlaceholders[type];
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/deps.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/deps.js
     /**
     * @file deps.ts
     * @description
@@ -1982,7 +1994,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return currentEffect;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/runtime.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/runtime.js
     var runtimeMode = "client";
     /**
     * Returns `true` when the runtime is operating in server-side rendering mode.
@@ -1993,7 +2005,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return runtimeMode === "server";
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/batch.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/batch.js
     var batchDepth = 0;
     var batchQueue = /* @__PURE__ */ new Set();
     /**
@@ -2009,7 +2021,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         batchQueue.add(eff);
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/effect.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/effect.js
     /**
     * @file effect.ts
     * @description
@@ -2146,7 +2158,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             effectFn();
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/signal.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/signal.js
     /**
     * @file signal.ts
     * Core fine-grained reactive primitive for Terajs.
@@ -2214,7 +2226,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return sig;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/ref.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/ref.js
     /**
     * @file ref.ts
     * @description
@@ -2290,7 +2302,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         });
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/analyzer.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/analyzer.js
     /**
     * @file analyzer.ts
     * Terajs Reactivity Analyzer (dev-only):
@@ -2327,7 +2339,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return msg;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/reactive.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/reactive.js
     /**
     * @file reactive.ts
     * @description
@@ -2478,7 +2490,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         });
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/computed.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/computed.js
     /**
     * @file computed.ts
     * @description
@@ -2561,7 +2573,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return { get: get };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/cleanup.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/cleanup.js
     /**
     * @file onCleanup.ts
     * @description
@@ -2584,7 +2596,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             currentEffect.cleanups.push(fn);
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/dispose.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/dispose.js
     /**
     * @file dispose.ts
     * @description
@@ -2628,7 +2640,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         effectFn.active = false;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/watchEffect.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/watchEffect.js
     /**
     * @file watchEffect.ts
     * @description
@@ -2685,7 +2697,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/watch.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/watch.js
     /**
     * @file watch.ts
     * @description
@@ -2748,7 +2760,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/reactivity/dist/dx/contract.js
+    //#region ../../../../../source/repos/terajs/packages/reactivity/dist/dx/contract.js
     /**
     * @file contract.ts
     * @description
@@ -2794,7 +2806,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return v === null || typeof v !== "object" && typeof v !== "function";
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/renderFromIRExpressions.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/renderFromIRExpressions.js
     var SIMPLE_PATH_RE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
     var SIMPLE_IDENTIFIER_RE = /^[A-Za-z_$][\w$]*$/;
     var RESERVED_LITERAL_RE = /^(?:true|false|null|undefined|NaN|Infinity)$/;
@@ -2905,7 +2917,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return scope;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/updateKeyedList.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/updateKeyedList.js
     function updateKeyedList(parent, oldItems, newItems, mount, unmount, move) {
         var index = 0;
         var oldEnd = oldItems.length - 1;
@@ -3011,7 +3023,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return result;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/hostIRForRenderer.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/hostIRForRenderer.js
     function createIRForRenderer(host) {
         var addNodeCleanup = host.addNodeCleanup, createAnchor = host.createAnchor, createFragment = host.createFragment, getChildren = host.getChildren, getNextSibling = host.getNextSibling, getParent = host.getParent, isFragment = host.isFragment;
         var insert = function (parent, child, anchor) { return host.insert(parent, child, anchor); };
@@ -3249,7 +3261,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/hostIRShared.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/hostIRShared.js
     function applyIRProps(el, props, ctx, runtime) {
         for (var _i = 0, props_1 = props; _i < props_1.length; _i++) {
             var prop = props_1[_i];
@@ -3335,7 +3347,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/createHostIRRenderer.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/createHostIRRenderer.js
     function createHostIRRenderer(runtime) {
         var _a = runtime.host, addNodeCleanup = _a.addNodeCleanup, createAnchor = _a.createAnchor, createElement = _a.createElement, createFragment = _a.createFragment, createText = _a.createText, getNextSibling = _a.getNextSibling, getParent = _a.getParent, isFragment = _a.isFragment, isNode = _a.isNode, setClass = _a.setClass, setProp = _a.setProp, setStyle = _a.setStyle;
         var insert = function (parent, child, anchor) { return runtime.host.insert(parent, child, anchor); };
@@ -3565,7 +3577,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return first >= "A" && first <= "Z";
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/unwrap.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/unwrap.js
     function unwrap(value) {
         if (value && typeof value === "object" && "_sig" in value)
             return value._sig();
@@ -3576,7 +3588,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return value;
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer/dist/hostBindings.js
+    //#region ../../../../../source/repos/terajs/packages/renderer/dist/hostBindings.js
     function isRefSource(value) {
         return typeof value === "object" && value !== null && "_sig" in value;
     }
@@ -3659,7 +3671,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/selectionEventPayload.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/selectionEventPayload.js
     function normalizeSelectionIndex$1(value) {
         if (typeof value === "number" && Number.isFinite(value))
             return value;
@@ -3735,7 +3747,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textEditPreview.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textEditPreview.js
     function extractAndroidTextEditRecord(payload) {
         if (typeof payload !== "object" || payload === null || Array.isArray(payload))
             return;
@@ -3940,7 +3952,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/beforeInputEventPayload.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/beforeInputEventPayload.js
     function extractInputType(record, replacementText, replacementRange) {
         if (record && typeof record.inputType === "string" && record.inputType.trim())
             return record.inputType;
@@ -3980,7 +3992,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             } });
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/compositionEventPayload.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/compositionEventPayload.js
     function resolveDefaultComposing(eventName) {
         return eventName !== "compositionend";
     }
@@ -4053,7 +4065,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             } }), { composing: state.composing, isComposing: state.composing });
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textEventConstraints.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textEventConstraints.js
     function normalizeMaximumTextLength(value) {
         if (typeof value === "number" && Number.isFinite(value))
             return Math.max(0, Math.trunc(value));
@@ -4087,7 +4099,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         return __assign(__assign({}, state), { text: text, compositionText: compositionText, selectionRange: clampSelectionRange(state.selectionRange, maximumIndex) });
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/textEventPayload.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/textEventPayload.js
     function extractAndroidTextValue(payload) {
         if (typeof payload === "string")
             return payload;
@@ -4108,7 +4120,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/toggleEventPayload.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/toggleEventPayload.js
     function extractAndroidToggleValue(payload) {
         if (typeof payload === "boolean")
             return payload;
@@ -4129,7 +4141,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/eventIngress.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/eventIngress.js
     var AndroidTextInputViewTypes = new Set(["EditText"]);
     var AndroidSwitchViewTypes = new Set(["Switch"]);
     var AndroidBeforeInputEventNames = new Set(["beforeinput"]);
@@ -4242,7 +4254,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/sessionMountedModule.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/sessionMountedModule.js
     function getAndroidRemovalPriority(node) {
         return node.kind === "anchor" ? 0 : 1;
     }
@@ -4268,7 +4280,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/session.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/session.js
     /**
     * Creates a package-local Android host session that mounts compiler IR through the
     * neutral host renderer runtime and replays the resulting command stream into the
@@ -4333,7 +4345,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/wireTransport.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/wireTransport.js
     /**
     * Wraps an Android host session with the package-local wire helpers a real native
     * host bridge will need: drained command batches out, event packets back in.
@@ -4375,7 +4387,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/renderer-android/dist/generatedRouteRuntime.js
+    //#region ../../../../../source/repos/terajs/packages/renderer-android/dist/generatedRouteRuntime.js
     var NOOP = function () { };
     var GENERATED_SETUP_RUNTIME = {
         createResource: NOOP,
@@ -4609,7 +4621,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
     }
     //#endregion
-    //#region ../../../../../../brogrammer/source/terajs/packages/cli/src/.android-live-runtime-crSbAq/entry.mjs
+    //#region ../../../../../source/repos/terajs/packages/cli/dist/.android-live-runtime-PZ7rJn/entry.mjs
     function normalizeAssetPath(assetPath) {
         return assetPath.replace(/\\/g, "/");
     }

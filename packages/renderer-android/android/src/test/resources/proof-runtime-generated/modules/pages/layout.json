@@ -72,7 +72,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "element",
@@ -94,7 +94,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "Shared Proof Workspace"
+                        "value": "Terajs Social Feed"
                       }
                     ]
                   },
@@ -103,7 +103,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n        "
+                    "value": "\n        "
                   },
                   {
                     "type": "element",
@@ -125,7 +125,7 @@
                         "flags": {
                           "static": true
                         },
-                        "value": "One source root. Explicit targets."
+                        "value": "One shared social feed deployed to DOM and Android."
                       }
                     ]
                   },
@@ -134,7 +134,7 @@
                     "flags": {
                       "static": true
                     },
-                    "value": "\r\n      "
+                    "value": "\n      "
                   }
                 ]
               },
@@ -143,7 +143,7 @@
                 "flags": {
                   "static": true
                 },
-                "value": "\r\n\r\n      "
+                "value": "\n\r\n      "
               },
               {
                 "type": "element",

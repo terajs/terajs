@@ -74,7 +74,7 @@ function findTextInputByAction(root: AndroidNativeViewNode, action: string): And
 function collectStoryButtonTitles(root: AndroidNativeViewNode): string[] {
   return collectViews(root, "Button")
     .filter((node) => typeof node.props["data-story-target"] === "string")
-    .map((node) => collectTextValues(node)[0] ?? "");
+    .map((node) => String(node.props["data-story-title"] ?? ""));
 }
 
 async function loadGeneratedRuntimeInputs(tempWorkspace: string): Promise<{
@@ -179,12 +179,12 @@ describe("renderer-android proof workspace smoke", () => {
 
     const initialTexts = collectTextValues(transport.session.root);
     expect(initialTexts).toEqual(expect.arrayContaining([
-      "Shared queue",
-      "Selected slice",
-      "Web host proof"
+      "Timeline feed",
+      "Production DOM proof",
+      "Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime."
     ]));
 
-    const toggleQueueButton = findButtonByText(transport.session.root, "Hide queue");
+    const toggleQueueButton = findButtonByText(transport.session.root, "Hide feed");
     expect(toggleQueueButton.subscribedEvents).toContain("press");
 
     transport.dispatchNativeEventPacket({
@@ -199,7 +199,7 @@ describe("renderer-android proof workspace smoke", () => {
     expect(parseAndroidBridgeCommands(updateBatch!)).not.toHaveLength(0);
 
     expect(collectTextValues(transport.session.root)).toEqual(expect.arrayContaining([
-      "Queue hidden while the selected proof stays mounted for the active host target."
+      "Feed hidden while the selected social proof stays mounted for the active host target."
     ]));
 
     const bridgeEvents = readDebugHistory().flatMap((event) => {
@@ -251,12 +251,12 @@ describe("renderer-android proof workspace smoke", () => {
     expect(harness.emittedBatches.length).toBeGreaterThan(0);
     expect(harness.consumer.root).not.toBeNull();
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
-      "Shared queue",
-      "Selected slice",
-      "Web host proof"
+      "Timeline feed",
+      "Production DOM proof",
+      "Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime."
     ]));
 
-    const toggleQueueButton = findButtonByText(harness.consumer.root!, "Hide queue");
+    const toggleQueueButton = findButtonByText(harness.consumer.root!, "Hide feed");
     expect(toggleQueueButton.subscribedEvents).toContain("press");
 
     const batchCountBeforeEvent = harness.emittedBatches.length;
@@ -264,7 +264,7 @@ describe("renderer-android proof workspace smoke", () => {
 
     expect(harness.emittedBatches.length).toBeGreaterThan(batchCountBeforeEvent);
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
-      "Queue hidden while the selected proof stays mounted for the active host target."
+      "Feed hidden while the selected social proof stays mounted for the active host target."
     ]));
   });
 
@@ -298,7 +298,7 @@ describe("renderer-android proof workspace smoke", () => {
 
     expect(harness.consumer.root).not.toBeNull();
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
-      "Host note filter inactive."
+      "Feed note filter inactive."
     ]));
 
     const filterInput = findTextInputByAction(harness.consumer.root!, "host-note-filter");
@@ -310,7 +310,7 @@ describe("renderer-android proof workspace smoke", () => {
     expect(harness.emittedBatches.length).toBeGreaterThan(batchCountBeforeEvent);
     expect(filterInput.props.text).toBe("Android");
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
-      'Filtering host note by "Android".'
+      'Filtering feed note by "Android".'
     ]));
   });
 
@@ -344,27 +344,33 @@ describe("renderer-android proof workspace smoke", () => {
 
     expect(harness.consumer.root).not.toBeNull();
     expect(collectStoryButtonTitles(harness.consumer.root!)).toEqual([
-      "Web shell parity",
-      "Android command fidelity",
-      "iOS bridge readiness",
+      "The DOM build is live. Same Terajs route, same feed cards, production bundle ready.",
+      "Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime.",
+      "Phone mirror is scrolling through six real posts, not a placeholder splash screen.",
+      "Like, Reply, and Share controls stay in the card so the native view tree has real buttons.",
+      "One source root builds deliberately: DOM first, Android next, iOS source smoke later.",
+      "Final reveal: desktop preview on the left, Android device on the right, same feed copy.",
     ]);
 
-    const selectedAndroidStory = findStoryButtonByTarget(harness.consumer.root!, "bravo");
+    const selectedAndroidStory = findStoryButtonByTarget(harness.consumer.root!, "charlie");
     harness.dispatchNativeEvent(selectedAndroidStory.id, "press");
 
     expect(collectTextValues(harness.consumer.root!)).toEqual(expect.arrayContaining([
-      "Android host proof",
-      "Android command fidelity",
+      "Android scroll proof",
+      "Mika Kane",
     ]));
 
-    const promoteSelectedButton = findButtonByText(harness.consumer.root!, "Promote selected");
+    const promoteSelectedButton = findButtonByText(harness.consumer.root!, "Pin selected");
     harness.dispatchNativeEvent(promoteSelectedButton.id, "press");
 
     expect(collectStoryButtonTitles(harness.consumer.root!)).toEqual([
-      "Android command fidelity",
-      "Web shell parity",
-      "iOS bridge readiness",
+      "Phone mirror is scrolling through six real posts, not a placeholder splash screen.",
+      "The DOM build is live. Same Terajs route, same feed cards, production bundle ready.",
+      "Android artifacts just landed: route manifest, modules, bootstrap commands, live runtime.",
+      "Like, Reply, and Share controls stay in the card so the native view tree has real buttons.",
+      "One source root builds deliberately: DOM first, Android next, iOS source smoke later.",
+      "Final reveal: desktop preview on the left, Android device on the right, same feed copy.",
     ]);
-    expect(findStoryButtonByTarget(harness.consumer.root!, "bravo").id).toBe(selectedAndroidStory.id);
+    expect(findStoryButtonByTarget(harness.consumer.root!, "charlie").id).toBe(selectedAndroidStory.id);
   });
 });

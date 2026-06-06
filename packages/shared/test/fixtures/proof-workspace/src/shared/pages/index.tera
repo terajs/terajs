@@ -1,23 +1,23 @@
 <template>
   <div class="proof-home">
     <ProofCallout
-      title="Minimal proof workspace"
-      body="This workspace is separate from terajs-com, keeps shared route modules under src/shared/pages, and now proves shared state, conditional rendering, and keyed host-target lists without widening the renderer-neutral contract." />
+      title="Recording-ready social feed"
+      body="This tracked workspace mirrors the local phone proof: a light social timeline with white cards, real scroll depth, and shared Terajs source that builds for DOM and Android." />
     <ProofStateBoard />
   </div>
 </template>
 
 <meta>
-  title: "Terajs Proof Workspace"
-  description: "A minimal shared-source Terajs proof workspace with explicit web, Android, and iOS targets."
+  title: "Terajs Social Feed Proof"
+  description: "A recording-ready shared-source Terajs social feed with DOM and Android build proof."
 </meta>
 
 <ai>
-  summary: "A minimal Terajs proof workspace route that keeps shared source separate from terajs-com and now proves local state, conditionals, and keyed list updates across explicit web, Android, and iOS targets."
+  summary: "A recording-ready Terajs social feed proof that renders the same shared route through DOM and Android targets."
   tags:
     - terajs
-    - proof-workspace
+    - social-feed
     - universal
-    - state
-    - keyed-list
+    - dom
+    - android
 </ai>

@@ -2,7 +2,7 @@
   "target": "android",
   "renderer": "android-views",
   "bridgeModel": "thin-command-bridge",
-  "generatedAt": "2026-05-25T05:31:28.355Z",
+  "generatedAt": "2026-06-05T03:29:32.874Z",
   "sourceRoot": "src/shared",
   "generatedDir": ".terajs/generated/android",
   "hostDir": ".terajs/hosts/android",
@@ -49,7 +49,7 @@
         "filteredHostNoteSummary",
         "promoteSelected",
         "rotateQueue",
-        "storyButtonClass"
+        "storyCardClass"
       ]
     },
     {
