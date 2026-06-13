@@ -11,6 +11,17 @@ Recommended release flow:
 5. If pending Changesets exist, open or refresh the version PR from the `changeset-release/main` branch the workflow pushes.
 6. Trigger the `Release` workflow again to publish the updated packages and push the matching repo release tag.
 
+Immediate publish flow for a single PR:
+
+1. Run `npm run changeset` after a user-facing package change.
+2. Commit the generated file under `.changeset/` with the implementation.
+3. On the same branch, run `npm run release:status` and then `npm run version-packages`.
+4. Commit the generated version/package-lock changes and the consumed/deleted changeset file.
+5. Merge that PR to `main`.
+6. Trigger the `Release` workflow once against `main`; it should publish because no version diff remains.
+
+Use the immediate flow only when the PR is ready to publish right after merge. For multiple pending release PRs, use the recommended workflow-managed version PR so Changesets can combine everything cleanly.
+
 Local fallback flow:
 
 1. Run `npm run changeset` after a user-facing package change.

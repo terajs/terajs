@@ -67,6 +67,31 @@ The workflow only needs real Changeset files. A valid file lists one or more pac
 Add explicit VS Code bridge lifecycle helpers and app-facing re-exports.
 ```
 
+## One-merge immediate publish flow
+
+Use this when a PR is intended to publish immediately after it reaches `main` and you want to avoid the default two-action/two-merge Changesets flow.
+
+**Do this on the feature or fix branch before opening or merging the PR:**
+
+1. Add and commit the implementation plus a valid `.changeset/*.md` file.
+2. Run:
+	```bash
+	npm run release:status
+	npm run version-packages
+	```
+3. Commit the generated version changes on the same branch:
+	- package version bumps
+	- internal dependency bumps
+	- `package-lock.json`
+	- consumed/deleted `.changeset/*.md`
+	- root `package.json` release marker sync
+4. Open and merge that PR to `main`.
+5. Run the `Release` workflow once against `main`.
+
+Because the changeset has already been consumed by `npm run version-packages`, the workflow should detect no version diff and proceed directly to `npm run release:publish`.
+
+Do not use this pre-version flow when multiple release PRs are racing or when the branch may sit open for a long time. In those cases, prefer the default workflow-managed version PR so Changesets can combine pending release notes on top of current `main`.
+
 ## Local fallback flow
 
 If GitHub Actions is unavailable or you need to recover a release manually:
