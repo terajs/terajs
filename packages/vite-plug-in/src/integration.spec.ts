@@ -19,4 +19,26 @@ describe("compileSFC integration", () => {
     expect(compiled).toContain('const name = signal("Terajs", { key: "name" });');
     expect(compiled).not.toContain("setup");
   });
+
+  it("compiles scoped style blocks into registered browser module styles", () => {
+    const code = `
+      <template>
+        <article class="card">Styled</article>
+      </template>
+      <style scoped>
+        .card { color: red; }
+      </style>
+    `;
+
+    const sfc = parseSFC(code, "/routes/styled.tera");
+    const compiled = compileSfcToComponent(sfc);
+
+    expect(compiled).toContain("registerStyle");
+    expect(compiled).toContain("unregisterStyle");
+    expect(compiled).toContain('const __terajsStyleId = "tera-style:/routes/styled.tera";');
+    expect(compiled).toContain("[data-tera-");
+    expect(compiled).toContain(".card");
+    expect(compiled).toContain("color: red");
+    expect(compiled).toContain("import.meta.hot.dispose");
+  });
 });

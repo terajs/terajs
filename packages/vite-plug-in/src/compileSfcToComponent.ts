@@ -3,6 +3,7 @@ import {
   compileTemplateFromSFC,
   type ParsedSFC
 } from "@terajs/sfc";
+import { compileStyle } from "@terajs/compiler";
 import { annotateRuntimeDebugNames } from "./annotateRuntimeDebugNames.js";
 
 export function compileSfcToComponent(sfc: ParsedSFC): string {
@@ -14,6 +15,8 @@ export function compileSfcToComponent(sfc: ParsedSFC): string {
   const script = compileScript(annotateRuntimeDebugNames(scriptSource));
   const ir = compileTemplateFromSFC(sfc);
   ir.hasAsyncResource = script.hasAsyncResource;
+  const style = compileStyle(sfc, ir.scopeId);
+  const styleId = style ? createStyleId(sfc.filePath) : null;
   const name = inferComponentName(sfc.filePath);
   const importedBindingMap = script.importedBindings.length > 0
     ? `{
@@ -23,9 +26,25 @@ ${script.importedBindings.map((binding) => `  ${JSON.stringify(binding)}: typeof
   const exposedBindings = JSON.stringify(script.exposed);
 
   return `
-import { component, applyHMRUpdate, renderIRModuleToFragment } from "@terajs/app";
+import { ${[
+  "component",
+  "applyHMRUpdate",
+  "renderIRModuleToFragment",
+  ...(style ? ["registerStyle", "unregisterStyle"] : [])
+].join(", ")} } from "@terajs/app";
 
 ${script.setupCode}
+${style && styleId ? `
+const __terajsStyleId = ${JSON.stringify(styleId)};
+const __terajsCss = ${JSON.stringify(style.css)};
+
+export function __terajsRegisterStyle() {
+  unregisterStyle(__terajsStyleId);
+  registerStyle(__terajsStyleId, __terajsCss);
+}
+
+__terajsRegisterStyle();
+` : ""}
 
 function normalizeComponentProps(input) {
   if (!input || typeof input !== "object") {
@@ -111,8 +130,16 @@ const Comp = component(
 );
 
 if (import.meta.hot) {
-  import.meta.hot.accept((mod) => {
-    const nextSetup = mod.__ssfc ?? null;
+${style && styleId ? `  import.meta.hot.dispose(() => {
+    unregisterStyle(__terajsStyleId);
+  });
+
+` : ""}  import.meta.hot.accept((mod) => {
+${style && styleId ? `    if (typeof mod.__terajsRegisterStyle === "function") {
+      mod.__terajsRegisterStyle();
+    }
+
+` : ""}    const nextSetup = mod.__ssfc ?? null;
     const nextIR = ir;
     applyHMRUpdate("${name}", nextSetup, nextIR);
   });
@@ -120,6 +147,11 @@ if (import.meta.hot) {
 
 export default Comp;
 `;
+}
+
+function createStyleId(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, "/");
+  return `tera-style:${normalized}`;
 }
 
 function inferComponentName(filePath: string): string {
