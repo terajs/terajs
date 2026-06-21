@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.1
+
+- Wired `.tera` style blocks through the Vite web build so regular and scoped styles are registered at runtime, with HMR cleanup for updated modules.
+- Fixed scoped CSS rewriting inside nested group at-rules such as `@media` so selectors are scoped without corrupting the at-rule itself.
+- Preserved normal host elements that use `v-if`, `v-else-if`, or `v-else` so wrapper classes, scoped style attributes, and layout containers render correctly.
+
 ## 1.2.0
 
 - Backfilled the public docs story around `@terajs/app`: the reactivity guide now covers `ref`, `reactive`, and `shallowRef` alongside `signal`, `state`, and `computed`, and the API reference now documents `withErrorBoundary()` plus the `web.*` router context helpers accurately.
