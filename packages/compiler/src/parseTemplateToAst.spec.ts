@@ -112,7 +112,14 @@ describe("parseTemplateToAst", () => {
         type: "if",
         condition: "ok",
         then: [
-          { type: "text", value: "Yes" }
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [
+              { type: "text", value: "Yes" }
+            ]
+          }
         ]
       }
     ])
@@ -126,10 +133,24 @@ describe("parseTemplateToAst", () => {
         type: "if",
         condition: "ok",
         then: [
-          { type: "text", value: "Yes" }
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [
+              { type: "text", value: "Yes" }
+            ]
+          }
         ],
         else: [
-          { type: "text", value: "No" }
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [
+              { type: "text", value: "No" }
+            ]
+          }
         ]
       }
     ])
@@ -143,17 +164,38 @@ describe("parseTemplateToAst", () => {
         type: "if",
         condition: "ok",
         then: [
-          { type: "text", value: "Yes" }
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [
+              { type: "text", value: "Yes" }
+            ]
+          }
         ],
         else: [
           {
             type: "if",
             condition: "maybe",
             then: [
-              { type: "text", value: "Maybe" }
+              {
+                type: "element",
+                tag: "div",
+                props: [],
+                children: [
+                  { type: "text", value: "Maybe" }
+                ]
+              }
             ],
             else: [
-              { type: "text", value: "No" }
+              {
+                type: "element",
+                tag: "div",
+                props: [],
+                children: [
+                  { type: "text", value: "No" }
+                ]
+              }
             ]
           }
         ]

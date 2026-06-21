@@ -66,14 +66,14 @@ class ParserContext {
           const elseNode = this.parseElement() as ElementNode;
 
           if (attrToken.value === "v-else") {
-            // Simple else: attach children
-            lastIfNode.else = elseNode.children;
+            // Simple else: attach the conditional host element.
+            lastIfNode.else = [elseNode];
           } else {
             // v-else-if: create nested IfNode
             const nestedIf: IfNode = {
               type: "if",
               condition: elseIfCondition,
-              then: elseNode.children,
+              then: [elseNode],
               else: undefined
             };
 
@@ -205,7 +205,9 @@ class ParserContext {
       return {
         type: "if",
         condition: ifDir.value,
-        then: children
+        then: [
+          this.createElementNode(tag, props, children)
+        ]
       } as IfNode;
     }
 
@@ -218,22 +220,21 @@ class ParserContext {
         item,
         index,
         body: [
-          {
-            type: "element",
-            tag,
-            props: props.filter((p) => p.kind !== "directive"),
-            children
-          }
+          this.createElementNode(tag, props, children)
         ]
       }
     }
 
+    return this.createElementNode(tag, props, children);
+  }
+
+  private createElementNode(tag: string, props: PropNode[], children: ASTNode[]): ElementNode {
     return {
       type: "element",
       tag,
       props: props.filter((p) => p.kind !== "directive"),
       children
-    } as ElementNode;
+    };
   }
 
   private buildProp(name: string, rawValue?: string): PropNode {
