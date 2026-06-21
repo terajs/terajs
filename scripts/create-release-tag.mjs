@@ -76,9 +76,41 @@ async function main() {
     }
   }
 
-  async function collectPackageTagNames(previousCommit) {
+  function parseGitLines(output) {
+    return String(output ?? "")
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function resolvePackageVersionCommit(relativePath, version, releaseCommit) {
+    const releaseManifest = readJsonAtRef(releaseCommit, relativePath);
+    if (releaseManifest?.version === version) {
+      return releaseCommit;
+    }
+
+    const mainlineCommits = parseGitLines(
+      git(["rev-list", "--first-parent", "--reverse", `${releaseCommit}..${headCommit}`], { allowFailure: true }) ?? ""
+    );
+
+    for (const commit of mainlineCommits) {
+      const manifest = readJsonAtRef(commit, relativePath);
+      if (manifest?.version === version) {
+        return commit;
+      }
+    }
+
+    const headManifest = readJsonAtRef(headCommit, relativePath);
+    if (headManifest?.version === version) {
+      return headCommit;
+    }
+
+    throw new Error(`Unable to resolve the commit that introduced ${relativePath} version ${version}.`);
+  }
+
+  async function collectPackageTagPlans(previousCommit, releaseCommit) {
     const entries = await readdir(packagesRoot, { withFileTypes: true });
-    const packageChanges = [];
+    const packagePlans = [];
 
     for (const entry of entries) {
       if (!entry.isDirectory()) {
@@ -98,19 +130,28 @@ async function main() {
 
       const previousManifest = previousCommit ? readJsonAtRef(previousCommit, relativePath) : null;
 
-      packageChanges.push({
+      const [tagName] = collectChangedPackageTags([{
         name: currentManifest.name,
         private: currentManifest.private === true,
         currentVersion: currentManifest.version,
         previousVersion: previousManifest?.version
+      }]);
+
+      if (!tagName) {
+        continue;
+      }
+
+      packagePlans.push({
+        tagName,
+        targetCommit: resolvePackageVersionCommit(relativePath, currentManifest.version, releaseCommit)
       });
     }
 
-    return collectChangedPackageTags(packageChanges);
+    return packagePlans;
   }
 
   const { releaseCommit, previousCommit } = resolveReleaseCommit();
-  const packageTagNames = await collectPackageTagNames(previousCommit);
+  const packageTagPlans = await collectPackageTagPlans(previousCommit, releaseCommit);
 
   try {
     git(["merge-base", "--is-ancestor", releaseCommit, "origin/main"]);
@@ -129,20 +170,27 @@ async function main() {
     console.log(`Tag ${tagName} already points at ${releaseCommit}.`);
   }
 
-  for (const packageTagName of packageTagNames) {
+  for (const { tagName: packageTagName, targetCommit } of packageTagPlans) {
+    try {
+      git(["merge-base", "--is-ancestor", targetCommit, "origin/main"]);
+    } catch {
+      throw new Error(`Ref ${targetCommit} for ${packageTagName} is not merged into origin/main; release tags are only created from merged main history.`);
+    }
+
     const packageTaggedCommit = git(["rev-list", "-n", "1", packageTagName], { allowFailure: true }) ?? "";
     if (!packageTaggedCommit) {
-      git(["tag", packageTagName, releaseCommit]);
-      console.log(`Created package tag ${packageTagName} at ${releaseCommit}.`);
+      git(["tag", packageTagName, targetCommit]);
+      console.log(`Created package tag ${packageTagName} at ${targetCommit}.`);
       continue;
     }
 
-    if (packageTaggedCommit !== releaseCommit) {
-      throw new Error(`Tag ${packageTagName} already points at ${packageTaggedCommit}, not ${releaseCommit}.`);
+    if (packageTaggedCommit !== targetCommit) {
+      throw new Error(`Tag ${packageTagName} already points at ${packageTaggedCommit}, not ${targetCommit}.`);
     }
   }
 
   if (shouldPush) {
+    const packageTagNames = packageTagPlans.map((plan) => plan.tagName);
     for (const pushedTag of collectTagsToPush(git(["tag", "--points-at", releaseCommit]), tagName, packageTagNames)) {
       git(["push", "origin", `refs/tags/${pushedTag}`]);
       console.log(`Pushed ${pushedTag} to origin.`);
