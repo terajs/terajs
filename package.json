@@ -25,7 +25,7 @@
     "version-packages": "changeset version && node scripts/sync-release-version.mjs && npm install --package-lock-only",
     "release:tag": "node scripts/create-release-tag.mjs",
     "release:tag:push": "node scripts/create-release-tag.mjs --push",
-    "release:publish": "npm run guard:publish-metadata && npm run build && changeset publish && npm run release:tag"
+    "release:publish": "npm run guard:publish-metadata && npm run build && changeset publish --no-git-tag && npm run release:tag"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
