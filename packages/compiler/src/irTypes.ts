@@ -131,6 +131,7 @@ export interface IRPropNode {
   name: string
   value: unknown
   binding?: IRBindingHint
+  modifiers?: string[]
 }
 
 /**

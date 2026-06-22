@@ -43,6 +43,7 @@ export interface PropNode {
   name: string;
   value: string;
   kind: "static" | "bind" | "event" | "directive";
+  modifiers?: string[];
 }
 
 /**

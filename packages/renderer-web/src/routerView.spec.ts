@@ -66,6 +66,48 @@ describe("createRouteView", () => {
     unmount(root);
   });
 
+  it("updates route content after a component calls router.navigate", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const router = createRouter(
+      [
+        route({
+          id: "a",
+          path: "/a",
+          component: async () => ({
+            default: () => {
+              const button = document.createElement("button");
+              button.textContent = "go b";
+              button.addEventListener("click", () => {
+                void router.navigate("/b");
+              });
+              return button;
+            }
+          })
+        }),
+        route({
+          id: "b",
+          path: "/b",
+          component: async () => ({ default: () => document.createTextNode("route b") })
+        })
+      ],
+      { history: createMemoryHistory("/a") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("go b");
+
+    root.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(router.getCurrentRoute()?.fullPath).toBe("/b");
+    expect(root.textContent).toContain("route b");
+
+    unmount(root);
+  });
+
   it("keeps the previous page visible while the next route loads when requested", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);

@@ -288,6 +288,99 @@ describe("IR -> DOM Renderer", () => {
     expect(value).toBe("offline flight");
   });
 
+  it("applies prevent event modifiers while preserving $event", () => {
+    let receivedEvent: Event | null = null;
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "button",
+      props: [
+        { kind: "event", name: "click", value: "handler($event)", modifiers: ["prevent"] }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, {
+      handler: (event: Event) => {
+        receivedEvent = event;
+      }
+    }) as HTMLButtonElement;
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+
+    const result = el.dispatchEvent(event);
+
+    expect(receivedEvent).toBe(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(result).toBe(false);
+  });
+
+  it("applies submit prevent modifiers while preserving $event", () => {
+    let submitted = false;
+    let receivedEvent: Event | null = null;
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "form",
+      props: [
+        { kind: "event", name: "submit", value: "submit($event)", modifiers: ["prevent"] }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, {
+      submit: (event: Event) => {
+        submitted = true;
+        receivedEvent = event;
+      }
+    }) as HTMLFormElement;
+    const event = new Event("submit", { bubbles: true, cancelable: true });
+
+    const result = el.dispatchEvent(event);
+
+    expect(submitted).toBe(true);
+    expect(receivedEvent).toBe(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(result).toBe(false);
+  });
+
+  it("applies stop event modifiers while preserving $event", () => {
+    let childEvent: Event | null = null;
+    let parentClicks = 0;
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "button",
+      props: [
+        { kind: "event", name: "click", value: "handler($event)", modifiers: ["stop"] }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const parent = document.createElement("div");
+    parent.addEventListener("click", () => {
+      parentClicks += 1;
+    });
+
+    const el = renderIRNode(node, {
+      handler: (event: Event) => {
+        childEvent = event;
+      }
+    }) as HTMLButtonElement;
+    parent.appendChild(el);
+
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    el.dispatchEvent(event);
+
+    expect(childEvent).toBe(event);
+    expect(parentClicks).toBe(0);
+  });
+
   /* ---------------------------------------------------------------------- */
   /* IF (reactive)                                                          */
   /* ---------------------------------------------------------------------- */

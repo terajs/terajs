@@ -337,7 +337,7 @@ function applyEventProp(el: Element, prop: IRPropNode, ctx: any): void {
   const handler = resolveEventHandler(ctx, String(prop.value));
 
   if (typeof handler === "function") {
-    bindEvent(el, prop.name, handler);
+    bindEvent(el, prop.name, applyEventModifiers(handler, prop.modifiers));
     return;
   }
 
@@ -345,6 +345,33 @@ function applyEventProp(el: Element, prop: IRPropNode, ctx: any): void {
     message: `Event handler '${prop.value}' is not a function`,
     value: handler,
   }));
+}
+
+function applyEventModifiers(handler: EventListener, modifiers: string[] | undefined): EventListener {
+  if (!modifiers || modifiers.length === 0) {
+    return handler;
+  }
+
+  return (event: Event) => {
+    for (const modifier of modifiers) {
+      if (modifier === "prevent") {
+        event.preventDefault();
+        continue;
+      }
+
+      if (modifier === "stop") {
+        event.stopPropagation();
+        continue;
+      }
+
+      emitRendererDebug("error:renderer", () => ({
+        message: `Unsupported event modifier '${modifier}'`,
+        modifier,
+      }));
+    }
+
+    handler(event);
+  };
 }
 
 /* -------------------------------------------------------------------------- */
