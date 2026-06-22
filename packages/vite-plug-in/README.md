@@ -91,10 +91,10 @@ That virtual module is built from your discovered routes plus router config.
 <Link to="/docs/router">Router docs</Link>
 ```
 
-Normal anchors can opt into router navigation with `router-link`:
+Plain same-origin anchors also use router navigation when link interception is enabled:
 
 ```tera
-<a href="/docs/router" router-link>Router docs</a>
+<a href="/docs/router">Router docs</a>
 ```
 
 The generated app shell also intercepts eligible same-origin anchors by default. It only handles ordinary left-click navigation, skips modified clicks, downloads, external origins, non-self targets, and excluded path prefixes. Configure or disable this behavior in `terajs.config.cjs`:

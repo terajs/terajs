@@ -181,10 +181,10 @@ export interface TerajsRouterConfig {
   middlewareDir: string;
   keepPreviousDuringLoading: boolean;
   applyMeta: boolean;
-  interceptLinks: TerajsRouterLinkInterceptionConfig;
+  interceptLinks: TerajsLinkInterceptionConfig;
 }
 
-export interface TerajsRouterLinkInterceptionConfig {
+export interface TerajsLinkInterceptionConfig {
   enabled: boolean;
   exclude: string[];
 }
@@ -253,9 +253,9 @@ function normalizeShortcut(value: unknown, fallback: string): string {
   return normalized.length > 0 ? normalized : fallback;
 }
 
-function normalizeRouterLinkInterception(
+function normalizeLinkInterception(
   value: NonNullable<TerajsUserConfig["router"]>["interceptLinks"] | undefined
-): TerajsRouterLinkInterceptionConfig {
+): TerajsLinkInterceptionConfig {
   const defaultExclude = ["/_terajs", "/api"];
 
   if (typeof value === "boolean") {
@@ -377,6 +377,6 @@ export function getRouterConfig(): TerajsRouterConfig {
       typeof router?.applyMeta === "boolean"
         ? router.applyMeta
         : true,
-    interceptLinks: normalizeRouterLinkInterception(router?.interceptLinks)
+    interceptLinks: normalizeLinkInterception(router?.interceptLinks)
   };
 }

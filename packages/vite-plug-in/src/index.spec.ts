@@ -683,8 +683,9 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain('const ROUTER_LINK_INTERCEPTION = {"enabled":true,"exclude":["/_terajs","/api"]}');
     expect(code).toContain("autoStart: false");
     expect(code).toContain("keepPreviousDuringLoading: true");
-    expect(code).toContain("function resolveRouterLinkTarget(event)");
-    expect(code).toContain("hasExplicitRouterLink(link)");
+    expect(code).toContain("function resolveInterceptedLinkTarget(event)");
+    expect(code).not.toContain("router-link");
+    expect(code).not.toContain("data-router-link");
     expect(code).toContain("void router.navigate(href)");
     expect(code).toContain("const initialRouteMatch = router.resolve(router.history.getLocation())");
     expect(code).toContain("void prefetchRouteMatch(initialRouteMatch).catch(() => undefined)");

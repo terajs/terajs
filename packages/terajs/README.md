@@ -83,10 +83,10 @@ Use the built-in `Link` component for app routes in `.tera` templates:
 <Link to="/migrations/123">Open migration</Link>
 ```
 
-Normal anchors can opt into router navigation with `router-link`:
+Plain same-origin anchors also use router navigation in apps that keep link interception enabled:
 
 ```tera
-<a href="/migrations/123" router-link>Open migration</a>
+<a href="/migrations/123">Open migration</a>
 ```
 
 Programmatic navigation uses `router.navigate("/path")` and `router.replace("/path")`. `router.push("/path")` is also available as an alias for `navigate()`.
