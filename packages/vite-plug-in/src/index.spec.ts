@@ -29,7 +29,11 @@ vi.mock("./config", () => ({
     rootTarget: "app",
     middlewareDir: path.resolve(process.cwd(), "src/middleware"),
     keepPreviousDuringLoading: true,
-    applyMeta: true
+    applyMeta: true,
+    interceptLinks: {
+      enabled: true,
+      exclude: ["/_terajs", "/api"]
+    }
   })
 }));
 
@@ -549,7 +553,11 @@ describe("Terajs Vite Plugin (integration)", () => {
       rootTarget: "app",
       middlewareDir,
       keepPreviousDuringLoading: true,
-      applyMeta: true
+      applyMeta: true,
+      interceptLinks: {
+        enabled: true,
+        exclude: ["/_terajs", "/api"]
+      }
     });
 
     vi.spyOn(fs, "existsSync").mockImplementation((input) => {
@@ -672,8 +680,12 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("createRouteView");
     expect(code).toContain("prefetchRouteMatch");
     expect(code).toContain('const ROOT_TARGET_ID = "app"');
+    expect(code).toContain('const ROUTER_LINK_INTERCEPTION = {"enabled":true,"exclude":["/_terajs","/api"]}');
     expect(code).toContain("autoStart: false");
     expect(code).toContain("keepPreviousDuringLoading: true");
+    expect(code).toContain("function resolveRouterLinkTarget(event)");
+    expect(code).toContain("hasExplicitRouterLink(link)");
+    expect(code).toContain("void router.navigate(href)");
     expect(code).toContain("const initialRouteMatch = router.resolve(router.history.getLocation())");
     expect(code).toContain("void prefetchRouteMatch(initialRouteMatch).catch(() => undefined)");
     expect(code).toContain("document.addEventListener('click'");

@@ -49,10 +49,11 @@ describe("compileSfcToComponent", () => {
     const out = compileSfcToComponent(sfc as any);
 
     expect(compileScript).toHaveBeenCalledWith("export function setup() {}");
-    expect(out).toContain('import { component, applyHMRUpdate, renderIRModuleToFragment } from "@terajs/app";');
+    expect(out).toContain('import { component, applyHMRUpdate, renderIRModuleToFragment, Link } from "@terajs/app";');
     expect(out).toContain("const slots = normalizeSlots(props);");
     expect(out).toContain("__ssfc({ props: componentProps, slots, emit })");
     expect(out).toContain("__components: createComponentRegistry(ctx)");
+    expect(out).toContain("Link,");
     expect(out).toContain('"HeroSection": typeof HeroSection !== "undefined" ? HeroSection : undefined');
     expect(out).toContain('...pickBindings(["LocalCard"], ctx)');
     expect(out).toContain("import.meta.hot.accept");
@@ -105,7 +106,7 @@ describe("compileSfcToComponent", () => {
 
     expect(compileStyle).toHaveBeenCalledWith(sfc, "tera-card");
     expect(out).toContain(
-      'import { component, applyHMRUpdate, renderIRModuleToFragment, registerStyle, unregisterStyle } from "@terajs/app";'
+      'import { component, applyHMRUpdate, renderIRModuleToFragment, Link, registerStyle, unregisterStyle } from "@terajs/app";'
     );
     expect(out).toContain('const __terajsStyleId = "tera-style:/components/Styled.tera";');
     expect(out).toContain(".card[data-tera-card] { color: red; }");

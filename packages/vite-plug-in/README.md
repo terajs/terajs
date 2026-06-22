@@ -40,7 +40,11 @@ module.exports = {
     rootTarget: "app",
     middlewareDir: "src/middleware",
     keepPreviousDuringLoading: true,
-    applyMeta: true
+    applyMeta: true,
+    interceptLinks: {
+      enabled: true,
+      exclude: ["/_terajs", "/api"]
+    }
   }
 };
 ```
@@ -78,6 +82,35 @@ bootstrapTerajsApp();
 ```
 
 That virtual module is built from your discovered routes plus router config.
+
+## SPA links
+
+`.tera` templates can use the built-in `Link` component for app routes:
+
+```tera
+<Link to="/docs/router">Router docs</Link>
+```
+
+Normal anchors can opt into router navigation with `router-link`:
+
+```tera
+<a href="/docs/router" router-link>Router docs</a>
+```
+
+The generated app shell also intercepts eligible same-origin anchors by default. It only handles ordinary left-click navigation, skips modified clicks, downloads, external origins, non-self targets, and excluded path prefixes. Configure or disable this behavior in `terajs.config.cjs`:
+
+```js
+module.exports = {
+  router: {
+    interceptLinks: {
+      enabled: true,
+      exclude: ["/_terajs", "/api"]
+    }
+  }
+};
+```
+
+Programmatic navigation uses `router.navigate("/path")` and `router.replace("/path")`. `router.push("/path")` is available as a `navigate()` alias.
 
 ## Middleware discovery
 

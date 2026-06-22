@@ -30,6 +30,7 @@ import { ${[
   "component",
   "applyHMRUpdate",
   "renderIRModuleToFragment",
+  "Link",
   ...(style ? ["registerStyle", "unregisterStyle"] : [])
 ].join(", ")} } from "@terajs/app";
 
@@ -97,6 +98,7 @@ function createComponentRegistry(ctx) {
     : {};
 
   return {
+    Link,
     ...autoImports,
     ...${importedBindingMap},
     ...pickBindings(${exposedBindings}, ctx)

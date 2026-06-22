@@ -42,6 +42,7 @@ export interface Router {
   subscribe(listener: (match: RouteMatch | null) => void): () => void;
   subscribeNavigation(listener: (state: RouterNavigationState) => void): () => void;
   navigate(target: string): Promise<NavigationResult>;
+  push(target: string): Promise<NavigationResult>;
   replace(target: string): Promise<NavigationResult>;
 }
 
@@ -337,6 +338,7 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
       };
     },
     navigate: (target) => transitionTo(target, "push", false),
+    push: (target) => transitionTo(target, "push", false),
     replace: (target) => transitionTo(target, "replace", false)
   };
 

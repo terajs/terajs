@@ -84,6 +84,21 @@ describe("createRouter", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it("supports push as an alias for navigate", async () => {
+    const history = createMemoryHistory("/");
+    const router = createRouter([
+      route({ path: "/", filePath: "/pages/index.tera" }),
+      route({ path: "/docs", filePath: "/pages/docs.tera" })
+    ], { history });
+
+    await router.start();
+    const result = await router.push("/docs");
+
+    expect(result.type).toBe("success");
+    expect(router.getCurrentRoute()?.fullPath).toBe("/docs");
+    expect(history.getLocation()).toBe("/docs");
+  });
+
   it("tracks pending navigation state around async transitions", async () => {
     let releaseGuard: (() => void) | undefined;
     const history = createMemoryHistory("/");
