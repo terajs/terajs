@@ -13,6 +13,8 @@ import type {
 } from "@terajs/renderer";
 import { tokenizeTemplate, type Token } from "./templateTokenizer.js";
 
+const SUPPORTED_EVENT_MODIFIERS = new Set(["prevent", "stop"]);
+
 export function parseTemplateToAst(template: string): ASTNode[] {
   const tokens = tokenizeTemplate(template);
   const ctx = new ParserContext(tokens);
@@ -266,18 +268,22 @@ class ParserContext {
 
     // @event or v-on:event
     if (name.startsWith("@")) {
+      const event = parseEventName(name.slice(1), name);
       return {
-        name: name.slice(1),
+        name: event.name,
         value: rawValue ?? "",
-        kind: "event"
+        kind: "event",
+        ...(event.modifiers.length > 0 ? { modifiers: event.modifiers } : {})
       };
     }
 
     if (name.startsWith("v-on:")) {
+      const event = parseEventName(name.slice("v-on:".length), name);
       return {
-        name: name.slice("v-on:".length),
+        name: event.name,
         value: rawValue ?? "",
-        kind: "event"
+        kind: "event",
+        ...(event.modifiers.length > 0 ? { modifiers: event.modifiers } : {})
       };
     }
 
@@ -288,6 +294,26 @@ class ParserContext {
       kind: "static"
     };
   }
+}
+
+function parseEventName(rawName: string, originalName: string): { name: string; modifiers: string[] } {
+  const [eventName = "", ...modifiers] = rawName.split(".");
+  if (eventName.length === 0) {
+    throw new Error(`Event binding "${originalName}" is missing an event name.`);
+  }
+
+  for (const modifier of modifiers) {
+    if (!SUPPORTED_EVENT_MODIFIERS.has(modifier)) {
+      throw new Error(
+        `Unsupported event modifier ".${modifier}" on "${originalName}". Supported modifiers: ${[...SUPPORTED_EVENT_MODIFIERS].join(", ")}.`
+      );
+    }
+  }
+
+  return {
+    name: eventName,
+    modifiers
+  };
 }
 
 /* -------------------------------------------------------------------------- */

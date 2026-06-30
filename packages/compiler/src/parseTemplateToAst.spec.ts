@@ -104,6 +104,29 @@ describe("parseTemplateToAst", () => {
     ])
   })
 
+  it("parses supported event modifiers separately from the event name", () => {
+    const ast = parseTemplateToAst(`<a href="/next" @click.prevent.stop="go()">Go</a>`)
+
+    expect(ast).toEqual([
+      {
+        type: "element",
+        tag: "a",
+        props: [
+          { name: "href", value: "/next", kind: "static" },
+          { name: "click", value: "go()", kind: "event", modifiers: ["prevent", "stop"] }
+        ],
+        children: [
+          { type: "text", value: "Go" }
+        ]
+      }
+    ])
+  })
+
+  it("throws for unsupported event modifiers", () => {
+    expect(() => parseTemplateToAst(`<button @click.capture="go()"></button>`))
+      .toThrowError('Unsupported event modifier ".capture" on "@click.capture". Supported modifiers: prevent, stop.')
+  })
+
   it("parses v-if into IfNode", () => {
     const ast = parseTemplateToAst(`<div v-if="ok">Yes</div>`)
 

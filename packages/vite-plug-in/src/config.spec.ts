@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { getSyncHubConfig } from "./config";
+import { getRouterConfig, getSyncHubConfig } from "./config";
 
 describe("vite plugin config", () => {
   const originalCwd = process.cwd();
@@ -22,6 +22,38 @@ describe("vite plugin config", () => {
     process.chdir(tempDir);
 
     expect(getSyncHubConfig()).toBeNull();
+  });
+
+  it("returns router link interception defaults", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "terajs-config-"));
+    process.chdir(tempDir);
+
+    expect(getRouterConfig().interceptLinks).toEqual({
+      enabled: true,
+      exclude: ["/_terajs", "/api"]
+    });
+  });
+
+  it("parses router link interception config", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "terajs-config-"));
+    process.chdir(tempDir);
+
+    await writeFile(
+      path.join(tempDir, "terajs.config.cjs"),
+      `module.exports = {
+  router: {
+    interceptLinks: {
+      enabled: false,
+      exclude: ["/api", "/downloads", "/api"]
+    }
+  }
+};`
+    );
+
+    expect(getRouterConfig().interceptLinks).toEqual({
+      enabled: false,
+      exclude: ["/api", "/downloads"]
+    });
   });
 
   it("parses sync hub config from terajs.config.cjs", async () => {

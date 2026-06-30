@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.2.2
+
+- Fixed `.tera` event modifiers so `.prevent` and `.stop` bind the base event name and apply modifier behavior instead of silently registering invalid event names.
+- Added Tera-native SPA navigation ergonomics with built-in `<Link>` support in SFC templates, global same-origin link interception, and a `router.push()` alias for `router.navigate()`.
+- Prevented protected deep links from loading route modules before middleware redirects by removing the generated app shell's initial route prefetch.
+- Reduced Vite dev module weight by making SFC auto-imports usage-based and suppressing fallback inline sourcemaps for generated `.tera` and virtual modules.
+
 ## 1.2.1
 
 - Wired `.tera` style blocks through the Vite web build so regular and scoped styles are registered at runtime, with HMR cleanup for updated modules.

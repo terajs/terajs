@@ -35,6 +35,10 @@ interface TerajsUserConfig {
     middlewareDir?: string;
     keepPreviousDuringLoading?: boolean;
     applyMeta?: boolean;
+    interceptLinks?: boolean | {
+      enabled?: boolean;
+      exclude?: string[];
+    };
   };
   routes?: Array<{
     file?: string;
@@ -177,6 +181,12 @@ export interface TerajsRouterConfig {
   middlewareDir: string;
   keepPreviousDuringLoading: boolean;
   applyMeta: boolean;
+  interceptLinks: TerajsLinkInterceptionConfig;
+}
+
+export interface TerajsLinkInterceptionConfig {
+  enabled: boolean;
+  exclude: string[];
 }
 
 /** Supported dock positions for the Terajs DevTools overlay. */
@@ -241,6 +251,37 @@ function normalizeShortcut(value: unknown, fallback: string): string {
 
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : fallback;
+}
+
+function normalizeLinkInterception(
+  value: NonNullable<TerajsUserConfig["router"]>["interceptLinks"] | undefined
+): TerajsLinkInterceptionConfig {
+  const defaultExclude = ["/_terajs", "/api"];
+
+  if (typeof value === "boolean") {
+    return {
+      enabled: value,
+      exclude: defaultExclude
+    };
+  }
+
+  if (!value || typeof value !== "object") {
+    return {
+      enabled: true,
+      exclude: defaultExclude
+    };
+  }
+
+  const exclude = Array.isArray(value.exclude)
+    ? value.exclude
+      .map((entry) => typeof entry === "string" ? entry.trim() : "")
+      .filter((entry, index, values) => entry.length > 0 && values.indexOf(entry) === index)
+    : defaultExclude;
+
+  return {
+    enabled: typeof value.enabled === "boolean" ? value.enabled : true,
+    exclude: exclude.length > 0 ? exclude : defaultExclude
+  };
 }
 
 export function getDevtoolsConfig(): TerajsDevtoolsConfig {
@@ -335,6 +376,7 @@ export function getRouterConfig(): TerajsRouterConfig {
     applyMeta:
       typeof router?.applyMeta === "boolean"
         ? router.applyMeta
-        : true
+        : true,
+    interceptLinks: normalizeLinkInterception(router?.interceptLinks)
   };
 }

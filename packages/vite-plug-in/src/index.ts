@@ -8,6 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
 import {
+  generateAutoImports,
+  generateUsedAutoImportPrelude
+} from "./autoImportPrelude.js";
+import {
   APP_DEVTOOLS_SUBPATH,
   APP_FACADE_PACKAGE,
   resolveAppFacadeSpecifier
@@ -118,6 +122,13 @@ function createVirtualErrorModule(moduleId: string, error: unknown): string {
     `console.error('[terajs/vite] Failed to load module', __TERAJS_VIRTUAL_MODULE_ERROR__);`,
     `throw new Error('[terajs/vite] Failed to load ' + __terajsVirtualModuleId + ': ' + __terajsVirtualModuleMessage);`
   ].join("\n");
+}
+
+function createSourcemapFreeModule(code: string): { code: string; map: { mappings: "" } } {
+  return {
+    code,
+    map: { mappings: "" }
+  };
 }
 
 function toProjectImportPath(filePath: string): string {
@@ -346,26 +357,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     return resolveAppFacadeSpecifier(specifier, config?.command);
   }
 
-  function pascalCase(str: string) {
-    return str
-      .replace(/[-_](.)/g, (_, c) => c.toUpperCase())
-      .replace(/^(.)/, (_, c) => c.toUpperCase());
-  }
-
-  function generateAutoImports() {
-    let code = "";
-    for (const dir of autoImportDirs) {
-      if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".tera"));
-      for (const f of files) {
-        const name = pascalCase(f.replace(/\.tera$/, ""));
-        const importPath = toProjectImportPath(path.join(dir, f));
-        code += `export { default as ${name} } from '${importPath}';\n`;
-      }
-    }
-    return code;
-  }
-
   function generateRoutesModule() {
     const routeFiles = Array.from(new Set([
       ...routeDirs.flatMap((dir) => {
@@ -543,7 +534,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
 
     return [
-      `import { createBrowserHistory, createRouter, prefetchRouteMatch } from '${runtimeSpecifier}';`,
+      `import { createBrowserHistory, createRouter } from '${runtimeSpecifier}';`,
       `import { createRouteView, mount } from '${runtimeSpecifier}';`,
       `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '${runtimeSpecifier}';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
@@ -553,6 +544,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `const GLOBAL_MIDDLEWARE = ${JSON.stringify(middlewareModules.globalKeys)};`,
       `const HUB_CONFIG = ${JSON.stringify(syncHubConfig)};`,
       `const DEVTOOLS_CONFIG = ${JSON.stringify(resolvedDevtoolsConfig)};`,
+      `const ROUTER_LINK_INTERCEPTION = ${JSON.stringify(routerConfig.interceptLinks)};`,
       `const MOUNT_TARGET_PATTERN = /^[A-Za-z][\\w:-]*$/;`,
       `let hubTransport = null;`,
       `let appMounted = false;`,
@@ -606,14 +598,48 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  const routeTarget = match?.route?.mountTarget;`,
       `  return normalizeMountTargetId(routeTarget);`,
       `}`,
+      `function isExcludedRouterPath(pathname) {`,
+      `  const excluded = Array.isArray(ROUTER_LINK_INTERCEPTION.exclude) ? ROUTER_LINK_INTERCEPTION.exclude : [];`,
+      `  return excluded.some((prefix) => {`,
+      `    if (typeof prefix !== 'string' || prefix.length === 0) {`,
+      `      return false;`,
+      `    }`,
+      `    const normalizedPrefix = prefix.startsWith('/') ? prefix : '/' + prefix;`,
+      `    return pathname === normalizedPrefix || pathname.startsWith(normalizedPrefix.endsWith('/') ? normalizedPrefix : normalizedPrefix + '/');`,
+      `  });`,
+      `}`,
+      `function resolveInterceptedLinkTarget(event) {`,
+      `  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {`,
+      `    return null;`,
+      `  }`,
+      `  const target = event.target;`,
+      `  const link = target instanceof Element ? target.closest('a[href]') : null;`,
+      `  if (!link) {`,
+      `    return null;`,
+      `  }`,
+      `  if (!ROUTER_LINK_INTERCEPTION.enabled) {`,
+      `    return null;`,
+      `  }`,
+      `  if ((link.target && link.target !== '_self') || link.hasAttribute('download')) {`,
+      `    return null;`,
+      `  }`,
+      `  const rawHref = link.getAttribute('href');`,
+      `  if (!rawHref) {`,
+      `    return null;`,
+      `  }`,
+      `  if (rawHref.startsWith('#') || rawHref.startsWith('?')) {`,
+      `    return null;`,
+      `  }`,
+      `  const url = new URL(rawHref, window.location.href);`,
+      `  if (url.origin !== window.location.origin || isExcludedRouterPath(url.pathname)) {`,
+      `    return null;`,
+      `  }`,
+      `  return url.pathname + url.search + url.hash;`,
+      `}`,
       ...hubBootstrap,
       ...devtoolsBootstrap,
       `const routed = applyGlobalMiddleware(routes);`,
       `export const router = createRouter(routed, { history: createBrowserHistory(), middleware });`,
-      `const initialRouteMatch = router.resolve(router.history.getLocation());`,
-      `if (initialRouteMatch) {`,
-      `  void prefetchRouteMatch(initialRouteMatch).catch(() => undefined);`,
-      `}`,
       `const routeView = createRouteView(router, {`,
       `  autoStart: false,`,
       `  keepPreviousDuringLoading: ${routerConfig.keepPreviousDuringLoading},`,
@@ -642,19 +668,8 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `      activeTargetId = targetId;`,
       `    };`,
       `    const onClick = (event) => {`,
-      `      const target = event.target;`,
-      `      const link = target instanceof Element ? target.closest('a[href]') : null;`,
-      `      if (!link) {`,
-      `        return;`,
-      `      }`,
-      `      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {`,
-      `        return;`,
-      `      }`,
-      `      if (link.target === '_blank' || link.hasAttribute('download')) {`,
-      `        return;`,
-      `      }`,
-      `      const href = link.getAttribute('href');`,
-      `      if (!href || !href.startsWith('/')) {`,
+      `      const href = resolveInterceptedLinkTarget(event);`,
+      `      if (!href) {`,
       `        return;`,
       `      }`,
       `      event.preventDefault();`,
@@ -813,9 +828,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       if (normalizedId === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
         try {
-          return generateAutoImports();
+          return createSourcemapFreeModule(generateAutoImports(autoImportDirs, toProjectImportPath));
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (normalizedId === RESOLVED_ROUTES_VIRTUAL_ID) {
@@ -826,23 +841,23 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
             manifest = readBuildManifest(rootDir, outDir);
           }
 
-          return generateRoutesModule();
+          return createSourcemapFreeModule(generateRoutesModule());
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (normalizedId === RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID) {
         try {
-          return generateAppBootstrapModule(APP_VIRTUAL_ID);
+          return createSourcemapFreeModule(generateAppBootstrapModule(APP_VIRTUAL_ID));
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (normalizedId === RESOLVED_APP_VIRTUAL_ID) {
         try {
-          return generateAppModule();
+          return createSourcemapFreeModule(generateAppModule());
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (!normalizedId.endsWith(".tera")) return null;
@@ -853,13 +868,14 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
         Debug.emit("sfc:load", { scope: normalizedId });
 
-        // Inject auto-imports at the top of every SFC
-        const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-        let compiled = compileSfcToComponent(sfc);
-        compiled = autoImport + compiled;
-        return compiled;
+        const autoImport = generateUsedAutoImportPrelude(sfc, autoImportDirs, toProjectImportPath);
+        let compiled = compileSfcToComponent(sfc, {
+          autoImports: autoImport.bindings
+        });
+        compiled = autoImport.code + compiled;
+        return createSourcemapFreeModule(compiled);
       } catch (error) {
-        return createVirtualErrorModule(normalizedId, error);
+        return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
       }
     },
 
@@ -882,10 +898,11 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       Debug.emit("sfc:hmr", { scope: ctx.file });
 
-      // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-      let newModule = compileSfcToComponent(sfc);
-      newModule = autoImport + newModule;
+      const autoImport = generateUsedAutoImportPrelude(sfc, autoImportDirs, toProjectImportPath);
+      let newModule = compileSfcToComponent(sfc, {
+        autoImports: autoImport.bindings
+      });
+      newModule = autoImport.code + newModule;
 
       // Replace the module in Vite's graph
       const mod = ctx.server.moduleGraph.getModuleById(ctx.file)!;

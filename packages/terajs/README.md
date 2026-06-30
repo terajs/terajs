@@ -64,6 +64,7 @@ module.exports = {
 <template>
 	<section>
 		<h1>{{ heading() }}</h1>
+		<Link to="/docs">Read the docs</Link>
 	</section>
 </template>
 
@@ -73,6 +74,22 @@ import { signal } from "@terajs/app";
 const heading = signal("Hello from Terajs");
 </script>
 ```
+
+## SPA navigation
+
+Use the built-in `Link` component for app routes in `.tera` templates:
+
+```tera
+<Link to="/migrations/123">Open migration</Link>
+```
+
+Plain same-origin anchors also use router navigation in apps that keep link interception enabled:
+
+```tera
+<a href="/migrations/123">Open migration</a>
+```
+
+Programmatic navigation uses `router.navigate("/path")` and `router.replace("/path")`. `router.push("/path")` is also available as an alias for `navigate()`.
 
 ## When to use leaf packages directly
 
