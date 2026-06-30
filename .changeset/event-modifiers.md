@@ -12,3 +12,5 @@ Support `prevent` and `stop` event modifiers in `.tera` templates by compiling t
 Add first-class SPA link ergonomics for `.tera` apps. The Vite app shell now supports configurable same-origin link interception, and SFC templates can use the built-in `Link` component without a manual import. The router also exposes `push()` as an alias for `navigate()`.
 
 Prevent protected deep links from eagerly loading route modules before middleware redirects by removing the generated app shell's initial route prefetch. SFC auto-imports are now injected only for component tags used by the current template instead of importing the full auto-import barrel in every `.tera` module.
+
+Generated `.tera` and virtual Vite modules now return `map: null` so Vite does not append large inline sourcemaps to dev module responses.

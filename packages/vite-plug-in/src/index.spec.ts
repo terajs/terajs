@@ -114,6 +114,19 @@ describe("Terajs Vite Plugin (integration)", () => {
     throw new Error("Expected Vite configureServer hook to be defined.");
   }
 
+  function readGeneratedModuleCode(result: unknown): string {
+    expect(result).toEqual(expect.objectContaining({ map: null }));
+
+    if (result && typeof result === "object" && "code" in result) {
+      const code = (result as { code?: unknown }).code;
+      if (typeof code === "string") {
+        return code;
+      }
+    }
+
+    throw new Error("Expected generated module result with string code and null sourcemap.");
+  }
+
   function requireIndexHtmlTransform(
     hook: Plugin["transformIndexHtml"]
   ): (html: string | { raw: string }, ctx?: unknown) => unknown {
@@ -320,7 +333,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
     vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Hello</template>");
-    load("Component.tera");
+    readGeneratedModuleCode(load("Component.tera"));
     expect(compileSfcToComponent).toHaveBeenCalled();
     expect(Debug.emit).toHaveBeenCalledWith("sfc:load", {
       scope: "Component.tera"
@@ -343,7 +356,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
 
-    const code = load("Page.tera");
+    const code = readGeneratedModuleCode(load("Page.tera"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("import __terajsAutoImport0 from '/packages/devtools/src/components/SmallWidget.tera';");
@@ -491,7 +504,7 @@ describe("Terajs Vite Plugin (integration)", () => {
   const resolveId = requireHook<[string], unknown>(plugin.resolveId);
   const load = requireHook<[string], unknown>(plugin.load);
   const resolved = resolveId("virtual:terajs-routes");
-  const code = load("\0virtual:terajs-routes");
+  const code = readGeneratedModuleCode(load("\0virtual:terajs-routes"));
 
     expect(resolved).toBe("\0virtual:terajs-routes");
     expect(typeof code).toBe("string");
@@ -543,7 +556,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     await (plugin.writeBundle as (() => Promise<void>))();
 
     const load = requireHook<[string], unknown>(plugin.load);
-    const code = load("\0virtual:terajs-routes");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-routes"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain('asset: "assets/index-123.js"');
@@ -570,7 +583,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     const plugin = terajsPlugin();
   const load = requireHook<[string], unknown>(plugin.load);
-  const code = load("\0virtual:terajs-routes");
+  const code = readGeneratedModuleCode(load("\0virtual:terajs-routes"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain('path: "/learn"');
@@ -623,7 +636,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("import * as middlewareModule0");
@@ -644,7 +657,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("createSignalRHubTransport");
@@ -666,7 +679,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("createSocketIoHubTransport");
@@ -689,7 +702,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("createWebSocketHubTransport");
@@ -707,7 +720,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const load = requireHook<[string], unknown>(plugin.load);
 
     const resolved = resolveId("virtual:terajs-app");
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(resolved).toBe("\0virtual:terajs-app");
     expect(typeof code).toBe("string");
@@ -734,7 +747,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const load = requireHook<[string], unknown>(plugin.load);
 
     const resolved = resolveId("virtual:terajs-bootstrap");
-    const code = load("\0virtual:terajs-bootstrap");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-bootstrap"));
 
     expect(resolved).toBe("\0virtual:terajs-bootstrap");
     expect(typeof code).toBe("string");
@@ -746,7 +759,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
 
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("/@fs/");
@@ -764,7 +777,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const load = requireHook<[string], unknown>(plugin.load);
 
     configResolved({ command: "build" });
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("from '@terajs/app';");
@@ -778,7 +791,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
 
-    const code = load("\0virtual:terajs-app?t=171");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app?t=171"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("export function bootstrapTerajsApp()");
@@ -788,7 +801,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
 
-    const code = load("\0virtual:terajs-bootstrap?t=171");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-bootstrap?t=171"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("bootstrapTerajsApp();");
@@ -803,7 +816,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
-    const code = load("\0virtual:terajs-app");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-app"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
@@ -823,7 +836,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       return "<template />";
     });
 
-    const code = load("Broken.tera?import");
+    const code = readGeneratedModuleCode(load("Broken.tera?import"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
@@ -839,7 +852,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const load = requireHook<[string], unknown>(plugin.load);
     const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
 
-    const code = load("\0virtual:terajs-routes");
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-routes"));
 
     expect(typeof code).toBe("string");
     expect(code).toContain("const routes = [");

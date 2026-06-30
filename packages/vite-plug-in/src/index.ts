@@ -120,6 +120,13 @@ function createVirtualErrorModule(moduleId: string, error: unknown): string {
   ].join("\n");
 }
 
+function createSourcemapFreeModule(code: string): { code: string; map: null } {
+  return {
+    code,
+    map: null
+  };
+}
+
 function toProjectImportPath(filePath: string): string {
   const relativePath = normalizePath(path.relative(process.cwd(), filePath));
   return relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
@@ -919,9 +926,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       if (normalizedId === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
         try {
-          return generateAutoImports();
+          return createSourcemapFreeModule(generateAutoImports());
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (normalizedId === RESOLVED_ROUTES_VIRTUAL_ID) {
@@ -932,23 +939,23 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
             manifest = readBuildManifest(rootDir, outDir);
           }
 
-          return generateRoutesModule();
+          return createSourcemapFreeModule(generateRoutesModule());
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (normalizedId === RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID) {
         try {
-          return generateAppBootstrapModule(APP_VIRTUAL_ID);
+          return createSourcemapFreeModule(generateAppBootstrapModule(APP_VIRTUAL_ID));
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (normalizedId === RESOLVED_APP_VIRTUAL_ID) {
         try {
-          return generateAppModule();
+          return createSourcemapFreeModule(generateAppModule());
         } catch (error) {
-          return createVirtualErrorModule(normalizedId, error);
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
       }
       if (!normalizedId.endsWith(".tera")) return null;
@@ -964,9 +971,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
           autoImports: autoImport.bindings
         });
         compiled = autoImport.code + compiled;
-        return compiled;
+        return createSourcemapFreeModule(compiled);
       } catch (error) {
-        return createVirtualErrorModule(normalizedId, error);
+        return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
       }
     },
 
