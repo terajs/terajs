@@ -8,6 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
 import {
+  generateAutoImports,
+  generateUsedAutoImportPrelude
+} from "./autoImportPrelude.js";
+import {
   APP_DEVTOOLS_SUBPATH,
   APP_FACADE_PACKAGE,
   resolveAppFacadeSpecifier
@@ -32,7 +36,7 @@ import {
 import { generateRoutesModuleSource } from "./generatedRoutesModule.js";
 import { injectAppBootstrapScript } from "./htmlBootstrap.js";
 import type { Plugin } from "vite";
-import { compileTemplateFromSFC, parseSFC, type ParsedSFC } from "@terajs/sfc";
+import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
 import {
   createServerFunctionRequestHandler,
@@ -351,108 +355,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
   function resolveRuntimeSpecifier(specifier: string): string {
     return resolveAppFacadeSpecifier(specifier, config?.command);
-  }
-
-  function pascalCase(str: string) {
-    return str
-      .replace(/[-_](.)/g, (_, c) => c.toUpperCase())
-      .replace(/^(.)/, (_, c) => c.toUpperCase());
-  }
-
-  function isComponentTagName(tag: unknown): tag is string {
-    return typeof tag === "string" && tag.length > 0 && tag[0] >= "A" && tag[0] <= "Z";
-  }
-
-  function collectComponentTags(node: any, tags: Set<string>): void {
-    if (!node || typeof node !== "object") {
-      return;
-    }
-
-    if (node.type === "element" && isComponentTagName(node.tag)) {
-      tags.add(node.tag);
-    }
-
-    for (const key of ["children", "then", "else", "body", "fallback"]) {
-      const value = node[key];
-      if (!Array.isArray(value)) {
-        continue;
-      }
-
-      for (const child of value) {
-        collectComponentTags(child, tags);
-      }
-    }
-  }
-
-  function collectUsedComponentTags(sfc: ParsedSFC): string[] {
-    const ir = compileTemplateFromSFC(sfc);
-    const tags = new Set<string>();
-
-    for (const node of ir.template) {
-      collectComponentTags(node, tags);
-    }
-
-    tags.delete("Link");
-    return Array.from(tags).sort();
-  }
-
-  function resolveAutoImportEntries(): Map<string, string> {
-    const entries = new Map<string, string>();
-
-    for (const dir of autoImportDirs) {
-      if (!fs.existsSync(dir)) {
-        continue;
-      }
-
-      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".tera"));
-      for (const fileName of files) {
-        const name = pascalCase(fileName.replace(/\.tera$/, ""));
-        entries.set(name, toProjectImportPath(path.join(dir, fileName)));
-      }
-    }
-
-    return entries;
-  }
-
-  function generateUsedAutoImportPrelude(sfc: ParsedSFC): {
-    code: string;
-    bindings: Record<string, string>;
-  } {
-    const available = resolveAutoImportEntries();
-    const bindings: Record<string, string> = {};
-    const imports: string[] = [];
-    let index = 0;
-
-    for (const tag of collectUsedComponentTags(sfc)) {
-      const importPath = available.get(tag);
-      if (!importPath) {
-        continue;
-      }
-
-      const localName = `__terajsAutoImport${index}`;
-      index += 1;
-      bindings[tag] = localName;
-      imports.push(`import ${localName} from '${importPath}';`);
-    }
-
-    return {
-      code: imports.length > 0 ? `${imports.join("\n")}\n` : "",
-      bindings
-    };
-  }
-
-  function generateAutoImports() {
-    let code = "";
-    for (const dir of autoImportDirs) {
-      if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".tera"));
-      for (const f of files) {
-        const name = pascalCase(f.replace(/\.tera$/, ""));
-        const importPath = toProjectImportPath(path.join(dir, f));
-        code += `export { default as ${name} } from '${importPath}';\n`;
-      }
-    }
-    return code;
   }
 
   function generateRoutesModule() {
@@ -926,7 +828,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       if (normalizedId === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
         try {
-          return createSourcemapFreeModule(generateAutoImports());
+          return createSourcemapFreeModule(generateAutoImports(autoImportDirs, toProjectImportPath));
         } catch (error) {
           return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
         }
@@ -966,7 +868,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
         Debug.emit("sfc:load", { scope: normalizedId });
 
-        const autoImport = generateUsedAutoImportPrelude(sfc);
+        const autoImport = generateUsedAutoImportPrelude(sfc, autoImportDirs, toProjectImportPath);
         let compiled = compileSfcToComponent(sfc, {
           autoImports: autoImport.bindings
         });
@@ -996,7 +898,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       Debug.emit("sfc:hmr", { scope: ctx.file });
 
-      const autoImport = generateUsedAutoImportPrelude(sfc);
+      const autoImport = generateUsedAutoImportPrelude(sfc, autoImportDirs, toProjectImportPath);
       let newModule = compileSfcToComponent(sfc, {
         autoImports: autoImport.bindings
       });
