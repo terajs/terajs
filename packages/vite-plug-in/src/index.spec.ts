@@ -3,8 +3,11 @@ import type { HmrContext, Plugin } from "vite";
 import { server } from "@terajs/runtime";
 import { setRuntimeMode } from "@terajs/reactivity";
 import fs from "fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { createServer } from "vite";
 
 vi.mock("./config", () => ({
   __esModule: true,
@@ -115,7 +118,7 @@ describe("Terajs Vite Plugin (integration)", () => {
   }
 
   function readGeneratedModuleCode(result: unknown): string {
-    expect(result).toEqual(expect.objectContaining({ map: null }));
+    expect(result).toEqual(expect.objectContaining({ map: { mappings: "" } }));
 
     if (result && typeof result === "object" && "code" in result) {
       const code = (result as { code?: unknown }).code;
@@ -124,7 +127,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       }
     }
 
-    throw new Error("Expected generated module result with string code and null sourcemap.");
+    throw new Error("Expected generated module result with string code and empty sourcemap.");
   }
 
   function requireIndexHtmlTransform(
@@ -373,6 +376,46 @@ describe("Terajs Vite Plugin (integration)", () => {
     existsSpy.mockRestore();
     readdirSpy.mockRestore();
     readSpy.mockRestore();
+  });
+
+  it("serves generated .tera modules without fallback inline sourcemaps", async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), "terajs-vite-sourcemap-"));
+    const filePath = path.join(tempDir, "Smoke.tera");
+    vi.mocked(compileSfcToComponent).mockReturnValueOnce([
+      "if (import.meta.hot) {",
+      "  import.meta.hot.accept(() => {});",
+      "}",
+      "export default function Comp() {}"
+    ].join("\n"));
+
+    await writeFile(filePath, "<template><div>Smoke</div></template>");
+
+    const server = await createServer({
+      root: tempDir,
+      logLevel: "silent",
+      plugins: [terajsPlugin()],
+      server: {
+        host: "127.0.0.1",
+        port: 0
+      }
+    });
+
+    try {
+      await server.listen();
+      const address = server.httpServer?.address();
+      const port = typeof address === "object" && address ? address.port : null;
+      expect(port).toEqual(expect.any(Number));
+
+      const response = await fetch(`http://127.0.0.1:${port}/Smoke.tera?import`);
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(body).toContain("import.meta.hot");
+      expect(body).not.toContain("sourceMappingURL");
+    } finally {
+      await server.close();
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("emits sfc:hmr on handleHotUpdate()", () => {

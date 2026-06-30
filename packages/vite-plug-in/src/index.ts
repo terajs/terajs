@@ -120,10 +120,10 @@ function createVirtualErrorModule(moduleId: string, error: unknown): string {
   ].join("\n");
 }
 
-function createSourcemapFreeModule(code: string): { code: string; map: null } {
+function createSourcemapFreeModule(code: string): { code: string; map: { mappings: "" } } {
   return {
     code,
-    map: null
+    map: { mappings: "" }
   };
 }
 
