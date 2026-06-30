@@ -6,7 +6,14 @@ import {
 import { compileStyle } from "@terajs/compiler";
 import { annotateRuntimeDebugNames } from "./annotateRuntimeDebugNames.js";
 
-export function compileSfcToComponent(sfc: ParsedSFC): string {
+export interface CompileSfcToComponentOptions {
+  autoImports?: Record<string, string>;
+}
+
+export function compileSfcToComponent(
+  sfc: ParsedSFC,
+  options: CompileSfcToComponentOptions = {}
+): string {
   const scriptSource =
     typeof sfc.script === "string"
       ? sfc.script
@@ -24,6 +31,12 @@ ${script.importedBindings.map((binding) => `  ${JSON.stringify(binding)}: typeof
 }`
     : "{}";
   const exposedBindings = JSON.stringify(script.exposed);
+  const autoImportEntries = Object.entries(options.autoImports ?? {});
+  const autoImportMap = autoImportEntries.length > 0
+    ? `{
+${autoImportEntries.map(([name, localName]) => `  ${JSON.stringify(name)}: ${localName}`).join(",\n")}
+}`
+    : "{}";
 
   return `
 import { ${[
@@ -93,9 +106,7 @@ function pickBindings(names, source) {
 }
 
 function createComponentRegistry(ctx) {
-  const autoImports = typeof TerajsAutoImports === "object" && TerajsAutoImports
-    ? TerajsAutoImports
-    : {};
+  const autoImports = ${autoImportMap};
 
   return {
     Link,

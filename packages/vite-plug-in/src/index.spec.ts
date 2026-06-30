@@ -327,6 +327,41 @@ describe("Terajs Vite Plugin (integration)", () => {
     });
   });
 
+  it("injects only auto-imported components used by the SFC template", () => {
+    const componentDir = path.resolve(process.cwd(), "packages/devtools/src/components");
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      return String(input) === componentDir;
+    });
+    const readdirSpy = vi.spyOn(fs, "readdirSync").mockImplementation((input) => {
+      if (String(input) === componentDir) {
+        return ["SmallWidget.tera", "LargeWidget.tera"] as any;
+      }
+
+      return [] as any;
+    });
+    const readSpy = vi.spyOn(fs, "readFileSync").mockReturnValue("<template><SmallWidget /></template>");
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = load("Page.tera");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("import __terajsAutoImport0 from '/packages/devtools/src/components/SmallWidget.tera';");
+    expect(code).not.toContain("LargeWidget");
+    expect(compileSfcToComponent).toHaveBeenLastCalledWith(
+      expect.anything(),
+      {
+        autoImports: {
+          SmallWidget: "__terajsAutoImport0"
+        }
+      }
+    );
+
+    existsSpy.mockRestore();
+    readdirSpy.mockRestore();
+    readSpy.mockRestore();
+  });
+
   it("emits sfc:hmr on handleHotUpdate()", () => {
     const plugin = terajsPlugin();
     const handleHotUpdate = requireHook<[HmrContext], unknown>(plugin.handleHotUpdate);
@@ -678,7 +713,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(typeof code).toBe("string");
     expect(code).toContain("createBrowserHistory");
     expect(code).toContain("createRouteView");
-    expect(code).toContain("prefetchRouteMatch");
+    expect(code).not.toContain("prefetchRouteMatch");
     expect(code).toContain('const ROOT_TARGET_ID = "app"');
     expect(code).toContain('const ROUTER_LINK_INTERCEPTION = {"enabled":true,"exclude":["/_terajs","/api"]}');
     expect(code).toContain("autoStart: false");
@@ -687,8 +722,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).not.toContain("router-link");
     expect(code).not.toContain("data-router-link");
     expect(code).toContain("void router.navigate(href)");
-    expect(code).toContain("const initialRouteMatch = router.resolve(router.history.getLocation())");
-    expect(code).toContain("void prefetchRouteMatch(initialRouteMatch).catch(() => undefined)");
+    expect(code).not.toContain("initialRouteMatch");
     expect(code).toContain("document.addEventListener('click'");
     expect(code).toContain("initializeDevtoolsOverlay");
     expect(code).toContain("export function bootstrapTerajsApp()");
@@ -716,7 +750,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof code).toBe("string");
     expect(code).toContain("/@fs/");
-    expect(code).toContain("prefetchRouteMatch");
+    expect(code).not.toContain("prefetchRouteMatch");
     expect(code).toContain("mountDevtoolsOverlay");
     expect(code).not.toContain("autoAttachVsCodeDevtoolsBridge");
     expect(code).toContain("document.getElementById('terajs-overlay-container')");

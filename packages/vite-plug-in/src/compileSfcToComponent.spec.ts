@@ -81,6 +81,27 @@ describe("compileSfcToComponent", () => {
     expect(compileScript).toHaveBeenCalledWith(expect.stringContaining('{ debugName: "stopSurfaceWatch" }'));
   });
 
+  it("registers usage-based auto imports with generated local bindings", () => {
+    const sfc = {
+      filePath: "/components/Test.tera",
+      template: "<SmallWidget />",
+      script: "",
+      style: null,
+      meta: {},
+      ai: {},
+      routeOverride: null
+    };
+
+    const out = compileSfcToComponent(sfc as any, {
+      autoImports: {
+        SmallWidget: "__terajsAutoImport0"
+      }
+    });
+
+    expect(out).toContain('"SmallWidget": __terajsAutoImport0');
+    expect(out).not.toContain("TerajsAutoImports");
+  });
+
   it("compiles and registers SFC style blocks with HMR cleanup", () => {
     vi.mocked(compileTemplateFromSFC).mockReturnValueOnce({
       meta: {},

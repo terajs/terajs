@@ -32,7 +32,7 @@ import {
 import { generateRoutesModuleSource } from "./generatedRoutesModule.js";
 import { injectAppBootstrapScript } from "./htmlBootstrap.js";
 import type { Plugin } from "vite";
-import { parseSFC } from "@terajs/sfc";
+import { compileTemplateFromSFC, parseSFC, type ParsedSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
 import {
   createServerFunctionRequestHandler,
@@ -352,6 +352,88 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       .replace(/^(.)/, (_, c) => c.toUpperCase());
   }
 
+  function isComponentTagName(tag: unknown): tag is string {
+    return typeof tag === "string" && tag.length > 0 && tag[0] >= "A" && tag[0] <= "Z";
+  }
+
+  function collectComponentTags(node: any, tags: Set<string>): void {
+    if (!node || typeof node !== "object") {
+      return;
+    }
+
+    if (node.type === "element" && isComponentTagName(node.tag)) {
+      tags.add(node.tag);
+    }
+
+    for (const key of ["children", "then", "else", "body", "fallback"]) {
+      const value = node[key];
+      if (!Array.isArray(value)) {
+        continue;
+      }
+
+      for (const child of value) {
+        collectComponentTags(child, tags);
+      }
+    }
+  }
+
+  function collectUsedComponentTags(sfc: ParsedSFC): string[] {
+    const ir = compileTemplateFromSFC(sfc);
+    const tags = new Set<string>();
+
+    for (const node of ir.template) {
+      collectComponentTags(node, tags);
+    }
+
+    tags.delete("Link");
+    return Array.from(tags).sort();
+  }
+
+  function resolveAutoImportEntries(): Map<string, string> {
+    const entries = new Map<string, string>();
+
+    for (const dir of autoImportDirs) {
+      if (!fs.existsSync(dir)) {
+        continue;
+      }
+
+      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".tera"));
+      for (const fileName of files) {
+        const name = pascalCase(fileName.replace(/\.tera$/, ""));
+        entries.set(name, toProjectImportPath(path.join(dir, fileName)));
+      }
+    }
+
+    return entries;
+  }
+
+  function generateUsedAutoImportPrelude(sfc: ParsedSFC): {
+    code: string;
+    bindings: Record<string, string>;
+  } {
+    const available = resolveAutoImportEntries();
+    const bindings: Record<string, string> = {};
+    const imports: string[] = [];
+    let index = 0;
+
+    for (const tag of collectUsedComponentTags(sfc)) {
+      const importPath = available.get(tag);
+      if (!importPath) {
+        continue;
+      }
+
+      const localName = `__terajsAutoImport${index}`;
+      index += 1;
+      bindings[tag] = localName;
+      imports.push(`import ${localName} from '${importPath}';`);
+    }
+
+    return {
+      code: imports.length > 0 ? `${imports.join("\n")}\n` : "",
+      bindings
+    };
+  }
+
   function generateAutoImports() {
     let code = "";
     for (const dir of autoImportDirs) {
@@ -543,7 +625,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
 
     return [
-      `import { createBrowserHistory, createRouter, prefetchRouteMatch } from '${runtimeSpecifier}';`,
+      `import { createBrowserHistory, createRouter } from '${runtimeSpecifier}';`,
       `import { createRouteView, mount } from '${runtimeSpecifier}';`,
       `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '${runtimeSpecifier}';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
@@ -649,10 +731,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       ...devtoolsBootstrap,
       `const routed = applyGlobalMiddleware(routes);`,
       `export const router = createRouter(routed, { history: createBrowserHistory(), middleware });`,
-      `const initialRouteMatch = router.resolve(router.history.getLocation());`,
-      `if (initialRouteMatch) {`,
-      `  void prefetchRouteMatch(initialRouteMatch).catch(() => undefined);`,
-      `}`,
       `const routeView = createRouteView(router, {`,
       `  autoStart: false,`,
       `  keepPreviousDuringLoading: ${routerConfig.keepPreviousDuringLoading},`,
@@ -881,10 +959,11 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
         Debug.emit("sfc:load", { scope: normalizedId });
 
-        // Inject auto-imports at the top of every SFC
-        const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-        let compiled = compileSfcToComponent(sfc);
-        compiled = autoImport + compiled;
+        const autoImport = generateUsedAutoImportPrelude(sfc);
+        let compiled = compileSfcToComponent(sfc, {
+          autoImports: autoImport.bindings
+        });
+        compiled = autoImport.code + compiled;
         return compiled;
       } catch (error) {
         return createVirtualErrorModule(normalizedId, error);
@@ -910,10 +989,11 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       Debug.emit("sfc:hmr", { scope: ctx.file });
 
-      // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-      let newModule = compileSfcToComponent(sfc);
-      newModule = autoImport + newModule;
+      const autoImport = generateUsedAutoImportPrelude(sfc);
+      let newModule = compileSfcToComponent(sfc, {
+        autoImports: autoImport.bindings
+      });
+      newModule = autoImport.code + newModule;
 
       // Replace the module in Vite's graph
       const mod = ctx.server.moduleGraph.getModuleById(ctx.file)!;
