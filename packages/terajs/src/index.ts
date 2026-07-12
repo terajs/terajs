@@ -20,6 +20,7 @@ export {
 	createBrowserHistory,
 	updateHead,
 	createRouteView,
+	RouterView,
 	Link,
 	Form,
 	SubmitButton,

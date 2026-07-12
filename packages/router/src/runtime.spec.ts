@@ -51,6 +51,98 @@ describe("matchRoute", () => {
 
     expect(matched?.route.filePath).toBe("/pages/blog/new.tera");
   });
+
+  it("exposes a parent-to-leaf branch for nested path routes", () => {
+    const matched = matchRoute(
+      [
+        route({ id: "migrations", path: "/migrations", filePath: "/pages/migrations/index.tera" }),
+        route({ id: "migration", path: "/migrations/:id", filePath: "/pages/migrations/[id].tera" }),
+        route({ id: "mapping", path: "/migrations/:id/mapping", filePath: "/pages/migrations/[id]/mapping.tera" })
+      ],
+      "/migrations/123/mapping"
+    );
+
+    expect(matched?.route.id).toBe("mapping");
+    expect(matched?.branch?.map((entry) => entry.route.path)).toEqual([
+      "/migrations",
+      "/migrations/:id",
+      "/migrations/:id/mapping"
+    ]);
+    expect(matched?.branch?.[1].params).toEqual({ id: "123" });
+  });
+
+  it("prefers static branch parents over dynamic siblings", () => {
+    const matched = matchRoute(
+      [
+        route({ id: "dynamicParent", path: "/migrations/:id", filePath: "/pages/migrations/[id].tera" }),
+        route({ id: "newParent", path: "/migrations/new", filePath: "/pages/migrations/new/index.tera" }),
+        route({ id: "connect", path: "/migrations/new/connect", filePath: "/pages/migrations/new/connect.tera" })
+      ],
+      "/migrations/new/connect"
+    );
+
+    expect(matched?.route.id).toBe("connect");
+    expect(matched?.branch?.map((entry) => entry.route.id)).toEqual(["newParent", "connect"]);
+  });
+
+  it("supports explicit children with relative paths", () => {
+    const matched = matchRoute(
+      [
+        route({
+          id: "workspace",
+          path: "/workspace",
+          filePath: "/pages/workspace.tera",
+          children: [
+            route({
+              id: "workspaceDocuments",
+              path: "documents",
+              filePath: "/pages/workspace/documents.tera"
+            })
+          ]
+        })
+      ],
+      "/workspace/documents"
+    );
+
+    expect(matched?.route.id).toBe("workspaceDocuments");
+    expect(matched?.route.path).toBe("/workspace/documents");
+    expect(matched?.branch?.map((entry) => entry.route.id)).toEqual(["workspace", "workspaceDocuments"]);
+  });
+
+  it("does not include path-prefix siblings in explicit child branches", () => {
+    const matched = matchRoute(
+      [
+        route({
+          id: "migrationQueue",
+          path: "/migrations",
+          filePath: "/pages/migrations/index.tera"
+        }),
+        route({
+          id: "migrationWorkspace",
+          path: "/migrations/:id",
+          filePath: "/pages/migrations/[id]/index.tera",
+          children: [
+            route({
+              id: "migrationConnect",
+              path: "connect",
+              filePath: "/pages/migrations/[id]/connect.tera"
+            })
+          ]
+        })
+      ],
+      "/migrations/123/connect"
+    );
+
+    expect(matched?.route.id).toBe("migrationConnect");
+    expect(matched?.branch?.map((entry) => entry.route.id)).toEqual([
+      "migrationWorkspace",
+      "migrationConnect"
+    ]);
+    expect(matched?.branch?.map((entry) => entry.route.path)).toEqual([
+      "/migrations/:id",
+      "/migrations/:id/connect"
+    ]);
+  });
 });
 
 describe("createRouter", () => {

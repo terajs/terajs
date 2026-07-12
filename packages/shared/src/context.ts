@@ -42,6 +42,17 @@ export function setCurrentContext(ctx: ComponentContext | null): void {
   currentContext = ctx;
 }
 
+export function runWithCurrentContext<T>(ctx: ComponentContext | null, run: () => T): T {
+  const previous = currentContext;
+  currentContext = ctx;
+
+  try {
+    return run();
+  } finally {
+    currentContext = previous;
+  }
+}
+
 export function createComponentContext(): ComponentContext {
   const ctx: ComponentContext = {
     disposers: [],

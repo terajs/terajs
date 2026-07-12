@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { getRouterConfig, getSyncHubConfig } from "./config";
+import { getConfiguredRoutes, getRouterConfig, getSyncHubConfig } from "./config";
 
 describe("vite plugin config", () => {
   const originalCwd = process.cwd();
@@ -54,6 +54,42 @@ describe("vite plugin config", () => {
       enabled: false,
       exclude: ["/api", "/downloads"]
     });
+  });
+
+  it("preserves nested configured routes", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "terajs-config-"));
+    process.chdir(tempDir);
+
+    await writeFile(
+      path.join(tempDir, "terajs.config.cjs"),
+      `module.exports = {
+  routes: [
+    {
+      path: "/migrations/:id",
+      file: "src/pages/migrations/[id]/index.tera",
+      children: [
+        {
+          path: "connect",
+          file: "src/pages/migrations/[id]/connect.tera"
+        }
+      ]
+    }
+  ]
+};`
+    );
+
+    expect(getConfiguredRoutes()).toEqual([
+      expect.objectContaining({
+        path: "/migrations/:id",
+        filePath: path.resolve(tempDir, "src/pages/migrations/[id]/index.tera"),
+        children: [
+          expect.objectContaining({
+            path: "connect",
+            filePath: path.resolve(tempDir, "src/pages/migrations/[id]/connect.tera")
+          })
+        ]
+      })
+    ]);
   });
 
   it("parses sync hub config from terajs.config.cjs", async () => {

@@ -107,6 +107,10 @@ export function renderComponent(
     const ctx = createComponentContext();
     const prev = getCurrentContext();
     ctx.errorBoundary = prev?.errorBoundary;
+    const inheritedRouteOutletContext = (prev as any)?.__teraRouteOutletContext;
+    if (inheritedRouteOutletContext) {
+        (ctx as any).__teraRouteOutletContext = inheritedRouteOutletContext;
+    }
 
     emitRendererDebug("component:render:start", () => ({
         component,

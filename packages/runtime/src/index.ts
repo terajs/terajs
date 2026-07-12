@@ -7,7 +7,7 @@
 
 // Component Core
 export { component, onCleanup } from "./component/component.js";
-export { ComponentContext, getCurrentContext, setCurrentContext, createComponentContext } from "./component/context.js";
+export { ComponentContext, getCurrentContext, setCurrentContext, runWithCurrentContext, createComponentContext } from "./component/context.js";
 export type { Disposer } from "./component/context.js";
 
 // Lifecycle Hooks

@@ -212,6 +212,10 @@ export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
   let source: string | null = null;
   let params: unknown = undefined;
   let query: unknown = undefined;
+  let branch: unknown = undefined;
+  let meta: unknown = undefined;
+  let ai: unknown = undefined;
+  let route: unknown = undefined;
   let guardContext: string | null = null;
   let phase: string | null = null;
   let lastEventType: string | null = null;
@@ -248,6 +252,24 @@ export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
       query = readUnknown(payload, "query");
     }
 
+    if (branch === undefined) {
+      branch = readUnknown(payload, "branch");
+    }
+
+    if (meta === undefined) {
+      meta = readUnknown(payload, "meta");
+    }
+
+    if (ai === undefined) {
+      ai = readUnknown(payload, "ai");
+    }
+
+    if (route === undefined) {
+      route = event.type === "route:meta:resolved"
+        ? readUnknown(payload, "route")
+        : readUnknown(payload, "leafRoute");
+    }
+
     if (!phase) {
       phase = readString(payload, "phase") ?? null;
     }
@@ -276,6 +298,10 @@ export function collectRouteSnapshot(events: DevtoolsEventLike[]) {
     source,
     params,
     query,
+    branch,
+    meta,
+    ai,
+    route,
     guardContext,
     phase,
     lastEventType
@@ -442,10 +468,22 @@ export function routeEventSummary(event: DevtoolsEventLike): string {
   const middlewareSummary = Array.isArray(middleware)
     ? middleware.map((item) => safeString(item)).join(",")
     : undefined;
+  const branch = readUnknown(payload, "branch");
+  const branchSummary = Array.isArray(branch)
+    ? branch.map((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return safeString(entry);
+        }
+
+        const record = entry as Record<string, unknown>;
+        return readString(record, "path") ?? readString(record, "id") ?? safeString(entry);
+      }).join(" > ")
+    : undefined;
 
   const parts = [
     from !== undefined ? `from=${from ?? "null"}` : undefined,
     to ? `to=${to}` : undefined,
+    branchSummary ? `branch=${branchSummary}` : undefined,
     source ? `source=${source}` : undefined,
     redirectTo ? `redirect=${redirectTo}` : undefined,
     guardName ? `guard=${guardName}` : undefined,

@@ -15,13 +15,15 @@ import { unwrap } from "./unwrap.js";
 import {
     addNodeCleanup,
     setText,
+    setTextValue,
     setProp,
+    setPropValue,
     setStyle,
     setClass,
     addEvent,
     removeEvent,
 } from "./dom.js";
-import { emitRendererDebug } from "./debug.js";
+import { emitRendererDebug, rendererDebugEnabled } from "./debug.js";
 
 type DirectSubscriber = ReactiveEffect & {
     active: boolean;
@@ -91,21 +93,25 @@ function subscribePropSource(el: Element, name: string, source: Signal<unknown> 
  * @param compute - A function returning the latest text value.
  */
 export function bindText(node: Text, compute: () => any): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "text",
-        node,
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "text",
+            node,
+        }));
+    }
 
     effect(() => {
         const value = unwrap(compute());
 
-        emitRendererDebug("binding:update", () => ({
-            type: "text",
-            node,
-            value,
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("binding:update", () => ({
+                type: "text",
+                node,
+                value,
+            }));
+        }
 
-        setText(node, value);
+        setTextValue(node, value);
     });
 }
 
@@ -113,11 +119,13 @@ export function bindDirectTextSource(
     node: Text,
     source: Signal<unknown> | Ref<unknown>
 ): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "text:direct",
-        node,
-        sourceType: isRefSource(source) ? "ref" : "signal",
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "text:direct",
+            node,
+            sourceType: isRefSource(source) ? "ref" : "signal",
+        }));
+    }
 
     subscribeTextSource(node, source);
 }
@@ -127,12 +135,14 @@ export function bindDirectPropSource(
     name: string,
     source: Signal<unknown> | Ref<unknown>
 ): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "prop:direct",
-        el,
-        name,
-        sourceType: isRefSource(source) ? "ref" : "signal",
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "prop:direct",
+            el,
+            name,
+            sourceType: isRefSource(source) ? "ref" : "signal",
+        }));
+    }
 
     subscribePropSource(el, name, source);
 }
@@ -149,23 +159,27 @@ export function bindProp(
     name: string,
     compute: () => any
 ): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "prop",
-        el,
-        name,
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "prop",
+            el,
+            name,
+        }));
+    }
 
     effect(() => {
         const value = unwrap(compute());
 
-        emitRendererDebug("binding:update", () => ({
-            type: "prop",
-            el,
-            name,
-            value,
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("binding:update", () => ({
+                type: "prop",
+                el,
+                name,
+                value,
+            }));
+        }
 
-        setProp(el, name, value);
+        setPropValue(el, name, value);
     });
 }
 
@@ -179,19 +193,23 @@ export function bindClass(
     el: Element,
     compute: () => any
 ): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "class",
-        el,
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "class",
+            el,
+        }));
+    }
 
     effect(() => {
         const value = unwrap(compute());
 
-        emitRendererDebug("binding:update", () => ({
-            type: "class",
-            el,
-            value,
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("binding:update", () => ({
+                type: "class",
+                el,
+                value,
+            }));
+        }
 
         setClass(el, value);
     });
@@ -207,10 +225,12 @@ export function bindStyle(
     el: Element,
     compute: () => Record<string, any>
 ): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "style",
-        el,
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "style",
+            el,
+        }));
+    }
 
     effect(() => {
         const styleObj = unwrap(compute());
@@ -220,11 +240,13 @@ export function bindStyle(
             resolved[key] = unwrap(styleObj[key]);
         }
 
-        emitRendererDebug("binding:update", () => ({
-            type: "style",
-            el,
-            value: resolved,
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("binding:update", () => ({
+                type: "style",
+                el,
+                value: resolved,
+            }));
+        }
 
         setStyle(el, resolved);
     });
@@ -244,12 +266,14 @@ export function bindEvent(
     name: string,
     handler: EventListener
 ): void {
-    emitRendererDebug("binding:create", () => ({
-        type: "event",
-        el,
-        name,
-        handler,
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:create", () => ({
+            type: "event",
+            el,
+            name,
+            handler,
+        }));
+    }
 
     addEvent(el, name, handler);
 }
@@ -266,12 +290,14 @@ export function unbindEvent(
     name: string,
     handler: EventListener
 ): void {
-    emitRendererDebug("binding:dispose", () => ({
-        type: "event",
-        el,
-        name,
-        handler,
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("binding:dispose", () => ({
+            type: "event",
+            el,
+            name,
+            handler,
+        }));
+    }
 
     removeEvent(el, name, handler);
 }

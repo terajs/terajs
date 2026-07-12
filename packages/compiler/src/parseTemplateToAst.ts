@@ -146,7 +146,7 @@ class ParserContext {
 
       if (t.type === "tagSelfClose") {
         this.next();
-        return this.finalizeElement(tag, props, []);
+        return this.finalizeElementWithDirectives(tag, props, []);
       }
 
       if (t.type === "attrName") {
@@ -171,7 +171,14 @@ class ParserContext {
     // Children
     const children = this.parseChildren(tag);
 
-    // Directives: v-if / v-for
+    return this.finalizeElementWithDirectives(tag, props, children);
+  }
+
+  private finalizeElementWithDirectives(
+    tag: string,
+    props: PropNode[],
+    children: ASTNode[]
+  ): ASTNode {
     const ifDir = props.find((p) => p.kind === "directive" && p.name === "v-if");
     const forDir = props.find((p) => p.kind === "directive" && p.name === "v-for");
 

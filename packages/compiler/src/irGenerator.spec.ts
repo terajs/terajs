@@ -165,6 +165,32 @@ describe("IRModule Generator (integration)", () => {
     });
   });
 
+  it("preserves a self-closing component with v-if in the conditional branch", () => {
+    const sfc: ParsedSFC = {
+      filePath: "/pages/pane.tera",
+      template: `<RouterView v-if="ready" />`,
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
+
+    const ir = generateIRModule(sfc);
+
+    expect(ir.template[0]).toMatchObject({
+      type: "if",
+      condition: "ready",
+      then: [
+        {
+          type: "element",
+          tag: "RouterView",
+          props: [],
+          children: []
+        }
+      ]
+    });
+  });
+
   it("marks fully static element subtrees as static", () => {
     const sfc: ParsedSFC = {
       filePath: "/pages/static.tera",

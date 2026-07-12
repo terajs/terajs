@@ -6,12 +6,15 @@ import {
   getRouteDataResourceKey,
   type RouteDefinition
 } from "@terajs/router";
-import { component, invalidateResources } from "@terajs/runtime";
+import { component, invalidateResources, onMounted, onUnmounted } from "@terajs/runtime";
+import { signal } from "@terajs/reactivity";
 import { Debug } from "@terajs/shared";
 import { Link } from "./link";
 import { mount, unmount } from "./mount";
 import type { RoutePendingProps } from "./routeShell";
+import { renderIRModuleToFragment } from "./renderFromIR";
 import { createRouteView } from "./routerView";
+import { RouterView } from "./routeOutlet";
 import { RoutePending } from "./routeShell";
 import { withRouterContext } from "./routerContext";
 
@@ -44,6 +47,12 @@ describe("createRouteView", () => {
     document.title = "";
   });
 
+  it("throws when RouterView renders outside a routed branch", () => {
+    expect(() => RouterView()).toThrowError(
+      "RouterView must be rendered inside a routed branch managed by createRouteView()."
+    );
+  });
+
   it("renders the current matched page and reacts to navigation", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
@@ -62,6 +71,87 @@ describe("createRouteView", () => {
     await router.navigate("/about");
     await flush();
     expect(root.textContent).toContain("about");
+
+    unmount(root);
+  });
+
+  it("runs mounted hooks for routed page components", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let mountedCalls = 0;
+    const Page = component({ name: "MountedRoutePage" }, () => {
+      onMounted(() => {
+        mountedCalls += 1;
+      });
+
+      return () => document.createTextNode("mounted page");
+    });
+    const router = createRouter(
+      [
+        route({
+          path: "/mounted",
+          component: async () => ({ default: Page })
+        })
+      ],
+      { history: createMemoryHistory("/mounted") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("mounted page");
+    expect(mountedCalls).toBe(1);
+
+    unmount(root);
+  });
+
+  it("runs mounted hooks for layout-wrapped route components", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let pageMountedCalls = 0;
+    let layoutMountedCalls = 0;
+    const Page = component({ name: "LayoutWrappedRoutePage" }, () => {
+      onMounted(() => {
+        pageMountedCalls += 1;
+      });
+
+      return () => document.createTextNode("wrapped page");
+    });
+    const Layout = component({ name: "MountedRouteLayout" }, ({ children }: { children: Node }) => {
+      onMounted(() => {
+        layoutMountedCalls += 1;
+      });
+
+      return () => {
+        const section = document.createElement("section");
+        section.setAttribute("data-layout", "mounted");
+        section.appendChild(children);
+        return section;
+      };
+    });
+    const router = createRouter(
+      [
+        route({
+          path: "/mounted",
+          component: async () => ({ default: Page }),
+          layouts: [
+            {
+              id: "root",
+              filePath: "/pages/layout.tera",
+              component: async () => ({ default: Layout })
+            }
+          ]
+        })
+      ],
+      { history: createMemoryHistory("/mounted") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.querySelector('[data-layout="mounted"]')?.textContent).toContain("wrapped page");
+    expect(pageMountedCalls).toBe(1);
+    expect(layoutMountedCalls).toBe(1);
 
     unmount(root);
   });
@@ -104,6 +194,346 @@ describe("createRouteView", () => {
 
     expect(router.getCurrentRoute()?.fullPath).toBe("/b");
     expect(root.textContent).toContain("route b");
+
+    unmount(root);
+  });
+
+  it("runs mounted hooks after route navigation", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let mountedCalls = 0;
+    const Destination = component({ name: "MountedDestinationPage" }, () => {
+      onMounted(() => {
+        mountedCalls += 1;
+      });
+
+      return () => document.createTextNode("destination");
+    });
+    const router = createRouter(
+      [
+        route({
+          id: "start",
+          path: "/start",
+          component: async () => ({ default: () => document.createTextNode("start") })
+        }),
+        route({
+          id: "destination",
+          path: "/destination",
+          component: async () => ({ default: Destination })
+        })
+      ],
+      { history: createMemoryHistory("/start") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("start");
+
+    await router.navigate("/destination");
+    await flush();
+
+    expect(root.textContent).toContain("destination");
+    expect(mountedCalls).toBe(1);
+
+    unmount(root);
+  });
+
+  it("runs destination mounted hooks after a mounted hook redirects", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let destinationMountedCalls = 0;
+    let loginMountedCalls = 0;
+    let router!: ReturnType<typeof createRouter>;
+    const Login = component({ name: "LoginRedirectPage" }, () => {
+      onMounted(() => {
+        loginMountedCalls += 1;
+        void router.navigate("/migrations");
+      });
+
+      return () => document.createTextNode("login");
+    });
+    const Migrations = component({ name: "MountedMigrationsPage" }, () => {
+      onMounted(() => {
+        destinationMountedCalls += 1;
+      });
+
+      return () => document.createTextNode("migrations");
+    });
+
+    router = createRouter(
+      [
+        route({
+          id: "login",
+          path: "/login",
+          component: async () => ({ default: Login })
+        }),
+        route({
+          id: "migrations",
+          path: "/migrations",
+          component: async () => ({ default: Migrations })
+        })
+      ],
+      { history: createMemoryHistory("/login") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("migrations");
+    expect(loginMountedCalls).toBe(1);
+    expect(destinationMountedCalls).toBe(1);
+
+    unmount(root);
+  });
+
+  it("renders nested child routes inside RouterView without remounting the parent", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let parentMounted = 0;
+    let parentUnmounted = 0;
+    let mappingMounted = 0;
+    let mappingUnmounted = 0;
+    let issuesMounted = 0;
+
+    const Parent = component({ name: "MigrationsPane" }, () => {
+      onMounted(() => {
+        parentMounted += 1;
+      });
+      onUnmounted(() => {
+        parentUnmounted += 1;
+      });
+
+      return () => {
+        const shell = document.createElement("section");
+        shell.setAttribute("data-testid", "migrations-shell");
+        const sidebar = document.createElement("aside");
+        sidebar.textContent = "Migration shell";
+        shell.append(sidebar, RouterView());
+        return shell;
+      };
+    });
+    const Mapping = component({ name: "MappingPane" }, () => {
+      onMounted(() => {
+        mappingMounted += 1;
+      });
+      onUnmounted(() => {
+        mappingUnmounted += 1;
+      });
+
+      return () => document.createTextNode("Mapping child");
+    });
+    const Issues = component({ name: "IssuesPane" }, () => {
+      onMounted(() => {
+        issuesMounted += 1;
+      });
+
+      return () => document.createTextNode("Issues child");
+    });
+    const router = createRouter(
+      [
+        route({
+          id: "migrations",
+          path: "/migrations/:id",
+          filePath: "/pages/migrations/[id].tera",
+          component: async () => ({ default: Parent })
+        }),
+        route({
+          id: "mapping",
+          path: "/migrations/:id/mapping",
+          filePath: "/pages/migrations/[id]/mapping.tera",
+          component: async () => ({ default: Mapping })
+        }),
+        route({
+          id: "issues",
+          path: "/migrations/:id/issues",
+          filePath: "/pages/migrations/[id]/issues.tera",
+          component: async () => ({ default: Issues })
+        })
+      ],
+      { history: createMemoryHistory("/migrations/123/mapping") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    const shell = root.querySelector('[data-testid="migrations-shell"]');
+    expect(shell?.textContent).toContain("Migration shell");
+    expect(shell?.textContent).toContain("Mapping child");
+    expect(parentMounted).toBe(1);
+    expect(mappingMounted).toBe(1);
+
+    await router.navigate("/migrations/123/issues");
+    await flush();
+
+    expect(root.querySelector('[data-testid="migrations-shell"]')).toBe(shell);
+    expect(root.textContent).toContain("Issues child");
+    expect(root.textContent).not.toContain("Mapping child");
+    expect(parentMounted).toBe(1);
+    expect(parentUnmounted).toBe(0);
+    expect(mappingUnmounted).toBe(1);
+    expect(issuesMounted).toBe(1);
+
+    unmount(root);
+  });
+
+  it("allows a conditional nested RouterView to reappear after the parent rerenders", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const showChild = signal(true);
+    let parentMounted = 0;
+    let parentUnmounted = 0;
+    let childMounted = 0;
+    let childUnmounted = 0;
+
+    const Parent = component({ name: "ConditionalOutletParent" }, () => {
+      onMounted(() => {
+        parentMounted += 1;
+      });
+      onUnmounted(() => {
+        parentUnmounted += 1;
+      });
+
+      const ir = {
+        filePath: "/pages/migrations/[id].tera",
+        template: [
+          {
+            type: "element",
+            tag: "section",
+            props: [{ kind: "static", name: "data-testid", value: "conditional-shell" }],
+            children: [
+              {
+                type: "element",
+                tag: "h2",
+                props: [],
+                children: [{ type: "text", value: "Parent shell", flags: {} }],
+                flags: {}
+              },
+              {
+                type: "if",
+                condition: "showChild",
+                then: [{
+                  type: "element",
+                  tag: "RouterView",
+                  props: [],
+                  children: [],
+                  flags: {}
+                }],
+                else: [{
+                  type: "element",
+                  tag: "p",
+                  props: [{ kind: "static", name: "data-testid", value: "base-pane" }],
+                  children: [{ type: "text", value: "Base pane", flags: {} }],
+                  flags: {}
+                }],
+                flags: {}
+              }
+            ],
+            flags: {}
+          }
+        ]
+      };
+      const ctx = {
+        showChild,
+        __components: { RouterView }
+      };
+
+      return () => renderIRModuleToFragment(ir as any, ctx);
+    });
+    const Child = component({ name: "ConditionalOutletChild" }, () => {
+      onMounted(() => {
+        childMounted += 1;
+      });
+      onUnmounted(() => {
+        childUnmounted += 1;
+      });
+
+      return () => document.createTextNode("Child pane");
+    });
+    const router = createRouter(
+      [
+        route({
+          id: "migration",
+          path: "/migrations/:id",
+          filePath: "/pages/migrations/[id].tera",
+          component: async () => ({ default: Parent })
+        }),
+        route({
+          id: "connect",
+          path: "/migrations/:id/connect",
+          filePath: "/pages/migrations/[id]/connect.tera",
+          component: async () => ({ default: Child })
+        })
+      ],
+      { history: createMemoryHistory("/migrations/123/connect") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("Parent shell");
+    expect(root.textContent).toContain("Child pane");
+    expect(parentMounted).toBe(1);
+    expect(childMounted).toBe(1);
+
+    showChild.set(false);
+    await flush();
+
+    expect(root.textContent).toContain("Base pane");
+    expect(root.textContent).not.toContain("Child pane");
+    expect(parentMounted).toBe(1);
+    expect(parentUnmounted).toBe(0);
+    expect(childUnmounted).toBe(1);
+
+    showChild.set(true);
+    await flush();
+
+    expect(root.textContent).toContain("Child pane");
+    expect(parentMounted).toBe(1);
+    expect(parentUnmounted).toBe(0);
+    expect(childMounted).toBe(2);
+
+    unmount(root);
+  });
+
+  it("falls back to leaf rendering when a derived parent route has no RouterView", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let parentMounted = 0;
+    const Parent = component({ name: "FlatParentPage" }, () => {
+      onMounted(() => {
+        parentMounted += 1;
+      });
+
+      return () => document.createTextNode("Parent list");
+    });
+    const Child = component({ name: "FlatChildPage" }, () => {
+      return () => document.createTextNode("Child detail");
+    });
+    const router = createRouter(
+      [
+        route({
+          id: "parent",
+          path: "/items",
+          filePath: "/pages/items/index.tera",
+          component: async () => ({ default: Parent })
+        }),
+        route({
+          id: "child",
+          path: "/items/:id",
+          filePath: "/pages/items/[id].tera",
+          component: async () => ({ default: Child })
+        })
+      ],
+      { history: createMemoryHistory("/items/42") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("Child detail");
+    expect(root.textContent).not.toContain("Parent list");
+    expect(parentMounted).toBe(0);
 
     unmount(root);
   });
@@ -241,6 +671,7 @@ describe("createRouteView", () => {
           document.createTextNode(data.fromSnapshot ? "snapshot" : "loader"),
         { meta: { title: "Docs" } }
       ),
+      branch: [],
       layouts: [],
       resolved: {
         meta: { title: "Docs" },

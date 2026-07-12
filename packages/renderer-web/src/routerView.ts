@@ -8,6 +8,16 @@ import { withErrorBoundary } from "./errorBoundary.js";
 import { readHydrationPayload } from "./hydrate.js";
 import { mount, unmount } from "./mount.js";
 import { renderComponent, type FrameworkComponent } from "./render.js";
+import {
+  bindRouteOutletRenderContext,
+  createRouteOutletController,
+  getLeafRenderKey,
+  getLoadedBranch,
+  getLoadedRenderKey,
+  type RouteOutletController,
+  type RouteOutletRenderContext,
+  withRouteOutletRenderContext
+} from "./routeOutlet.js";
 import { withRouterContext } from "./routerContext.js";
 
 export interface RouteRenderContext<TData = unknown> {
@@ -54,6 +64,8 @@ function applyResolvedRouteMetadata(loaded: LoadedRouteMatch<unknown>): void {
   updateHead(loaded.resolved.meta, loaded.resolved.ai, loaded.match.pathname);
 }
 
+type RouteRenderMode = "leaf" | "nested";
+
 function composeLoadedMatch<TData>(
   router: Router,
   loaded: LoadedRouteMatch<TData>
@@ -90,8 +102,74 @@ function composeLoadedMatch<TData>(
   return current;
 }
 
-function renderRouteComponent(component: FrameworkComponent, props: Record<string, unknown>): Node {
+function composeLoadedBranchRoot<TData>(
+  router: Router,
+  loaded: LoadedRouteMatch<TData>,
+  controller: RouteOutletController<TData>,
+  outletsUsed: Set<number>
+): FrameworkComponent {
+  const rootEntry = getLoadedBranch(loaded)[0];
+
+  let current: FrameworkComponent = () =>
+    renderLoadedBranchComponent(router, loaded, 0, controller, outletsUsed);
+
+  for (let index = loaded.layouts.length - 1; index >= 0; index -= 1) {
+    const layout = loaded.layouts[index];
+    const layoutComponent = resolveFrameworkComponent(layout.component, layout.definition.filePath);
+    const child = current;
+
+    current = () =>
+      renderRouteComponent(layoutComponent, {
+        router,
+        route: rootEntry.match,
+        params: rootEntry.match.params,
+        query: rootEntry.match.query,
+        hash: rootEntry.match.hash,
+        data: undefined,
+        children: child()
+      });
+  }
+
+  return current;
+}
+
+function renderLoadedBranchComponent<TData>(
+  router: Router,
+  loaded: LoadedRouteMatch<TData>,
+  depth: number,
+  controller: RouteOutletController<TData>,
+  outletsUsed: Set<number>
+): Node {
+  const branch = getLoadedBranch(loaded);
+  const entry = branch[depth];
+  if (!entry) {
+    return document.createTextNode("");
+  }
+
+  const component = resolveFrameworkComponent(entry.component, entry.match.route.filePath);
+  const outletContext = { controller, depth, outletsUsed };
+  return withRouteOutletRenderContext(outletContext, () =>
+    renderRouteComponent(component, {
+      router,
+      route: entry.match,
+      params: entry.match.params,
+      query: entry.match.query,
+      hash: entry.match.hash,
+      data: depth === branch.length - 1 ? loaded.data : undefined
+    }, outletContext)
+  );
+}
+
+function renderRouteComponent(
+  component: FrameworkComponent,
+  props: Record<string, unknown>,
+  outletContext?: RouteOutletRenderContext
+): Node {
   const rendered = renderComponent(component, props);
+  if (outletContext) {
+    bindRouteOutletRenderContext(rendered.ctx, outletContext);
+  }
+
   rendered.ctx.route = {
     router: props.router,
     route: props.route,
@@ -219,6 +297,31 @@ function maybeWrapLoadedMatch<TData>(
   });
 }
 
+function maybeWrapLoadedBranchRoot<TData>(
+  router: Router,
+  loaded: LoadedRouteMatch<TData>,
+  options: RouteViewOptions<TData>,
+  controller: RouteOutletController<TData>,
+  outletsUsed: Set<number>
+): FrameworkComponent {
+  const composed = composeLoadedBranchRoot(router, loaded, controller, outletsUsed);
+  const routed: FrameworkComponent = () => withRouterContext(router, () => composed());
+
+  if (!options.componentError) {
+    return routed;
+  }
+
+  return withErrorBoundary(routed, {
+    fallback: ({ error, retry }) => options.componentError!({
+      router,
+      match: loaded.match,
+      loaded,
+      error,
+      retry
+    })
+  });
+}
+
 export function createRouteView<TData = unknown>(
   router: Router,
   options: RouteViewOptions<TData> = {}
@@ -238,6 +341,14 @@ export function createRouteView<TData = unknown>(
     let currentAbort: AbortController | null = null;
     let currentRouteInvalidationCleanup: (() => void) | null = null;
     let lastRenderedMatch: RouteMatch | null = router.getCurrentRoute();
+    let activeRenderKey: string | null = null;
+    let activeRenderMode: RouteRenderMode | null = null;
+    let outletController!: RouteOutletController<TData>;
+    outletController = createRouteOutletController<TData>(
+      router,
+      (loaded, depth, outletsUsed) =>
+        renderLoadedBranchComponent(router, loaded, depth, outletController, outletsUsed)
+    );
     let hydrationSnapshot = options.hydrationSnapshot ?? readHydrationPayload().routeSnapshot as RouteHydrationSnapshot<TData> | undefined;
 
     const clearRoot = (root: HTMLElement) => {
@@ -329,7 +440,47 @@ export function createRouteView<TData = unknown>(
           }
         );
 
-        mount(maybeWrapLoadedMatch(router, loaded, options), contentHost);
+        const nestedRootKey = getLoadedBranch(loaded).length > 1
+          ? getLoadedRenderKey(loaded, 0)
+          : null;
+
+        if (nestedRootKey && activeRenderMode === "nested" && activeRenderKey === nestedRootKey) {
+          outletController.setLoaded(loaded);
+          lastRenderedMatch = loaded.match;
+          return;
+        }
+
+        if (!nestedRootKey) {
+          outletController.setLoaded(loaded);
+          activeRenderMode = "leaf";
+          activeRenderKey = getLeafRenderKey(loaded);
+          mount(maybeWrapLoadedMatch(router, loaded, options), contentHost);
+          lastRenderedMatch = loaded.match;
+          return;
+        }
+
+        const outletsUsed = new Set<number>();
+        if (activeRenderMode === "nested") {
+          clearRoot(contentHost);
+        }
+
+        outletController.setLoaded(loaded);
+        mount(
+          maybeWrapLoadedBranchRoot(router, loaded, options, outletController, outletsUsed),
+          contentHost
+        );
+
+        if (!outletsUsed.has(0)) {
+          clearRoot(contentHost);
+          activeRenderMode = "leaf";
+          activeRenderKey = getLeafRenderKey(loaded);
+          mount(maybeWrapLoadedMatch(router, loaded, options), contentHost);
+          lastRenderedMatch = loaded.match;
+          return;
+        }
+
+        activeRenderMode = "nested";
+        activeRenderKey = nestedRootKey;
         lastRenderedMatch = loaded.match;
       } catch (error) {
         if (currentAbort.signal.aborted) {
@@ -381,6 +532,8 @@ export function createRouteView<TData = unknown>(
       currentAbort?.abort();
       currentRouteInvalidationCleanup?.();
       unsubscribe();
+      activeRenderKey = null;
+      activeRenderMode = null;
       clearRoot(contentHost);
       clearRoot(pendingHost);
       host.innerHTML = "";

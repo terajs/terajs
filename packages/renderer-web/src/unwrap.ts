@@ -13,7 +13,7 @@
  * concrete values, not reactive wrappers.
  */
 
-import { emitRendererDebug } from "./debug.js";
+import { emitRendererDebug, rendererDebugEnabled } from "./debug.js";
 
 /**
  * Normalizes a value by resolving signals, refs, or accessors.
@@ -26,10 +26,12 @@ export function unwrap(value: any): any {
     if (value && typeof value === "object" && "_sig" in value) {
         const out = value._sig();
 
-        emitRendererDebug("unwrap:ref", () => ({
-            input: value,
-            output: out
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("unwrap:ref", () => ({
+                input: value,
+                output: out
+            }));
+        }
 
         return out;
     }
@@ -38,10 +40,12 @@ export function unwrap(value: any): any {
     if (typeof value === "function" && "_dep" in value && "_value" in value) {
         const out = value();
 
-        emitRendererDebug("unwrap:signal", () => ({
-            input: value,
-            output: out
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("unwrap:signal", () => ({
+                input: value,
+                output: out
+            }));
+        }
 
         return out;
     }
@@ -50,19 +54,23 @@ export function unwrap(value: any): any {
     if (typeof value === "function") {
         const out = value();
 
-        emitRendererDebug("unwrap:accessor", () => ({
-            input: value,
-            output: out
-        }));
+        if (rendererDebugEnabled) {
+            emitRendererDebug("unwrap:accessor", () => ({
+                input: value,
+                output: out
+            }));
+        }
 
         return out;
     }
 
     // Raw value
-    emitRendererDebug("unwrap:raw", () => ({
-        input: value,
-        output: value
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("unwrap:raw", () => ({
+            input: value,
+            output: value
+        }));
+    }
 
     return value;
 }

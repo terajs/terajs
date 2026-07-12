@@ -635,6 +635,56 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain('prerender: false');
   });
 
+  it("serializes config-defined child routes in the virtual route module", async () => {
+    const configModule = await import("./config");
+    const migrationListFile = path.resolve(process.cwd(), "src/routes/migrations/index.tera");
+    const migrationShellFile = path.resolve(process.cwd(), "src/routes/migrations/[id]/index.tera");
+    const migrationConnectFile = path.resolve(process.cwd(), "src/routes/migrations/[id]/connect.tera");
+
+    const configuredRoutesSpy = vi.spyOn(configModule, "getConfiguredRoutes").mockReturnValue([
+      {
+        filePath: migrationListFile,
+        path: "/migrations"
+      },
+      {
+        filePath: migrationShellFile,
+        path: "/migrations/:id",
+        children: [
+          {
+            filePath: migrationConnectFile,
+            path: "connect"
+          }
+        ]
+      }
+    ] as any);
+
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(() => false);
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      const value = String(input).replace(/\\/g, "/");
+      if (value.endsWith("src/routes/migrations/index.tera")) return "<template><MigrationQueue /></template>";
+      if (value.endsWith("src/routes/migrations/[id]/index.tera")) return "<template><MigrationShell><RouterView /></MigrationShell></template>";
+      if (value.endsWith("src/routes/migrations/[id]/connect.tera")) return "<template><MigrationConnect /></template>";
+      return "<template />";
+    });
+
+    try {
+      const plugin = terajsPlugin();
+      const load = requireHook<[string], unknown>(plugin.load);
+      const code = readGeneratedModuleCode(load("\0virtual:terajs-routes"));
+
+      expect(typeof code).toBe("string");
+      expect(code).toContain('path: "/migrations"');
+      expect(code).toContain('path: "/migrations/:id"');
+      expect(code).toContain("children: [");
+      expect(code).toContain('path: "connect"');
+      expect(code).not.toContain('path: "/migrations/:id/connect"');
+    } finally {
+      configuredRoutesSpy.mockRestore();
+      existsSpy.mockRestore();
+      readSpy.mockRestore();
+    }
+  });
+
   it("generates middleware imports and global middleware list in virtual app module", async () => {
     const configModule = await import("./config");
     const middlewareDir = path.resolve(process.cwd(), "src/middleware");

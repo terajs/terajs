@@ -46,6 +46,7 @@ export interface RouteConfigInput {
   prerender?: boolean;
   hydrate?: string;
   edge?: boolean;
+  children?: RouteConfigInput[];
 }
 
 function createNode(name: string): RouteNode {
@@ -145,6 +146,16 @@ function createRouteFilePath(filePath: string): string {
   return normalized;
 }
 
+function inferPathFromFile(filePath: string): string {
+  const routeSource = stripRouteRoot(normalizeFilePath(filePath));
+  const segments = stripExtension(routeSource)
+    .split("/")
+    .map(segmentToPath)
+    .filter((segment) => segment !== "");
+
+  return segments.length === 0 ? "/" : `/${segments.join("/")}`;
+}
+
 function normalizeConfigFilePath(filePath: string): string {
   const normalized = normalizeFilePath(path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath));
   return normalized;
@@ -179,12 +190,94 @@ function getAssetPath(filePath: string, manifest?: Record<string, any>): string 
   return undefined;
 }
 
+function collectRouteConfigs(
+  routeConfigs: RouteConfigInput[],
+  visitor: (routeConfig: RouteConfigInput, parent: RouteConfigInput | null) => void,
+  parent: RouteConfigInput | null = null
+): void {
+  for (const routeConfig of routeConfigs) {
+    visitor(routeConfig, parent);
+    collectRouteConfigs(routeConfig.children ?? [], visitor, routeConfig);
+  }
+}
+
+function serializeRouteObject(
+  filePath: string,
+  routePath: string,
+  layoutImport: string | undefined,
+  override: RouteConfigInput | undefined,
+  manifest: Record<string, any> | undefined,
+  children: string[] = []
+): string {
+  const route: Record<string, string> = {
+    path: routePath,
+    filePath: createRouteFilePath(filePath),
+    component: `import(${JSON.stringify(createImportPath(filePath))})`
+  };
+
+  const assetPath = getAssetPath(filePath, manifest);
+  if (assetPath) {
+    route.asset = JSON.stringify(assetPath);
+  }
+
+  if (override?.layout) {
+    route.layout = JSON.stringify(override.layout);
+  } else if (layoutImport) {
+    route.layout = `import(${JSON.stringify(layoutImport)})`;
+  }
+
+  if (override?.middleware) {
+    route.middleware = JSON.stringify(
+      Array.isArray(override.middleware) ? override.middleware : [override.middleware]
+    );
+  }
+  if (override?.prerender !== undefined) {
+    route.prerender = JSON.stringify(override.prerender);
+  }
+  if (override?.hydrate !== undefined) {
+    route.hydrate = JSON.stringify(override.hydrate);
+  }
+  if (override?.edge !== undefined) {
+    route.edge = JSON.stringify(override.edge);
+  }
+
+  return `{
+        path: ${JSON.stringify(route.path)},
+        filePath: ${JSON.stringify(route.filePath)},
+        component: ${route.component}${route.layout ? `,
+        layout: ${route.layout}` : ""}${route.asset ? `,
+        asset: ${route.asset}` : ""}${route.middleware ? `,
+        middleware: ${route.middleware}` : ""}${route.prerender ? `,
+        prerender: ${route.prerender}` : ""}${route.hydrate ? `,
+        hydrate: ${route.hydrate}` : ""}${route.edge ? `,
+        edge: ${route.edge}` : ""}${children.length > 0 ? `,
+        children: [
+${children.join(",\n")}
+        ]` : ""}
+      }`;
+}
+
+function generateConfiguredRouteEntry(
+  routeConfig: RouteConfigInput,
+  manifest?: Record<string, any>
+): string {
+  return serializeRouteObject(
+    routeConfig.filePath,
+    routeConfig.path ?? inferPathFromFile(routeConfig.filePath),
+    undefined,
+    routeConfig,
+    manifest,
+    routeConfig.children?.map((child) => generateConfiguredRouteEntry(child, manifest)) ?? []
+  );
+}
+
 function generateRoutesFromNode(
   node: RouteNode,
   ancestors: RouteNode[] = [],
   inheritedLayout?: string,
   manifest?: Record<string, any>,
-  routeConfigMap: Map<string, RouteConfigInput> = new Map()
+  routeConfigMap: Map<string, RouteConfigInput> = new Map(),
+  nestedRouteConfigFiles: Set<string> = new Set()
 ): string[] {
   const entries: string[] = [];
   let routePath = buildPathFromNode(ancestors, node);
@@ -195,52 +288,15 @@ function generateRoutesFromNode(
     routePath = override.path;
   }
 
-  if (node.routeFile) {
-    const route: Record<string, string> = {
-      path: routePath,
-      filePath: createRouteFilePath(node.routeFile),
-      component: `import(${JSON.stringify(createImportPath(node.routeFile))})`
-    };
-
-    const assetPath = getAssetPath(node.routeFile, manifest);
-    if (assetPath) {
-      route.asset = JSON.stringify(assetPath);
-    }
-
-    if (override?.layout) {
-      route.layout = JSON.stringify(override.layout);
-    } else if (layoutImport) {
-      route.layout = `import(${JSON.stringify(layoutImport)})`;
-    }
-
-    if (override?.middleware) {
-      route.middleware = JSON.stringify(
-        Array.isArray(override.middleware) ? override.middleware : [override.middleware]
-      );
-    }
-    if (override?.prerender !== undefined) {
-      route.prerender = JSON.stringify(override.prerender);
-    }
-    if (override?.hydrate !== undefined) {
-      route.hydrate = JSON.stringify(override.hydrate);
-    }
-    if (override?.edge !== undefined) {
-      route.edge = JSON.stringify(override.edge);
-    }
-
-    entries.push(
-      `{
-        path: ${JSON.stringify(route.path)},
-        filePath: ${JSON.stringify(route.filePath)},
-        component: ${route.component}${route.layout ? `,
-        layout: ${route.layout}` : ""}${route.asset ? `,
-        asset: ${route.asset}` : ""}${route.middleware ? `,
-        middleware: ${route.middleware}` : ""}${route.prerender ? `,
-        prerender: ${route.prerender}` : ""}${route.hydrate ? `,
-        hydrate: ${route.hydrate}` : ""}${route.edge ? `,
-        edge: ${route.edge}` : ""}
-      }`
-    );
+  if (node.routeFile && !nestedRouteConfigFiles.has(normalizeConfigFilePath(node.routeFile))) {
+    entries.push(serializeRouteObject(
+      node.routeFile,
+      routePath,
+      layoutImport,
+      override,
+      manifest,
+      override?.children?.map((child) => generateConfiguredRouteEntry(child, manifest)) ?? []
+    ));
   }
 
   const children = Array.from(node.children.values()).sort((a, b) => {
@@ -250,7 +306,14 @@ function generateRoutesFromNode(
   });
 
   for (const child of children) {
-    entries.push(...generateRoutesFromNode(child, [...ancestors, node], layoutImport, manifest, routeConfigMap));
+    entries.push(...generateRoutesFromNode(
+      child,
+      [...ancestors, node],
+      layoutImport,
+      manifest,
+      routeConfigMap,
+      nestedRouteConfigFiles
+    ));
   }
 
   return entries;
@@ -267,12 +330,16 @@ export function generateRouteConfigWithAssets(
 ): string {
   const tree = buildRouteTree(files);
   const configMap = new Map<string, RouteConfigInput>();
+  const nestedRouteConfigFiles = new Set<string>();
 
-  for (const routeConfig of routeConfigs) {
+  collectRouteConfigs(routeConfigs, (routeConfig, parent) => {
     configMap.set(normalizeConfigFilePath(routeConfig.filePath), routeConfig);
-  }
+    if (parent) {
+      nestedRouteConfigFiles.add(normalizeConfigFilePath(routeConfig.filePath));
+    }
+  });
 
-  const routeEntries = generateRoutesFromNode(tree, [], undefined, manifest, configMap);
+  const routeEntries = generateRoutesFromNode(tree, [], undefined, manifest, configMap, nestedRouteConfigFiles);
 
   return `export const routes = [\n${routeEntries.join(",\n")}\n];\n`;
 }

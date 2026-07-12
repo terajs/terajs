@@ -148,6 +148,49 @@ describe("parseTemplateToAst", () => {
     ])
   })
 
+  it("parses v-if on self-closing component tags into IfNode", () => {
+    const ast = parseTemplateToAst(`<RouterView v-if="ready" />`)
+
+    expect(ast).toEqual([
+      {
+        type: "if",
+        condition: "ready",
+        then: [
+          {
+            type: "element",
+            tag: "RouterView",
+            props: [],
+            children: []
+          }
+        ]
+      }
+    ])
+  })
+
+  it("parses v-for on self-closing component tags into ForNode", () => {
+    const ast = parseTemplateToAst(`<ItemCard v-for="item in items" :item="item" />`)
+
+    expect(ast).toEqual([
+      {
+        type: "for",
+        each: "items",
+        item: "item",
+        isStructural: true,
+        index: undefined,
+        body: [
+          {
+            type: "element",
+            tag: "ItemCard",
+            props: [
+              { name: "item", value: "item", kind: "bind" }
+            ],
+            children: []
+          }
+        ]
+      }
+    ])
+  })
+
   it("parses v-if with else", () => {
     const ast = parseTemplateToAst(`<div v-if="ok">Yes</div><div v-else>No</div>`)
 

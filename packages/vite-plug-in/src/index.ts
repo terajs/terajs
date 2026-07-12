@@ -162,6 +162,23 @@ function readTeraFilesRecursively(dir: string): string[] {
   return files;
 }
 
+function collectConfiguredRouteFiles(routes: ReturnType<typeof getConfiguredRoutes>): string[] {
+  const files: string[] = [];
+
+  const visit = (route: ReturnType<typeof getConfiguredRoutes>[number]) => {
+    files.push(route.filePath);
+    for (const child of route.children ?? []) {
+      visit(child);
+    }
+  };
+
+  for (const route of routes) {
+    visit(route);
+  }
+
+  return files;
+}
+
 interface MiddlewareModuleEntry {
   key: string;
   global: boolean;
@@ -366,7 +383,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
         return readTeraFilesRecursively(dir);
       }),
-      ...configuredRoutes.map((route) => route.filePath)
+      ...collectConfiguredRouteFiles(configuredRoutes)
     ])).sort();
     return generateRoutesModuleSource({
       routeFiles,
@@ -565,10 +582,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  return routeList.map((route) => {`,
       `    const routeMiddleware = Array.isArray(route.middleware) ? route.middleware : [];`,
       `    const merged = Array.from(new Set([...GLOBAL_MIDDLEWARE, ...routeMiddleware]));`,
-      `    if (merged.length === routeMiddleware.length && merged.every((value, index) => value === routeMiddleware[index])) {`,
+      `    const children = Array.isArray(route.children) ? applyGlobalMiddleware(route.children) : route.children;`,
+      `    const middlewareUnchanged = merged.length === routeMiddleware.length && merged.every((value, index) => value === routeMiddleware[index]);`,
+      `    const childrenUnchanged = children === route.children;`,
+      `    if (middlewareUnchanged && childrenUnchanged) {`,
       `      return route;`,
       `    }`,
-      `    return { ...route, middleware: merged };`,
+      `    return { ...route, middleware: merged, children };`,
       `  });`,
       `}`,
       `function normalizeMountTargetId(value) {`,

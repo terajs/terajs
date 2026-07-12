@@ -107,6 +107,18 @@ export function renderRouterPanel(state: RouterStateLike): string {
   const routeQueryMarkup = snapshot.query === undefined
     ? `<div class="empty-state">No query values captured for the latest route event.</div>`
     : `<div class="devtools-value-surface">${renderValueExplorer(snapshot.query, "router.snapshot.query", state.expandedValuePaths)}</div>`;
+  const routeBranchMarkup = snapshot.branch === undefined
+    ? `<div class="empty-state">No branch captured for the latest route event.</div>`
+    : `<div class="devtools-value-surface">${renderValueExplorer(snapshot.branch, "router.snapshot.branch", state.expandedValuePaths)}</div>`;
+  const routeMetaMarkup = snapshot.meta === undefined
+    ? `<div class="empty-state">No resolved meta captured for the latest route event.</div>`
+    : `<div class="devtools-value-surface">${renderValueExplorer(snapshot.meta, "router.snapshot.meta", state.expandedValuePaths)}</div>`;
+  const routeAiMarkup = snapshot.ai === undefined
+    ? `<div class="empty-state">No AI metadata captured for the latest route event.</div>`
+    : `<div class="devtools-value-surface">${renderValueExplorer(snapshot.ai, "router.snapshot.ai", state.expandedValuePaths)}</div>`;
+  const routeDefinitionMarkup = snapshot.route === undefined
+    ? `<div class="empty-state">No route definition metadata captured for the latest route event.</div>`
+    : `<div class="devtools-value-surface">${renderValueExplorer(snapshot.route, "router.snapshot.route", state.expandedValuePaths)}</div>`;
   const routeLead = metrics.mostActiveRoute
     ? `Most route activity is concentrated on ${metrics.mostActiveRoute}. Compare the latest snapshot against the recent route feed before chasing downstream UI symptoms.`
     : "No single route dominates the current window yet. Use the latest snapshot, issues, and timeline together to understand the active navigation state.";
@@ -154,6 +166,22 @@ export function renderRouterPanel(state: RouterStateLike): string {
           <div class="structured-value-section">
             <div class="structured-value-section-title">Route query</div>
             ${routeQueryMarkup}
+          </div>
+          <div class="structured-value-section">
+            <div class="structured-value-section-title">Route branch</div>
+            ${routeBranchMarkup}
+          </div>
+          <div class="structured-value-section">
+            <div class="structured-value-section-title">Resolved route meta</div>
+            ${routeMetaMarkup}
+          </div>
+          <div class="structured-value-section">
+            <div class="structured-value-section-title">Route AI metadata</div>
+            ${routeAiMarkup}
+          </div>
+          <div class="structured-value-section">
+            <div class="structured-value-section-title">Resolved route definition</div>
+            ${routeDefinitionMarkup}
           </div>
         </div>
       `

@@ -18,7 +18,7 @@ function extractBlockWithAttributes(
   tag: string
 ): { attrs: string; content: string } | null {
   const regex = new RegExp(
-    `<${tag}([^>]*)>([\\s\\S]*?)</${tag}>`,
+    `<${tag}(?=\\s|>)([^>]*)>([\\s\\S]*?)</${tag}\\s*>`,
     "i"
   );
 

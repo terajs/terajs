@@ -27,6 +27,7 @@ interface GeneratedRouteEntry {
   ai?: Record<string, unknown>;
   override: GeneratedRouteConfigOverride | null;
   layouts: GeneratedRouteLayoutEntry[];
+  children: GeneratedRouteEntry[];
 }
 
 interface GenerateRoutesModuleSourceOptions {
@@ -110,6 +111,17 @@ function mergeRouteConfigOverride(
     : null;
 }
 
+function collectRouteConfigs(
+  routeConfigs: RouteConfigInput[],
+  visitor: (routeConfig: RouteConfigInput, parent: RouteConfigInput | null) => void,
+  parent: RouteConfigInput | null = null
+): void {
+  for (const routeConfig of routeConfigs) {
+    visitor(routeConfig, parent);
+    collectRouteConfigs(routeConfig.children ?? [], visitor, routeConfig);
+  }
+}
+
 function resolveGeneratedRouteLayouts(
   pageFilePath: string,
   layoutsByDirectory: Map<string, GeneratedRouteLayoutEntry>,
@@ -135,6 +147,13 @@ function createGeneratedRouteEntries(
   configuredRouteMap: Map<string, RouteConfigInput>
 ): GeneratedRouteEntry[] {
   const layoutsByDirectory = new Map<string, GeneratedRouteLayoutEntry>();
+  const nestedConfiguredRouteFiles = new Set<string>();
+
+  collectRouteConfigs(options.configuredRoutes, (routeConfig, parent) => {
+    if (parent) {
+      nestedConfiguredRouteFiles.add(options.normalizePath(routeConfig.filePath));
+    }
+  });
 
   for (const filePath of options.routeFiles) {
     if (isLayoutRouteFile(filePath, options.normalizePath)) {
@@ -149,16 +168,12 @@ function createGeneratedRouteEntries(
 
   const pageEntries: GeneratedRouteEntry[] = [];
 
-  for (const filePath of options.routeFiles) {
-    if (isLayoutRouteFile(filePath, options.normalizePath)) {
-      continue;
-    }
-
+  const createRouteEntry = (filePath: string, routeConfig?: RouteConfigInput): GeneratedRouteEntry => {
     const importPath = options.toProjectImportPath(filePath);
     const parsedSfc = parseSFC(fs.readFileSync(filePath, "utf8"), importPath);
     const override = mergeRouteConfigOverride(
       parsedSfc.routeOverride,
-      configuredRouteMap.get(options.normalizePath(filePath))
+      routeConfig
     );
     const routeShape = buildRouteFromSFC({
       ...parsedSfc,
@@ -166,63 +181,86 @@ function createGeneratedRouteEntries(
       routeOverride: override
     });
 
-    pageEntries.push({
+    return {
       filePath: importPath,
       importPath,
       assetPath: options.getManifestAssetPath(filePath, options.manifest),
       meta: routeShape.meta,
       ai: routeShape.ai,
       override,
-      layouts: resolveGeneratedRouteLayouts(filePath, layoutsByDirectory, options.normalizePath)
-    });
+      layouts: resolveGeneratedRouteLayouts(filePath, layoutsByDirectory, options.normalizePath),
+      children: routeConfig?.children?.map((child) => createRouteEntry(child.filePath, child)) ?? []
+    };
+  };
+
+  for (const filePath of options.routeFiles) {
+    if (isLayoutRouteFile(filePath, options.normalizePath)) {
+      continue;
+    }
+    if (nestedConfiguredRouteFiles.has(options.normalizePath(filePath))) {
+      continue;
+    }
+
+    pageEntries.push(createRouteEntry(filePath, configuredRouteMap.get(options.normalizePath(filePath))));
   }
 
   return pageEntries;
 }
 
 function serializeGeneratedRouteEntries(routeEntries: GeneratedRouteEntry[]): string {
+  const serializeRouteEntry = (entry: GeneratedRouteEntry, indent = "  "): string => {
+    const route = buildRouteFromSFC({
+      filePath: entry.filePath,
+      template: "",
+      script: "",
+      style: null,
+      meta: entry.meta,
+      ai: entry.ai,
+      routeOverride: entry.override
+    });
+
+    const propertyIndent = `${indent}  `;
+    const nestedIndent = `${indent}    `;
+    const routeLines = [
+      `${indent}{`,
+      `${propertyIndent}id: ${JSON.stringify(route.id)},`,
+      `${propertyIndent}path: ${JSON.stringify(route.path)},`,
+      `${propertyIndent}filePath: ${JSON.stringify(route.filePath)},`,
+      `${propertyIndent}component: () => import(${JSON.stringify(entry.importPath)}),`,
+      entry.assetPath ? `${propertyIndent}asset: ${JSON.stringify(entry.assetPath)},` : null,
+      `${propertyIndent}layout: ${route.layout === null ? "null" : JSON.stringify(route.layout)},`,
+      route.mountTarget ? `${propertyIndent}mountTarget: ${JSON.stringify(route.mountTarget)},` : null,
+      `${propertyIndent}middleware: ${JSON.stringify(route.middleware)},`,
+      `${propertyIndent}prerender: ${JSON.stringify(route.prerender)},`,
+      `${propertyIndent}hydrate: ${JSON.stringify(route.hydrate)},`,
+      `${propertyIndent}edge: ${JSON.stringify(route.edge)},`,
+      `${propertyIndent}meta: ${JSON.stringify(route.meta)},`,
+      route.ai ? `${propertyIndent}ai: ${JSON.stringify(route.ai)},` : null,
+      `${propertyIndent}layouts: [`,
+      entry.layouts.map((layout) => [
+        `${nestedIndent}{`,
+        `${nestedIndent}  id: ${JSON.stringify(layout.id)},`,
+        `${nestedIndent}  filePath: ${JSON.stringify(layout.filePath)},`,
+        `${nestedIndent}  component: () => import(${JSON.stringify(layout.importPath)})`,
+        `${nestedIndent}}`
+      ].join("\n")).join(",\n"),
+      `${propertyIndent}]${entry.children.length > 0 ? "," : ""}`,
+      entry.children.length > 0
+        ? [
+          `${propertyIndent}children: [`,
+          entry.children.map((child) => serializeRouteEntry(child, `${propertyIndent}  `)).join(",\n"),
+          `${propertyIndent}]`
+        ].join("\n")
+        : null,
+      `${indent}}`
+    ].filter((line): line is string => line !== null);
+
+    return routeLines.join("\n");
+  };
+
   return [
     "const routes = [",
-    routeEntries.map((entry) => {
-      const route = buildRouteFromSFC({
-        filePath: entry.filePath,
-        template: "",
-        script: "",
-        style: null,
-        meta: entry.meta,
-        ai: entry.ai,
-        routeOverride: entry.override
-      });
-
-      const routeLines = [
-        "  {",
-        `    id: ${JSON.stringify(route.id)},`,
-        `    path: ${JSON.stringify(route.path)},`,
-        `    filePath: ${JSON.stringify(route.filePath)},`,
-        `    component: () => import(${JSON.stringify(entry.importPath)}),`,
-        entry.assetPath ? `    asset: ${JSON.stringify(entry.assetPath)},` : null,
-        `    layout: ${route.layout === null ? "null" : JSON.stringify(route.layout)},`,
-        route.mountTarget ? `    mountTarget: ${JSON.stringify(route.mountTarget)},` : null,
-        `    middleware: ${JSON.stringify(route.middleware)},`,
-        `    prerender: ${JSON.stringify(route.prerender)},`,
-        `    hydrate: ${JSON.stringify(route.hydrate)},`,
-        `    edge: ${JSON.stringify(route.edge)},`,
-        `    meta: ${JSON.stringify(route.meta)},`,
-        route.ai ? `    ai: ${JSON.stringify(route.ai)},` : null,
-        "    layouts: [",
-        entry.layouts.map((layout) => [
-          "      {",
-          `        id: ${JSON.stringify(layout.id)},`,
-          `        filePath: ${JSON.stringify(layout.filePath)},`,
-          `        component: () => import(${JSON.stringify(layout.importPath)})`,
-          "      }"
-        ].join("\n")).join(",\n"),
-        "    ]",
-        "  }"
-      ].filter((line): line is string => line !== null);
-
-      return routeLines.join("\n");
-    }).join(",\n"),
+    routeEntries.map((entry) => serializeRouteEntry(entry)).join(",\n"),
     "];",
     "export { routes };",
     "export default routes;"
@@ -230,9 +268,10 @@ function serializeGeneratedRouteEntries(routeEntries: GeneratedRouteEntry[]): st
 }
 
 export function generateRoutesModuleSource(options: GenerateRoutesModuleSourceOptions): string {
-  const configuredRouteMap = new Map(
-    options.configuredRoutes.map((route) => [options.normalizePath(route.filePath), route])
-  );
+  const configuredRouteMap = new Map<string, RouteConfigInput>();
+  collectRouteConfigs(options.configuredRoutes, (route) => {
+    configuredRouteMap.set(options.normalizePath(route.filePath), route);
+  });
   const routeEntries = createGeneratedRouteEntries(options, configuredRouteMap);
   return serializeGeneratedRouteEntries(routeEntries);
 }

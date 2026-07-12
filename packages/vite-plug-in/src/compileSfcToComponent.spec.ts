@@ -30,7 +30,13 @@ vi.mock("@terajs/sfc", async () => {
       importedBindings: ["HeroSection"],
       hasAsyncResource: false
     })),
-    compileTemplateFromSFC: vi.fn(() => ({ meta: {}, ai: {}, route: null }))
+    compileTemplateFromSFC: vi.fn(() => ({
+      filePath: "/components/Test.tera",
+      template: [],
+      meta: {},
+      ai: {},
+      route: null
+    }))
   };
 });
 
@@ -49,11 +55,13 @@ describe("compileSfcToComponent", () => {
     const out = compileSfcToComponent(sfc as any);
 
     expect(compileScript).toHaveBeenCalledWith("export function setup() {}");
-    expect(out).toContain('import { component, applyHMRUpdate, renderIRModuleToFragment, Link } from "@terajs/app";');
+    expect(out).toContain('import { component, applyHMRUpdate, renderIRModuleToFragment, Link, RouterView } from "@terajs/app";');
     expect(out).toContain("const slots = normalizeSlots(props);");
     expect(out).toContain("__ssfc({ props: componentProps, slots, emit })");
     expect(out).toContain("__components: createComponentRegistry(ctx)");
     expect(out).toContain("Link,");
+    expect(out).toContain("RouterView,");
+    expect(out).toContain('"router-view": RouterView');
     expect(out).toContain('"HeroSection": typeof HeroSection !== "undefined" ? HeroSection : undefined');
     expect(out).toContain('...pickBindings(["LocalCard"], ctx)');
     expect(out).toContain("import.meta.hot.accept");
@@ -102,8 +110,41 @@ describe("compileSfcToComponent", () => {
     expect(out).not.toContain("TerajsAutoImports");
   });
 
+  it("normalizes lowercase router-view aliases to the built-in RouterView component tag", () => {
+    vi.mocked(compileTemplateFromSFC).mockReturnValueOnce({
+      filePath: "/components/Pane.tera",
+      template: [
+        {
+          type: "element",
+          tag: "router-view",
+          props: [],
+          children: [],
+          flags: { hasDirectives: false }
+        }
+      ],
+      meta: {},
+      ai: {},
+      route: null
+    } as any);
+
+    const out = compileSfcToComponent({
+      filePath: "/components/Pane.tera",
+      template: "<router-view />",
+      script: "",
+      style: null,
+      meta: {},
+      ai: {},
+      routeOverride: null
+    } as any);
+
+    expect(out).toContain('"tag": "RouterView"');
+    expect(out).not.toContain('"tag": "router-view"');
+  });
+
   it("compiles and registers SFC style blocks with HMR cleanup", () => {
     vi.mocked(compileTemplateFromSFC).mockReturnValueOnce({
+      filePath: "/components/Styled.tera",
+      template: [],
       meta: {},
       ai: {},
       route: null,
@@ -127,7 +168,7 @@ describe("compileSfcToComponent", () => {
 
     expect(compileStyle).toHaveBeenCalledWith(sfc, "tera-card");
     expect(out).toContain(
-      'import { component, applyHMRUpdate, renderIRModuleToFragment, Link, registerStyle, unregisterStyle } from "@terajs/app";'
+      'import { component, applyHMRUpdate, renderIRModuleToFragment, Link, RouterView, registerStyle, unregisterStyle } from "@terajs/app";'
     );
     expect(out).toContain('const __terajsStyleId = "tera-style:/components/Styled.tera";');
     expect(out).toContain(".card[data-tera-card] { color: red; }");

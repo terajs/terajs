@@ -12,6 +12,7 @@ export interface RouteConfigInput {
   prerender?: boolean;
   hydrate?: RouteDefinition["hydrate"];
   edge?: boolean;
+  children?: RouteConfigInput[];
 }
 
 export interface RouteManifestOptions {
@@ -131,6 +132,17 @@ function mergeRouteOverride(
   };
 }
 
+function collectRouteConfigs(
+  routeConfigs: RouteConfigInput[],
+  visitor: (routeConfig: RouteConfigInput, parent: RouteConfigInput | null) => void,
+  parent: RouteConfigInput | null = null
+): void {
+  for (const routeConfig of routeConfigs) {
+    visitor(routeConfig, parent);
+    collectRouteConfigs(routeConfig.children ?? [], visitor, routeConfig);
+  }
+}
+
 export function buildRouteManifest(
   inputs: RouteSourceInput[],
   options: RouteManifestOptions = {}
@@ -138,8 +150,19 @@ export function buildRouteManifest(
   const normalizedInputs = [...inputs].sort((left, right) =>
     normalizeFilePath(left.filePath).localeCompare(normalizeFilePath(right.filePath))
   );
-  const routeConfigs = new Map(
-    (options.routeConfigs ?? []).map((routeConfig) => [normalizeFilePath(routeConfig.filePath), routeConfig])
+  const routeConfigs = options.routeConfigs ?? [];
+  const routeConfigMap = new Map<string, RouteConfigInput>();
+  const nestedRouteConfigFiles = new Set<string>();
+
+  collectRouteConfigs(routeConfigs, (routeConfig, parent) => {
+    const key = normalizeFilePath(routeConfig.filePath);
+    routeConfigMap.set(key, routeConfig);
+    if (parent) {
+      nestedRouteConfigFiles.add(key);
+    }
+  });
+  const inputsByFilePath = new Map(
+    normalizedInputs.map((input) => [normalizeFilePath(input.filePath), input])
   );
 
   const layoutsByDirectory = new Map<string, RouteLayoutDefinition>();
@@ -156,12 +179,40 @@ export function buildRouteManifest(
     });
   }
 
+  const buildConfiguredRoute = (routeConfig: RouteConfigInput): RouteDefinition => {
+    const normalizedFilePath = normalizeFilePath(routeConfig.filePath);
+    const input = inputsByFilePath.get(normalizedFilePath);
+    if (!input) {
+      throw new Error(`Configured route file is missing from route inputs: ${routeConfig.filePath}`);
+    }
+
+    const parsedSFC = mergeRouteOverride(
+      parseRouteSource(input),
+      routeConfig
+    );
+    const route = buildRouteFromSFC(parsedSFC);
+
+    return {
+      ...route,
+      component: input.component ?? route.component,
+      asset: input.asset,
+      layouts: resolveLayouts(input.filePath, layoutsByDirectory),
+      children: routeConfig.children?.map(buildConfiguredRoute)
+    };
+  };
+
   const manifest = normalizedInputs
     .filter((input) => !isLayoutFile(input.filePath))
+    .filter((input) => !nestedRouteConfigFiles.has(normalizeFilePath(input.filePath)))
     .map((input) => {
+      const configuredRoute = routeConfigMap.get(normalizeFilePath(input.filePath));
+      if (configuredRoute) {
+        return buildConfiguredRoute(configuredRoute);
+      }
+
       const parsedSFC = mergeRouteOverride(
         parseRouteSource(input),
-        routeConfigs.get(normalizeFilePath(input.filePath))
+        undefined
       );
       const route = buildRouteFromSFC(parsedSFC);
 
