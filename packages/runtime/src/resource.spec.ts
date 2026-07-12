@@ -4,6 +4,7 @@ import { setHydrationState } from "./hydration";
 import { invalidateResources } from "./invalidation";
 import { createResource } from "./resource";
 import { createMutationQueue } from "./queue/mutationQueue";
+import { createMemoryPersistenceAdapter } from "./persistence/adapters";
 
 describe("createResource", () => {
   beforeEach(() => {
@@ -145,6 +146,35 @@ describe("createResource", () => {
     await Promise.resolve();
 
     expect(JSON.parse(localStorage.getItem("profile") ?? "null")).toEqual({ id: 2 });
+  });
+
+  it("uses app-selected persistence adapters for cached resources", async () => {
+    const adapter = createMemoryPersistenceAdapter({
+      profile: { id: 1 }
+    });
+
+    const fetcher = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { id: 2 };
+    });
+    const resource = createResource(() => fetcher(), {
+      persistent: {
+        key: "profile",
+        adapter
+      }
+    });
+
+    await Promise.resolve();
+    expect(resource.data()).toEqual({ id: 1 });
+    expect(resource.source()).toBe("persistence");
+
+    await resource.promise();
+    expect(resource.data()).toEqual({ id: 2 });
+
+    resource.mutate({ id: 3 });
+    await Promise.resolve();
+
+    expect(await adapter.getItem("profile")).toEqual({ id: 3 });
   });
 
   it("queues failed mutate server calls when queue integration is provided", async () => {

@@ -35,8 +35,41 @@ export {
 export type { RuntimeHydrationState } from "./hydration.js";
 
 // Persistence
-export { localStorageAdapter } from "./persistence/adapters.js";
-export type { PersistenceAdapter } from "./persistence/types.js";
+export {
+  createForbiddenPersistenceAdapter,
+  createIndexedDBPersistenceAdapter,
+  createMemoryPersistenceAdapter,
+  getPersistenceAdapterMetadata,
+  localStorageAdapter,
+  withPersistenceAdapterMetadata
+} from "./persistence/adapters.js";
+export type {
+  IndexedDBPersistenceAdapterOptions
+} from "./persistence/adapters.js";
+export {
+  createMemoryBucket,
+  createOPFSBucket
+} from "./persistence/buckets.js";
+export type {
+  LocalFirstBucket,
+  LocalFirstBucketEntry,
+  LocalFirstBucketPutOptions,
+  OPFSBucketOptions
+} from "./persistence/buckets.js";
+export type {
+  PersistenceAdapter,
+  PersistenceAdapterKind,
+  PersistenceAdapterMetadata
+} from "./persistence/types.js";
+export { createLocalFirstProfile } from "./localFirst.js";
+export type {
+  LocalFirstDurability,
+  LocalFirstPolicy,
+  LocalFirstProfile,
+  LocalFirstProfileOptions,
+  LocalFirstSensitivity,
+  LocalFirstSyncMode
+} from "./localFirst.js";
 
 // Renderer bridge
 export {
@@ -55,7 +88,13 @@ export type {
   QueuedActionResult
 } from "./action.js";
 export { createResource } from "./resource.js";
-export type { Resource, ResourceState, ResourcePayload, ResourceMutateOptions } from "./resource.js";
+export type {
+  Resource,
+  ResourcePersistenceOptions,
+  ResourceState,
+  ResourcePayload,
+  ResourceMutateOptions
+} from "./resource.js";
 export {
   createMutationQueue,
   createMutationQueueStorage,

@@ -5,6 +5,7 @@ import { getCurrentContext } from "./component/context.js";
 import { consumeHydratedResource } from "./hydration.js";
 import { registerResourceInvalidation, type ResourceKey } from "./invalidation.js";
 import { localStorageAdapter } from "./persistence/adapters.js";
+import type { PersistenceAdapter } from "./persistence/types.js";
 import type { MutationQueue } from "./queue/mutationQueue.js";
 
 export interface ResourcePayload<T = any> {
@@ -69,8 +70,14 @@ interface ResourceOptions<TData> {
   immediate?: boolean;
   hydrateKey?: string;
   key?: ResourceKey | ResourceKey[];
-  persistent?: string;
+  persistent?: string | ResourcePersistenceOptions;
+  persistence?: PersistenceAdapter;
   ssr?: boolean;
+}
+
+export interface ResourcePersistenceOptions {
+  key: string;
+  adapter?: PersistenceAdapter;
 }
 
 /**
@@ -116,7 +123,12 @@ export function createResource<TSource, TData>(
     ? maybeFetcher
     : sourceOrFetcher) as ResourceFetcher<TSource | void, TData>;
   const options = (hasSource ? maybeOptions : maybeFetcher) as ResourceOptions<TData> | undefined;
-  const persistentKey = options?.persistent;
+  const persistentKey = typeof options?.persistent === "string"
+    ? options.persistent
+    : options?.persistent?.key;
+  const persistenceAdapter = typeof options?.persistent === "object"
+    ? options.persistent.adapter ?? options.persistence ?? localStorageAdapter
+    : options?.persistence ?? localStorageAdapter;
   const hydrationKey = options?.hydrateKey ?? (options?.ssr ? persistentKey : undefined) ?? (typeof options?.key === "string" ? options.key : undefined);
   const hydratedValue = hydrationKey
     ? consumeHydratedResource<TData>(hydrationKey) ?? getHydratedData<TData>(hydrationKey)
@@ -143,7 +155,7 @@ export function createResource<TSource, TData>(
   );
 
   if (persistentKey && hydratedValue === undefined && typeof window !== "undefined") {
-    void localStorageAdapter.getItem<TData>(persistentKey)
+    void persistenceAdapter.getItem<TData>(persistentKey)
       .then((cached) => {
         if (cached !== null && cached !== undefined) {
           data.set(cached);
@@ -187,7 +199,7 @@ export function createResource<TSource, TData>(
       error.set(undefined);
       if (persistentKey && typeof window !== "undefined") {
         void Promise.resolve()
-          .then(() => localStorageAdapter.setItem(persistentKey, resolved))
+          .then(() => persistenceAdapter.setItem(persistentKey, resolved))
           .catch(() => undefined);
       }
       Debug.emit("resource:load:end", {
@@ -271,7 +283,7 @@ export function createResource<TSource, TData>(
 
       if (persistentKey && typeof window !== "undefined") {
         void Promise.resolve()
-          .then(() => localStorageAdapter.setItem(persistentKey, nextValue))
+          .then(() => persistenceAdapter.setItem(persistentKey, nextValue))
           .catch(() => undefined);
       }
 
