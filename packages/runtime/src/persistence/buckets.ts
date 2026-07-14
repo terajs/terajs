@@ -1,4 +1,5 @@
-import type { PersistenceAdapter } from "./types.js";
+import { getPersistenceAdapterMetadata } from "./adapters.js";
+import type { AtomicPersistenceAdapter } from "./types.js";
 
 export type LocalFirstBucketData = Blob | ArrayBuffer | Uint8Array;
 
@@ -87,7 +88,7 @@ export function createMemoryBucket<TMetadata = Record<string, unknown>>(): Local
 }
 
 export interface ManifestedBucketOptions {
-  adapter: PersistenceAdapter;
+  adapter: AtomicPersistenceAdapter;
   key?: string;
 }
 
@@ -97,30 +98,22 @@ export function createManifestedBucket<TMetadata = Record<string, unknown>>(
 ): LocalFirstBucket<TMetadata> {
   const manifestKey = options.key ?? "terajs:bucket-manifest";
   const metadata = getLocalFirstBucketMetadata(bucket);
-  let manifestMutation = Promise.resolve();
 
   const loadManifest = async (): Promise<Array<LocalFirstBucketManifestEntry<TMetadata>>> => {
     const manifest = await options.adapter.getItem<Array<LocalFirstBucketManifestEntry<TMetadata>>>(manifestKey);
     return Array.isArray(manifest) ? manifest : [];
   };
 
-  const saveManifest = async (manifest: Array<LocalFirstBucketManifestEntry<TMetadata>>): Promise<void> => {
-    if (manifest.length === 0) {
-      await options.adapter.removeItem(manifestKey);
-      return;
-    }
-
-    await options.adapter.setItem(manifestKey, manifest);
-  };
-
   const mutateManifest = async (
     mutate: (manifest: Array<LocalFirstBucketManifestEntry<TMetadata>>) => Array<LocalFirstBucketManifestEntry<TMetadata>>
   ): Promise<void> => {
-    const operation = manifestMutation.then(async () => {
-      await saveManifest(mutate(await loadManifest()));
-    });
-    manifestMutation = operation.catch(() => undefined);
-    await operation;
+    await options.adapter.updateItem<Array<LocalFirstBucketManifestEntry<TMetadata>>>(
+      manifestKey,
+      (current) => {
+        const next = mutate(Array.isArray(current) ? current : []);
+        return next.length === 0 ? null : next;
+      }
+    );
   };
 
   const upsertManifestEntry = async (entry: LocalFirstBucketManifestEntry<TMetadata>): Promise<void> => {
@@ -168,17 +161,21 @@ export function createManifestedBucket<TMetadata = Record<string, unknown>>(
 
 export interface OPFSBucketOptions {
   directory?: string;
-  manifestAdapter?: PersistenceAdapter;
+  manifestAdapter: AtomicPersistenceAdapter;
   manifestKey?: string;
 }
 
 export function createOPFSBucket<TMetadata = Record<string, unknown>>(
-  options: OPFSBucketOptions = {}
+  options: OPFSBucketOptions
 ): LocalFirstBucket<TMetadata> {
-  if (!options.manifestAdapter) {
-    throw new Error("OPFS buckets require a persistent manifestAdapter for list and metadata recovery.");
+  if (!options?.manifestAdapter || typeof options.manifestAdapter.updateItem !== "function") {
+    throw new Error("OPFS buckets require an atomic manifestAdapter for recoverable listing and metadata.");
   }
   const manifestAdapter = options.manifestAdapter;
+  const manifestMetadata = getPersistenceAdapterMetadata(manifestAdapter);
+  if (manifestMetadata.durable !== true) {
+    throw new Error("OPFS buckets require a durable manifestAdapter; volatile manifests cannot recover stored files after reload.");
+  }
 
   const directory = options.directory ?? "terajs-local-first";
 
@@ -241,7 +238,7 @@ export function createOPFSBucket<TMetadata = Record<string, unknown>>(
     kind: "opfs",
     name: directory,
     durable: true,
-    manifest: Boolean(options.manifestAdapter)
+    manifest: true
   });
 
   return createManifestedBucket(bucket, {

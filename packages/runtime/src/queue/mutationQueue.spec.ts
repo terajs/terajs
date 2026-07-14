@@ -58,6 +58,8 @@ describe("createMutationQueue", () => {
 
   it("tracks reactive sync state and preserves idempotency keys", async () => {
     let releaseFlush: (() => void) | undefined;
+    let markFlushStarted: (() => void) | undefined;
+    const flushStarted = new Promise<void>((resolve) => { markFlushStarted = resolve; });
     const queue = await createMutationQueue({
       createId: () => "generated-id",
       now: () => 100
@@ -70,6 +72,7 @@ describe("createMutationQueue", () => {
     });
 
     queue.register("upload:manifest", async () => {
+      markFlushStarted?.();
       await new Promise<void>((resolve) => {
         releaseFlush = resolve;
       });
@@ -89,7 +92,7 @@ describe("createMutationQueue", () => {
     });
 
     const flush = queue.flush();
-    await Promise.resolve();
+    await flushStarted;
     expect(queue.state()).toMatchObject({
       pending: 1,
       flushing: true
@@ -111,8 +114,11 @@ describe("createMutationQueue", () => {
     const queue = await createMutationQueue({ createId: () => "m1", now: () => 1 });
     const contexts: unknown[] = [];
     let release: (() => void) | undefined;
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => { markStarted = resolve; });
     queue.register("deliver", async (_payload, context) => {
       contexts.push(context);
+      markStarted?.();
       await new Promise<void>((resolve) => { release = resolve; });
     });
     await queue.enqueue({
@@ -123,7 +129,7 @@ describe("createMutationQueue", () => {
 
     const first = queue.flush();
     const second = queue.flush();
-    await Promise.resolve();
+    await started;
     release?.();
 
     expect(await first).toEqual(await second);
@@ -135,6 +141,79 @@ describe("createMutationQueue", () => {
       attempts: 0,
       mutation: { id: "m1", idempotencyKey: "idem-1" }
     });
+  });
+
+  it("serializes concurrent enqueue persistence without losing snapshots", async () => {
+    const saved: string[][] = [];
+    let releaseFirstSave: (() => void) | undefined;
+    let firstSaveStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => { firstSaveStarted = resolve; });
+    const queue = await createMutationQueue({
+      now: () => 1,
+      storage: {
+        load: async () => [],
+        save: async (mutations) => {
+          saved.push(mutations.map((mutation) => mutation.id));
+          if (saved.length === 1) {
+            firstSaveStarted?.();
+            await new Promise<void>((resolve) => { releaseFirstSave = resolve; });
+          }
+        }
+      }
+    });
+
+    const first = queue.enqueue({ id: "a", type: "deliver", payload: "a" });
+    await started;
+    const second = queue.enqueue({ id: "b", type: "deliver", payload: "b" });
+    await Promise.resolve();
+
+    expect(saved).toEqual([["a"]]);
+    releaseFirstSave?.();
+    await Promise.all([first, second]);
+
+    expect(saved).toEqual([["a"], ["a", "b"]]);
+    expect(queue.snapshot().map((mutation) => mutation.id)).toEqual(["a", "b"]);
+  });
+
+  it("accepts enqueue during delivery and commits snapshots in order", async () => {
+    const saved: string[][] = [];
+    let releaseHandler: (() => void) | undefined;
+    let markHandlerStarted: (() => void) | undefined;
+    const handlerStarted = new Promise<void>((resolve) => { markHandlerStarted = resolve; });
+    const queue = await createMutationQueue({
+      now: () => 1,
+      storage: {
+        load: async () => [],
+        save: async (mutations) => {
+          saved.push(mutations.map((mutation) => mutation.id));
+        }
+      }
+    });
+    await queue.enqueue({ id: "first", type: "deliver", payload: "first" });
+    queue.register("deliver", async () => {
+      markHandlerStarted?.();
+      await new Promise<void>((resolve) => { releaseHandler = resolve; });
+    });
+
+    const flush = queue.flush();
+    await handlerStarted;
+    await queue.enqueue({ id: "second", type: "later", payload: "second" });
+    expect(queue.snapshot().map((mutation) => mutation.id)).toEqual(["first", "second"]);
+
+    releaseHandler?.();
+    await flush;
+
+    expect(saved).toEqual([["first"], ["first", "second"], ["second"]]);
+    expect(queue.snapshot().map((mutation) => mutation.id)).toEqual(["second"]);
+  });
+
+  it("fails closed when durable queue hydration fails", async () => {
+    await expect(createMutationQueue({
+      storage: {
+        load: async () => { throw new Error("IndexedDB unavailable"); },
+        save: async () => undefined
+      }
+    })).rejects.toThrow("IndexedDB unavailable");
   });
 
   it("clears flushing state when queue persistence fails", async () => {

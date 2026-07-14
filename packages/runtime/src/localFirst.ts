@@ -153,10 +153,6 @@ function assertPolicyAllowsAdapter(
     throw new Error(`Policy "${name}" uses forbidden local persistence.`);
   }
 
-  if (policy.durability === "durable" && metadata.kind === "memory") {
-    throw new Error(`Policy "${name}" requires durable storage but uses an in-memory adapter.`);
-  }
-
   if (
     metadata.kind === "local-storage"
     && sensitivity !== "low"
@@ -167,12 +163,14 @@ function assertPolicyAllowsAdapter(
     );
   }
 
-  if (
-    metadata.kind === "local-storage"
-    && policy.durability === "durable"
-    && policy.allowUnsafeLocalStorage !== true
-  ) {
-    throw new Error(`Policy "${name}" requires durable storage but uses localStorage.`);
+  if (policy.durability === "durable" && metadata.durable !== true) {
+    if (metadata.kind === "memory") {
+      throw new Error(`Policy "${name}" requires durable storage but uses an in-memory adapter.`);
+    }
+    if (metadata.kind === "local-storage" && policy.allowUnsafeLocalStorage !== true) {
+      throw new Error(`Policy "${name}" requires durable storage but uses localStorage.`);
+    }
+    throw new Error(`Policy "${name}" requires durable storage but uses ${metadata.kind}.`);
   }
 }
 
@@ -195,14 +193,26 @@ function createPolicyPersistenceAdapter(
   policy: LocalFirstPolicy,
   adapter: PersistenceAdapter
 ): PersistenceAdapter {
-  return withPersistenceAdapterMetadata({
+  const wrapped: PersistenceAdapter = {
     getItem: (key) => adapter.getItem(key),
     async setItem(key, value) {
       enforcePayloadPolicy(name, policy, value);
       await adapter.setItem(key, value);
     },
     removeItem: (key) => adapter.removeItem(key)
-  }, getPersistenceAdapterMetadata(adapter));
+  };
+
+  if (adapter.updateItem) {
+    wrapped.updateItem = (key, update) => adapter.updateItem!(key, (current) => {
+      const next = update(current);
+      if (next !== null) {
+        enforcePayloadPolicy(name, policy, next);
+      }
+      return next;
+    });
+  }
+
+  return withPersistenceAdapterMetadata(wrapped, getPersistenceAdapterMetadata(adapter));
 }
 
 function createPolicyBucket(

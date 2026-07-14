@@ -275,8 +275,12 @@ Built-in runtime components include `Portal(props)` and `Suspense(props)`.
 - `createMutationQueueStorage(adapter, key?)`
 - `defaultMutationRetryPolicy`
 - `MutationConflictResolver` hooks (`replace`, `ignore`, `merge`)
+- `createIndexedDBPersistenceAdapter(options?)`
+- `createManifestedBucket(bucket, { adapter, key? })`
+- `createOPFSBucket({ directory?, manifestAdapter, manifestKey? })`
 
 These are shipped local-first runtime primitives, not app-specific conventions.
+Queue mutations and persistence are serialized, and queue creation rejects when durable hydration fails. Manifest adapters must implement atomic `updateItem()` operations; OPFS additionally requires manifest storage marked as durable. The built-in IndexedDB adapter satisfies both requirements.
 
 ### 3.5 Hydration helpers
 

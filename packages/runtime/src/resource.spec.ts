@@ -223,6 +223,30 @@ describe("createResource", () => {
     expect(await adapter.getItem("profile")).toEqual({ id: 3 });
   });
 
+  it("does not let a slow cache read overwrite newer network data", async () => {
+    let releaseCache: (() => void) | undefined;
+    const adapter = createMemoryPersistenceAdapter({ profile: { id: 1 } });
+    const getItem = adapter.getItem.bind(adapter);
+    adapter.getItem = async <T>(key: string): Promise<T | null> => {
+      await new Promise<void>((resolve) => { releaseCache = resolve; });
+      return getItem<T>(key);
+    };
+    const resource = createResource(async () => ({ id: 2 }), {
+      persistent: { key: "profile", adapter }
+    });
+
+    await resource.promise();
+    expect(resource.data()).toEqual({ id: 2 });
+    expect(resource.source()).toBe("network");
+
+    releaseCache?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(resource.data()).toEqual({ id: 2 });
+    expect(resource.source()).toBe("network");
+  });
+
   it("uses configured persistence adapters without a browser window", async () => {
     const adapter = createMemoryPersistenceAdapter({ profile: { id: 1 } });
     vi.stubGlobal("window", undefined);

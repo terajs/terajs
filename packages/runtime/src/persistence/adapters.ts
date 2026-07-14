@@ -1,4 +1,5 @@
 import type {
+  AtomicPersistenceAdapter,
   PersistenceAdapter,
   PersistenceAdapterMetadata
 } from "./types.js";
@@ -41,12 +42,13 @@ export const localStorageAdapter: PersistenceAdapter = withPersistenceAdapterMet
 }, {
   kind: "local-storage",
   name: "localStorage",
-  maxRecommendedBytes: 100_000
+  maxRecommendedBytes: 100_000,
+  durable: false
 });
 
 export function createMemoryPersistenceAdapter(
   seed: Record<string, unknown> = {}
-): PersistenceAdapter {
+): AtomicPersistenceAdapter {
   const state = new Map<string, unknown>(Object.entries(seed));
 
   return withPersistenceAdapterMetadata({
@@ -58,10 +60,24 @@ export function createMemoryPersistenceAdapter(
     },
     async removeItem(key: string): Promise<void> {
       state.delete(key);
+    },
+    async updateItem<T>(
+      key: string,
+      update: (current: T | null) => T | null
+    ): Promise<T | null> {
+      const current = state.has(key) ? state.get(key) as T : null;
+      const next = update(current);
+      if (next === null) {
+        state.delete(key);
+      } else {
+        state.set(key, next);
+      }
+      return next;
     }
   }, {
     kind: "memory",
-    name: "memory"
+    name: "memory",
+    durable: false
   });
 }
 
@@ -78,7 +94,8 @@ export function createForbiddenPersistenceAdapter(
     removeItem: fail
   }, {
     kind: "forbidden",
-    name: "forbidden"
+    name: "forbidden",
+    durable: false
   });
 }
 
@@ -90,7 +107,7 @@ export interface IndexedDBPersistenceAdapterOptions {
 
 export function createIndexedDBPersistenceAdapter(
   options: IndexedDBPersistenceAdapterOptions = {}
-): PersistenceAdapter {
+): AtomicPersistenceAdapter {
   const databaseName = options.databaseName ?? "terajs-local-first";
   const storeName = options.storeName ?? "key-value";
   const version = options.version ?? 1;
@@ -158,9 +175,51 @@ export function createIndexedDBPersistenceAdapter(
     },
     async removeItem(key: string): Promise<void> {
       await transact("readwrite", (store) => store.delete(key));
+    },
+    async updateItem<T>(
+      key: string,
+      update: (current: T | null) => T | null
+    ): Promise<T | null> {
+      const db = await openDatabase();
+
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, "readwrite");
+        const store = transaction.objectStore(storeName);
+        const request = store.get(key);
+        let next: T | null = null;
+        let updateError: unknown;
+
+        request.onsuccess = () => {
+          try {
+            next = update(request.result === undefined ? null : request.result as T);
+            if (next === null) {
+              store.delete(key);
+            } else {
+              store.put(next, key);
+            }
+          } catch (error) {
+            updateError = error;
+            transaction.abort();
+          }
+        };
+        request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed."));
+        transaction.oncomplete = () => {
+          db.close();
+          resolve(next);
+        };
+        transaction.onerror = () => {
+          db.close();
+          reject(updateError ?? transaction.error ?? new Error("IndexedDB transaction failed."));
+        };
+        transaction.onabort = () => {
+          db.close();
+          reject(updateError ?? transaction.error ?? new Error("IndexedDB transaction aborted."));
+        };
+      });
     }
   }, {
     kind: "indexed-db",
-    name: databaseName
+    name: databaseName,
+    durable: true
   });
 }

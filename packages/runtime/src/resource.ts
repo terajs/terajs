@@ -183,11 +183,21 @@ export function createResource<TSource, TData>(
   const sourceSignal = signal<"hydration" | "persistence" | "network" | undefined>(
     hydratedValue !== undefined ? "hydration" : undefined
   );
+  let currentPromise: Promise<TData> | null = null;
+  let currentAbort: AbortController | null = null;
+  let requestVersion = 0;
+  let dataVersion = 0;
+  let currentSource: TSource | void = undefined;
 
   if (persistentKey && hydratedValue === undefined) {
+    const persistenceReadVersion = dataVersion;
     void persistenceAdapter.getItem<TData>(persistentKey)
       .then((cached) => {
-        if (cached !== null && cached !== undefined) {
+        if (
+          dataVersion === persistenceReadVersion
+          && cached !== null
+          && cached !== undefined
+        ) {
           data.set(cached);
           sourceSignal.set("persistence");
           if (state() === "idle") {
@@ -197,11 +207,6 @@ export function createResource<TSource, TData>(
       })
       .catch(() => undefined);
   }
-
-  let currentPromise: Promise<TData> | null = null;
-  let currentAbort: AbortController | null = null;
-  let requestVersion = 0;
-  let currentSource: TSource | void = undefined;
 
   const execute = async (value: TSource | void): Promise<TData> => {
     const version = requestVersion + 1;
@@ -232,6 +237,7 @@ export function createResource<TSource, TData>(
         return resolved;
       }
 
+      dataVersion += 1;
       data.set(resolved);
       sourceSignal.set("network");
       state.set("ready");
@@ -322,6 +328,7 @@ export function createResource<TSource, TData>(
         ? (value as (current: TData | undefined) => TData)(data())
         : value;
 
+      dataVersion += 1;
       data.set(nextValue);
       state.set("ready");
       error.set(undefined);

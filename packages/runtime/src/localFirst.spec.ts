@@ -30,7 +30,8 @@ describe("createLocalFirstProfile", () => {
   it("maps policies to app-selected adapters and queue storage", async () => {
     const queueAdapter = withPersistenceAdapterMetadata(createMemoryPersistenceAdapter(), {
       kind: "indexed-db",
-      name: "test-queue"
+      name: "test-queue",
+      durable: true
     });
     const profile = createLocalFirstProfile({
       storage: {
@@ -154,6 +155,25 @@ describe("createLocalFirstProfile", () => {
     });
 
     expect(() => strict.adapter("credentials")).toThrow("cannot persist secret data in localStorage");
+  });
+
+  it("preserves atomic adapter operations across policy wrappers", async () => {
+    const durable = withPersistenceAdapterMetadata(createMemoryPersistenceAdapter(), {
+      kind: "custom",
+      name: "native-durable",
+      durable: true
+    });
+    const profile = createLocalFirstProfile({
+      storage: { durable },
+      policies: {
+        drafts: { storage: "durable", durability: "durable", maxBytes: 100 }
+      }
+    });
+    const wrapped = profile.adapter("drafts");
+
+    await expect(wrapped.updateItem?.("draft", () => ({ version: 1 })))
+      .resolves.toEqual({ version: 1 });
+    expect(await wrapped.getItem("draft")).toEqual({ version: 1 });
   });
 
   it("preserves bucket metadata across policy wrappers", () => {

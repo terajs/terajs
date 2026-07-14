@@ -66,6 +66,7 @@ export type {
   OPFSBucketOptions
 } from "./persistence/buckets.js";
 export type {
+  AtomicPersistenceAdapter,
   PersistenceAdapter,
   PersistenceAdapterKind,
   PersistenceAdapterMetadata

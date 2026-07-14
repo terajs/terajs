@@ -55,13 +55,21 @@ import {
 	localStorageAdapter
 } from "@terajs/runtime";
 
+const durableStorage = createIndexedDBPersistenceAdapter({
+	databaseName: "app-local-first"
+});
+
 const localFirst = createLocalFirstProfile({
 	storage: {
 		ui: localStorageAdapter,
-		queue: createIndexedDBPersistenceAdapter({ databaseName: "app-queue" })
+		queue: durableStorage
 	},
 	buckets: {
-		uploads: createOPFSBucket({ directory: "app-uploads" })
+		uploads: createOPFSBucket({
+			directory: "app-uploads",
+			manifestAdapter: durableStorage,
+			manifestKey: "app-upload-manifest"
+		})
 	},
 	policies: {
 		uiState: { storage: "ui", sensitivity: "low" },
@@ -72,7 +80,7 @@ const localFirst = createLocalFirstProfile({
 });
 ```
 
-Profiles fail closed for unsafe combinations, such as secret or financial data being assigned to `localStorage`. Queues should store intents and manifests; larger file bytes should live in an app-selected bucket such as OPFS or a custom adapter.
+Profiles fail closed for unsafe combinations, such as secret or financial data being assigned to `localStorage`. OPFS requires a durable adapter with atomic `updateItem()` support so file manifests remain recoverable and concurrent writers cannot lose entries. The built-in IndexedDB adapter provides that capability. Queues should store intents and manifests; larger file bytes should live in an app-selected bucket such as OPFS or a custom adapter.
 
 ## Server-function transport example
 

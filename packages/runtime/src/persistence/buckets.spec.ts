@@ -5,8 +5,20 @@ import {
   createOPFSBucket,
   encodeOPFSKey
 } from "./buckets";
-import { createMemoryPersistenceAdapter } from "./adapters";
+import {
+  createMemoryPersistenceAdapter,
+  withPersistenceAdapterMetadata
+} from "./adapters";
 import type { LocalFirstBucket } from "./buckets";
+import type { AtomicPersistenceAdapter } from "./types";
+
+function createDurableMemoryPersistenceAdapter(): AtomicPersistenceAdapter {
+  return withPersistenceAdapterMetadata(createMemoryPersistenceAdapter(), {
+    kind: "custom",
+    name: "durable-test-manifest",
+    durable: true
+  });
+}
 
 async function readBucketText(bucket: LocalFirstBucket, key: string): Promise<string | null> {
   const entry = await bucket.get(key);
@@ -109,11 +121,69 @@ describe("createManifestedBucket", () => {
       { key: "b", metadata: undefined, updatedAt: 2 }
     ]);
   });
+
+  it("preserves concurrent updates across separate wrappers sharing a manifest", async () => {
+    const state = new Map<string, unknown>();
+    let transaction = Promise.resolve();
+    const createAdapter = (): AtomicPersistenceAdapter => ({
+      async getItem<T>(key: string): Promise<T | null> {
+        return state.has(key) ? state.get(key) as T : null;
+      },
+      async setItem<T>(key: string, value: T): Promise<void> {
+        await Promise.resolve();
+        state.set(key, value);
+      },
+      async removeItem(key: string): Promise<void> {
+        state.delete(key);
+      },
+      async updateItem<T>(key: string, update: (current: T | null) => T | null): Promise<T | null> {
+        let updated: T | null = null;
+        const operation = transaction.then(async () => {
+          const current = state.has(key) ? state.get(key) as T : null;
+          updated = update(current);
+          await Promise.resolve();
+          if (updated === null) {
+            state.delete(key);
+          } else {
+            state.set(key, updated);
+          }
+        });
+        transaction = operation.catch(() => undefined);
+        await operation;
+        return updated;
+      }
+    });
+    const first = createManifestedBucket(createMemoryBucket(), {
+      adapter: createAdapter(),
+      key: "shared"
+    });
+    const second = createManifestedBucket(createMemoryBucket(), {
+      adapter: createAdapter(),
+      key: "shared"
+    });
+
+    await Promise.all([
+      first.put("a", new Blob(["a"]), { updatedAt: 1 }),
+      second.put("b", new Blob(["b"]), { updatedAt: 2 })
+    ]);
+
+    expect(await first.list()).toEqual([
+      { key: "a", metadata: undefined, updatedAt: 1 },
+      { key: "b", metadata: undefined, updatedAt: 2 }
+    ]);
+  });
 });
 
 describe("createOPFSBucket", () => {
-  it("fails closed without durable manifest storage", () => {
-    expect(() => createOPFSBucket()).toThrow("require a persistent manifestAdapter");
+  it("fails closed without atomic manifest storage", () => {
+    expect(() => createOPFSBucket({ manifestAdapter: undefined as never }))
+      .toThrow("require an atomic manifestAdapter");
+  });
+
+  it("rejects volatile manifests instead of advertising a durable bucket", () => {
+    expect(() => createOPFSBucket({
+      manifestAdapter: createMemoryPersistenceAdapter()
+    })).toThrow("require a durable manifestAdapter");
   });
 
   it("encodes previously colliding keys distinctly", () => {
@@ -138,7 +208,7 @@ describe("createOPFSBucket", () => {
 
     try {
       const bucket = createOPFSBucket({
-        manifestAdapter: createMemoryPersistenceAdapter()
+        manifestAdapter: createDurableMemoryPersistenceAdapter()
       });
       await expect(bucket.delete("file")).rejects.toThrow("denied");
     } finally {

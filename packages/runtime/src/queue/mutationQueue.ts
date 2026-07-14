@@ -146,6 +146,13 @@ export async function createMutationQueue(
   let items = normalizeMutations(await loadMutations(options.storage));
   const state = signal<MutationQueueSyncState>(summarizeQueueState(items, false));
   let flushPromise: Promise<MutationFlushResult> | null = null;
+  let operationTail: Promise<void> = Promise.resolve();
+
+  const runOperation = <T>(operation: () => Promise<T>): Promise<T> => {
+    const result = operationTail.then(operation);
+    operationTail = result.then(() => undefined, () => undefined);
+    return result;
+  };
 
   const persist = async () => {
     if (!options.storage) {
@@ -160,14 +167,11 @@ export async function createMutationQueue(
   };
 
   const performFlush = async (): Promise<MutationFlushResult> => {
-    updateState(true);
-    try {
-      let flushed = 0;
-      let retried = 0;
-      let failed = 0;
-      let skipped = 0;
-      const current = now();
-      const completedIds = new Set<string>();
+    const current = now();
+    let skipped = 0;
+    const deliveries = await runOperation(async () => {
+      updateState(true);
+      const ready: Array<{ mutation: QueuedMutation; handler: MutationHandler }> = [];
 
       for (const mutation of items) {
         if (mutation.status !== "pending") continue;
@@ -182,6 +186,18 @@ export async function createMutationQueue(
           Debug.emit("queue:skip:missing-handler", { id: mutation.id, type: mutation.type, attempts: mutation.attempts, reason: "missing-handler", handlerCount: handlers.size, missingType: mutation.type });
           continue;
         }
+        ready.push({ mutation, handler });
+      }
+
+      return ready;
+    });
+    const outcomes: Array<{
+      mutation: QueuedMutation;
+      error?: unknown;
+    }> = [];
+
+    try {
+      for (const { mutation, handler } of deliveries) {
         try {
           await handler(mutation.payload, {
             id: mutation.id,
@@ -190,37 +206,76 @@ export async function createMutationQueue(
             attempts: mutation.attempts,
             mutation: { ...mutation }
           });
-          completedIds.add(mutation.id);
-          flushed += 1;
-          mutation.attempts += 1;
-          mutation.lastError = undefined;
+          outcomes.push({ mutation });
         } catch (error) {
-          mutation.attempts += 1;
-          mutation.lastError = normalizeError(error);
-          if (retryPolicy.shouldRetry(error, mutation.attempts, mutation)) {
-            const delayMs = Math.max(0, retryPolicy.nextDelayMs(mutation.attempts, mutation));
-            mutation.nextRetryAt = current + delayMs;
-            retried += 1;
-            const event = { id: mutation.id, type: mutation.type, attempts: mutation.attempts, nextRetryAt: mutation.nextRetryAt, delayMs, reason: "retry", error: mutation.lastError };
-            Debug.emit("queue:backoff", event);
-            Debug.emit("queue:retry", event);
-          } else {
-            mutation.status = "failed";
-            failed += 1;
-            Debug.emit("queue:fail", { id: mutation.id, type: mutation.type, attempts: mutation.attempts, error: mutation.lastError });
-          }
+          outcomes.push({ mutation, error });
         }
       }
-      items = items.filter((item) => !completedIds.has(item.id));
-      const pending = items.filter((item) => item.status === "pending").length;
-      await persist();
-      const result = { flushed, retried, failed, skipped, pending };
-      updateState(false, result);
-      Debug.emit("queue:flush", result);
-      if (pending === 0 && (flushed > 0 || failed > 0)) Debug.emit("queue:drained", { flushed, failed });
-      return result;
+
+      return await runOperation(async () => {
+        const previousItems = items;
+        let nextItems = items;
+        let flushed = 0;
+        let retried = 0;
+        let failed = 0;
+        const retryEvents: Array<Record<string, unknown>> = [];
+        const failureEvents: Array<Record<string, unknown>> = [];
+
+        for (const outcome of outcomes) {
+          const mutationIndex = nextItems.findIndex((item) => item === outcome.mutation);
+          if (mutationIndex === -1) continue;
+
+          if (outcome.error === undefined) {
+            nextItems = nextItems.filter((_item, index) => index !== mutationIndex);
+            flushed += 1;
+            continue;
+          }
+
+          const mutation = nextItems[mutationIndex];
+          const updated: QueuedMutation = {
+            ...mutation,
+            attempts: mutation.attempts + 1,
+            lastError: normalizeError(outcome.error)
+          };
+          if (retryPolicy.shouldRetry(outcome.error, updated.attempts, updated)) {
+            const delayMs = Math.max(0, retryPolicy.nextDelayMs(updated.attempts, updated));
+            updated.nextRetryAt = current + delayMs;
+            retried += 1;
+            retryEvents.push({ id: updated.id, type: updated.type, attempts: updated.attempts, nextRetryAt: updated.nextRetryAt, delayMs, reason: "retry", error: updated.lastError });
+          } else {
+            updated.status = "failed";
+            failed += 1;
+            failureEvents.push({ id: updated.id, type: updated.type, attempts: updated.attempts, error: updated.lastError });
+          }
+          nextItems = nextItems.map((item, index) => index === mutationIndex ? updated : item);
+        }
+
+        items = nextItems;
+        const pending = items.filter((item) => item.status === "pending").length;
+        try {
+          await persist();
+        } catch (error) {
+          items = previousItems;
+          throw error;
+        }
+
+        const result = { flushed, retried, failed, skipped, pending };
+        updateState(false, result);
+        for (const event of retryEvents) {
+          Debug.emit("queue:backoff", event);
+          Debug.emit("queue:retry", event);
+        }
+        for (const event of failureEvents) {
+          Debug.emit("queue:fail", event);
+        }
+        Debug.emit("queue:flush", result);
+        if (pending === 0 && (flushed > 0 || failed > 0)) Debug.emit("queue:drained", { flushed, failed });
+        return result;
+      });
     } finally {
-      if (state().flushing) updateState(false);
+      await runOperation(async () => {
+        if (state().flushing) updateState(false);
+      });
     }
   };
 
@@ -237,45 +292,46 @@ export async function createMutationQueue(
       };
     },
     async enqueue(input) {
-      const id = input.id ?? createId();
-      const mutation: QueuedMutation = {
-        id,
-        idempotencyKey: input.idempotencyKey ?? id,
-        type: input.type,
-        conflictKey: normalizeConflictKey(input.conflictKey),
-        payload: input.payload,
-        createdAt: now(),
-        attempts: 0,
-        maxRetries: Math.max(0, input.maxRetries ?? 3),
-        nextRetryAt: input.nextRetryAt ?? now(),
-        status: "pending",
-        lastError: undefined
-      };
+      return runOperation(async () => {
+        const id = input.id ?? createId();
+        const mutation: QueuedMutation = {
+          id,
+          idempotencyKey: input.idempotencyKey ?? id,
+          type: input.type,
+          conflictKey: normalizeConflictKey(input.conflictKey),
+          payload: input.payload,
+          createdAt: now(),
+          attempts: 0,
+          maxRetries: Math.max(0, input.maxRetries ?? 3),
+          nextRetryAt: input.nextRetryAt ?? now(),
+          status: "pending",
+          lastError: undefined
+        };
 
-      if (mutation.conflictKey) {
-        const conflictIndex = items.findIndex((item) =>
-          item.status === "pending"
-          && item.type === mutation.type
-          && item.conflictKey === mutation.conflictKey
-        );
+        if (mutation.conflictKey) {
+          const conflictIndex = items.findIndex((item) =>
+            item.status === "pending"
+            && item.type === mutation.type
+            && item.conflictKey === mutation.conflictKey
+          );
 
-        if (conflictIndex !== -1) {
-          const existing = items[conflictIndex];
-          const resolution = resolveMutationConflict(existing, mutation, options.resolveConflict);
+          if (conflictIndex !== -1) {
+            const existing = items[conflictIndex];
+            const resolution = resolveMutationConflict(existing, mutation, options.resolveConflict);
 
-          if (resolution.decision === "ignore") {
-            Debug.emit("queue:conflict", {
-              type: mutation.type,
-              id: existing.id,
-              conflictKey: mutation.conflictKey,
-              decision: resolution.decision
-            });
+            if (resolution.decision === "ignore") {
+              Debug.emit("queue:conflict", {
+                type: mutation.type,
+                id: existing.id,
+                conflictKey: mutation.conflictKey,
+                decision: resolution.decision
+              });
 
-            return { ...existing };
-          }
+              return { ...existing };
+            }
 
-          const nextMutation: QueuedMutation = resolution.decision === "merge"
-            ? {
+            const nextMutation: QueuedMutation = resolution.decision === "merge"
+              ? {
                 ...existing,
                 payload: resolution.payload ?? mutation.payload,
                 maxRetries: resolution.maxRetries ?? Math.max(existing.maxRetries, mutation.maxRetries),
@@ -283,7 +339,7 @@ export async function createMutationQueue(
                 status: "pending",
                 lastError: undefined
               }
-            : {
+              : {
                 ...mutation,
                 id: existing.id,
                 createdAt: existing.createdAt,
@@ -292,53 +348,54 @@ export async function createMutationQueue(
                 lastError: undefined
               };
 
-          items = items.map((item, index) => {
-            if (index === conflictIndex) {
-              return nextMutation;
+            items = items.map((item, index) => {
+              if (index === conflictIndex) {
+                return nextMutation;
+              }
+
+              return item;
+            });
+
+            try {
+              await persist();
+            } catch (error) {
+              items = items.map((item, index) => index === conflictIndex ? existing : item);
+              updateState();
+              throw error;
             }
+            updateState();
 
-            return item;
-          });
+            Debug.emit("queue:conflict", {
+              type: mutation.type,
+              id: existing.id,
+              conflictKey: mutation.conflictKey,
+              decision: resolution.decision,
+              pending: items.filter((item) => item.status === "pending").length
+            });
 
-          try {
-            await persist();
-          } catch (error) {
-            items = items.map((item, index) => index === conflictIndex ? existing : item);
-            updateState(false);
-            throw error;
+            return { ...nextMutation };
           }
-          updateState(false);
-
-          Debug.emit("queue:conflict", {
-            type: mutation.type,
-            id: existing.id,
-            conflictKey: mutation.conflictKey,
-            decision: resolution.decision,
-            pending: items.filter((item) => item.status === "pending").length
-          });
-
-          return { ...nextMutation };
         }
-      }
 
-      const previousItems = items;
-      items = [...items, mutation].sort((left, right) => left.createdAt - right.createdAt);
-      try {
-        await persist();
-      } catch (error) {
-        items = previousItems;
-        updateState(false);
-        throw error;
-      }
-      updateState(false);
+        const previousItems = items;
+        items = [...items, mutation].sort((left, right) => left.createdAt - right.createdAt);
+        try {
+          await persist();
+        } catch (error) {
+          items = previousItems;
+          updateState();
+          throw error;
+        }
+        updateState();
 
-      Debug.emit("queue:enqueue", {
-        id: mutation.id,
-        type: mutation.type,
-        pending: items.filter((item) => item.status === "pending").length
+        Debug.emit("queue:enqueue", {
+          id: mutation.id,
+          type: mutation.type,
+          pending: items.filter((item) => item.status === "pending").length
+        });
+
+        return { ...mutation };
       });
-
-      return { ...mutation };
     },
     flush() {
       if (!flushPromise) {
@@ -349,15 +406,24 @@ export async function createMutationQueue(
       return flushPromise;
     },
     async clear() {
-      items = [];
+      return runOperation(async () => {
+        const previousItems = items;
+        items = [];
 
-      if (options.storage?.clear) {
-        await options.storage.clear();
-      } else {
-        await persist();
-      }
+        try {
+          if (options.storage?.clear) {
+            await options.storage.clear();
+          } else {
+            await persist();
+          }
+        } catch (error) {
+          items = previousItems;
+          updateState();
+          throw error;
+        }
 
-      updateState(false);
+        updateState();
+      });
     },
     snapshot() {
       return items.map((item) => ({ ...item }));
@@ -406,11 +472,7 @@ async function loadMutations(storage: MutationQueueStorage | undefined): Promise
     return [];
   }
 
-  try {
-    return normalizeMutations(await storage.load());
-  } catch {
-    return [];
-  }
+  return normalizeMutations(await storage.load());
 }
 
 function normalizeMutations(input: QueuedMutation[]): QueuedMutation[] {
