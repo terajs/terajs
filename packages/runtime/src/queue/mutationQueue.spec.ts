@@ -56,6 +56,57 @@ describe("createMutationQueue", () => {
     expect(handled).toEqual(["Ada"]);
   });
 
+  it("tracks reactive sync state and preserves idempotency keys", async () => {
+    let releaseFlush: (() => void) | undefined;
+    const queue = await createMutationQueue({
+      createId: () => "generated-id",
+      now: () => 100
+    });
+
+    expect(queue.state()).toMatchObject({
+      pending: 0,
+      failed: 0,
+      flushing: false
+    });
+
+    queue.register("upload:manifest", async () => {
+      await new Promise<void>((resolve) => {
+        releaseFlush = resolve;
+      });
+    });
+
+    const queued = await queue.enqueue({
+      type: "upload:manifest",
+      idempotencyKey: "upload-intent-1",
+      payload: { uploadId: "u1" }
+    });
+
+    expect(queued.idempotencyKey).toBe("upload-intent-1");
+    expect(queue.state()).toMatchObject({
+      pending: 1,
+      failed: 0,
+      flushing: false
+    });
+
+    const flush = queue.flush();
+    await Promise.resolve();
+    expect(queue.state()).toMatchObject({
+      pending: 1,
+      flushing: true
+    });
+
+    releaseFlush?.();
+    const result = await flush;
+
+    expect(result.flushed).toBe(1);
+    expect(queue.state()).toMatchObject({
+      pending: 0,
+      failed: 0,
+      flushing: false,
+      lastFlush: result
+    });
+  });
+
   it("retries failed mutations using retry policy and eventually marks failed", async () => {
     let now = 1_000;
     const queue = await createMutationQueue({
@@ -91,6 +142,12 @@ describe("createMutationQueue", () => {
     expect(third.failed).toBe(1);
     expect(queue.pendingCount()).toBe(0);
     expect(queue.failedCount()).toBe(1);
+    expect(queue.state()).toMatchObject({
+      pending: 0,
+      failed: 1,
+      flushing: false,
+      lastFlush: third
+    });
   });
 
   it("emits queue backoff diagnostics and preserves retry event order", async () => {
@@ -210,6 +267,7 @@ describe("createMutationQueue", () => {
 
     await queue.enqueue({
       id: "m-durable",
+      idempotencyKey: "idem-durable",
       type: "draft:sync",
       payload: { draftId: "d1" },
       maxRetries: 3
@@ -220,6 +278,7 @@ describe("createMutationQueue", () => {
     expect(stored).toHaveLength(1);
     expect(stored[0]).toMatchObject({
       id: "m-durable",
+      idempotencyKey: "idem-durable",
       attempts: 1,
       nextRetryAt: 1_075,
       status: "pending"
@@ -254,6 +313,20 @@ describe("createMutationQueue", () => {
     expect(afterWindow.pending).toBe(0);
     expect(handled).toEqual([{ draftId: "d1" }]);
     expect(stored).toEqual([]);
+  });
+
+  it("defaults idempotency key to generated mutation id", async () => {
+    const queue = await createMutationQueue({
+      createId: () => "generated-id"
+    });
+
+    const queued = await queue.enqueue({
+      type: "draft:sync",
+      payload: { draftId: "d1" }
+    });
+
+    expect(queued.idempotencyKey).toBe("generated-id");
+    expect(queue.snapshot()[0]?.idempotencyKey).toBe("generated-id");
   });
 
   it("hydrates and persists queue state through storage adapter", async () => {

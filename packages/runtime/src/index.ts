@@ -47,13 +47,21 @@ export type {
   IndexedDBPersistenceAdapterOptions
 } from "./persistence/adapters.js";
 export {
+  createManifestedBucket,
   createMemoryBucket,
-  createOPFSBucket
+  createOPFSBucket,
+  getLocalFirstBucketMetadata,
+  withLocalFirstBucketMetadata
 } from "./persistence/buckets.js";
 export type {
   LocalFirstBucket,
+  LocalFirstBucketData,
   LocalFirstBucketEntry,
+  LocalFirstBucketKind,
+  LocalFirstBucketMetadata,
+  LocalFirstBucketManifestEntry,
   LocalFirstBucketPutOptions,
+  ManifestedBucketOptions,
   OPFSBucketOptions
 } from "./persistence/buckets.js";
 export type {
@@ -90,6 +98,8 @@ export type {
 export { createResource } from "./resource.js";
 export type {
   Resource,
+  ResourceFetcherContext,
+  ResourceMutateResult,
   ResourcePersistenceOptions,
   ResourceState,
   ResourcePayload,
@@ -109,6 +119,7 @@ export type {
   MutationHandler,
   MutationQueue,
   MutationQueueOptions,
+  MutationQueueSyncState,
   MutationQueueStorage,
   MutationRetryPolicy,
   MutationStatus,

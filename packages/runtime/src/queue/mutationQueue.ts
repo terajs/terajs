@@ -1,4 +1,5 @@
 import { Debug } from "@terajs/shared";
+import { signal, type Signal } from "@terajs/reactivity";
 import type { PersistenceAdapter } from "../persistence/types.js";
 
 export type MutationStatus = "pending" | "failed";
@@ -11,6 +12,7 @@ export type MutationStatus = "pending" | "failed";
  */
 export interface QueuedMutation {
   id: string;
+  idempotencyKey?: string;
   type: string;
   conflictKey?: string;
   payload: unknown;
@@ -24,6 +26,7 @@ export interface QueuedMutation {
 
 export interface EnqueueMutationInput {
   id?: string;
+  idempotencyKey?: string;
   type: string;
   conflictKey?: string;
   payload: unknown;
@@ -87,10 +90,18 @@ export interface MutationQueueOptions {
 
 export type MutationHandler = (payload: unknown) => Promise<unknown> | unknown;
 
+export interface MutationQueueSyncState {
+  pending: number;
+  failed: number;
+  flushing: boolean;
+  lastFlush?: MutationFlushResult;
+}
+
 /**
  * Local-first mutation queue contract.
  */
 export interface MutationQueue {
+  state: Signal<MutationQueueSyncState>;
   register(type: string, handler: MutationHandler): () => void;
   enqueue(input: EnqueueMutationInput): Promise<QueuedMutation>;
   flush(): Promise<MutationFlushResult>;
@@ -122,6 +133,7 @@ export async function createMutationQueue(
   const createId = options.createId ?? defaultCreateId;
   const now = options.now ?? (() => Date.now());
   let items = normalizeMutations(await loadMutations(options.storage));
+  const state = signal<MutationQueueSyncState>(summarizeQueueState(items, false));
 
   const persist = async () => {
     if (!options.storage) {
@@ -131,7 +143,12 @@ export async function createMutationQueue(
     await options.storage.save(items.map((item) => ({ ...item })));
   };
 
+  const updateState = (flushing = state().flushing, lastFlush = state().lastFlush) => {
+    state.set(summarizeQueueState(items, flushing, lastFlush));
+  };
+
   return {
+    state,
     register(type, handler) {
       handlers.set(type, handler);
 
@@ -143,8 +160,10 @@ export async function createMutationQueue(
       };
     },
     async enqueue(input) {
+      const id = input.id ?? createId();
       const mutation: QueuedMutation = {
-        id: input.id ?? createId(),
+        id,
+        idempotencyKey: input.idempotencyKey ?? id,
         type: input.type,
         conflictKey: normalizeConflictKey(input.conflictKey),
         payload: input.payload,
@@ -205,6 +224,7 @@ export async function createMutationQueue(
           });
 
           await persist();
+          updateState(false);
 
           Debug.emit("queue:conflict", {
             type: mutation.type,
@@ -220,6 +240,7 @@ export async function createMutationQueue(
 
       items = [...items, mutation].sort((left, right) => left.createdAt - right.createdAt);
       await persist();
+      updateState(false);
 
       Debug.emit("queue:enqueue", {
         id: mutation.id,
@@ -230,6 +251,7 @@ export async function createMutationQueue(
       return { ...mutation };
     },
     async flush() {
+      updateState(true);
       let flushed = 0;
       let retried = 0;
       let failed = 0;
@@ -333,6 +355,7 @@ export async function createMutationQueue(
         skipped,
         pending
       };
+      updateState(false, result);
 
       Debug.emit("queue:flush", result);
       if (pending === 0 && (flushed > 0 || failed > 0)) {
@@ -352,6 +375,8 @@ export async function createMutationQueue(
       } else {
         await persist();
       }
+
+      updateState(false);
     },
     snapshot() {
       return items.map((item) => ({ ...item }));
@@ -419,6 +444,7 @@ function normalizeMutations(input: QueuedMutation[]): QueuedMutation[] {
 
       return {
         id: candidate.id,
+        idempotencyKey: typeof candidate.idempotencyKey === "string" ? candidate.idempotencyKey : undefined,
         type: candidate.type,
         conflictKey: normalizeConflictKey(candidate.conflictKey),
         payload: candidate.payload,
@@ -431,6 +457,19 @@ function normalizeMutations(input: QueuedMutation[]): QueuedMutation[] {
       };
     })
     .sort((left, right) => left.createdAt - right.createdAt);
+}
+
+function summarizeQueueState(
+  items: QueuedMutation[],
+  flushing: boolean,
+  lastFlush?: MutationFlushResult
+): MutationQueueSyncState {
+  return {
+    pending: items.filter((item) => item.status === "pending").length,
+    failed: items.filter((item) => item.status === "failed" && item.lastError !== undefined).length,
+    flushing,
+    lastFlush
+  };
 }
 
 function normalizeConflictKey(value: unknown): string | undefined {

@@ -55,7 +55,10 @@ describe("createResource", () => {
     expect(resource.state()).toBe("error");
     expect(resource.error()).toBeInstanceOf(Error);
 
-    resource.mutate("fallback");
+    await expect(resource.mutate("fallback")).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
     expect(resource.data()).toBe("fallback");
     expect(resource.state()).toBe("ready");
   });
@@ -92,6 +95,25 @@ describe("createResource", () => {
 
     expect(resource.data()).toBe("post-2");
     expect(resource.state()).toBe("ready");
+  });
+
+  it("passes AbortSignal to fetchers and aborts superseded fetches", async () => {
+    const source = signal("a");
+    const signals: AbortSignal[] = [];
+    const resource = createResource(source, async (value, context) => {
+      signals.push(context.signal);
+      await Promise.resolve();
+      return value.toUpperCase();
+    });
+
+    source.set("b");
+    await Promise.resolve();
+    await resource.promise();
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(resource.data()).toBe("B");
   });
 
   it("hydrates from __TERAJS_DATA__ script if available", async () => {
@@ -142,8 +164,10 @@ describe("createResource", () => {
     });
 
     await resource.promise();
-    resource.mutate({ id: 2 });
-    await Promise.resolve();
+    await expect(resource.mutate({ id: 2 })).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
 
     expect(JSON.parse(localStorage.getItem("profile") ?? "null")).toEqual({ id: 2 });
   });
@@ -171,8 +195,10 @@ describe("createResource", () => {
     await resource.promise();
     expect(resource.data()).toEqual({ id: 2 });
 
-    resource.mutate({ id: 3 });
-    await Promise.resolve();
+    await expect(resource.mutate({ id: 3 })).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
 
     expect(await adapter.getItem("profile")).toEqual({ id: 3 });
   });
@@ -189,7 +215,7 @@ describe("createResource", () => {
       persistent: "notes"
     });
 
-    resource.mutate(["local"], {
+    await expect(resource.mutate(["local"], {
       queue,
       queueType: "resource:notes",
       maxRetries: 1,
@@ -200,11 +226,11 @@ describe("createResource", () => {
 
         return payload;
       }
+    })).resolves.toMatchObject({
+      status: "queued",
+      persisted: true,
+      mutationId: "resource-q-1"
     });
-
-    await Promise.resolve();
-    await Promise.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(queue.pendingCount()).toBe(1);
 
     offline = false;
@@ -222,17 +248,18 @@ describe("createResource", () => {
       persistent: "guarded"
     });
 
-    resource.mutate({ ok: false }, {
+    await expect(resource.mutate({ ok: false }, {
       queue,
       queueType: "resource:guarded",
       shouldQueue: () => false,
       serverCall: async () => {
         throw new Error("fatal");
       }
+    })).resolves.toMatchObject({
+      status: "failed",
+      persisted: true
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
     expect(queue.pendingCount()).toBe(0);
   });
 });

@@ -5,12 +5,33 @@ import {
   createMemoryBucket,
   createMemoryPersistenceAdapter,
   getPersistenceAdapterMetadata,
-  localStorageAdapter
+  localStorageAdapter,
+  withLocalFirstBucketMetadata,
+  withPersistenceAdapterMetadata
 } from "./index";
+
+async function readBucketText(bucket: ReturnType<typeof createMemoryBucket>, key: string): Promise<string | null> {
+  const entry = await bucket.get(key);
+  if (!entry) {
+    return null;
+  }
+
+  if (entry.data instanceof Blob) {
+    return entry.data.text();
+  }
+  if (entry.data instanceof ArrayBuffer) {
+    return new TextDecoder().decode(entry.data);
+  }
+
+  return new TextDecoder().decode(entry.data);
+}
 
 describe("createLocalFirstProfile", () => {
   it("maps policies to app-selected adapters and queue storage", async () => {
-    const queueAdapter = createMemoryPersistenceAdapter();
+    const queueAdapter = withPersistenceAdapterMetadata(createMemoryPersistenceAdapter(), {
+      kind: "indexed-db",
+      name: "test-queue"
+    });
     const profile = createLocalFirstProfile({
       storage: {
         queue: queueAdapter
@@ -48,7 +69,11 @@ describe("createLocalFirstProfile", () => {
   });
 
   it("keeps file payloads in buckets instead of queue payload storage", async () => {
-    const uploads = createMemoryBucket<{ hash: string }>();
+    const uploads = withLocalFirstBucketMetadata(createMemoryBucket<{ hash: string }>(), {
+      kind: "native-file-system",
+      name: "test-uploads",
+      durable: true
+    });
     const profile = createLocalFirstProfile({
       buckets: {
         uploads
@@ -76,7 +101,23 @@ describe("createLocalFirstProfile", () => {
         updatedAt: 10
       }
     ]);
-    expect(await (await bucket.get("source.csv"))?.data.text()).toContain("id,total");
+    expect(await readBucketText(bucket, "source.csv")).toContain("id,total");
+  });
+
+  it("fails closed when a durable policy receives a best-effort bucket", () => {
+    const profile = createLocalFirstProfile({
+      buckets: {
+        uploads: createMemoryBucket()
+      },
+      policies: {
+        uploads: {
+          bucket: "uploads",
+          durability: "durable"
+        }
+      }
+    });
+
+    expect(() => profile.bucket("uploads")).toThrow("requires a durable bucket");
   });
 
   it("fails closed for sensitive policies that try to use localStorage", () => {
@@ -113,5 +154,27 @@ describe("createLocalFirstProfile", () => {
     });
 
     expect(() => profile.adapter("credentials")).toThrow("Policy \"credentials\" uses forbidden local persistence");
+  });
+
+  it("enforces size limits at the adapter boundary", async () => {
+    const adapter = withPersistenceAdapterMetadata(createMemoryPersistenceAdapter(), {
+      kind: "indexed-db",
+      name: "test-size"
+    });
+    const profile = createLocalFirstProfile({
+      storage: {
+        drafts: adapter
+      },
+      policies: {
+        drafts: {
+          storage: "drafts",
+          sensitivity: "business",
+          maxBytes: 8
+        }
+      }
+    });
+
+    await expect(profile.adapter("drafts").setItem("draft", { text: "too large" }))
+      .rejects.toThrow("payload exceeds maxBytes");
   });
 });
