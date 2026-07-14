@@ -50,6 +50,7 @@ export {
   createManifestedBucket,
   createMemoryBucket,
   createOPFSBucket,
+  encodeOPFSKey,
   getLocalFirstBucketMetadata,
   withLocalFirstBucketMetadata
 } from "./persistence/buckets.js";
@@ -117,6 +118,7 @@ export type {
   MutationConflictResolver,
   MutationFlushResult,
   MutationHandler,
+  MutationHandlerContext,
   MutationQueue,
   MutationQueueOptions,
   MutationQueueSyncState,

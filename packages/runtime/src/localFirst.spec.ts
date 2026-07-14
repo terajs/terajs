@@ -137,6 +137,42 @@ describe("createLocalFirstProfile", () => {
     expect(() => profile.adapter("credentials")).toThrow("cannot persist secret data in localStorage");
   });
 
+  it("preserves adapter metadata across policy wrappers", () => {
+    const permissive = createLocalFirstProfile({
+      storage: { ui: localStorageAdapter },
+      policies: { ui: { storage: "ui", sensitivity: "low" } }
+    });
+    const wrapped = permissive.adapter("ui");
+
+    expect(getPersistenceAdapterMetadata(wrapped).kind).toBe("local-storage");
+
+    const strict = createLocalFirstProfile({
+      storage: { wrapped },
+      policies: {
+        credentials: { storage: "wrapped", sensitivity: "secret" }
+      }
+    });
+
+    expect(() => strict.adapter("credentials")).toThrow("cannot persist secret data in localStorage");
+  });
+
+  it("preserves bucket metadata across policy wrappers", () => {
+    const durable = withLocalFirstBucketMetadata(createMemoryBucket(), {
+      kind: "native-file-system",
+      durable: true
+    });
+    const first = createLocalFirstProfile({
+      buckets: { durable },
+      policies: { files: { bucket: "durable" } }
+    });
+    const second = createLocalFirstProfile({
+      buckets: { wrapped: first.bucket("files") },
+      policies: { files: { bucket: "wrapped", durability: "durable" } }
+    });
+
+    expect(() => second.bucket("files")).not.toThrow();
+  });
+
   it("supports explicit forbidden adapters for non-local data classes", () => {
     const adapter = createForbiddenPersistenceAdapter("credentials are server-only");
     expect(getPersistenceAdapterMetadata(adapter).kind).toBe("forbidden");

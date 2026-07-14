@@ -1,8 +1,12 @@
 import { Debug } from "@terajs/shared";
 import type { PersistenceAdapter } from "./persistence/types.js";
-import { getPersistenceAdapterMetadata } from "./persistence/adapters.js";
+import {
+  getPersistenceAdapterMetadata,
+  withPersistenceAdapterMetadata
+} from "./persistence/adapters.js";
 import {
   getLocalFirstBucketMetadata,
+  withLocalFirstBucketMetadata,
   type LocalFirstBucket
 } from "./persistence/buckets.js";
 import { createMutationQueueStorage, type MutationQueueStorage } from "./queue/mutationQueue.js";
@@ -191,14 +195,14 @@ function createPolicyPersistenceAdapter(
   policy: LocalFirstPolicy,
   adapter: PersistenceAdapter
 ): PersistenceAdapter {
-  return {
+  return withPersistenceAdapterMetadata({
     getItem: (key) => adapter.getItem(key),
     async setItem(key, value) {
       enforcePayloadPolicy(name, policy, value);
       await adapter.setItem(key, value);
     },
     removeItem: (key) => adapter.removeItem(key)
-  };
+  }, getPersistenceAdapterMetadata(adapter));
 }
 
 function createPolicyBucket(
@@ -206,7 +210,7 @@ function createPolicyBucket(
   policy: LocalFirstPolicy,
   bucket: LocalFirstBucket
 ): LocalFirstBucket {
-  return {
+  return withLocalFirstBucketMetadata({
     async put(key, data, options) {
       enforcePayloadPolicy(name, policy, data);
       return bucket.put(key, data, options);
@@ -214,7 +218,7 @@ function createPolicyBucket(
     get: (key) => bucket.get(key),
     delete: (key) => bucket.delete(key),
     list: () => bucket.list()
-  };
+  }, getLocalFirstBucketMetadata(bucket));
 }
 
 function enforcePayloadPolicy(name: string, policy: LocalFirstPolicy, value: unknown): void {

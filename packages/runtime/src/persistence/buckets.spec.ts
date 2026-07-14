@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createManifestedBucket,
-  createMemoryBucket
+  createMemoryBucket,
+  createOPFSBucket,
+  encodeOPFSKey
 } from "./buckets";
 import { createMemoryPersistenceAdapter } from "./adapters";
 import type { LocalFirstBucket } from "./buckets";
@@ -89,5 +91,61 @@ describe("createManifestedBucket", () => {
       }
     ]);
     expect(await readBucketText(second, "upload.csv")).toBe("a,b");
+  });
+
+  it("serializes concurrent manifest updates", async () => {
+    const bucket = createManifestedBucket(createMemoryBucket(), {
+      adapter: createMemoryPersistenceAdapter(),
+      key: "concurrent"
+    });
+
+    await Promise.all([
+      bucket.put("a", new Blob(["a"]), { updatedAt: 1 }),
+      bucket.put("b", new Blob(["b"]), { updatedAt: 2 })
+    ]);
+
+    expect(await bucket.list()).toEqual([
+      { key: "a", metadata: undefined, updatedAt: 1 },
+      { key: "b", metadata: undefined, updatedAt: 2 }
+    ]);
+  });
+});
+
+describe("createOPFSBucket", () => {
+  it("fails closed without durable manifest storage", () => {
+    expect(() => createOPFSBucket()).toThrow("require a persistent manifestAdapter");
+  });
+
+  it("encodes previously colliding keys distinctly", () => {
+    expect(encodeOPFSKey("a/b")).not.toBe(encodeOPFSKey("a_2Fb"));
+    expect(encodeOPFSKey("/")).not.toBe(encodeOPFSKey("_2F"));
+  });
+
+  it("propagates OPFS deletion errors other than NotFoundError", async () => {
+    const removeEntry = async () => {
+      throw new DOMException("denied", "SecurityError");
+    };
+    const directory = {
+      removeEntry,
+      getFileHandle: async () => { throw new Error("unused"); }
+    };
+    const root = { getDirectoryHandle: async () => directory };
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { storage: { getDirectory: async () => root } }
+    });
+
+    try {
+      const bucket = createOPFSBucket({
+        manifestAdapter: createMemoryPersistenceAdapter()
+      });
+      await expect(bucket.delete("file")).rejects.toThrow("denied");
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        configurable: true,
+        value: originalNavigator
+      });
+    }
   });
 });

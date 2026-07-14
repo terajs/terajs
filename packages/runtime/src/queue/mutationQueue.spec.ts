@@ -107,6 +107,51 @@ describe("createMutationQueue", () => {
     });
   });
 
+  it("serializes concurrent flush calls and passes idempotency context", async () => {
+    const queue = await createMutationQueue({ createId: () => "m1", now: () => 1 });
+    const contexts: unknown[] = [];
+    let release: (() => void) | undefined;
+    queue.register("deliver", async (_payload, context) => {
+      contexts.push(context);
+      await new Promise<void>((resolve) => { release = resolve; });
+    });
+    await queue.enqueue({
+      type: "deliver",
+      payload: "value",
+      idempotencyKey: "idem-1"
+    });
+
+    const first = queue.flush();
+    const second = queue.flush();
+    await Promise.resolve();
+    release?.();
+
+    expect(await first).toEqual(await second);
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]).toMatchObject({
+      id: "m1",
+      idempotencyKey: "idem-1",
+      type: "deliver",
+      attempts: 0,
+      mutation: { id: "m1", idempotencyKey: "idem-1" }
+    });
+  });
+
+  it("clears flushing state when queue persistence fails", async () => {
+    const queue = await createMutationQueue({
+      storage: {
+        load: async () => [],
+        save: async () => { throw new Error("disk full"); }
+      }
+    });
+    queue.register("deliver", () => undefined);
+    await expect(queue.enqueue({ type: "deliver", payload: null })).rejects.toThrow("disk full");
+    expect(queue.pendingCount()).toBe(0);
+
+    await expect(queue.flush()).rejects.toThrow("disk full");
+    expect(queue.state().flushing).toBe(false);
+  });
+
   it("retries failed mutations using retry policy and eventually marks failed", async () => {
     let now = 1_000;
     const queue = await createMutationQueue({

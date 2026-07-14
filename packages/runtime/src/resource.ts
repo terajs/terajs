@@ -184,7 +184,7 @@ export function createResource<TSource, TData>(
     hydratedValue !== undefined ? "hydration" : undefined
   );
 
-  if (persistentKey && hydratedValue === undefined && typeof window !== "undefined") {
+  if (persistentKey && hydratedValue === undefined) {
     void persistenceAdapter.getItem<TData>(persistentKey)
       .then((cached) => {
         if (cached !== null && cached !== undefined) {
@@ -236,7 +236,7 @@ export function createResource<TSource, TData>(
       sourceSignal.set("network");
       state.set("ready");
       error.set(undefined);
-      if (persistentKey && typeof window !== "undefined") {
+      if (persistentKey) {
         await persistenceAdapter.setItem(persistentKey, resolved)
           .catch(() => undefined);
       }
@@ -267,6 +267,10 @@ export function createResource<TSource, TData>(
     }
   };
 
+  const executeAutomatically = (value: TSource | void): void => {
+    void execute(value).catch(() => undefined);
+  };
+
   if (source) {
     let initialized = false;
     if (hydratedValue !== undefined) {
@@ -278,7 +282,7 @@ export function createResource<TSource, TData>(
       const nextSource = source();
       if (!initialized || !Object.is(nextSource, currentSource)) {
         initialized = true;
-        void execute(nextSource);
+        executeAutomatically(nextSource);
       }
     };
 
@@ -290,11 +294,11 @@ export function createResource<TSource, TData>(
       const nextSource = source();
       if (!initialized || !Object.is(nextSource, currentSource)) {
         initialized = true;
-        void execute(nextSource);
+        executeAutomatically(nextSource);
       }
     });
   } else if (options?.immediate !== false && hydratedValue === undefined) {
-    void execute(undefined);
+    executeAutomatically(undefined);
   }
 
   if (options?.key) {
@@ -322,9 +326,9 @@ export function createResource<TSource, TData>(
       state.set("ready");
       error.set(undefined);
 
-      let persisted = persistentKey === undefined || typeof window === "undefined";
+      let persisted = persistentKey === undefined;
 
-      if (persistentKey && typeof window !== "undefined") {
+      if (persistentKey) {
         try {
           await persistenceAdapter.setItem(persistentKey, nextValue);
           persisted = true;
@@ -386,11 +390,22 @@ export function createResource<TSource, TData>(
 
           options.queue.register(queueType, (payload) => serverCall(payload));
 
-          const queued = await options.queue.enqueue({
-            type: queueType,
-            payload: queuePayload,
-            maxRetries: options.maxRetries
-          });
+          let queued;
+          try {
+            queued = await options.queue.enqueue({
+              type: queueType,
+              payload: queuePayload,
+              maxRetries: options.maxRetries
+            });
+          } catch (queueError) {
+            error.set(queueError);
+            state.set("error");
+            return {
+              status: "failed",
+              persisted,
+              error: queueError
+            };
+          }
 
           state.set("ready");
           Debug.emit("resource:mutate", {

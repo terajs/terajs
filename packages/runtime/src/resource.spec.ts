@@ -116,6 +116,26 @@ describe("createResource", () => {
     expect(resource.data()).toBe("B");
   });
 
+  it("does not leak rejections from superseded reactive requests", async () => {
+    const source = signal("a");
+    const resource = createResource(source, async (value, { signal }) => {
+      if (value === "a") {
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+      return value;
+    });
+
+    source.set("b");
+    await Promise.resolve();
+    await resource.promise();
+    await Promise.resolve();
+
+    expect(resource.data()).toBe("b");
+    expect(resource.state()).toBe("ready");
+  });
+
   it("hydrates from __TERAJS_DATA__ script if available", async () => {
     document.body.innerHTML = `<script id="__TERAJS_DATA__" type="application/json">{"user":{"id":1}}</script>`;
 
@@ -203,6 +223,25 @@ describe("createResource", () => {
     expect(await adapter.getItem("profile")).toEqual({ id: 3 });
   });
 
+  it("uses configured persistence adapters without a browser window", async () => {
+    const adapter = createMemoryPersistenceAdapter({ profile: { id: 1 } });
+    vi.stubGlobal("window", undefined);
+
+    const resource = createResource(async () => ({ id: 2 }), {
+      immediate: false,
+      persistent: { key: "profile", adapter }
+    });
+    await Promise.resolve();
+
+    expect(resource.data()).toEqual({ id: 1 });
+    expect(resource.source()).toBe("persistence");
+    await expect(resource.mutate({ id: 3 })).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
+    expect(await adapter.getItem("profile")).toEqual({ id: 3 });
+  });
+
   it("queues failed mutate server calls when queue integration is provided", async () => {
     let offline = true;
     const queue = await createMutationQueue({
@@ -260,6 +299,27 @@ describe("createResource", () => {
       persisted: true
     });
 
+    expect(queue.pendingCount()).toBe(0);
+  });
+
+  it("returns failed when durable queue enqueue persistence rejects", async () => {
+    const queue = await createMutationQueue({
+      storage: {
+        load: async () => [],
+        save: async () => { throw new Error("queue storage full"); }
+      }
+    });
+    const resource = createResource(async () => "remote", { immediate: false });
+
+    await expect(resource.mutate("optimistic", {
+      queue,
+      serverCall: async () => { throw new Error("offline"); }
+    })).resolves.toMatchObject({
+      status: "failed",
+      error: expect.objectContaining({ message: "queue storage full" })
+    });
+    expect(resource.state()).toBe("error");
+    expect(resource.error()).toEqual(expect.objectContaining({ message: "queue storage full" }));
     expect(queue.pendingCount()).toBe(0);
   });
 });

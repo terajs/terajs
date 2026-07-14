@@ -97,6 +97,7 @@ export function createManifestedBucket<TMetadata = Record<string, unknown>>(
 ): LocalFirstBucket<TMetadata> {
   const manifestKey = options.key ?? "terajs:bucket-manifest";
   const metadata = getLocalFirstBucketMetadata(bucket);
+  let manifestMutation = Promise.resolve();
 
   const loadManifest = async (): Promise<Array<LocalFirstBucketManifestEntry<TMetadata>>> => {
     const manifest = await options.adapter.getItem<Array<LocalFirstBucketManifestEntry<TMetadata>>>(manifestKey);
@@ -112,14 +113,21 @@ export function createManifestedBucket<TMetadata = Record<string, unknown>>(
     await options.adapter.setItem(manifestKey, manifest);
   };
 
+  const mutateManifest = async (
+    mutate: (manifest: Array<LocalFirstBucketManifestEntry<TMetadata>>) => Array<LocalFirstBucketManifestEntry<TMetadata>>
+  ): Promise<void> => {
+    const operation = manifestMutation.then(async () => {
+      await saveManifest(mutate(await loadManifest()));
+    });
+    manifestMutation = operation.catch(() => undefined);
+    await operation;
+  };
+
   const upsertManifestEntry = async (entry: LocalFirstBucketManifestEntry<TMetadata>): Promise<void> => {
-    const manifest = await loadManifest();
-    const nextManifest = [
+    await mutateManifest((manifest) => [
       ...manifest.filter((item) => item.key !== entry.key),
       entry
-    ].sort((left, right) => left.key.localeCompare(right.key));
-
-    await saveManifest(nextManifest);
+    ].sort((left, right) => left.key.localeCompare(right.key)));
   };
 
   return withLocalFirstBucketMetadata({
@@ -147,7 +155,7 @@ export function createManifestedBucket<TMetadata = Record<string, unknown>>(
     },
     async delete(key) {
       await bucket.delete(key);
-      await saveManifest((await loadManifest()).filter((entry) => entry.key !== key));
+      await mutateManifest((manifest) => manifest.filter((entry) => entry.key !== key));
     },
     async list() {
       return loadManifest();
@@ -167,6 +175,11 @@ export interface OPFSBucketOptions {
 export function createOPFSBucket<TMetadata = Record<string, unknown>>(
   options: OPFSBucketOptions = {}
 ): LocalFirstBucket<TMetadata> {
+  if (!options.manifestAdapter) {
+    throw new Error("OPFS buckets require a persistent manifestAdapter for list and metadata recovery.");
+  }
+  const manifestAdapter = options.manifestAdapter;
+
   const directory = options.directory ?? "terajs-local-first";
 
   const getRoot = async (): Promise<FileSystemDirectoryHandle> => {
@@ -182,13 +195,10 @@ export function createOPFSBucket<TMetadata = Record<string, unknown>>(
     return root.getDirectoryHandle(directory, { create: true });
   };
 
-  const encodeKey = (key: string): string =>
-    encodeURIComponent(key).replace(/%/g, "_");
-
   const bucket: LocalFirstBucket<TMetadata> = withLocalFirstBucketMetadata({
     async put(key, data, options) {
       const root = await getRoot();
-      const handle = await root.getFileHandle(encodeKey(key), { create: true });
+      const handle = await root.getFileHandle(encodeOPFSKey(key), { create: true });
       const writable = await handle.createWritable();
       await writable.write(toFileSystemWriteChunk(data));
       await writable.close();
@@ -203,7 +213,7 @@ export function createOPFSBucket<TMetadata = Record<string, unknown>>(
     async get(key) {
       try {
         const root = await getRoot();
-        const handle = await root.getFileHandle(encodeKey(key));
+        const handle = await root.getFileHandle(encodeOPFSKey(key));
         const data = await handle.getFile();
 
         return {
@@ -211,23 +221,21 @@ export function createOPFSBucket<TMetadata = Record<string, unknown>>(
           data,
           updatedAt: data.lastModified
         };
-      } catch {
-        return null;
+      } catch (error) {
+        if (isNotFoundError(error)) return null;
+        throw error;
       }
     },
     async delete(key) {
       const root = await getRoot();
-      await root.removeEntry(encodeKey(key)).catch(() => undefined);
+      try {
+        await root.removeEntry(encodeOPFSKey(key));
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+      }
     },
     async list() {
-      if (!options.manifestAdapter) {
-        return [];
-      }
-
-      return createManifestedBucket(bucket, {
-        adapter: options.manifestAdapter,
-        key: options.manifestKey
-      }).list();
+      throw new Error("OPFS manifest access requires the manifested bucket wrapper.");
     }
   }, {
     kind: "opfs",
@@ -236,12 +244,23 @@ export function createOPFSBucket<TMetadata = Record<string, unknown>>(
     manifest: Boolean(options.manifestAdapter)
   });
 
-  return options.manifestAdapter
-    ? createManifestedBucket(bucket, {
-      adapter: options.manifestAdapter,
-      key: options.manifestKey
-    })
-    : bucket;
+  return createManifestedBucket(bucket, {
+    adapter: manifestAdapter,
+    key: options.manifestKey
+  });
+}
+
+export function encodeOPFSKey(key: string): string {
+  return `k-${Array.from(new TextEncoder().encode(key), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("")}`;
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof DOMException
+    ? error.name === "NotFoundError"
+    : typeof error === "object" && error !== null && "name" in error
+      && (error as { name?: unknown }).name === "NotFoundError";
 }
 
 function toFileSystemWriteChunk(data: LocalFirstBucketData): FileSystemWriteChunkType {
