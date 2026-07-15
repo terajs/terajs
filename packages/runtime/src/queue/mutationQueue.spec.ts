@@ -143,6 +143,46 @@ describe("createMutationQueue", () => {
     });
   });
 
+  it("treats rejection with undefined as a failed delivery", async () => {
+    const queue = await createMutationQueue({ now: () => 1 });
+    queue.register("deliver", () => Promise.reject());
+    await queue.enqueue({
+      id: "undefined-rejection",
+      type: "deliver",
+      payload: null,
+      maxRetries: 2
+    });
+
+    const result = await queue.flush();
+
+    expect(result).toMatchObject({ flushed: 0, retried: 1, pending: 1 });
+    expect(queue.snapshot()).toEqual([
+      expect.objectContaining({
+        id: "undefined-rejection",
+        attempts: 1,
+        status: "pending",
+        lastError: "Unknown mutation error"
+      })
+    ]);
+  });
+
+  it("delivers an enqueue immediately followed by flush", async () => {
+    let clock = 0;
+    const handled: unknown[] = [];
+    const queue = await createMutationQueue({ now: () => ++clock });
+    queue.register("deliver", (payload) => {
+      handled.push(payload);
+    });
+
+    const enqueue = queue.enqueue({ id: "immediate", type: "deliver", payload: "value" });
+    const flush = queue.flush();
+    await enqueue;
+    const result = await flush;
+
+    expect(result).toMatchObject({ flushed: 1, skipped: 0, pending: 0 });
+    expect(handled).toEqual(["value"]);
+  });
+
   it("serializes concurrent enqueue persistence without losing snapshots", async () => {
     const saved: string[][] = [];
     let releaseFirstSave: (() => void) | undefined;

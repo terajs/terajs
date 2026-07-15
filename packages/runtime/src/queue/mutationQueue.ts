@@ -167,11 +167,11 @@ export async function createMutationQueue(
   };
 
   const performFlush = async (): Promise<MutationFlushResult> => {
-    const current = now();
-    let skipped = 0;
-    const deliveries = await runOperation(async () => {
+    const selection = await runOperation(async () => {
+      const current = now();
+      let skipped = 0;
       updateState(true);
-      const ready: Array<{ mutation: QueuedMutation; handler: MutationHandler }> = [];
+      const deliveries: Array<{ mutation: QueuedMutation; handler: MutationHandler }> = [];
 
       for (const mutation of items) {
         if (mutation.status !== "pending") continue;
@@ -186,18 +186,18 @@ export async function createMutationQueue(
           Debug.emit("queue:skip:missing-handler", { id: mutation.id, type: mutation.type, attempts: mutation.attempts, reason: "missing-handler", handlerCount: handlers.size, missingType: mutation.type });
           continue;
         }
-        ready.push({ mutation, handler });
+        deliveries.push({ mutation, handler });
       }
 
-      return ready;
+      return { current, skipped, deliveries };
     });
-    const outcomes: Array<{
-      mutation: QueuedMutation;
-      error?: unknown;
-    }> = [];
+    const outcomes: Array<
+      | { mutation: QueuedMutation; success: true }
+      | { mutation: QueuedMutation; success: false; error: unknown }
+    > = [];
 
     try {
-      for (const { mutation, handler } of deliveries) {
+      for (const { mutation, handler } of selection.deliveries) {
         try {
           await handler(mutation.payload, {
             id: mutation.id,
@@ -206,9 +206,9 @@ export async function createMutationQueue(
             attempts: mutation.attempts,
             mutation: { ...mutation }
           });
-          outcomes.push({ mutation });
+          outcomes.push({ mutation, success: true });
         } catch (error) {
-          outcomes.push({ mutation, error });
+          outcomes.push({ mutation, success: false, error });
         }
       }
 
@@ -225,7 +225,7 @@ export async function createMutationQueue(
           const mutationIndex = nextItems.findIndex((item) => item === outcome.mutation);
           if (mutationIndex === -1) continue;
 
-          if (outcome.error === undefined) {
+          if (outcome.success) {
             nextItems = nextItems.filter((_item, index) => index !== mutationIndex);
             flushed += 1;
             continue;
@@ -239,7 +239,7 @@ export async function createMutationQueue(
           };
           if (retryPolicy.shouldRetry(outcome.error, updated.attempts, updated)) {
             const delayMs = Math.max(0, retryPolicy.nextDelayMs(updated.attempts, updated));
-            updated.nextRetryAt = current + delayMs;
+            updated.nextRetryAt = selection.current + delayMs;
             retried += 1;
             retryEvents.push({ id: updated.id, type: updated.type, attempts: updated.attempts, nextRetryAt: updated.nextRetryAt, delayMs, reason: "retry", error: updated.lastError });
           } else {
@@ -259,7 +259,7 @@ export async function createMutationQueue(
           throw error;
         }
 
-        const result = { flushed, retried, failed, skipped, pending };
+        const result = { flushed, retried, failed, skipped: selection.skipped, pending };
         updateState(false, result);
         for (const event of retryEvents) {
           Debug.emit("queue:backoff", event);
