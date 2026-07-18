@@ -53,19 +53,6 @@ export const overlayShellComponentsStyles = `
   }
 
   @media (max-width: 720px) {
-    .overlay-frame {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      max-width: 100vw;
-      height: 100vh;
-      max-height: 100vh;
-      border-radius: 0;
-      border-left: 0;
-      border-right: 0;
-      border-bottom: 0;
-    }
-
     .devtools-fab {
       position: fixed;
       right: 12px;

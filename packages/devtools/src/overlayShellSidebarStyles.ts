@@ -128,7 +128,7 @@ export const overlayShellSidebarStyles = `
     overflow: hidden;
   }
 
-  @media (max-width: 720px) {
+  @media (max-width: 900px) {
     .devtools-fab-cluster {
       position: fixed;
       right: 12px;
@@ -140,7 +140,9 @@ export const overlayShellSidebarStyles = `
     .devtools-fab-switch {
       position: static;
     }
+  }
 
+  @media (max-width: 720px) {
     .devtools-header {
       grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas:

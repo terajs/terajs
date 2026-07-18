@@ -100,6 +100,35 @@ export const overlayShellHostStyles = `
     }
   }
 
+  @media (max-width: 900px) {
+    :host {
+      left: 50% !important;
+      top: 50% !important;
+      right: auto !important;
+      bottom: auto !important;
+      transform: translate(-50%, -50%) !important;
+    }
+
+    .overlay-frame {
+      position: relative;
+      width: min(720px, calc(100vw - 32px));
+      max-width: calc(100vw - 32px);
+      height: min(620px, calc(100vh - 112px));
+      max-height: calc(100vh - 112px);
+      border-radius: 14px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .overlay-frame {
+      width: calc(100vw - 24px);
+      max-width: calc(100vw - 24px);
+      height: min(600px, calc(100vh - 112px));
+      max-height: calc(100vh - 112px);
+      border-radius: 12px;
+    }
+  }
+
   .overlay-frame.is-hidden {
     display: none;
   }
