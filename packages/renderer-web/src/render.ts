@@ -22,6 +22,7 @@ import {
 import type { ComponentContext } from "@terajs/runtime";
 import { template, type TemplateFn } from "./template.js";
 import { emitRendererDebug } from "./debug.js";
+import { inheritRouteOutletRenderContext } from "./routeOutletContext.js";
 
 // AST to JSX adapter
 import { renderAst } from "./astToJsx.js";
@@ -107,10 +108,7 @@ export function renderComponent(
     const ctx = createComponentContext();
     const prev = getCurrentContext();
     ctx.errorBoundary = prev?.errorBoundary;
-    const inheritedRouteOutletContext = (prev as any)?.__teraRouteOutletContext;
-    if (inheritedRouteOutletContext) {
-        (ctx as any).__teraRouteOutletContext = inheritedRouteOutletContext;
-    }
+    inheritRouteOutletRenderContext(prev, ctx);
 
     emitRendererDebug("component:render:start", () => ({
         component,

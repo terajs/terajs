@@ -11,6 +11,7 @@ import { dispose, effect, signal, withDetachedCurrentEffect, type Signal } from 
 import {
   createComponentContext,
   getCurrentContext,
+  runWithCurrentContext,
   setCurrentContext,
   type ComponentContext,
 } from "@terajs/runtime";
@@ -23,6 +24,7 @@ import {
 } from "./dom.js";
 import { emitRendererDebug } from "./debug.js";
 import { resolveExpr } from "./renderFromIRExpressions.js";
+import { inheritRouteOutletRenderContext } from "./routeOutletContext.js";
 import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
 
 type RenderIRNode = (node: IRNode, ctx: any, isSvg?: boolean) => Node | null;
@@ -54,8 +56,9 @@ export function renderIRForNode(
   const identityState = createIRForIdentityState();
   const supportsKeyedReuse = node.body.length === 1 && node.isStructural !== true;
   let rows: IRForRowRecord[] = [];
+  let rebuiltNodes: ChildNode[] = [];
 
-  const run = () => {
+  const renderRows = () => {
     const array = resolveExpr(ctx, node.each) || [];
     const mountTarget = anchor.parentNode ?? parent;
 
@@ -100,8 +103,18 @@ export function renderIRForNode(
       Array.isArray(array) ? array : [],
       mountTarget,
       anchor,
+      rebuiltNodes,
       renderNode,
     );
+  };
+
+  const run = () => {
+    if (ownerContext) {
+      runWithCurrentContext(ownerContext, renderRows);
+      return;
+    }
+
+    renderRows();
   };
 
   const effectFn = effect(run);
@@ -110,6 +123,8 @@ export function renderIRForNode(
     dispose(effectFn);
     for (const row of rows) disposeIRForRowRecord(row);
     rows = [];
+    for (const node of rebuiltNodes) remove(node);
+    rebuiltNodes = [];
   });
 
   return parent;
@@ -122,40 +137,40 @@ function renderIRForByRebuild(
   array: any[],
   parent: Node,
   anchor: Comment,
+  ownedNodes: ChildNode[],
   renderNode: RenderIRNode,
 ): void {
-  const nodes: Node[] = [];
+  for (const ownedNode of ownedNodes) {
+    remove(ownedNode);
+  }
+  ownedNodes.length = 0;
 
-  for (let index = 0; index < array.length; index += 1) {
-    const childCtx = {
-      ...ctx,
-      [node.item]: array[index],
-      [node.index ?? "i"]: index,
-    };
+  const fragment = createFragment();
 
-    const frag = createFragment();
-    for (const child of node.body) {
-      const dom = renderNode(child, childCtx, isSvg);
-      if (dom) {
-        frag.appendChild(dom);
+  try {
+    for (let index = 0; index < array.length; index += 1) {
+      const childCtx = {
+        ...ctx,
+        [node.item]: array[index],
+        [node.index ?? "i"]: index,
+      };
+
+      for (const child of node.body) {
+        const dom = renderNode(child, childCtx, isSvg);
+        if (dom) {
+          fragment.appendChild(dom);
+        }
       }
     }
-
-    nodes.push(frag);
+  } catch (error) {
+    while (fragment.firstChild) {
+      remove(fragment.firstChild);
+    }
+    throw error;
   }
 
-  let next = anchor.nextSibling;
-  while (next) {
-    const toRemove = next;
-    next = next.nextSibling;
-    remove(toRemove);
-  }
-
-  let ref: ChildNode | null = anchor.nextSibling;
-  for (const renderedNode of nodes) {
-    insert(parent, renderedNode, ref ?? null);
-    ref = null;
-  }
+  ownedNodes.push(...Array.from(fragment.childNodes));
+  insert(parent, fragment, anchor.nextSibling);
 }
 
 function createKeyedIRForRows(
@@ -270,6 +285,7 @@ function createIRForRowRecord(
     rowContext.route = ownerContext.route;
     rowContext.meta = ownerContext.meta;
     rowContext.ai = ownerContext.ai;
+    inheritRouteOutletRenderContext(ownerContext, rowContext);
   }
 
   const rowChildContext = {

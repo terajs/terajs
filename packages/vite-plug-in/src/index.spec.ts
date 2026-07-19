@@ -437,6 +437,41 @@ describe("Terajs Vite Plugin (integration)", () => {
     });
   });
 
+  it("atomically reloads the app when an existing route file changes", () => {
+    const plugin = terajsPlugin();
+    const handleHotUpdate = requireHook<[HmrContext], unknown>(plugin.handleHotUpdate);
+    vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Route</template>");
+    const routeFile = path.resolve(process.cwd(), "src/routes/existing.tera");
+    const routeModule = { id: routeFile };
+    const routesVirtualModule = { id: "\0virtual:terajs-routes" };
+    const appVirtualModule = { id: "\0virtual:terajs-app" };
+    const getModuleById = vi.fn((id: string) => {
+      if (id === routeFile) return routeModule;
+      if (id === routesVirtualModule.id) return routesVirtualModule;
+      if (id === appVirtualModule.id) return appVirtualModule;
+      return null;
+    });
+    const invalidateModule = vi.fn();
+    const send = vi.fn();
+    const ctx = {
+      file: routeFile,
+      read: vi.fn(),
+      server: {
+        moduleGraph: { getModuleById, invalidateModule },
+        ws: { send }
+      }
+    } as unknown as HmrContext;
+
+    const result = handleHotUpdate(ctx);
+
+    expect(result).toEqual([]);
+    expect(invalidateModule).toHaveBeenCalledWith(routeModule);
+    expect(invalidateModule).toHaveBeenCalledWith(routesVirtualModule);
+    expect(invalidateModule).toHaveBeenCalledWith(appVirtualModule);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({ type: "full-reload" });
+  });
+
   it("reloads when a new auto-imported component file is added", () => {
     const plugin = terajsPlugin();
     const configureServer = requireServerHook(plugin.configureServer);
@@ -502,6 +537,29 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(invalidateModule).toHaveBeenCalledWith(routesModule);
     expect(invalidateModule).toHaveBeenCalledWith(appModule);
     expect(send).toHaveBeenCalledWith({ type: "full-reload" });
+  });
+
+  it("restarts Vite when the Tera config changes", () => {
+    const plugin = terajsPlugin();
+    const configureServer = requireServerHook(plugin.configureServer);
+    const on = vi.fn();
+    const restart = vi.fn(() => Promise.resolve());
+
+    configureServer({
+      middlewares: { use: vi.fn() },
+      watcher: { on },
+      moduleGraph: { getModuleById: vi.fn(), invalidateModule: vi.fn() },
+      ws: { send: vi.fn() },
+      restart
+    } as any);
+
+    const changeHandler = on.mock.calls.find(([eventName]) => eventName === "change")?.[1] as
+      ((filePath: string) => void) | undefined;
+    expect(typeof changeHandler).toBe("function");
+
+    changeHandler?.(path.resolve(process.cwd(), "terajs.config.cjs"));
+
+    expect(restart).toHaveBeenCalledTimes(1);
   });
 
   it("generates a virtual route manifest module", () => {
@@ -914,8 +972,33 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(typeof code).toBe("string");
     expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
     expect(code).toContain("Unsupported sync.hub.type: invalid-transport");
+    expect(code).toContain("export function bootstrapTerajsApp() {}");
 
     syncSpy.mockRestore();
+  });
+
+  it("preserves the routes module export contract when generation fails", () => {
+    const routesDir = path.resolve(process.cwd(), "src/routes");
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      return path.resolve(String(input)) === routesDir;
+    });
+    const readDirSpy = vi.spyOn(fs, "readdirSync").mockImplementation((input) => {
+      if (path.resolve(String(input)) === routesDir) {
+        throw new Error("route scan failed");
+      }
+      return [] as any;
+    });
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = readGeneratedModuleCode(load("\0virtual:terajs-routes"));
+
+    expect(code).toContain("export const routes = [];");
+    expect(code).toContain("export default routes;");
+    expect(code).toContain("route scan failed");
+
+    readDirSpy.mockRestore();
+    existsSpy.mockRestore();
   });
 
   it("returns a JavaScript error module when loading a .tera file fails", () => {

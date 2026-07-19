@@ -1,7 +1,10 @@
 import type { LoadedRouteBranchEntry, LoadedRouteMatch, Router } from "@terajs/router";
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
-import type { ComponentContext } from "@terajs/runtime";
 import { unmount } from "./mount.js";
+import {
+  bindRouteOutletRenderContext,
+  readRouteOutletRenderContext
+} from "./routeOutletContext.js";
 
 export interface RouteOutletController<TData = unknown> {
   readonly router: Router;
@@ -22,11 +25,6 @@ export interface RouteOutletRenderContext<TData = unknown> {
 }
 
 const routeOutletStack: RouteOutletRenderContext[] = [];
-const ROUTE_OUTLET_CONTEXT = "__teraRouteOutletContext";
-
-type RouteOutletComponentContext = ComponentContext & {
-  [ROUTE_OUTLET_CONTEXT]?: RouteOutletRenderContext;
-};
 
 export function createRouteOutletController<TData>(
   router: Router,
@@ -93,21 +91,16 @@ export function withRouteOutletRenderContext<T>(
   }
 }
 
-export function bindRouteOutletRenderContext(
-  componentContext: ComponentContext,
-  outletContext: RouteOutletRenderContext
-): void {
-  (componentContext as RouteOutletComponentContext)[ROUTE_OUTLET_CONTEXT] = outletContext;
-}
-
 function getRouteOutletRenderContext(): RouteOutletRenderContext | null {
   const stacked = routeOutletStack[routeOutletStack.length - 1];
   if (stacked) {
     return stacked;
   }
 
-  return (getCurrentContext() as RouteOutletComponentContext | null)?.[ROUTE_OUTLET_CONTEXT] ?? null;
+  return readRouteOutletRenderContext(getCurrentContext());
 }
+
+export { bindRouteOutletRenderContext };
 
 function clearOutletHost(root: HTMLElement): void {
   try {

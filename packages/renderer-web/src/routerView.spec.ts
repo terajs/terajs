@@ -496,6 +496,126 @@ describe("createRouteView", () => {
     unmount(root);
   });
 
+  it("preserves routed context and teardown ordering across structural loop rebuilds", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const steps = signal([{ id: "connect", active: true }]);
+    let parentMounted = 0;
+    let parentUnmounted = 0;
+    let childMounted = 0;
+    let childUnmounted = 0;
+    let activeChildInstances = 0;
+    let maxActiveChildInstances = 0;
+
+    const Parent = component({ name: "StructuralOutletParent" }, () => {
+      onMounted(() => {
+        parentMounted += 1;
+      });
+      onUnmounted(() => {
+        parentUnmounted += 1;
+      });
+
+      const ir = {
+        filePath: "/pages/migrations/[id].tera",
+        template: [{
+          type: "element",
+          tag: "section",
+          props: [{ kind: "static", name: "data-testid", value: "structural-shell" }],
+          children: [
+            {
+              type: "for",
+              each: "steps",
+              item: "step",
+              index: "index",
+              isStructural: true,
+              body: [{
+                type: "if",
+                condition: "step.active",
+                then: [{
+                  type: "element",
+                  tag: "RouterView",
+                  props: [],
+                  children: [],
+                  flags: {}
+                }],
+                else: [],
+                flags: {}
+              }],
+              flags: {}
+            },
+            {
+              type: "element",
+              tag: "p",
+              props: [{ kind: "static", name: "data-testid", value: "after-loop" }],
+              children: [{ type: "text", value: "After loop", flags: {} }],
+              flags: {}
+            }
+          ],
+          flags: {}
+        }]
+      };
+
+      return () => renderIRModuleToFragment(ir as any, {
+        steps,
+        __components: { RouterView }
+      });
+    });
+    const Child = component({ name: "StructuralOutletChild" }, () => {
+      activeChildInstances += 1;
+      maxActiveChildInstances = Math.max(maxActiveChildInstances, activeChildInstances);
+
+      onMounted(() => {
+        childMounted += 1;
+      });
+      onUnmounted(() => {
+        activeChildInstances -= 1;
+        childUnmounted += 1;
+      });
+
+      return () => document.createTextNode("Connect child");
+    });
+    const router = createRouter(
+      [
+        route({
+          id: "migration",
+          path: "/migrations/:id",
+          filePath: "/pages/migrations/[id].tera",
+          component: async () => ({ default: Parent })
+        }),
+        route({
+          id: "connect",
+          path: "/migrations/:id/connect",
+          filePath: "/pages/migrations/[id]/connect.tera",
+          component: async () => ({ default: Child })
+        })
+      ],
+      { history: createMemoryHistory("/migrations/123/connect") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("Connect child");
+    expect(root.textContent).toContain("After loop");
+    expect(parentMounted).toBe(1);
+    expect(childMounted).toBe(1);
+    expect(maxActiveChildInstances).toBe(1);
+
+    steps.set([{ id: "mapping", active: true }]);
+    await flush();
+
+    expect(root.textContent).toContain("Connect child");
+    expect(root.textContent).toContain("After loop");
+    expect(root.textContent).not.toContain("RouterView must be rendered outside");
+    expect(parentMounted).toBe(1);
+    expect(parentUnmounted).toBe(0);
+    expect(childMounted).toBe(2);
+    expect(childUnmounted).toBe(1);
+    expect(maxActiveChildInstances).toBe(1);
+
+    unmount(root);
+  });
+
   it("falls back to leaf rendering when a derived parent route has no RouterView", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
@@ -908,7 +1028,7 @@ describe("createRouteView", () => {
     unmount(root);
   });
 
-  it("logs route errors and renders detailed default fallback text", async () => {
+  it("logs route errors without exposing details in the default fallback", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -931,8 +1051,9 @@ describe("createRouteView", () => {
     mount(createRouteView(router), root);
     await flush();
 
-    expect(root.textContent).toContain("Route render failed: /docs");
-    expect(root.textContent).toContain("loader failed hard");
+    expect(root.querySelector('[role="alert"]')?.textContent).toBe("Unable to load this page.");
+    expect(root.textContent).not.toContain("/docs");
+    expect(root.textContent).not.toContain("loader failed hard");
     expect(consoleSpy).toHaveBeenCalledWith(
       "[terajs/router] Route render failed for /docs",
       expect.any(Error)

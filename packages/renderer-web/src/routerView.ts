@@ -52,6 +52,13 @@ function createTextNode(message: string): Node {
   return document.createTextNode(message);
 }
 
+function createDefaultRouteErrorNode(): Node {
+  const message = document.createElement("p");
+  message.setAttribute("role", "alert");
+  message.textContent = "Unable to load this page.";
+  return message;
+}
+
 function resolveFrameworkComponent(value: unknown, label: string): FrameworkComponent {
   if (typeof value !== "function") {
     throw new Error(`${label} did not resolve to a component function.`);
@@ -507,7 +514,7 @@ export function createRouteView<TData = unknown>(
 
         renderContentNode(
           options.error?.({ router, target: lastTarget, error, retry }) ??
-            createTextNode(`Route render failed: ${lastTarget} (${errorMessage})`)
+            createDefaultRouteErrorNode()
         );
       }
     };
