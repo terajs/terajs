@@ -71,6 +71,11 @@ function applyResolvedRouteMetadata(loaded: LoadedRouteMatch<unknown>): void {
   updateHead(loaded.resolved.meta, loaded.resolved.ai, loaded.match.pathname);
 }
 
+function branchRootDeclaresChildren(loaded: LoadedRouteMatch<unknown>): boolean {
+  const rootRoute = getLoadedBranch(loaded)[0]?.match.route;
+  return Array.isArray(rootRoute?.children) && rootRoute.children.length > 0;
+}
+
 type RouteRenderMode = "leaf" | "nested";
 
 function composeLoadedMatch<TData>(
@@ -172,10 +177,11 @@ function renderRouteComponent(
   props: Record<string, unknown>,
   outletContext?: RouteOutletRenderContext
 ): Node {
-  const rendered = renderComponent(component, props);
-  if (outletContext) {
-    bindRouteOutletRenderContext(rendered.ctx, outletContext);
-  }
+  const rendered = renderComponent(component, props, {
+    prepareContext: outletContext
+      ? (context) => bindRouteOutletRenderContext(context, outletContext)
+      : undefined
+  });
 
   rendered.ctx.route = {
     router: props.router,
@@ -477,7 +483,7 @@ export function createRouteView<TData = unknown>(
           contentHost
         );
 
-        if (!outletsUsed.has(0)) {
+        if (!outletsUsed.has(0) && !branchRootDeclaresChildren(loaded)) {
           clearRoot(contentHost);
           activeRenderMode = "leaf";
           activeRenderKey = getLeafRenderKey(loaded);

@@ -41,6 +41,19 @@ vi.mock("@terajs/sfc", async () => {
 });
 
 describe("compileSfcToComponent", () => {
+  it("preserves reactive component prop descriptors", () => {
+    const out = compileSfcToComponent({
+      filePath: "/src/components/ReactiveProps.tera",
+      template: "<div />",
+      script: "",
+      style: null,
+      meta: null,
+      route: null
+    } as any);
+
+    expect(out).toContain("Object.getOwnPropertyDescriptors(input)");
+  });
+
   it("generates a runnable component module with setup and renderer codegen", () => {
     const sfc = {
       filePath: "/components/Test.tera",

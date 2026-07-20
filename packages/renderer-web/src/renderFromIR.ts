@@ -24,6 +24,7 @@ import {
   addNodeCleanup,
 } from "./dom.js";
 import { renderComponent, type FrameworkComponent } from "./render.js";
+import { withDetachedCurrentEffect } from "@terajs/reactivity";
 import {
   bindText,
   bindDirectTextSource,
@@ -63,20 +64,22 @@ import { renderIRIfNode } from "./renderFromIRIf.js";
  * @returns A document fragment containing the rendered module output.
  */
 export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragment {
-  if (rendererDebugEnabled) {
-    emitRendererDebug("ir:render:module", () => ({ filePath: ir.filePath }));
-  }
-
-  const frag = createFragment();
-
-  for (const node of ir.template) {
-    const dom = renderIRNode(node, ctx);
-    if (dom) {
-      insert(frag, dom);
+  return withDetachedCurrentEffect(() => {
+    if (rendererDebugEnabled) {
+      emitRendererDebug("ir:render:module", () => ({ filePath: ir.filePath }));
     }
-  }
 
-  return frag;
+    const frag = createFragment();
+
+    for (const node of ir.template) {
+      const dom = renderIRNode(node, ctx);
+      if (dom) {
+        insert(frag, dom);
+      }
+    }
+
+    return frag;
+  });
 }
 
 /**
@@ -200,7 +203,7 @@ function renderIRComponent(
   }
 
   const props = buildComponentProps(node, ctx, isSvg);
-  const rendered = renderComponent(component, props);
+  const rendered = withDetachedCurrentEffect(() => renderComponent(component, props));
   const cleanup = createComponentCleanup(rendered.ctx);
 
   queueMicrotask(() => {
@@ -424,9 +427,13 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
     }
 
     if (prop.kind === "bind") {
-      props[prop.name] = prop.binding?.kind === "simple-path"
-        ? resolveHintedPath(ctx, prop.binding, true)
-        : resolveExpr(ctx, String(prop.value));
+      Object.defineProperty(props, prop.name, {
+        configurable: true,
+        enumerable: true,
+        get: () => prop.binding?.kind === "simple-path"
+          ? resolveHintedPath(ctx, prop.binding, true)
+          : resolveExpr(ctx, String(prop.value))
+      });
       continue;
     }
 

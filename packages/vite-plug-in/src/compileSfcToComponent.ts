@@ -67,7 +67,7 @@ function normalizeComponentProps(input) {
     return {};
   }
 
-  const next = { ...input };
+  const next = Object.defineProperties({}, Object.getOwnPropertyDescriptors(input));
   delete next.children;
   delete next.slots;
   return next;

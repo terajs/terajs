@@ -57,11 +57,13 @@ export let currentEffect: ReactiveEffect | null = null;
  */
 export function withDetachedCurrentEffect<T>(fn: () => T): T {
     const previous = currentEffect;
+    const previousStack = effectStack.splice(0, effectStack.length);
     currentEffect = null;
 
     try {
         return fn();
     } finally {
+        effectStack.splice(0, effectStack.length, ...previousStack);
         currentEffect = previous;
     }
 }

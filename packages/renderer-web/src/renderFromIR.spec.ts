@@ -20,7 +20,7 @@ import type {
   IRForNode
 } from "@terajs/compiler";
 
-import { ref, signal } from "@terajs/reactivity";
+import { dispose, effect, ref, signal } from "@terajs/reactivity";
 import { component, onMounted, onUnmounted } from "@terajs/runtime";
 import { clear } from "./dom";
 
@@ -419,6 +419,86 @@ describe("IR -> DOM Renderer", () => {
     expect(dom.textContent).toBe("NO");
   });
 
+  it("does not rebuild an if branch when component setup state changes", async () => {
+    const show = signal(true);
+    const count = signal(1);
+
+    const Child = () => {
+      const el = document.createElement("span");
+      el.textContent = String(count());
+      return el;
+    };
+
+    const node: IRIfNode = {
+      type: "if",
+      condition: "show",
+      then: [
+        {
+          type: "element",
+          tag: "Child",
+          props: [],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode
+      ],
+      else: [],
+      loc: undefined,
+      flags: {}
+    };
+
+    const root = document.createElement("div");
+    const dom = renderIRNode(node, {
+      show,
+      __components: { Child }
+    })!;
+    root.appendChild(dom);
+
+    const originalChild = root.querySelector("span");
+    expect(originalChild?.textContent).toBe("1");
+
+    count.set(2);
+    await tick();
+
+    expect(root.querySelector("span")).toBe(originalChild);
+    expect(root.textContent).toBe("1");
+  });
+
+  it("keeps effects created inside an if branch independent from the branch condition", async () => {
+    const show = signal(true);
+    const count = signal(1);
+    let childRuns = 0;
+
+    const node: IRIfNode = {
+      type: "if",
+      condition: "show",
+      then: [{
+        type: "interp",
+        expression: "count",
+        loc: undefined,
+        flags: { dynamic: true }
+      } as IRInterpolationNode],
+      else: [],
+      loc: undefined,
+      flags: {}
+    };
+
+    const trackedCount = () => {
+      childRuns += 1;
+      return count();
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(node, { show, trackedCount, count: trackedCount })!);
+    const originalChild = root.lastChild;
+
+    count.set(2);
+    await tick();
+
+    expect(root.lastChild).toBe(originalChild);
+    expect(root.textContent).toBe("2");
+    expect(childRuns).toBe(2);
+  });
+
   it("disposes old branch effects when if node is removed", async () => {
     const show = signal(true);
     const count = signal(1);
@@ -770,6 +850,132 @@ describe("IR -> DOM Renderer", () => {
 
     expect(dom.tagName.toLowerCase()).toBe("article");
     expect(dom.textContent).toBe("Nested card");
+  });
+
+  it("updates a structural for nested in an active if branch", async () => {
+    const mobile = signal(true);
+    const items = signal<Array<{ id: string; label: string }>>([]);
+    const node: IRIfNode = {
+      type: "if",
+      condition: "mobile",
+      then: [
+        {
+          type: "for",
+          each: "items()",
+          item: "item",
+          index: "i",
+          isStructural: true,
+          body: [
+            {
+              type: "element",
+              tag: "section",
+              props: [],
+              children: [
+                {
+                  type: "interp",
+                  expression: "item.label",
+                  loc: undefined,
+                  flags: { dynamic: true }
+                } as IRInterpolationNode
+              ],
+              loc: undefined,
+              flags: { hasDirectives: false }
+            } as IRElementNode
+          ],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRForNode
+      ],
+      else: [],
+      loc: undefined,
+      flags: {}
+    };
+
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(node, { mobile, items: () => items() })!);
+    expect(root.querySelectorAll("section")).toHaveLength(0);
+    expect(root.innerHTML).toContain("<!--for-->");
+
+    items.set([{ id: "review", label: "Review Assumptions" }]);
+    await tick();
+
+    expect(root.querySelectorAll("section")).toHaveLength(1);
+    expect(root.textContent).toBe("Review Assumptions");
+  });
+
+  it("updates dynamic component props without rebuilding the component", async () => {
+    const label = signal("First");
+    let setupRuns = 0;
+
+    const Child = component({ name: "ReactivePropChild" }, (props: any) => {
+      setupRuns += 1;
+      return () => {
+        const el = document.createElement("span");
+        el.textContent = String(props.label);
+        return el;
+      };
+    });
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "Child",
+      props: [{
+        kind: "bind",
+        name: "label",
+        value: "label",
+        binding: { kind: "simple-path", segments: ["label"] }
+      }],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(node, {
+      label,
+      __components: { Child }
+    })!);
+
+    expect(root.textContent).toBe("First");
+    expect(setupRuns).toBe(1);
+
+    label.set("Second");
+    await tick();
+
+    expect(root.textContent).toBe("Second");
+    expect(setupRuns).toBe(1);
+  });
+
+  it("keeps compiled module rendering detached from an owning template effect", async () => {
+    const label = signal("First");
+    const ir: IRModule = {
+      filePath: "/pages/layout.tera",
+      template: [{
+        type: "interp",
+        expression: "label",
+        loc: undefined,
+        flags: { dynamic: true }
+      } as IRInterpolationNode],
+      meta: {},
+      route: null
+    };
+    let outerRuns = 0;
+    let fragment = document.createDocumentFragment();
+
+    const owner = effect(() => {
+      outerRuns += 1;
+      fragment = renderIRModuleToFragment(ir, { label });
+    });
+
+    expect(outerRuns).toBe(1);
+    expect(fragment?.textContent).toBe("First");
+
+    label.set("Second");
+    await tick();
+
+    expect(outerRuns).toBe(1);
+    expect(fragment?.textContent).toBe("Second");
+    dispose(owner);
   });
 
   it("keeps lowercase native tags as elements even when helpers share the same name", () => {

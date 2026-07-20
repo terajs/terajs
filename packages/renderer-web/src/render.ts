@@ -55,6 +55,10 @@ export interface RenderResult {
     ctx: ComponentContext;
 }
 
+export interface RenderComponentOptions {
+    prepareContext?: (ctx: ComponentContext) => void;
+}
+
 function isDomNode(value: unknown): value is Node {
     if (!value || typeof value !== "object") {
         return false;
@@ -103,12 +107,14 @@ function isDomDocumentFragment(value: unknown): value is DocumentFragment {
  */
 export function renderComponent(
     component: FrameworkComponent,
-    props?: any
+    props?: any,
+    options: RenderComponentOptions = {}
 ): RenderResult {
     const ctx = createComponentContext();
     const prev = getCurrentContext();
     ctx.errorBoundary = prev?.errorBoundary;
     inheritRouteOutletRenderContext(prev, ctx);
+    options.prepareContext?.(ctx);
 
     emitRendererDebug("component:render:start", () => ({
         component,

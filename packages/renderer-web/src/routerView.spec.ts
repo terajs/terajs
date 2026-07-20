@@ -287,6 +287,79 @@ describe("createRouteView", () => {
     unmount(root);
   });
 
+  it("renders a nested destination when the initial child redirects on mount", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let router!: ReturnType<typeof createRouter>;
+
+    const Parent = component({ name: "MigrationShell" }, () => () => {
+      const shell = document.createElement("section");
+      shell.setAttribute("data-testid", "migration-shell");
+      shell.append(document.createTextNode("Migration shell"), RouterView());
+      return shell;
+    });
+    const Resume = component({ name: "MigrationResume" }, () => {
+      onMounted(() => {
+        void router.replace("/migrations/123/issues");
+      });
+
+      return () => document.createTextNode("Opening migration");
+    });
+    const Issues = component({ name: "MigrationIssues" }, () =>
+      () => document.createTextNode("Issues child")
+    );
+    const Layout = component({ name: "AppLayout" }, ({ children }: { children: Node }) => () => {
+      const layout = document.createElement("main");
+      layout.setAttribute("data-testid", "app-layout");
+      layout.appendChild(children);
+      return layout;
+    });
+
+    router = createRouter(
+      [
+        route({
+          id: "migration",
+          path: "/migrations/:id",
+          filePath: "/pages/migrations/[id].tera",
+          component: async () => ({ default: Parent }),
+          layouts: [
+            {
+              id: "root",
+              filePath: "/pages/layout.tera",
+              component: async () => ({ default: Layout })
+            }
+          ],
+          children: [
+            route({
+              id: "resume",
+              path: "resume",
+              filePath: "/routes/migrations/[id]/resume.tera",
+              component: async () => ({ default: Resume })
+            }),
+            route({
+              id: "issues",
+              path: "issues",
+              filePath: "/routes/migrations/[id]/issues.tera",
+              component: async () => ({ default: Issues })
+            })
+          ]
+        })
+      ],
+      { history: createMemoryHistory("/migrations/123/resume") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+    await flush();
+
+    expect(router.getCurrentRoute()?.fullPath).toBe("/migrations/123/issues");
+    expect(root.querySelector('[data-testid="migration-shell"]')).not.toBeNull();
+    expect(root.textContent).toContain("Issues child");
+    expect(root.textContent).not.toContain("Opening migration");
+
+    unmount(root);
+  });
+
   it("renders nested child routes inside RouterView without remounting the parent", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
@@ -336,19 +409,21 @@ describe("createRouteView", () => {
           id: "migrations",
           path: "/migrations/:id",
           filePath: "/pages/migrations/[id].tera",
-          component: async () => ({ default: Parent })
-        }),
-        route({
-          id: "mapping",
-          path: "/migrations/:id/mapping",
-          filePath: "/pages/migrations/[id]/mapping.tera",
-          component: async () => ({ default: Mapping })
-        }),
-        route({
-          id: "issues",
-          path: "/migrations/:id/issues",
-          filePath: "/pages/migrations/[id]/issues.tera",
-          component: async () => ({ default: Issues })
+          component: async () => ({ default: Parent }),
+          children: [
+            route({
+              id: "mapping",
+              path: "mapping",
+              filePath: "/pages/migrations/[id]/mapping.tera",
+              component: async () => ({ default: Mapping })
+            }),
+            route({
+              id: "issues",
+              path: "issues",
+              filePath: "/pages/migrations/[id]/issues.tera",
+              component: async () => ({ default: Issues })
+            })
+          ]
         })
       ],
       { history: createMemoryHistory("/migrations/123/mapping") }
@@ -612,6 +687,107 @@ describe("createRouteView", () => {
     expect(childMounted).toBe(2);
     expect(childUnmounted).toBe(1);
     expect(maxActiveChildInstances).toBe(1);
+
+    unmount(root);
+  });
+
+  it("preserves routed context through a conditional structural step list", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const mobile = signal(true);
+    const steps = signal<Array<{ id: string; active: boolean }>>([]);
+
+    const Parent = component({ name: "ResponsiveStructuralOutletParent" }, () => {
+      const ir = {
+        filePath: "/pages/migrations/[id].tera",
+        template: [{
+          type: "element",
+          tag: "div",
+          props: [],
+          children: [{
+            type: "if",
+            condition: "mobile",
+            then: [{
+              type: "element",
+              tag: "section",
+              props: [{ kind: "static", name: "data-testid", value: "mobile-shell" }],
+              children: [{
+                type: "for",
+                each: "steps",
+                item: "step",
+                index: "index",
+                isStructural: true,
+                body: [{
+                  type: "element",
+                  tag: "article",
+                  props: [],
+                  children: [{
+                    type: "if",
+                    condition: "step.active",
+                    then: [{
+                      type: "element",
+                      tag: "RouterView",
+                      props: [],
+                      children: [],
+                      flags: {}
+                    }],
+                    else: [],
+                    flags: {}
+                  }],
+                  flags: {}
+                }],
+                flags: {}
+              }],
+              flags: {}
+            }],
+            else: [],
+            flags: {}
+          }],
+          flags: {}
+        }]
+      };
+
+      return () => renderIRModuleToFragment(ir as any, {
+        mobile,
+        steps,
+        __components: { RouterView }
+      });
+    });
+    const Child = component({ name: "ResponsiveStructuralOutletChild" }, () => (
+      () => document.createTextNode("Mapping child")
+    ));
+    const router = createRouter(
+      [
+        route({
+          id: "migration",
+          path: "/migrations/:id",
+          filePath: "/pages/migrations/[id].tera",
+          component: async () => ({ default: Parent }),
+          children: [route({
+            id: "mapping",
+            path: "mapping",
+            filePath: "/pages/migrations/[id]/mapping.tera",
+            component: async () => ({ default: Child })
+          })]
+        })
+      ],
+      { history: createMemoryHistory("/migrations/123/mapping") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    const mobileShell = root.querySelector('[data-testid="mobile-shell"]');
+    expect(mobileShell).not.toBeNull();
+
+    steps.set([
+      { id: "connect", active: false },
+      { id: "mapping", active: true }
+    ]);
+    await flush();
+
+    expect(root.querySelector('[data-testid="mobile-shell"]')).toBe(mobileShell);
+    expect(root.textContent).toContain("Mapping child");
 
     unmount(root);
   });
