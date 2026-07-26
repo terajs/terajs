@@ -225,7 +225,7 @@ export function registerOverlayShellSuite(): void {
     expect(shadowRoot?.textContent).toContain("Counter");
   });
 
-  it("replays component events emitted before overlay mount", () => {
+  it("replays retained component events without archiving transient traces", () => {
     emitDebug({
       type: "component:mounted",
       timestamp: Date.now(),
@@ -240,7 +240,7 @@ export function registerOverlayShellSuite(): void {
     mountDevtoolsOverlay({ startOpen: true });
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    expect(shadowRoot?.textContent).toContain("Events: 361");
+    expect(shadowRoot?.textContent).toContain("Events: 1");
     expect(shadowRoot?.textContent).toContain("LandingPage");
   });
 

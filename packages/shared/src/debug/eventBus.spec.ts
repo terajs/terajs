@@ -118,4 +118,23 @@ describe("shared debug store", () => {
       state: "[accessor]"
     });
   });
+
+  it("delivers transient events live without retaining them for replay", async () => {
+    const history = await importHistory();
+    const eventBus = await importEventBus();
+    const seen: string[] = [];
+    const unsubscribe = eventBus.subscribeDebug((event) => {
+      seen.push(event.type);
+    });
+
+    eventBus.emitDebug({
+      type: "reactive:read",
+      timestamp: Date.now(),
+      rid: "ReviewCard#1.selected"
+    });
+    unsubscribe();
+
+    expect(seen).toEqual(["reactive:read"]);
+    expect(history.readDebugHistory()).toEqual([]);
+  });
 });

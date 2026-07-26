@@ -22,6 +22,7 @@ import type {
 
 import { batch, computed, dispose, effect, ref, signal } from "@terajs/reactivity";
 import { component, onMounted, onUnmounted } from "@terajs/runtime";
+import { clearDebugHistory, readDebugHistory } from "@terajs/shared";
 import { clear } from "./dom";
 
 /** Ensures reactive effects flush before assertions */
@@ -1225,6 +1226,122 @@ describe("IR -> DOM Renderer", () => {
     expect(root.querySelectorAll("label")).toHaveLength(10);
     expect(groupStateReads).toBe(5);
     expect(cardStateReads).toBe(10);
+  });
+
+  it("toggles one conditional icon across two retained keyed cards", async () => {
+    const selectedKey = signal("reject");
+    const cards = [
+      { key: "reject", title: "Reject", stampIcon: "close" },
+      { key: "approve", title: "Approve", stampIcon: "check" }
+    ];
+    let iconMounts = 0;
+    let iconUnmounts = 0;
+
+    const Icon = component({ name: "DecisionStampIcon" }, () => {
+      onMounted(() => {
+        iconMounts += 1;
+      });
+      onUnmounted(() => {
+        iconUnmounts += 1;
+      });
+      return document.createElement("i");
+    });
+    const cardNode: IRElementNode = {
+      type: "element",
+      tag: "label",
+      props: [],
+      children: [{
+        type: "if",
+        condition: "selected.get() && card.stampIcon",
+        then: [{
+          type: "element",
+          tag: "Icon",
+          props: [],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode],
+        else: [],
+        loc: undefined,
+        flags: {}
+      } as IRIfNode, {
+        type: "interp",
+        expression: "card.title",
+        loc: undefined,
+        flags: { dynamic: true }
+      } as IRInterpolationNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const Card = component({ name: "DecisionToggleCard" }, (props: any) => {
+      const card = props.card;
+      const selected = computed(() => selectedKey() === card.key);
+      return renderIRNode(cardNode, {
+        card,
+        selected,
+        __components: { Icon }
+      })!;
+    });
+    const groupNode: IRForNode = {
+      type: "for",
+      each: "cards",
+      item: "card",
+      isStructural: true,
+      body: [{
+        type: "element",
+        tag: "span",
+        props: [{
+          kind: "bind",
+          name: "key",
+          value: "card.key",
+          binding: { kind: "simple-path", segments: ["card", "key"] }
+        }],
+        children: [{
+          type: "element",
+          tag: "Card",
+          props: [{
+            kind: "bind",
+            name: "card",
+            value: "card",
+            binding: { kind: "simple-path", segments: ["card"] }
+          }],
+          children: [],
+          loc: undefined,
+          flags: { hasDirectives: false }
+        } as IRElementNode],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRElementNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(groupNode, {
+      cards,
+      __components: { Card }
+    })!);
+    await tick();
+
+    const originalCards = Array.from(root.querySelectorAll("label"));
+    expect(root.querySelectorAll("i")).toHaveLength(1);
+    expect(iconMounts).toBe(1);
+    clearDebugHistory();
+
+    batch(() => {
+      selectedKey.set("approve");
+    });
+    await tick();
+
+    expect(Array.from(root.querySelectorAll("label"))).toEqual(originalCards);
+    expect(root.querySelectorAll("i")).toHaveLength(1);
+    expect(iconMounts).toBe(2);
+    expect(iconUnmounts).toBe(1);
+    expect(readDebugHistory().map((event) => event.type)).toEqual([
+      "reactive:updated",
+      "component:mounted",
+      "component:unmounted"
+    ]);
+    clearDebugHistory();
   });
 
   it("keeps compiled module rendering detached from an owning template effect", async () => {
