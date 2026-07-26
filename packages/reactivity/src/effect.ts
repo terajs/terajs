@@ -41,6 +41,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
  */
 export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     const ctx = getCurrentContext();
+    const parent = currentEffect;
     const owner = debugInstrumentationEnabled && ctx
         ? {
             scope: ctx.name,
@@ -99,6 +100,11 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     effectFn.children = [];
     effectFn.scheduler = scheduler;
     effectFn.active = true;
+    effectFn.parent = parent;
+    if (parent) {
+        parent.children ??= [];
+        parent.children.push(effectFn);
+    }
     (effectFn as any)._meta = debugInstrumentationEnabled
         ? createReactiveMetadata({
             type: "effect",

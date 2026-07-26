@@ -1065,6 +1065,83 @@ describe("IR -> DOM Renderer", () => {
     expect(setupRuns).toBe(1);
   });
 
+  it("keeps keyed child prop bindings active across consecutive list updates", async () => {
+    const activeIndex = signal(0);
+    const steps = computed(() => ["company", "opening", "transactions"].map((key, index) => ({
+      key,
+      label: key,
+      status: index < activeIndex()
+        ? "complete"
+        : index === activeIndex()
+          ? "current"
+          : "pending"
+    })));
+    const stepNode: IRElementNode = {
+      type: "element",
+      tag: "li",
+      props: [{
+        kind: "bind",
+        name: "data-status",
+        value: "step.get().status"
+      }],
+      children: [{
+        type: "interp",
+        expression: "step.get().label",
+        loc: undefined,
+        flags: { dynamic: true }
+      } as IRInterpolationNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const Step = component({ name: "WorkflowStep" }, (props: any) => {
+      const step = computed(() => props.step);
+      return renderIRNode(stepNode, { step })!;
+    });
+    const listNode: IRForNode = {
+      type: "for",
+      each: "steps.get()",
+      item: "step",
+      isStructural: true,
+      body: [{
+        type: "element",
+        tag: "Step",
+        props: [{
+          kind: "bind",
+          name: "key",
+          value: "step.key",
+          binding: { kind: "simple-path", segments: ["step", "key"] }
+        }, {
+          kind: "bind",
+          name: "step",
+          value: "step",
+          binding: { kind: "simple-path", segments: ["step"] }
+        }],
+        children: [],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRElementNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const root = document.createElement("ol");
+    root.appendChild(renderIRNode(listNode, {
+      steps,
+      __components: { Step }
+    })!);
+    const statuses = () => Array.from(root.querySelectorAll("li"))
+      .map((item) => item.getAttribute("data-status"));
+
+    expect(statuses()).toEqual(["current", "pending", "pending"]);
+
+    activeIndex.set(1);
+    await tick();
+    expect(statuses()).toEqual(["complete", "current", "pending"]);
+
+    activeIndex.set(2);
+    await tick();
+    expect(statuses()).toEqual(["complete", "complete", "current"]);
+  });
+
   it("does not evaluate lazy component props for debug history", () => {
     let propReads = 0;
 

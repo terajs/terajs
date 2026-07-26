@@ -66,4 +66,24 @@ describe("reactive propagation", () => {
     expect(runs).toBe(2);
     expect(result.get()).toBe(256);
   });
+
+  it("does not reparent an existing effect when it reruns inside another effect", () => {
+    const activeIndex = signal(0);
+    const rowStatus = signal("current");
+    const observedStatuses: string[] = [];
+
+    effect(() => {
+      observedStatuses.push(rowStatus());
+    });
+
+    effect(() => {
+      const index = activeIndex();
+      rowStatus.set(index === 0 ? "current" : index === 1 ? "complete" : "pending");
+    });
+
+    activeIndex.set(1);
+    activeIndex.set(2);
+
+    expect(observedStatuses).toEqual(["current", "complete", "pending"]);
+  });
 });
