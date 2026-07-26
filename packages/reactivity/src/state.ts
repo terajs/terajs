@@ -1,6 +1,6 @@
 import { currentEffect } from "./deps.js";
 import type { ReactiveEffect } from "./deps.js";
-import { scheduleEffect } from "./effect.js";
+import { notifyEffects } from "./effect.js";
 import { Debug } from "@terajs/shared";
 import { debugInstrumentationEnabled } from "./debugRuntime.js";
 
@@ -85,17 +85,7 @@ export function state<T>(value: T) {
              * This prevents infinite loops if an effect modifies the same 
              * state it is currently reacting to.
              */
-            const effectsToRun = new Set<ReactiveEffect>(deps);
-            
-            effectsToRun.forEach(dep => {
-                // If a scheduler is present (e.g., in a Computed), 
-                // delegate the execution logic to it.
-                if (dep.scheduler) {
-                    dep.scheduler();
-                } else {
-                    scheduleEffect(dep);
-                }
-            });
+            notifyEffects(deps);
         }
     };
 }

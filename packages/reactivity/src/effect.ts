@@ -16,7 +16,7 @@ import {
     currentEffect
 } from "./deps.js";
 import { isServer } from "./dx/runtime.js";
-import { shouldBatch, queueEffect } from "./dx/batch.js";
+import { batch, shouldBatch, queueEffect } from "./dx/batch.js";
 import {
     Debug,
     createReactiveMetadata,
@@ -219,4 +219,23 @@ export function scheduleEffect(effectFn: ReactiveEffect): void {
     } else {
         effectFn();
     }
+}
+
+/**
+ * Invalidates a dependency snapshot as one synchronous transaction.
+ *
+ * Computed schedulers still run immediately so dirtiness propagates through
+ * the graph before ordinary effects flush. Ordinary effects are deduplicated
+ * by the batch queue and still complete before the originating write returns.
+ */
+export function notifyEffects(effects: Iterable<ReactiveEffect>): void {
+    batch(() => {
+        for (const effectFn of Array.from(effects)) {
+            if (effectFn.scheduler) {
+                effectFn.scheduler();
+            } else {
+                scheduleEffect(effectFn);
+            }
+        }
+    });
 }
