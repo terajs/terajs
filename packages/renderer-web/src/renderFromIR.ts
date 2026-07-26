@@ -47,6 +47,10 @@ import {
 } from "./renderFromIRExpressions.js";
 import { renderIRForNode } from "./renderFromIRFor.js";
 import { renderIRIfNode } from "./renderFromIRIf.js";
+import {
+  createComponentSlotFactory,
+  partitionComponentSlotChildren
+} from "./renderFromIRSlots.js";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -445,19 +449,29 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
     }
   }
 
-  if (node.children.length > 0) {
-    props.children = () => {
-      const frag = createFragment();
+  const { defaultChildren, namedChildren } = partitionComponentSlotChildren(node.children);
 
-      for (const child of node.children) {
-        const dom = renderIRNode(child, ctx, isSvg);
-        if (dom) {
-          insert(frag, dom);
-        }
+  if (defaultChildren.length > 0) {
+    props.children = createComponentSlotFactory(defaultChildren, ctx, isSvg, renderIRNode);
+  }
+
+  if (namedChildren.size > 0) {
+    const explicitSlots = props.slots && typeof props.slots === "object"
+      ? props.slots
+      : {};
+    Object.defineProperty(props, "slots", {
+      configurable: true,
+      enumerable: true,
+      value: {
+        ...explicitSlots,
+        ...Object.fromEntries(
+          Array.from(namedChildren, ([name, children]) => [
+            name,
+            createComponentSlotFactory(children, ctx, isSvg, renderIRNode, name)
+          ])
+        )
       }
-
-      return frag;
-    };
+    });
   }
 
   return props;

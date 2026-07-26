@@ -853,6 +853,98 @@ describe("IR -> DOM Renderer", () => {
     expect(dom.textContent).toBe("Fallback");
   });
 
+  it("routes a conditional literal child to its named component slot", async () => {
+    const showBottomAction = signal(true);
+    const defaultSlot: IRSlotNode = {
+      type: "slot",
+      name: "default",
+      fallback: [],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+    const bottomSlot: IRSlotNode = {
+      type: "slot",
+      name: "bottom-action",
+      fallback: [{
+        type: "element",
+        tag: "button",
+        props: [{ kind: "static", name: "data-source-action", value: "fallback" }],
+        children: [{ type: "text", value: "View source record" } as IRTextNode],
+        loc: undefined,
+        flags: {}
+      } as IRElementNode],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+    const Pane = component({ name: "WorkspaceActionPane" }, (props: any) => {
+      const slots = {
+        ...(props.slots ?? {}),
+        ...(props.children ? { default: props.children } : {})
+      };
+      const section = document.createElement("section");
+      const body = document.createElement("main");
+      const footer = document.createElement("footer");
+      body.appendChild(renderIRNode(defaultSlot, { slots })!);
+      footer.appendChild(renderIRNode(bottomSlot, { slots })!);
+      section.append(body, footer);
+      return section;
+    });
+    const consumer: IRElementNode = {
+      type: "element",
+      tag: "Pane",
+      props: [],
+      children: [{
+        type: "element",
+        tag: "p",
+        props: [],
+        children: [{ type: "text", value: "Issue details" } as IRTextNode],
+        loc: undefined,
+        flags: {}
+      } as IRElementNode, {
+        type: "if",
+        condition: "showBottomAction",
+        then: [{
+          type: "element",
+          tag: "div",
+          props: [{ kind: "static", name: "slot", value: "bottom-action" }],
+          children: [{
+            type: "element",
+            tag: "button",
+            props: [{ kind: "static", name: "data-source-action", value: "projected" }],
+            children: [{ type: "text", value: "View source record" } as IRTextNode],
+            loc: undefined,
+            flags: {}
+          } as IRElementNode],
+          loc: undefined,
+          flags: {}
+        } as IRElementNode],
+        else: [],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRIfNode],
+      loc: undefined,
+      flags: {}
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(consumer, {
+      showBottomAction,
+      __components: { Pane }
+    })!);
+
+    expect(root.querySelector("main")?.textContent).toBe("Issue details");
+    expect(root.querySelector("main [data-source-action]")).toBeNull();
+    expect(root.querySelector("footer [data-source-action='projected']")).not.toBeNull();
+    expect(root.querySelector("footer [data-source-action='fallback']")).toBeNull();
+    expect(root.querySelector("[slot]")).toBeNull();
+    expect(root.querySelectorAll("[data-source-action]")).toHaveLength(1);
+
+    showBottomAction.set(false);
+    await tick();
+
+    expect(root.querySelector("main")?.textContent).toBe("Issue details");
+    expect(root.querySelectorAll("[data-source-action]")).toHaveLength(0);
+  });
+
   it("renders portal children into the requested target", () => {
     const overlay = document.createElement("div");
     overlay.id = "overlay";
