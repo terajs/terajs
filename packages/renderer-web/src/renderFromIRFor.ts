@@ -5,7 +5,7 @@
  *
  * This module handles both keyed and non-keyed v-for lists, with optimizations
  */
-import type { IRForNode, IRNode } from "@terajs/compiler";
+import type { IRForNode, IRNode, IRPropNode } from "@terajs/compiler";
 
 import { dispose, effect, signal, withDetachedCurrentEffect, type Signal } from "@terajs/reactivity";
 import {
@@ -54,7 +54,8 @@ export function renderIRForNode(
 
   const ownerContext = getCurrentContext();
   const identityState = createIRForIdentityState();
-  const supportsKeyedReuse = node.body.length === 1 && node.isStructural !== true;
+  const keyProp = getIRForKeyProp(node);
+  const supportsKeyedReuse = node.body.length === 1 && (node.isStructural !== true || keyProp !== null);
   let rows: IRForRowRecord[] = [];
   let rebuiltNodes: ChildNode[] = [];
 
@@ -71,6 +72,7 @@ export function renderIRForNode(
         rows,
         ownerContext,
         identityState,
+        keyProp,
         renderNode,
       );
 
@@ -181,6 +183,7 @@ function createKeyedIRForRows(
   currentRows: IRForRowRecord[],
   ownerContext: ComponentContext | null,
   identityState: IRForIdentityState,
+  keyProp: IRPropNode | null,
   renderNode: RenderIRNode,
 ): IRForRowRecord[] | null {
   const nextRows: IRForRowRecord[] = [];
@@ -189,7 +192,7 @@ function createKeyedIRForRows(
 
   for (let index = 0; index < array.length; index += 1) {
     const item = array[index];
-    const key = createIRForRowKey(item, index, identityState, seenCounts);
+    const key = createIRForRowKey(node, ctx, keyProp, item, index, identityState, seenCounts);
     const existing = currentRowsByKey.get(key);
 
     if (existing) {
@@ -223,15 +226,59 @@ function createIRForIdentityState(): IRForIdentityState {
 }
 
 function createIRForRowKey(
+  node: IRForNode,
+  ctx: any,
+  keyProp: IRPropNode | null,
   item: unknown,
   index: number,
   identityState: IRForIdentityState,
   seenCounts: Map<string, number>,
 ): string {
-  const base = describeIRForRowIdentity(item, index, identityState);
+  const explicitKey = resolveIRForExplicitKey(node, ctx, keyProp, item, index);
+  const base = explicitKey.found
+    ? `explicit:${typeof explicitKey.value}:${String(explicitKey.value)}`
+    : describeIRForRowIdentity(item, index, identityState);
   const count = seenCounts.get(base) ?? 0;
   seenCounts.set(base, count + 1);
   return `${base}::${count}`;
+}
+
+function getIRForKeyProp(node: IRForNode): IRPropNode | null {
+  const root = node.body[0];
+  if (!root || root.type !== "element") {
+    return null;
+  }
+
+  return root.props.find((prop) =>
+    prop.name === "key" && (prop.kind === "bind" || prop.kind === "static")
+  ) ?? null;
+}
+
+function resolveIRForExplicitKey(
+  node: IRForNode,
+  ctx: any,
+  keyProp: IRPropNode | null,
+  item: unknown,
+  index: number,
+): { found: boolean; value?: unknown } {
+  if (!keyProp) {
+    return { found: false };
+  }
+
+  if (keyProp.kind === "static") {
+    return { found: true, value: keyProp.value };
+  }
+
+  const childCtx = {
+    ...ctx,
+    [node.item]: item,
+    [node.index ?? "i"]: index,
+  };
+
+  return {
+    found: true,
+    value: resolveExpr(childCtx, String(keyProp.value)),
+  };
 }
 
 function describeIRForRowIdentity(
@@ -288,11 +335,17 @@ function createIRForRowRecord(
     inheritRouteOutletRenderContext(ownerContext, rowContext);
   }
 
-  const rowChildContext = {
-    ...ctx,
-    [node.item]: itemSignal,
-    [node.index ?? "i"]: indexSignal,
-  };
+  const rowChildContext = Object.create(ctx ?? null);
+  Object.defineProperty(rowChildContext, node.item, {
+    configurable: true,
+    enumerable: true,
+    get: () => itemSignal(),
+  });
+  Object.defineProperty(rowChildContext, node.index ?? "i", {
+    configurable: true,
+    enumerable: true,
+    get: () => indexSignal(),
+  });
 
   const previousContext = getCurrentContext();
   let renderedNode: Node | null = null;

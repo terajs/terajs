@@ -28,11 +28,15 @@ export function renderIRIfNode(
   const ownedNodes: ChildNode[] = [];
   const ownerContext = getCurrentContext();
   let branchContext: ComponentContext | null = null;
+  let renderedBranch: boolean | null = null;
 
   fragment.appendChild(anchor);
 
   const effectFn = effect(() => {
-    const condition = resolveExpr(ctx, node.condition);
+    const condition = Boolean(resolveExpr(ctx, node.condition));
+    if (renderedBranch === condition) {
+      return;
+    }
 
     const renderBranch = () => {
       const branch = condition ? node.then : node.else ?? [];
@@ -60,6 +64,7 @@ export function renderIRIfNode(
             ref = null;
           }
         }
+        renderedBranch = condition;
       } finally {
         setCurrentContext(previousContext);
       }

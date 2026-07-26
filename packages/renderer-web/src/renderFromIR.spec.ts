@@ -20,7 +20,7 @@ import type {
   IRForNode
 } from "@terajs/compiler";
 
-import { dispose, effect, ref, signal } from "@terajs/reactivity";
+import { computed, dispose, effect, ref, signal } from "@terajs/reactivity";
 import { component, onMounted, onUnmounted } from "@terajs/runtime";
 import { clear } from "./dom";
 
@@ -464,6 +464,61 @@ describe("IR -> DOM Renderer", () => {
     expect(root.textContent).toBe("1");
   });
 
+  it("does not rebuild an if branch when its dependency invalidates to the same boolean", async () => {
+    const state = signal({ visible: true, revision: 1 });
+    const visible = computed(() => state().visible);
+    let mounted = 0;
+    let unmounted = 0;
+
+    const Child = component({ name: "StableConditionalChild" }, () => {
+      onMounted(() => {
+        mounted += 1;
+      });
+      onUnmounted(() => {
+        unmounted += 1;
+      });
+
+      const element = document.createElement("span");
+      element.textContent = "Stable";
+      return element;
+    });
+    const node: IRIfNode = {
+      type: "if",
+      condition: "visible.get()",
+      then: [{
+        type: "element",
+        tag: "Child",
+        props: [],
+        children: [],
+        loc: undefined,
+        flags: { hasDirectives: false }
+      } as IRElementNode],
+      else: [],
+      loc: undefined,
+      flags: {}
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(node, {
+      visible,
+      __components: { Child }
+    })!);
+    await tick();
+
+    const originalChild = root.querySelector("span");
+    state.set({ visible: true, revision: 2 });
+    await tick();
+
+    expect(root.querySelector("span")).toBe(originalChild);
+    expect(mounted).toBe(1);
+    expect(unmounted).toBe(0);
+
+    state.set({ visible: false, revision: 3 });
+    await tick();
+
+    expect(root.querySelector("span")).toBeNull();
+    expect(unmounted).toBe(1);
+  });
+
   it("keeps effects created inside an if branch independent from the branch condition", async () => {
     const show = signal(true);
     const count = signal(1);
@@ -687,6 +742,69 @@ describe("IR -> DOM Renderer", () => {
     expect(Array.from(root.children).map((child) => child.tagName)).toEqual(["LI", "LI"]);
     expect(root.textContent).toBe("B2:0C:1");
     expect(root.textContent).not.toContain("signal");
+  });
+
+  it("reuses keyed structural rows with live plain loop locals and event expressions", async () => {
+    const items = signal([
+      { id: "a", label: "A" },
+      { id: "b", label: "B" }
+    ]);
+    const selected: string[] = [];
+    const node: IRForNode = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      isStructural: true,
+      body: [{
+        type: "element",
+        tag: "button",
+        props: [
+          {
+            kind: "bind",
+            name: "key",
+            value: "item.id",
+            binding: { kind: "simple-path", segments: ["item", "id"] }
+          },
+          {
+            kind: "event",
+            name: "click",
+            value: "select(item.id, i)"
+          }
+        ],
+        children: [{
+          type: "interp",
+          expression: "item.label",
+          loc: undefined,
+          flags: { dynamic: true }
+        } as IRInterpolationNode],
+        loc: undefined,
+        flags: { hasDirectives: false }
+      } as IRElementNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(node, {
+      items,
+      select: (id: string, index: number) => selected.push(`${id}:${index}`)
+    })!);
+
+    const firstNode = root.children[0];
+    const secondNode = root.children[1];
+    items.set([
+      { id: "b", label: "B2" },
+      { id: "a", label: "A2" }
+    ]);
+    await tick();
+
+    expect(root.textContent).toBe("B2A2");
+    expect(root.children[0]).toBe(secondNode);
+    expect(root.children[1]).toBe(firstNode);
+
+    (root.children[0] as HTMLButtonElement).click();
+    (root.children[1] as HTMLButtonElement).click();
+    expect(selected).toEqual(["b:0", "a:1"]);
   });
 
   it("renders slot content before fallback", () => {

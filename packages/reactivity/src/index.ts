@@ -34,6 +34,7 @@ export { dispose } from "./dx/dispose.js";
 export { watch } from "./dx/watch.js";
 export { watchEffect } from "./dx/watchEffect.js";
 export { contract } from "./dx/contract.js";
+export { batch } from "./dx/batch.js";
 
 // DX Utilities
 export { memo, markStatic, shallowRef } from "./memo.js";
