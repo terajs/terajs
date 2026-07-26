@@ -64,7 +64,7 @@ function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | 
   const payloadSource = event.payload && typeof event.payload === "object"
     ? event.payload
     : Object.fromEntries(
-        Object.entries(event).filter(([key]) =>
+        readEnumerableDebugEntries(event).filter(([key]) =>
           key !== "type"
           && key !== "timestamp"
           && key !== "level"
@@ -122,12 +122,29 @@ function sanitizeDebugValue(
   }
 
   seen.add(value);
-  const entries = Object.entries(value as Record<string, unknown>).slice(0, MAX_OBJECT_KEYS);
+  const entries = readEnumerableDebugEntries(value).slice(0, MAX_OBJECT_KEYS);
   const normalized = Object.fromEntries(
     entries.map(([key, entryValue]) => [key, sanitizeDebugValue(entryValue, depth + 1, seen)])
   );
   seen.delete(value);
   return normalized;
+}
+
+function readEnumerableDebugEntries(value: object): Array<[string, unknown]> {
+  let descriptors: PropertyDescriptorMap;
+
+  try {
+    descriptors = Object.getOwnPropertyDescriptors(value);
+  } catch {
+    return [];
+  }
+
+  return Object.entries(descriptors)
+    .filter(([, descriptor]) => descriptor.enumerable === true)
+    .map(([key, descriptor]) => [
+      key,
+      "value" in descriptor ? descriptor.value : "[accessor]"
+    ]);
 }
 
 function clonePersistedDebugEvent(event: PersistedDebugEvent): PersistedDebugEvent {

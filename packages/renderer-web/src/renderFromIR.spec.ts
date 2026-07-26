@@ -20,7 +20,7 @@ import type {
   IRForNode
 } from "@terajs/compiler";
 
-import { computed, dispose, effect, ref, signal } from "@terajs/reactivity";
+import { batch, computed, dispose, effect, ref, signal } from "@terajs/reactivity";
 import { component, onMounted, onUnmounted } from "@terajs/runtime";
 import { clear } from "./dom";
 
@@ -1062,6 +1062,169 @@ describe("IR -> DOM Renderer", () => {
 
     expect(root.textContent).toBe("Second");
     expect(setupRuns).toBe(1);
+  });
+
+  it("does not evaluate lazy component props for debug history", () => {
+    let propReads = 0;
+
+    const Child = component({ name: "LazyPropChild" }, () => {
+      const element = document.createElement("span");
+      element.textContent = "Child";
+      return element;
+    });
+    const node: IRElementNode = {
+      type: "element",
+      tag: "Child",
+      props: [{
+        kind: "bind",
+        name: "state",
+        value: "buildState()"
+      }],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    renderIRNode(node, {
+      buildState: () => {
+        propReads += 1;
+        return { ready: true };
+      },
+      __components: { Child }
+    });
+
+    expect(propReads).toBe(0);
+  });
+
+  it("mounts nested card groups once across retained keyed rows", () => {
+    const readOnly = signal(true);
+    const rows = signal(Array.from({ length: 5 }, (_, rowIndex) => ({
+      key: `row-${rowIndex}`,
+      cards: [
+        { key: "reject", title: `Reject ${rowIndex}` },
+        { key: "approve", title: `Approve ${rowIndex}` }
+      ]
+    })));
+    let groupStateReads = 0;
+    let cardStateReads = 0;
+
+    const Card = component({ name: "ReviewChoiceCard" }, (props: any) => {
+      const state = props.state;
+      const element = document.createElement("label");
+      element.textContent = state.title;
+      return element;
+    });
+    const groupNode: IRElementNode = {
+      type: "element",
+      tag: "fieldset",
+      props: [],
+      children: [{
+        type: "for",
+        each: "cards",
+        item: "card",
+        isStructural: true,
+        body: [{
+          type: "element",
+          tag: "span",
+          props: [{
+            kind: "bind",
+            name: "key",
+            value: "card.key",
+            binding: { kind: "simple-path", segments: ["card", "key"] }
+          }],
+          children: [{
+            type: "element",
+            tag: "Card",
+            props: [{
+              kind: "bind",
+              name: "state",
+              value: "cardState(card)"
+            }],
+            children: [],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode],
+          loc: undefined,
+          flags: { hasDirectives: true }
+        } as IRElementNode],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRForNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const Group = component({ name: "ReviewDecisionGroup" }, (props: any) => {
+      const state = props.state;
+      return renderIRNode(groupNode, {
+        cards: state.cards,
+        cardState: (card: unknown) => {
+          cardStateReads += 1;
+          return card;
+        },
+        __components: { Card }
+      })!;
+    });
+    const tableNode: IRForNode = {
+      type: "for",
+      each: "rows",
+      item: "row",
+      isStructural: true,
+      body: [{
+        type: "element",
+        tag: "article",
+        props: [{
+          kind: "bind",
+          name: "key",
+          value: "row.key",
+          binding: { kind: "simple-path", segments: ["row", "key"] }
+        }],
+        children: [{
+          type: "if",
+          condition: "!readOnly()",
+          then: [{
+            type: "element",
+            tag: "Group",
+            props: [{
+              kind: "bind",
+              name: "state",
+              value: "groupState(row)"
+            }],
+            children: [],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode],
+          else: [],
+          loc: undefined,
+          flags: {}
+        } as IRIfNode],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRElementNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(tableNode, {
+      rows,
+      readOnly,
+      groupState: (row: { cards: unknown[] }) => {
+        groupStateReads += 1;
+        return row;
+      },
+      __components: { Group }
+    })!);
+
+    expect(root.querySelectorAll("article")).toHaveLength(5);
+    expect(root.querySelectorAll("fieldset")).toHaveLength(0);
+
+    batch(() => {
+      readOnly.set(false);
+    });
+
+    expect(root.querySelectorAll("fieldset")).toHaveLength(5);
+    expect(root.querySelectorAll("label")).toHaveLength(10);
+    expect(groupStateReads).toBe(5);
+    expect(cardStateReads).toBe(10);
   });
 
   it("keeps compiled module rendering detached from an owning template effect", async () => {

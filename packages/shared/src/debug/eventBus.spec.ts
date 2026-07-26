@@ -94,4 +94,28 @@ describe("shared debug store", () => {
       }
     ]);
   });
+
+  it("does not invoke accessors while retaining debug payloads", async () => {
+    const history = await importHistory();
+    const eventBus = await importEventBus();
+    let reads = 0;
+    const payload = Object.defineProperty({}, "state", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        return { ready: true };
+      }
+    });
+
+    eventBus.emitDebug({
+      type: "component:props:update",
+      timestamp: Date.now(),
+      payload
+    } as any);
+
+    expect(reads).toBe(0);
+    expect(history.readDebugHistory().at(-1)?.payload).toEqual({
+      state: "[accessor]"
+    });
+  });
 });
