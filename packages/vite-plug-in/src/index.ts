@@ -42,7 +42,7 @@ import {
   triggerFullReload
 } from "./devServerInvalidation.js";
 import { createVirtualErrorModule } from "./virtualErrorModule.js";
-import type { Plugin } from "vite";
+import type { ModuleNode, Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
 import {
@@ -898,9 +898,17 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       });
       newModule = autoImport.code + newModule;
 
-      // Replace the module in Vite's graph
-      const mod = ctx.server.moduleGraph.getModuleById(ctx.file)!;
-      ctx.server.moduleGraph.invalidateModule(mod);
+      // Vite may prune the exact file id before this hook runs when an edit
+      // removes an import branch. Fall back to the modules Vite associated
+      // with the update and never pass an absent graph entry to invalidation.
+      const graphModule = ctx.server.moduleGraph.getModuleById(ctx.file);
+      const affectedModules = Array.from(new Set([
+        graphModule,
+        ...(Array.isArray(ctx.modules) ? ctx.modules : [])
+      ].filter((module): module is ModuleNode => Boolean(module))));
+      for (const affectedModule of affectedModules) {
+        ctx.server.moduleGraph.invalidateModule(affectedModule);
+      }
       let routeManifestChanged = false;
 
       if (normalizedFile.endsWith(".tera")) {
@@ -924,7 +932,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }
 
       // Tell Vite which modules should be reloaded
-      return [mod];
+      return affectedModules;
     }
   };
 }

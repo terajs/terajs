@@ -437,6 +437,62 @@ describe("Terajs Vite Plugin (integration)", () => {
     });
   });
 
+  it("falls back to Vite's affected modules when the edited file id was pruned", () => {
+    const plugin = terajsPlugin();
+    const handleHotUpdate = requireHook<[HmrContext], unknown>(plugin.handleHotUpdate);
+    vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Updated</template>");
+    const affectedModule = { id: "/src/Component.tera?tera&type=template" };
+    const invalidateModule = vi.fn((module) => {
+      if (!module) {
+        throw new TypeError("Cannot read properties of undefined (reading '_clientModule')");
+      }
+    });
+    const ctx = {
+      file: path.resolve(process.cwd(), "src/Component.tera"),
+      modules: [affectedModule],
+      server: {
+        moduleGraph: {
+          getModuleById: vi.fn(() => undefined),
+          invalidateModule
+        }
+      }
+    } as unknown as HmrContext;
+
+    const result = handleHotUpdate(ctx);
+
+    expect(result).toEqual([affectedModule]);
+    expect(invalidateModule).toHaveBeenCalledTimes(1);
+    expect(invalidateModule).toHaveBeenCalledWith(affectedModule);
+    expect(ctx.read()).toBe("export default function Comp() {}");
+  });
+
+  it("skips invalidation when Vite has no module for an edited tera file", () => {
+    const plugin = terajsPlugin();
+    const handleHotUpdate = requireHook<[HmrContext], unknown>(plugin.handleHotUpdate);
+    vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Detached</template>");
+    const invalidateModule = vi.fn((module) => {
+      if (!module) {
+        throw new TypeError("Cannot read properties of undefined (reading '_clientModule')");
+      }
+    });
+    const ctx = {
+      file: path.resolve(process.cwd(), "src/Detached.tera"),
+      modules: [],
+      server: {
+        moduleGraph: {
+          getModuleById: vi.fn(() => undefined),
+          invalidateModule
+        }
+      }
+    } as unknown as HmrContext;
+
+    const result = handleHotUpdate(ctx);
+
+    expect(result).toEqual([]);
+    expect(invalidateModule).not.toHaveBeenCalled();
+    expect(ctx.read()).toBe("export default function Comp() {}");
+  });
+
   it("atomically reloads the app when an existing route file changes", () => {
     const plugin = terajsPlugin();
     const handleHotUpdate = requireHook<[HmrContext], unknown>(plugin.handleHotUpdate);
