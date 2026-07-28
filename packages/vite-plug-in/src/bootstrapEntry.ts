@@ -1,7 +1,6 @@
 const APP_BOOTSTRAP_VIRTUAL_ID = "virtual:terajs-bootstrap";
 const RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID = `\0${APP_BOOTSTRAP_VIRTUAL_ID}`;
 const DEV_APP_BOOTSTRAP_MODULE_PATH = `/@id/__x00__${APP_BOOTSTRAP_VIRTUAL_ID}`;
-const BUILD_BOOTSTRAP_FILE = "assets/terajs-bootstrap.js";
 
 function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
@@ -33,7 +32,6 @@ export {
   APP_BOOTSTRAP_VIRTUAL_ID,
   RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID,
   DEV_APP_BOOTSTRAP_MODULE_PATH,
-  BUILD_BOOTSTRAP_FILE,
   generateAppBootstrapModule,
   toPublicAssetPath
 };

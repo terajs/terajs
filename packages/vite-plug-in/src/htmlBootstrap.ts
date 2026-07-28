@@ -1,5 +1,4 @@
 import {
-  BUILD_BOOTSTRAP_FILE,
   DEV_APP_BOOTSTRAP_MODULE_PATH,
   toPublicAssetPath
 } from "./bootstrapEntry.js";
@@ -7,6 +6,7 @@ import {
 interface InjectAppBootstrapScriptOptions {
   command?: string;
   base?: string;
+  buildBootstrapFile?: string;
 }
 
 export function injectAppBootstrapScript(
@@ -48,8 +48,14 @@ export function injectAppBootstrapScript(
   }
 
   const appEntrySpecifier = options.command === "build"
-    ? toPublicAssetPath(BUILD_BOOTSTRAP_FILE, options.base ?? "/")
+    ? options.buildBootstrapFile
+      ? toPublicAssetPath(options.buildBootstrapFile, options.base ?? "/")
+      : null
     : DEV_APP_BOOTSTRAP_MODULE_PATH;
+
+  if (!appEntrySpecifier) {
+    throw new Error("TeraJS bootstrap chunk was not emitted before index.html transformation.");
+  }
 
   const bootstrapTag = `    <script type="module" src="${appEntrySpecifier}"></script>`;
 
