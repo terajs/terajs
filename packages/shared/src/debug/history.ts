@@ -14,6 +14,30 @@ const MAX_PERSISTED_DEBUG_EVENTS = 4000;
 const MAX_SERIALIZATION_DEPTH = 5;
 const MAX_ARRAY_ITEMS = 40;
 const MAX_OBJECT_KEYS = 40;
+const TRANSIENT_DEBUG_EVENT_PREFIXES = [
+  "batch:",
+  "binding:",
+  "component:context:",
+  "component:render:",
+  "component:setup:",
+  "dom:",
+  "effect:",
+  "ir:render:",
+  "list:diff:",
+  "template:",
+  "unwrap:"
+] as const;
+const TRANSIENT_DEBUG_EVENT_TYPES = new Set([
+  "computed:recomputed",
+  "reactive:read",
+  "runtime:mode:check",
+  "signal:link",
+  "signal:read",
+  "signal:unlink",
+  "state:get",
+  "state:link",
+  "state:read"
+]);
 
 function historyCache(): PersistedDebugEvent[] {
   return getSharedDebugState().history as PersistedDebugEvent[];
@@ -54,17 +78,17 @@ function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | 
     return null;
   }
 
-  const event = rawEvent as Record<string, unknown>;
+  const event = Object.fromEntries(readEnumerableDebugEntries(rawEvent));
   const type = typeof event.type === "string" ? event.type : null;
   const timestamp = typeof event.timestamp === "number" ? event.timestamp : Date.now();
-  if (!type) {
+  if (!type || isTransientDebugEvent(type)) {
     return null;
   }
 
   const payloadSource = event.payload && typeof event.payload === "object"
     ? event.payload
     : Object.fromEntries(
-        Object.entries(event).filter(([key]) =>
+        readEnumerableDebugEntries(event).filter(([key]) =>
           key !== "type"
           && key !== "timestamp"
           && key !== "level"
@@ -86,6 +110,11 @@ function normalizePersistedDebugEvent(rawEvent: unknown): PersistedDebugEvent | 
     line: typeof event.line === "number" ? event.line : undefined,
     column: typeof event.column === "number" ? event.column : undefined
   };
+}
+
+function isTransientDebugEvent(type: string): boolean {
+  return TRANSIENT_DEBUG_EVENT_TYPES.has(type)
+    || TRANSIENT_DEBUG_EVENT_PREFIXES.some((prefix) => type.startsWith(prefix));
 }
 
 function sanitizeDebugValue(
@@ -122,12 +151,29 @@ function sanitizeDebugValue(
   }
 
   seen.add(value);
-  const entries = Object.entries(value as Record<string, unknown>).slice(0, MAX_OBJECT_KEYS);
+  const entries = readEnumerableDebugEntries(value).slice(0, MAX_OBJECT_KEYS);
   const normalized = Object.fromEntries(
     entries.map(([key, entryValue]) => [key, sanitizeDebugValue(entryValue, depth + 1, seen)])
   );
   seen.delete(value);
   return normalized;
+}
+
+function readEnumerableDebugEntries(value: object): Array<[string, unknown]> {
+  let descriptors: PropertyDescriptorMap;
+
+  try {
+    descriptors = Object.getOwnPropertyDescriptors(value);
+  } catch {
+    return [];
+  }
+
+  return Object.entries(descriptors)
+    .filter(([, descriptor]) => descriptor.enumerable === true)
+    .map(([key, descriptor]) => [
+      key,
+      "value" in descriptor ? descriptor.value : "[accessor]"
+    ]);
 }
 
 function clonePersistedDebugEvent(event: PersistedDebugEvent): PersistedDebugEvent {

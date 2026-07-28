@@ -5,12 +5,13 @@
  *
  * This module handles both keyed and non-keyed v-for lists, with optimizations
  */
-import type { IRForNode, IRNode } from "@terajs/compiler";
+import type { IRForNode, IRNode, IRPropNode } from "@terajs/compiler";
 
 import { dispose, effect, signal, withDetachedCurrentEffect, type Signal } from "@terajs/reactivity";
 import {
   createComponentContext,
   getCurrentContext,
+  runWithCurrentContext,
   setCurrentContext,
   type ComponentContext,
 } from "@terajs/runtime";
@@ -23,6 +24,7 @@ import {
 } from "./dom.js";
 import { emitRendererDebug } from "./debug.js";
 import { resolveExpr } from "./renderFromIRExpressions.js";
+import { inheritRouteOutletRenderContext } from "./routeOutletContext.js";
 import { updateKeyedList, type KeyedItem } from "./updateKeyedList.js";
 
 type RenderIRNode = (node: IRNode, ctx: any, isSvg?: boolean) => Node | null;
@@ -52,10 +54,12 @@ export function renderIRForNode(
 
   const ownerContext = getCurrentContext();
   const identityState = createIRForIdentityState();
-  const supportsKeyedReuse = node.body.length === 1 && node.isStructural !== true;
+  const keyProp = getIRForKeyProp(node);
+  const supportsKeyedReuse = node.body.length === 1 && (node.isStructural !== true || keyProp !== null);
   let rows: IRForRowRecord[] = [];
+  let rebuiltNodes: ChildNode[] = [];
 
-  const run = () => {
+  const renderRows = () => {
     const array = resolveExpr(ctx, node.each) || [];
     const mountTarget = anchor.parentNode ?? parent;
 
@@ -68,6 +72,7 @@ export function renderIRForNode(
         rows,
         ownerContext,
         identityState,
+        keyProp,
         renderNode,
       );
 
@@ -100,8 +105,18 @@ export function renderIRForNode(
       Array.isArray(array) ? array : [],
       mountTarget,
       anchor,
+      rebuiltNodes,
       renderNode,
     );
+  };
+
+  const run = () => {
+    if (ownerContext) {
+      runWithCurrentContext(ownerContext, renderRows);
+      return;
+    }
+
+    renderRows();
   };
 
   const effectFn = effect(run);
@@ -110,6 +125,8 @@ export function renderIRForNode(
     dispose(effectFn);
     for (const row of rows) disposeIRForRowRecord(row);
     rows = [];
+    for (const node of rebuiltNodes) remove(node);
+    rebuiltNodes = [];
   });
 
   return parent;
@@ -122,40 +139,40 @@ function renderIRForByRebuild(
   array: any[],
   parent: Node,
   anchor: Comment,
+  ownedNodes: ChildNode[],
   renderNode: RenderIRNode,
 ): void {
-  const nodes: Node[] = [];
+  for (const ownedNode of ownedNodes) {
+    remove(ownedNode);
+  }
+  ownedNodes.length = 0;
 
-  for (let index = 0; index < array.length; index += 1) {
-    const childCtx = {
-      ...ctx,
-      [node.item]: array[index],
-      [node.index ?? "i"]: index,
-    };
+  const fragment = createFragment();
 
-    const frag = createFragment();
-    for (const child of node.body) {
-      const dom = renderNode(child, childCtx, isSvg);
-      if (dom) {
-        frag.appendChild(dom);
+  try {
+    for (let index = 0; index < array.length; index += 1) {
+      const childCtx = {
+        ...ctx,
+        [node.item]: array[index],
+        [node.index ?? "i"]: index,
+      };
+
+      for (const child of node.body) {
+        const dom = renderNode(child, childCtx, isSvg);
+        if (dom) {
+          fragment.appendChild(dom);
+        }
       }
     }
-
-    nodes.push(frag);
+  } catch (error) {
+    while (fragment.firstChild) {
+      remove(fragment.firstChild);
+    }
+    throw error;
   }
 
-  let next = anchor.nextSibling;
-  while (next) {
-    const toRemove = next;
-    next = next.nextSibling;
-    remove(toRemove);
-  }
-
-  let ref: ChildNode | null = anchor.nextSibling;
-  for (const renderedNode of nodes) {
-    insert(parent, renderedNode, ref ?? null);
-    ref = null;
-  }
+  ownedNodes.push(...Array.from(fragment.childNodes));
+  insert(parent, fragment, anchor.nextSibling);
 }
 
 function createKeyedIRForRows(
@@ -166,6 +183,7 @@ function createKeyedIRForRows(
   currentRows: IRForRowRecord[],
   ownerContext: ComponentContext | null,
   identityState: IRForIdentityState,
+  keyProp: IRPropNode | null,
   renderNode: RenderIRNode,
 ): IRForRowRecord[] | null {
   const nextRows: IRForRowRecord[] = [];
@@ -174,7 +192,7 @@ function createKeyedIRForRows(
 
   for (let index = 0; index < array.length; index += 1) {
     const item = array[index];
-    const key = createIRForRowKey(item, index, identityState, seenCounts);
+    const key = createIRForRowKey(node, ctx, keyProp, item, index, identityState, seenCounts);
     const existing = currentRowsByKey.get(key);
 
     if (existing) {
@@ -208,15 +226,59 @@ function createIRForIdentityState(): IRForIdentityState {
 }
 
 function createIRForRowKey(
+  node: IRForNode,
+  ctx: any,
+  keyProp: IRPropNode | null,
   item: unknown,
   index: number,
   identityState: IRForIdentityState,
   seenCounts: Map<string, number>,
 ): string {
-  const base = describeIRForRowIdentity(item, index, identityState);
+  const explicitKey = resolveIRForExplicitKey(node, ctx, keyProp, item, index);
+  const base = explicitKey.found
+    ? `explicit:${typeof explicitKey.value}:${String(explicitKey.value)}`
+    : describeIRForRowIdentity(item, index, identityState);
   const count = seenCounts.get(base) ?? 0;
   seenCounts.set(base, count + 1);
   return `${base}::${count}`;
+}
+
+function getIRForKeyProp(node: IRForNode): IRPropNode | null {
+  const root = node.body[0];
+  if (!root || root.type !== "element") {
+    return null;
+  }
+
+  return root.props.find((prop) =>
+    prop.name === "key" && (prop.kind === "bind" || prop.kind === "static")
+  ) ?? null;
+}
+
+function resolveIRForExplicitKey(
+  node: IRForNode,
+  ctx: any,
+  keyProp: IRPropNode | null,
+  item: unknown,
+  index: number,
+): { found: boolean; value?: unknown } {
+  if (!keyProp) {
+    return { found: false };
+  }
+
+  if (keyProp.kind === "static") {
+    return { found: true, value: keyProp.value };
+  }
+
+  const childCtx = {
+    ...ctx,
+    [node.item]: item,
+    [node.index ?? "i"]: index,
+  };
+
+  return {
+    found: true,
+    value: resolveExpr(childCtx, String(keyProp.value)),
+  };
 }
 
 function describeIRForRowIdentity(
@@ -270,13 +332,20 @@ function createIRForRowRecord(
     rowContext.route = ownerContext.route;
     rowContext.meta = ownerContext.meta;
     rowContext.ai = ownerContext.ai;
+    inheritRouteOutletRenderContext(ownerContext, rowContext);
   }
 
-  const rowChildContext = {
-    ...ctx,
-    [node.item]: itemSignal,
-    [node.index ?? "i"]: indexSignal,
-  };
+  const rowChildContext = Object.create(ctx ?? null);
+  Object.defineProperty(rowChildContext, node.item, {
+    configurable: true,
+    enumerable: true,
+    get: () => itemSignal(),
+  });
+  Object.defineProperty(rowChildContext, node.index ?? "i", {
+    configurable: true,
+    enumerable: true,
+    get: () => indexSignal(),
+  });
 
   const previousContext = getCurrentContext();
   let renderedNode: Node | null = null;

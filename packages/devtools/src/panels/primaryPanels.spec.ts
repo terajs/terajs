@@ -273,14 +273,33 @@ describe("primaryPanels", () => {
               draft: true,
               locale: "en"
             }
-          }
+          },
+          branch: [
+            { id: "docs", path: "/docs", pathname: "/docs", filePath: "/pages/docs.tera", params: {} },
+            { id: "intro", path: "/docs/:slug", pathname: "/docs/intro", filePath: "/pages/docs/[slug].tera", params: { slug: "intro" } }
+          ],
+          leafRoute: { id: "intro", path: "/docs/:slug", filePath: "/pages/docs/[slug].tera" }
+        }
+      },
+      {
+        type: "route:meta:resolved",
+        timestamp: 41,
+        payload: {
+          to: "/docs/intro",
+          meta: { title: "Intro Docs", description: "Nested route docs" },
+          ai: { summary: "Explains nested routing" },
+          route: { id: "intro", path: "/docs/:slug", layouts: ["docs"] },
+          branch: [
+            { id: "docs", path: "/docs", pathname: "/docs", filePath: "/pages/docs.tera", params: {} },
+            { id: "intro", path: "/docs/:slug", pathname: "/docs/intro", filePath: "/pages/docs/[slug].tera", params: { slug: "intro" } }
+          ]
         }
       }
     ];
 
     const routerMarkup = renderRouterPanel({
       events: routeEvents,
-      expandedValuePaths: new Set(["router.snapshot.query/filters"]),
+      expandedValuePaths: new Set(["router.snapshot.query/filters", "router.snapshot.branch/1"]),
       activeRouterView: "snapshot"
     });
 
@@ -335,10 +354,18 @@ describe("primaryPanels", () => {
     expect(routerMarkup).toContain("Latest route snapshot");
     expect(routerMarkup).toContain("Route params");
     expect(routerMarkup).toContain("Route query");
+    expect(routerMarkup).toContain("Route branch");
+    expect(routerMarkup).toContain("Resolved route meta");
+    expect(routerMarkup).toContain("Route AI metadata");
+    expect(routerMarkup).toContain("Resolved route definition");
     expect(routerMarkup).toContain("structured-value-viewer");
     expect(routerMarkup).toContain("&quot;slug&quot;");
     expect(routerMarkup).toContain("&quot;draft&quot;");
+    expect(routerMarkup).toContain("Intro Docs");
+    expect(routerMarkup).toContain("Explains nested routing");
+    expect(routerMarkup).toContain("/docs/:slug");
     expect(routerMarkup).toContain('data-value-path="router.snapshot.query/filters"');
+    expect(routerMarkup).toContain('data-value-path="router.snapshot.branch/1"');
     expect(routerMarkup).toContain('aria-expanded="true"');
     expect(routerMarkup).not.toContain("Route activity");
 

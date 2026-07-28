@@ -3,7 +3,7 @@ import {
   compileTemplateFromSFC,
   type ParsedSFC
 } from "@terajs/sfc";
-import { compileStyle } from "@terajs/compiler";
+import { compileStyle, type IRModule, type IRNode } from "@terajs/compiler";
 import { annotateRuntimeDebugNames } from "./annotateRuntimeDebugNames.js";
 
 export interface CompileSfcToComponentOptions {
@@ -21,6 +21,7 @@ export function compileSfcToComponent(
 
   const script = compileScript(annotateRuntimeDebugNames(scriptSource));
   const ir = compileTemplateFromSFC(sfc);
+  normalizeBuiltInComponentTags(ir);
   ir.hasAsyncResource = script.hasAsyncResource;
   const style = compileStyle(sfc, ir.scopeId);
   const styleId = style ? createStyleId(sfc.filePath) : null;
@@ -44,6 +45,7 @@ import { ${[
   "applyHMRUpdate",
   "renderIRModuleToFragment",
   "Link",
+  "RouterView",
   ...(style ? ["registerStyle", "unregisterStyle"] : [])
 ].join(", ")} } from "@terajs/app";
 
@@ -65,7 +67,7 @@ function normalizeComponentProps(input) {
     return {};
   }
 
-  const next = { ...input };
+  const next = Object.defineProperties({}, Object.getOwnPropertyDescriptors(input));
   delete next.children;
   delete next.slots;
   return next;
@@ -110,6 +112,8 @@ function createComponentRegistry(ctx) {
 
   return {
     Link,
+    RouterView,
+    "router-view": RouterView,
     ...autoImports,
     ...${importedBindingMap},
     ...pickBindings(${exposedBindings}, ctx)
@@ -160,6 +164,55 @@ ${style && styleId ? `    if (typeof mod.__terajsRegisterStyle === "function") {
 
 export default Comp;
 `;
+}
+
+function normalizeBuiltInComponentTags(ir: IRModule): void {
+  for (const node of ir.template) {
+    normalizeBuiltInComponentTag(node);
+  }
+}
+
+function normalizeBuiltInComponentTag(node: IRNode): void {
+  if (node.type === "element") {
+    if (node.tag === "router-view") {
+      node.tag = "RouterView";
+    }
+
+    for (const child of node.children) {
+      normalizeBuiltInComponentTag(child);
+    }
+    return;
+  }
+
+  if (node.type === "portal") {
+    for (const child of node.children) {
+      normalizeBuiltInComponentTag(child);
+    }
+    return;
+  }
+
+  if (node.type === "slot") {
+    for (const child of node.fallback) {
+      normalizeBuiltInComponentTag(child);
+    }
+    return;
+  }
+
+  if (node.type === "if") {
+    for (const child of node.then) {
+      normalizeBuiltInComponentTag(child);
+    }
+    for (const child of node.else ?? []) {
+      normalizeBuiltInComponentTag(child);
+    }
+    return;
+  }
+
+  if (node.type === "for") {
+    for (const child of node.body) {
+      normalizeBuiltInComponentTag(child);
+    }
+  }
 }
 
 function createStyleId(filePath: string): string {

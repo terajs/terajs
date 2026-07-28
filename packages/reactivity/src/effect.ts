@@ -16,7 +16,7 @@ import {
     currentEffect
 } from "./deps.js";
 import { isServer } from "./dx/runtime.js";
-import { shouldBatch, queueEffect } from "./dx/batch.js";
+import { batch, shouldBatch, queueEffect } from "./dx/batch.js";
 import {
     Debug,
     createReactiveMetadata,
@@ -41,6 +41,7 @@ import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from ".
  */
 export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     const ctx = getCurrentContext();
+    const parent = currentEffect;
     const owner = debugInstrumentationEnabled && ctx
         ? {
             scope: ctx.name,
@@ -99,6 +100,11 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     effectFn.children = [];
     effectFn.scheduler = scheduler;
     effectFn.active = true;
+    effectFn.parent = parent;
+    if (parent) {
+        parent.children ??= [];
+        parent.children.push(effectFn);
+    }
     (effectFn as any)._meta = debugInstrumentationEnabled
         ? createReactiveMetadata({
             type: "effect",
@@ -219,4 +225,23 @@ export function scheduleEffect(effectFn: ReactiveEffect): void {
     } else {
         effectFn();
     }
+}
+
+/**
+ * Invalidates a dependency snapshot as one synchronous transaction.
+ *
+ * Computed schedulers still run immediately so dirtiness propagates through
+ * the graph before ordinary effects flush. Ordinary effects are deduplicated
+ * by the batch queue and still complete before the originating write returns.
+ */
+export function notifyEffects(effects: Iterable<ReactiveEffect>): void {
+    batch(() => {
+        for (const effectFn of Array.from(effects)) {
+            if (effectFn.scheduler) {
+                effectFn.scheduler();
+            } else {
+                scheduleEffect(effectFn);
+            }
+        }
+    });
 }

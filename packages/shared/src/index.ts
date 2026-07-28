@@ -35,6 +35,7 @@ export * from "./errorBoundary.js";
 export { 
   getCurrentContext, 
   setCurrentContext, 
+  runWithCurrentContext,
   createComponentContext, 
 } from "./context.js";
 export type { ComponentContext, Disposer } from "./context.js";

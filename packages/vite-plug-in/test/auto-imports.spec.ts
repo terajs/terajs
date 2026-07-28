@@ -10,7 +10,12 @@ describe('terajsPlugin auto-imports', () => {
     const plugin = terajsPlugin();
     const resolved = plugin.resolveId('virtual:terajs-auto-imports');
     expect(resolved).toBe('\0virtual:terajs-auto-imports');
-    const code = plugin.load('\0virtual:terajs-auto-imports');
+    const loaded = plugin.load('\0virtual:terajs-auto-imports');
+    const code = typeof loaded === 'string'
+      ? loaded
+      : loaded && typeof loaded === 'object' && 'code' in loaded
+        ? loaded.code
+        : null;
     expect(typeof code).toBe('string');
     // Should export all .tera files in components dir
     const componentsDir = path.resolve(process.cwd(), 'packages/devtools/src/components');

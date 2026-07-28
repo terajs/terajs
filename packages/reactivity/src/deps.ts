@@ -57,18 +57,21 @@ export let currentEffect: ReactiveEffect | null = null;
  */
 export function withDetachedCurrentEffect<T>(fn: () => T): T {
     const previous = currentEffect;
+    const previousStack = effectStack.splice(0, effectStack.length);
     currentEffect = null;
 
     try {
         return fn();
     } finally {
+        effectStack.splice(0, effectStack.length, ...previousStack);
         currentEffect = previous;
     }
 }
 
 /**
  * Places an effect onto the tracking stack and sets it as the active context.
- * Also wires parent/child relationships for nested effects.
+ * Effect ownership is assigned when an effect is created, not every time an
+ * existing effect executes.
  *
  * @param effect - The ReactiveEffect to begin tracking.
  */
@@ -81,14 +84,6 @@ export function pushEffect(effect: ReactiveEffect): void {
         });
     }
     
-    if (currentEffect) {
-        effect.parent = currentEffect;
-        currentEffect.children ??= [];
-        currentEffect.children.push(effect);
-    } else {
-        effect.parent = null;
-    }
-
     effectStack.push(effect);
     currentEffect = effect;
 }

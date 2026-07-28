@@ -35,6 +35,7 @@ import { onEffectCleanup } from "./dx/cleanup";
 import { watch } from "./dx/watch";
 import { watchEffect } from "./dx/watchEffect";
 import { setRuntimeMode } from "./dx/runtime";
+import { withDetachedCurrentEffect } from "./deps";
 
 describe("Reactivity Core", () => {
 
@@ -78,6 +79,35 @@ describe("Reactivity Core", () => {
 
         count.set(5);
         expect(dummy).toBe(5);
+    });
+
+    it("keeps detached work isolated after a nested effect completes", () => {
+        const outerSource = signal(0);
+        const detachedSource = signal(0);
+        let outerRuns = 0;
+        let innerRuns = 0;
+
+        effect(() => {
+            outerRuns += 1;
+            outerSource();
+
+            withDetachedCurrentEffect(() => {
+                effect(() => {
+                    innerRuns += 1;
+                    detachedSource();
+                });
+
+                detachedSource();
+            });
+        });
+
+        expect(outerRuns).toBe(1);
+        expect(innerRuns).toBe(1);
+
+        detachedSource.set(1);
+
+        expect(innerRuns).toBe(2);
+        expect(outerRuns).toBe(1);
     });
 
     // ---------------------------------------------------------------------

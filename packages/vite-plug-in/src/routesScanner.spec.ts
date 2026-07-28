@@ -29,4 +29,30 @@ describe("Route Scanner", () => {
     expect(config).toContain('asset: "assets/home-C9a1b2.js"');
     expect(config).toContain('asset: "assets/about-F7e4d3.js"');
   });
+
+  it("preserves explicit configured child routes", () => {
+    const files = [
+      "src/pages/migrations/index.tera",
+      "src/pages/migrations/[id]/index.tera",
+      "src/pages/migrations/[id]/connect.tera"
+    ];
+    const config = generateRouteConfigWithAssets(files, undefined, [
+      {
+        filePath: "src/pages/migrations/[id]/index.tera",
+        path: "/migrations/:id",
+        children: [
+          {
+            filePath: "src/pages/migrations/[id]/connect.tera",
+            path: "connect"
+          }
+        ]
+      }
+    ]);
+
+    expect(config).toContain('path: "/migrations"');
+    expect(config).toContain('path: "/migrations/:id"');
+    expect(config).toContain("children: [");
+    expect(config).toContain('path: "connect"');
+    expect(config).not.toContain('path: "/migrations/:id/connect"');
+  });
 });

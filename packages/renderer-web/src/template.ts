@@ -9,7 +9,7 @@
  */
 
 import { dispose, effect, getCurrentEffect, type ReactiveEffect } from "@terajs/reactivity";
-import { getCurrentContext, onCleanup } from "@terajs/runtime";
+import { getCurrentContext, onCleanup, runWithCurrentContext } from "@terajs/runtime";
 import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom.js";
 import { emitRendererDebug } from "./debug.js";
 
@@ -34,8 +34,9 @@ export function template(fn: TemplateFn): Node {
     }));
 
     let current: Node | null = null;
-    const boundary = getCurrentContext()?.errorBoundary;
-    const ownerName = getCurrentContext()?.name;
+    const ownerContext = getCurrentContext();
+    const boundary = ownerContext?.errorBoundary;
+    const ownerName = ownerContext?.name;
     const isNestedTemplate = !!getCurrentEffect();
 
     let effectRef: ReactiveEffect | null = null;
@@ -50,7 +51,9 @@ export function template(fn: TemplateFn): Node {
         let next: Node;
 
         try {
-            next = fn();
+            next = ownerContext
+                ? runWithCurrentContext(ownerContext, fn)
+                : fn();
         } catch (error) {
             if (boundary) {
                 boundary({

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { matchRoute } from "@terajs/router";
 import { buildRouteManifest } from "./manifest";
 
 const pageSource = `
@@ -125,5 +126,63 @@ describe("buildRouteManifest", () => {
     expect(manifest[0].mountTarget).toBe("profile-root");
     expect(manifest[0].middleware).toEqual(["secure"]);
     expect(manifest[0].prerender).toBe(false);
+  });
+
+  it("preserves config-defined child routes without promoting prefix siblings to parents", () => {
+    const manifest = buildRouteManifest(
+      [
+        {
+          filePath: "/src/pages/migrations/index.tera",
+          source: pageSource
+        },
+        {
+          filePath: "/src/pages/migrations/[id]/index.tera",
+          source: `
+<template><div /></template>
+<script>export default () => null</script>
+<route>
+  middleware: auth
+</route>
+`
+        },
+        {
+          filePath: "/src/pages/migrations/[id]/connect.tera",
+          source: pageSource
+        }
+      ],
+      {
+        routeConfigs: [
+          {
+            filePath: "/src/pages/migrations/[id]/index.tera",
+            path: "/migrations/:id",
+            middleware: ["configured"],
+            children: [
+              {
+                filePath: "/src/pages/migrations/[id]/connect.tera",
+                path: "connect",
+                middleware: ["child-config"]
+              }
+            ]
+          }
+        ]
+      }
+    );
+
+    expect(manifest).toHaveLength(2);
+    expect(manifest.map((entry) => entry.path).sort()).toEqual([
+      "/migrations",
+      "/migrations/:id"
+    ]);
+    expect(manifest.find((entry) => entry.path === "/migrations")?.children).toBeUndefined();
+    const workspace = manifest.find((entry) => entry.path === "/migrations/:id");
+    expect(workspace?.middleware).toEqual(["auth"]);
+    expect(workspace?.children?.map((entry) => entry.path)).toEqual(["connect"]);
+    expect(workspace?.children?.[0].middleware).toEqual(["child-config"]);
+
+    const matched = matchRoute(manifest, "/migrations/123/connect");
+    expect(matched?.branch?.map((entry) => entry.route.path)).toEqual([
+      "/migrations/:id",
+      "/migrations/:id/connect"
+    ]);
   });
 });

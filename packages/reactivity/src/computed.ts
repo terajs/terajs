@@ -11,7 +11,7 @@
 
 import { effect } from "./effect.js";
 import { currentEffect, type ReactiveEffect, withDetachedCurrentEffect } from "./deps.js";
-import { scheduleEffect } from "./effect.js";
+import { notifyEffects } from "./effect.js";
 import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 
 import {
@@ -137,17 +137,12 @@ export function computed<T>(fn: () => T, options: ComputedOptions = {}): Compute
    * we mark this computed as "dirty" and notify its own subscribers.
    */
   const scheduler = () => {
-    dirty = true;
+    if (dirty) {
+      return;
+    }
 
-    // Trigger any effects that are watching this computed value
-    const effectsToRun = new Set(deps);
-    effectsToRun.forEach((dep) => {
-      if (dep.scheduler) {
-        dep.scheduler();
-      } else {
-        scheduleEffect(dep);
-      }
-    });
+    dirty = true;
+    notifyEffects(deps);
   };
 
   /**

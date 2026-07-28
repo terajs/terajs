@@ -7,7 +7,7 @@
 
 // Component Core
 export { component, onCleanup } from "./component/component.js";
-export { ComponentContext, getCurrentContext, setCurrentContext, createComponentContext } from "./component/context.js";
+export { ComponentContext, getCurrentContext, setCurrentContext, runWithCurrentContext, createComponentContext } from "./component/context.js";
 export type { Disposer } from "./component/context.js";
 
 // Lifecycle Hooks
@@ -35,8 +35,51 @@ export {
 export type { RuntimeHydrationState } from "./hydration.js";
 
 // Persistence
-export { localStorageAdapter } from "./persistence/adapters.js";
-export type { PersistenceAdapter } from "./persistence/types.js";
+export {
+  createForbiddenPersistenceAdapter,
+  createIndexedDBPersistenceAdapter,
+  createMemoryPersistenceAdapter,
+  getPersistenceAdapterMetadata,
+  localStorageAdapter,
+  withPersistenceAdapterMetadata
+} from "./persistence/adapters.js";
+export type {
+  IndexedDBPersistenceAdapterOptions
+} from "./persistence/adapters.js";
+export {
+  createManifestedBucket,
+  createMemoryBucket,
+  createOPFSBucket,
+  encodeOPFSKey,
+  getLocalFirstBucketMetadata,
+  withLocalFirstBucketMetadata
+} from "./persistence/buckets.js";
+export type {
+  LocalFirstBucket,
+  LocalFirstBucketData,
+  LocalFirstBucketEntry,
+  LocalFirstBucketKind,
+  LocalFirstBucketMetadata,
+  LocalFirstBucketManifestEntry,
+  LocalFirstBucketPutOptions,
+  ManifestedBucketOptions,
+  OPFSBucketOptions
+} from "./persistence/buckets.js";
+export type {
+  AtomicPersistenceAdapter,
+  PersistenceAdapter,
+  PersistenceAdapterKind,
+  PersistenceAdapterMetadata
+} from "./persistence/types.js";
+export { createLocalFirstProfile } from "./localFirst.js";
+export type {
+  LocalFirstDurability,
+  LocalFirstPolicy,
+  LocalFirstProfile,
+  LocalFirstProfileOptions,
+  LocalFirstSensitivity,
+  LocalFirstSyncMode
+} from "./localFirst.js";
 
 // Renderer bridge
 export {
@@ -55,7 +98,15 @@ export type {
   QueuedActionResult
 } from "./action.js";
 export { createResource } from "./resource.js";
-export type { Resource, ResourceState, ResourcePayload, ResourceMutateOptions } from "./resource.js";
+export type {
+  Resource,
+  ResourceFetcherContext,
+  ResourceMutateResult,
+  ResourcePersistenceOptions,
+  ResourceState,
+  ResourcePayload,
+  ResourceMutateOptions
+} from "./resource.js";
 export {
   createMutationQueue,
   createMutationQueueStorage,
@@ -68,8 +119,10 @@ export type {
   MutationConflictResolver,
   MutationFlushResult,
   MutationHandler,
+  MutationHandlerContext,
   MutationQueue,
   MutationQueueOptions,
+  MutationQueueSyncState,
   MutationQueueStorage,
   MutationRetryPolicy,
   MutationStatus,

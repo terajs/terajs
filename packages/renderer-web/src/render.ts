@@ -22,6 +22,7 @@ import {
 import type { ComponentContext } from "@terajs/runtime";
 import { template, type TemplateFn } from "./template.js";
 import { emitRendererDebug } from "./debug.js";
+import { inheritRouteOutletRenderContext } from "./routeOutletContext.js";
 
 // AST to JSX adapter
 import { renderAst } from "./astToJsx.js";
@@ -52,6 +53,10 @@ export interface RenderResult {
     node: Node;
     /** The component's execution context. */
     ctx: ComponentContext;
+}
+
+export interface RenderComponentOptions {
+    prepareContext?: (ctx: ComponentContext) => void;
 }
 
 function isDomNode(value: unknown): value is Node {
@@ -102,11 +107,14 @@ function isDomDocumentFragment(value: unknown): value is DocumentFragment {
  */
 export function renderComponent(
     component: FrameworkComponent,
-    props?: any
+    props?: any,
+    options: RenderComponentOptions = {}
 ): RenderResult {
     const ctx = createComponentContext();
     const prev = getCurrentContext();
     ctx.errorBoundary = prev?.errorBoundary;
+    inheritRouteOutletRenderContext(prev, ctx);
+    options.prepareContext?.(ctx);
 
     emitRendererDebug("component:render:start", () => ({
         component,

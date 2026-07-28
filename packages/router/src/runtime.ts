@@ -1,5 +1,9 @@
 import { Debug } from "@terajs/shared";
 import type { RouteDefinition } from "./definition.js";
+import { summarizeRouteBranch } from "./debugPayload.js";
+import { matchRoute, parseTarget } from "./matching.js";
+
+export { matchRoute, resolveComponentStack } from "./matching.js";
 
 export type RouteParams = Record<string, string>;
 export type RouteQueryValue = string | string[];
@@ -12,6 +16,7 @@ export interface RouteMatch {
   params: RouteParams;
   query: RouteQuery;
   hash: string;
+  branch?: RouteMatch[];
   componentStack?: any[];
 }
 
@@ -82,150 +87,6 @@ export type NavigationResult =
       to: string;
       redirectedTo: RouteMatch;
     };
-
-  /**
-   * Builds the ordered render stack for a matched route.
-   *
-   * The current implementation includes an optional route-level layout followed
-   * by the route component.
-   */
-export function resolveComponentStack(route: RouteDefinition): any[] {
-  const stack: any[] = [];
-
-  if (route.layout) {
-    stack.push(route.layout);
-  }
-
-  stack.push(route.component);
-  return stack;
-}
-
-function normalizePathname(pathname: string): string {
-  if (!pathname || pathname === "/") {
-    return "/";
-  }
-
-  const normalized = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  return normalized.length > 1 && normalized.endsWith("/")
-    ? normalized.slice(0, -1)
-    : normalized;
-}
-
-function splitSegments(pathname: string): string[] {
-  const normalized = normalizePathname(pathname);
-  if (normalized === "/") {
-    return [];
-  }
-
-  return normalized.slice(1).split("/").filter(Boolean);
-}
-
-function scoreRoutePath(path: string): number {
-  return splitSegments(path).reduce((score, segment) => {
-    if (segment.startsWith(":")) {
-      return score + 2;
-    }
-
-    return score + 10;
-  }, 0);
-}
-
-function parseTarget(target: string): {
-  pathname: string;
-  fullPath: string;
-  query: RouteQuery;
-  hash: string;
-} {
-  const url = new URL(target, "https://terajs.local");
-  const pathname = normalizePathname(url.pathname);
-  const query: RouteQuery = {};
-
-  url.searchParams.forEach((value, key) => {
-    const previous = query[key];
-    if (previous === undefined) {
-      query[key] = value;
-      return;
-    }
-
-    query[key] = Array.isArray(previous) ? [...previous, value] : [previous, value];
-  });
-
-  return {
-    pathname,
-    fullPath: `${pathname}${url.search}${url.hash}`,
-    query,
-    hash: url.hash ? url.hash.slice(1) : ""
-  };
-}
-
-function matchPath(pattern: string, pathname: string): RouteParams | null {
-  const patternSegments = splitSegments(pattern);
-  const pathSegments = splitSegments(pathname);
-
-  if (patternSegments.length !== pathSegments.length) {
-    return null;
-  }
-
-  const params: RouteParams = {};
-
-  for (let index = 0; index < patternSegments.length; index += 1) {
-    const patternSegment = patternSegments[index];
-    const pathSegment = pathSegments[index];
-
-    if (patternSegment.startsWith(":")) {
-      params[patternSegment.slice(1)] = decodeURIComponent(pathSegment);
-      continue;
-    }
-
-    if (patternSegment !== pathSegment) {
-      return null;
-    }
-  }
-
-  return params;
-}
-
-/**
- * Resolves the best route match for a target URL.
- *
- * Matching uses static segment priority over dynamic segment priority.
- */
-export function matchRoute(routes: RouteDefinition[], target: string): RouteMatch | null {
-  const parsedTarget = parseTarget(target);
-
-  const candidates = routes
-    .map((route, index) => {
-      const params = matchPath(route.path, parsedTarget.pathname);
-      if (!params) {
-        return null;
-      }
-
-      return {
-        route,
-        index,
-        score: scoreRoutePath(route.path),
-        match: {
-          route,
-          pathname: parsedTarget.pathname,
-          fullPath: parsedTarget.fullPath,
-          params,
-          query: parsedTarget.query,
-          hash: parsedTarget.hash,
-          componentStack: resolveComponentStack(route)
-        } satisfies RouteMatch
-      };
-    })
-    .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-
-      return left.index - right.index;
-    });
-
-  return candidates[0]?.match ?? null;
-}
 
 /**
  * Creates an in-memory history implementation.
@@ -394,7 +255,8 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
         Debug.emit("route:blocked", {
           from: from?.fullPath ?? null,
           to: nextRoute.fullPath,
-          middleware: nextRoute.route.middleware
+          middleware: nextRoute.route.middleware,
+          branch: summarizeRouteBranch(nextRoute)
         });
 
         Debug.emit("route:warn", {
@@ -414,7 +276,8 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
         Debug.emit("route:redirect", {
           from: from?.fullPath ?? null,
           to: nextRoute.fullPath,
-          redirectTo: middlewareResult
+          redirectTo: middlewareResult,
+          branch: summarizeRouteBranch(nextRoute)
         });
 
         const redirectResult = await transitionTo(middlewareResult, "replace", false);
@@ -442,7 +305,13 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
         to: nextRoute.fullPath,
         params: nextRoute.params,
         query: nextRoute.query,
-        route: nextRoute.route.path
+        route: nextRoute.route.path,
+        branch: summarizeRouteBranch(nextRoute),
+        leafRoute: {
+          id: nextRoute.route.id,
+          path: nextRoute.route.path,
+          filePath: nextRoute.route.filePath
+        }
       });
       Debug.emit("route:navigate:end", {
         from: from?.fullPath ?? null,

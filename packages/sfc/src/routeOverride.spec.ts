@@ -11,4 +11,15 @@ describe("route block extraction", () => {
     const sfc = parseSFC("<route>layout: admin</route>", "/pages/x.tera");
     expect(sfc.routeOverride?.layout).toBe("admin");
   });
+
+  it("does not confuse RouterView component tags with route blocks", () => {
+    const sfc = parseSFC(`
+<template><section><RouterView /></section></template>
+<route>
+  middleware: auth
+</route>
+`, "/pages/migrations/[id]/index.tera");
+
+    expect(sfc.routeOverride?.middleware).toBe("auth");
+  });
 });

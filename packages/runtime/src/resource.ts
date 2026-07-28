@@ -5,6 +5,7 @@ import { getCurrentContext } from "./component/context.js";
 import { consumeHydratedResource } from "./hydration.js";
 import { registerResourceInvalidation, type ResourceKey } from "./invalidation.js";
 import { localStorageAdapter } from "./persistence/adapters.js";
+import type { PersistenceAdapter } from "./persistence/types.js";
 import type { MutationQueue } from "./queue/mutationQueue.js";
 
 export interface ResourcePayload<T = any> {
@@ -50,7 +51,14 @@ export interface Resource<TData> {
   source: () => "hydration" | "persistence" | "network" | undefined;
   promise: () => Promise<TData> | null;
   refetch: () => Promise<TData>;
-  mutate: (value: TData | ((current: TData | undefined) => TData), options?: ResourceMutateOptions) => void;
+  mutate: (
+    value: TData | ((current: TData | undefined) => TData),
+    options?: ResourceMutateOptions
+  ) => Promise<ResourceMutateResult>;
+}
+
+export interface ResourceFetcherContext {
+  signal: AbortSignal;
 }
 
 export interface ResourceMutateOptions {
@@ -62,15 +70,44 @@ export interface ResourceMutateOptions {
   serverCall?: (payload: unknown) => Promise<unknown> | unknown;
 }
 
-type ResourceFetcher<TSource, TData> = (source: TSource) => Promise<TData> | TData;
+export type ResourceMutateResult =
+  | {
+      status: "persisted";
+      persisted: boolean;
+    }
+  | {
+      status: "synced";
+      persisted: boolean;
+      result: unknown;
+    }
+  | {
+      status: "queued";
+      persisted: boolean;
+      mutationId: string;
+      error: unknown;
+    }
+  | {
+      status: "failed";
+      persisted: boolean;
+      error: unknown;
+    };
+
+type ResourceFetcher<TSource, TData> = (source: TSource, context: ResourceFetcherContext) => Promise<TData> | TData;
+type ResourceNoSourceFetcher<TData> = (context: ResourceFetcherContext) => Promise<TData> | TData;
 
 interface ResourceOptions<TData> {
   initialValue?: TData;
   immediate?: boolean;
   hydrateKey?: string;
   key?: ResourceKey | ResourceKey[];
-  persistent?: string;
+  persistent?: string | ResourcePersistenceOptions;
+  persistence?: PersistenceAdapter;
   ssr?: boolean;
+}
+
+export interface ResourcePersistenceOptions {
+  key: string;
+  adapter?: PersistenceAdapter;
 }
 
 /**
@@ -79,7 +116,7 @@ interface ResourceOptions<TData> {
  * The fetcher executes immediately by default, unless `options.immediate` is `false`.
  */
 export function createResource<TData>(
-  fetcher: () => Promise<TData> | TData,
+  fetcher: ResourceNoSourceFetcher<TData>,
   options?: ResourceOptions<TData>
 ): Resource<TData>;
 
@@ -106,7 +143,7 @@ export function createResource<TSource, TData>(
  * @returns Reactive resource API for loading, refetching, and local mutation.
  */
 export function createResource<TSource, TData>(
-  sourceOrFetcher: (() => TSource) | (() => Promise<TData> | TData),
+  sourceOrFetcher: (() => TSource) | ResourceNoSourceFetcher<TData>,
   maybeFetcher?: ResourceFetcher<TSource, TData> | ResourceOptions<TData>,
   maybeOptions?: ResourceOptions<TData>
 ): Resource<TData> {
@@ -114,9 +151,14 @@ export function createResource<TSource, TData>(
   const source = hasSource ? (sourceOrFetcher as () => TSource) : undefined;
   const fetcher = (hasSource
     ? maybeFetcher
-    : sourceOrFetcher) as ResourceFetcher<TSource | void, TData>;
+    : sourceOrFetcher) as ResourceFetcher<TSource | void, TData> | ResourceNoSourceFetcher<TData>;
   const options = (hasSource ? maybeOptions : maybeFetcher) as ResourceOptions<TData> | undefined;
-  const persistentKey = options?.persistent;
+  const persistentKey = typeof options?.persistent === "string"
+    ? options.persistent
+    : options?.persistent?.key;
+  const persistenceAdapter = typeof options?.persistent === "object"
+    ? options.persistent.adapter ?? options.persistence ?? localStorageAdapter
+    : options?.persistence ?? localStorageAdapter;
   const hydrationKey = options?.hydrateKey ?? (options?.ssr ? persistentKey : undefined) ?? (typeof options?.key === "string" ? options.key : undefined);
   const hydratedValue = hydrationKey
     ? consumeHydratedResource<TData>(hydrationKey) ?? getHydratedData<TData>(hydrationKey)
@@ -141,11 +183,21 @@ export function createResource<TSource, TData>(
   const sourceSignal = signal<"hydration" | "persistence" | "network" | undefined>(
     hydratedValue !== undefined ? "hydration" : undefined
   );
+  let currentPromise: Promise<TData> | null = null;
+  let currentAbort: AbortController | null = null;
+  let requestVersion = 0;
+  let dataVersion = 0;
+  let currentSource: TSource | void = undefined;
 
-  if (persistentKey && hydratedValue === undefined && typeof window !== "undefined") {
-    void localStorageAdapter.getItem<TData>(persistentKey)
+  if (persistentKey && hydratedValue === undefined) {
+    const persistenceReadVersion = dataVersion;
+    void persistenceAdapter.getItem<TData>(persistentKey)
       .then((cached) => {
-        if (cached !== null && cached !== undefined) {
+        if (
+          dataVersion === persistenceReadVersion
+          && cached !== null
+          && cached !== undefined
+        ) {
           data.set(cached);
           sourceSignal.set("persistence");
           if (state() === "idle") {
@@ -156,14 +208,13 @@ export function createResource<TSource, TData>(
       .catch(() => undefined);
   }
 
-  let currentPromise: Promise<TData> | null = null;
-  let requestVersion = 0;
-  let currentSource: TSource | void = undefined;
-
   const execute = async (value: TSource | void): Promise<TData> => {
     const version = requestVersion + 1;
     requestVersion = version;
     currentSource = value;
+    currentAbort?.abort();
+    const abort = new AbortController();
+    currentAbort = abort;
     state.set("pending");
     error.set(undefined);
 
@@ -172,7 +223,12 @@ export function createResource<TSource, TData>(
       hasInitialValue: data() !== undefined
     });
 
-    const pending = Promise.resolve(fetcher(value));
+    const context = { signal: abort.signal };
+    const pending = Promise.resolve(
+      hasSource
+        ? (fetcher as ResourceFetcher<TSource | void, TData>)(value, context)
+        : (fetcher as ResourceNoSourceFetcher<TData>)(context)
+    );
     currentPromise = pending;
 
     try {
@@ -181,13 +237,13 @@ export function createResource<TSource, TData>(
         return resolved;
       }
 
+      dataVersion += 1;
       data.set(resolved);
       sourceSignal.set("network");
       state.set("ready");
       error.set(undefined);
-      if (persistentKey && typeof window !== "undefined") {
-        void Promise.resolve()
-          .then(() => localStorageAdapter.setItem(persistentKey, resolved))
+      if (persistentKey) {
+        await persistenceAdapter.setItem(persistentKey, resolved)
           .catch(() => undefined);
       }
       Debug.emit("resource:load:end", {
@@ -210,8 +266,15 @@ export function createResource<TSource, TData>(
     } finally {
       if (version === requestVersion) {
         currentPromise = null;
+        if (currentAbort === abort) {
+          currentAbort = null;
+        }
       }
     }
+  };
+
+  const executeAutomatically = (value: TSource | void): void => {
+    void execute(value).catch(() => undefined);
   };
 
   if (source) {
@@ -225,7 +288,7 @@ export function createResource<TSource, TData>(
       const nextSource = source();
       if (!initialized || !Object.is(nextSource, currentSource)) {
         initialized = true;
-        void execute(nextSource);
+        executeAutomatically(nextSource);
       }
     };
 
@@ -237,11 +300,11 @@ export function createResource<TSource, TData>(
       const nextSource = source();
       if (!initialized || !Object.is(nextSource, currentSource)) {
         initialized = true;
-        void execute(nextSource);
+        executeAutomatically(nextSource);
       }
     });
   } else if (options?.immediate !== false && hydratedValue === undefined) {
-    void execute(undefined);
+    executeAutomatically(undefined);
   }
 
   if (options?.key) {
@@ -260,56 +323,121 @@ export function createResource<TSource, TData>(
     source: () => sourceSignal(),
     promise: () => currentPromise,
     refetch: () => execute(currentSource),
-    mutate: (value, options) => {
+    mutate: async (value, options) => {
       const nextValue = typeof value === "function"
         ? (value as (current: TData | undefined) => TData)(data())
         : value;
 
+      dataVersion += 1;
       data.set(nextValue);
       state.set("ready");
       error.set(undefined);
 
-      if (persistentKey && typeof window !== "undefined") {
-        void Promise.resolve()
-          .then(() => localStorageAdapter.setItem(persistentKey, nextValue))
-          .catch(() => undefined);
+      let persisted = persistentKey === undefined;
+
+      if (persistentKey) {
+        try {
+          await persistenceAdapter.setItem(persistentKey, nextValue);
+          persisted = true;
+        } catch (persistError) {
+          error.set(persistError);
+          state.set("error");
+          Debug.emit("resource:error", {
+            source: persistentKey,
+            error: persistError instanceof Error ? persistError.message : persistError
+          });
+
+          return {
+            status: "failed",
+            persisted: false,
+            error: persistError
+          };
+        }
       }
 
       const serverCall = options?.serverCall;
       if (serverCall) {
         const queuePayload = options?.queuePayload ?? nextValue;
 
-        void Promise.resolve()
-          .then(() => serverCall(queuePayload))
-          .catch(async (mutationError) => {
-            if (options?.shouldQueue && !options.shouldQueue(mutationError)) {
-              return;
-            }
+        try {
+          const result = await serverCall(queuePayload);
+          Debug.emit("resource:mutate", {
+            state: "ready",
+            sync: "synced"
+          });
 
-            if (!options?.queue) {
-              Debug.emit("resource:error", {
-                source: persistentKey,
-                error: mutationError instanceof Error ? mutationError.message : mutationError
-              });
-              return;
-            }
+          return {
+            status: "synced",
+            persisted,
+            result
+          };
+        } catch (mutationError) {
+          if (options?.shouldQueue && !options.shouldQueue(mutationError)) {
+            return {
+              status: "failed",
+              persisted,
+              error: mutationError
+            };
+          }
 
-            const queueType = options.queueType
-              ?? (persistentKey ? `resource:${persistentKey}` : "resource:mutation");
+          if (!options?.queue) {
+            Debug.emit("resource:error", {
+              source: persistentKey,
+              error: mutationError instanceof Error ? mutationError.message : mutationError
+            });
+            return {
+              status: "failed",
+              persisted,
+              error: mutationError
+            };
+          }
 
-            options.queue.register(queueType, (payload) => serverCall(payload));
+          const queueType = options.queueType
+            ?? (persistentKey ? `resource:${persistentKey}` : "resource:mutation");
 
-            await options.queue.enqueue({
+          options.queue.register(queueType, (payload) => serverCall(payload));
+
+          let queued;
+          try {
+            queued = await options.queue.enqueue({
               type: queueType,
               payload: queuePayload,
               maxRetries: options.maxRetries
             });
+          } catch (queueError) {
+            error.set(queueError);
+            state.set("error");
+            return {
+              status: "failed",
+              persisted,
+              error: queueError
+            };
+          }
+
+          state.set("ready");
+          Debug.emit("resource:mutate", {
+            state: "ready",
+            sync: "queued"
           });
+
+          return {
+            status: "queued",
+            persisted,
+            mutationId: queued.id,
+            error: mutationError
+          };
+        }
       }
 
       Debug.emit("resource:mutate", {
-        state: "ready"
+        state: "ready",
+        sync: "persisted"
       });
+
+      return {
+        status: "persisted",
+        persisted
+      };
     }
   };
 }

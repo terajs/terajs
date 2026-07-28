@@ -7,7 +7,7 @@
  * to ensure maximum performance and minimal memory overhead.
  */
 
-import { emitRendererDebug } from "./debug.js";
+import { emitRendererDebug, rendererDebugEnabled } from "./debug.js";
 import { unwrap } from "./unwrap.js"; 
 
 type NodeCleanupEntry = (() => void) | Array<() => void>;
@@ -70,9 +70,11 @@ export function startHydration(root: HTMLElement): void {
         nextChild: root.firstChild
     }];
 
-    emitRendererDebug("dom:hydrate:start", () => ({
-        root
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:hydrate:start", () => ({
+            root
+        }));
+    }
 }
 
 /**
@@ -92,9 +94,11 @@ export function finishHydration(): void {
     hydrationFrames = [];
     hydrationRoot = null;
 
-    emitRendererDebug("dom:hydrate:end", () => ({
-        root
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:hydrate:end", () => ({
+            root
+        }));
+    }
 }
 
 /**
@@ -233,11 +237,13 @@ export function createElement(type: string, svg: boolean = false): HTMLElement |
         ? document.createElementNS("http://www.w3.org/2000/svg", type)
         : document.createElement(type);
 
-    emitRendererDebug("dom:create", () => ({
-        kind: "element",
-        type,
-        node: el
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:create", () => ({
+            kind: "element",
+            type,
+            node: el
+        }));
+    }
 
     return el;
 }
@@ -258,11 +264,13 @@ export function createText(value: string): Text {
 
     const node = document.createTextNode(value);
 
-    emitRendererDebug("dom:create", () => ({
-        kind: "text",
-        value,
-        node
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:create", () => ({
+            kind: "text",
+            value,
+            node
+        }));
+    }
 
     return node;
 }
@@ -273,10 +281,12 @@ export function createText(value: string): Text {
 export function createFragment(): DocumentFragment {
     const frag = document.createDocumentFragment();
 
-    emitRendererDebug("dom:create", () => ({
-        kind: "fragment",
-        node: frag
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:create", () => ({
+            kind: "fragment",
+            node: frag
+        }));
+    }
 
     return frag;
 }
@@ -295,11 +305,13 @@ export function insert(parent: Node, child: Node, anchor: Node | null = null): v
         }
     }
 
-    emitRendererDebug("dom:insert", () => ({
-        parent,
-        child,
-        anchor
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:insert", () => ({
+            parent,
+            child,
+            anchor
+        }));
+    }
 
     parent.insertBefore(child, anchor);
 }
@@ -310,10 +322,12 @@ export function insert(parent: Node, child: Node, anchor: Node | null = null): v
 export function remove(node: Node): void {
     const parent = node.parentNode;
 
-    emitRendererDebug("dom:remove", () => ({
-        node,
-        parent
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:remove", () => ({
+            node,
+            parent
+        }));
+    }
 
     disposeNodeTree(node);
     if (parent && node.parentNode === parent) {
@@ -331,13 +345,19 @@ export function clear(node: Node): void {
  * Update the text content of a Text node.
  */
 export function setText(node: Text, value: any): void {
-    const v = String(unwrap(value));
+    setTextValue(node, unwrap(value));
+}
 
-    emitRendererDebug("dom:update", () => ({
-        kind: "text",
-        node,
-        value: v
-    }));
+export function setTextValue(node: Text, value: any): void {
+    const v = String(value);
+
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:update", () => ({
+            kind: "text",
+            node,
+            value: v
+        }));
+    }
 
     node.data = v;
 }
@@ -346,14 +366,20 @@ export function setText(node: Text, value: any): void {
  * Set or update a property on an HTMLElement.
  */
 export function setProp(el: Element, name: string, value: any): void {
-    const v = unwrap(value);
+    setPropValue(el, name, unwrap(value));
+}
 
-    emitRendererDebug("dom:update", () => ({
-        kind: "prop",
-        el,
-        name,
-        value: v
-    }));
+export function setPropValue(el: Element, name: string, value: any): void {
+    const v = value;
+
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:update", () => ({
+            kind: "prop",
+            el,
+            name,
+            value: v
+        }));
+    }
 
     if (v == null) {
         el.removeAttribute(name);
@@ -376,11 +402,13 @@ export function setProp(el: Element, name: string, value: any): void {
  * Apply a style object to an Element.
  */
 export function setStyle(el: Element, style: Record<string, string>): void {
-    emitRendererDebug("dom:update", () => ({
-        kind: "style",
-        el,
-        style
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:update", () => ({
+            kind: "style",
+            el,
+            style
+        }));
+    }
 
     const styleTarget = (el as HTMLElement | SVGElement).style;
     for (const key in style) {
@@ -392,11 +420,13 @@ export function setStyle(el: Element, style: Record<string, string>): void {
  * Set the class attribute on an element.
  */
 export function setClass(el: Element, className: string): void {
-    emitRendererDebug("dom:update", () => ({
-        kind: "class",
-        el,
-        className
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:update", () => ({
+            kind: "class",
+            el,
+            className
+        }));
+    }
 
     el.setAttribute("class", className);
 }
@@ -405,12 +435,14 @@ export function setClass(el: Element, className: string): void {
  * Add an event listener to an element.
  */
 export function addEvent(el: Element, name: string, handler: EventListener): void {
-    emitRendererDebug("dom:update", () => ({
-        kind: "event:add",
-        el,
-        name,
-        handler
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:update", () => ({
+            kind: "event:add",
+            el,
+            name,
+            handler
+        }));
+    }
 
     el.addEventListener(name, handler);
 }
@@ -419,12 +451,14 @@ export function addEvent(el: Element, name: string, handler: EventListener): voi
  * Remove an event listener from an element.
  */
 export function removeEvent(el: Element, name: string, handler: EventListener): void {
-    emitRendererDebug("dom:update", () => ({
-        kind: "event:remove",
-        el,
-        name,
-        handler
-    }));
+    if (rendererDebugEnabled) {
+        emitRendererDebug("dom:update", () => ({
+            kind: "event:remove",
+            el,
+            name,
+            handler
+        }));
+    }
 
     el.removeEventListener(name, handler);
 }

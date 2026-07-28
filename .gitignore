@@ -6,5 +6,10 @@ benchmarks/.dist/
 folder_dump/
 .vscode/
 .local/
+proofs/
+*.code-workspace
 .github/copilot-instructions.md
 .github/instructions/
+packages/renderer-android/android/.gradle/
+packages/renderer-android/android/.kotlin/
+packages/renderer-android/android/build/

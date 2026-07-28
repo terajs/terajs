@@ -11,7 +11,7 @@
 
 import { currentEffect } from "./deps.js";
 import type { ReactiveEffect } from "./deps.js";
-import { scheduleEffect } from "./effect.js";
+import { notifyEffects } from "./effect.js";
 import { debugInstrumentationEnabled, getProductionMetadataPlaceholder } from "./debugRuntime.js";
 
 import {
@@ -176,15 +176,7 @@ export function signal<T>(
       });
     }
 
-    // Trigger effects
-    const subs = Array.from(sig._dep);
-    for (const eff of subs) {
-      if (eff.scheduler) {
-        eff.scheduler();
-      } else {
-        scheduleEffect(eff);
-      }
-    }
+    notifyEffects(sig._dep);
   };
 
   if (debugInstrumentationEnabled) {

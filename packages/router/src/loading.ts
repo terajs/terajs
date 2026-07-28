@@ -1,6 +1,7 @@
 import { Debug } from "@terajs/shared";
 import type { ServerContext } from "@terajs/shared";
 import type { RouteDefinition } from "./definition.js";
+import { summarizeLoadedRouteBranch, summarizeRouteBranch } from "./debugPayload.js";
 import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta.js";
 import type { RouteMatch, Router } from "./runtime.js";
 
@@ -28,10 +29,17 @@ export interface LoadedLayoutModule {
   component: unknown;
 }
 
+export interface LoadedRouteBranchEntry {
+  match: RouteMatch;
+  module: unknown;
+  component: unknown;
+}
+
 export interface LoadedRouteMatch<TData = unknown> {
   match: RouteMatch;
   module: unknown;
   component: unknown;
+  branch: LoadedRouteBranchEntry[];
   layouts: LoadedLayoutModule[];
   resolved: ResolvedRouteMetadata;
   data?: TData;
@@ -86,12 +94,23 @@ export async function loadRouteMatch<TData = unknown>(
     route: match.route.path,
     params: match.params,
     query: match.query,
+    branch: summarizeRouteBranch(match),
     hydrated: hydrationSnapshot !== undefined
   });
 
   try {
-    const [routeModule, layoutModules] = await Promise.all([
-      match.route.component(),
+    const branchMatches = match.branch && match.branch.length > 0 ? match.branch : [match];
+    const [branchModules, layoutModules] = await Promise.all([
+      Promise.all(
+        branchMatches.map(async (branchMatch) => {
+          const routeModule = await branchMatch.route.component();
+          return {
+            match: branchMatch,
+            module: routeModule,
+            component: hasDefaultExport(routeModule) ? routeModule.default : routeModule
+          } satisfies LoadedRouteBranchEntry;
+        })
+      ),
       Promise.all(
         match.route.layouts.map(async (layoutDefinition) => {
           const layoutModule = await layoutDefinition.component();
@@ -103,6 +122,8 @@ export async function loadRouteMatch<TData = unknown>(
         })
       )
     ]);
+    const leafLoaded = branchModules[branchModules.length - 1];
+    const routeModule = leafLoaded?.module;
 
     let data: TData | undefined = hydrationSnapshot?.data;
 
@@ -128,7 +149,8 @@ export async function loadRouteMatch<TData = unknown>(
     const loaded = {
       match,
       module: routeModule,
-      component: hasDefaultExport(routeModule) ? routeModule.default : routeModule,
+      component: leafLoaded?.component,
+      branch: branchModules,
       layouts: layoutModules,
       resolved: hydrationSnapshot?.resolved ?? (undefined as unknown as ResolvedRouteMetadata),
       data
@@ -144,13 +166,25 @@ export async function loadRouteMatch<TData = unknown>(
       layoutCount: layoutModules.length,
       hasData: data !== undefined,
       title: loaded.resolved.meta.title,
+      branch: summarizeLoadedRouteBranch(loaded),
+      leafRoute: {
+        id: loaded.match.route.id,
+        path: loaded.match.route.path,
+        filePath: loaded.match.route.filePath
+      },
       hydrated: hydrationSnapshot !== undefined
     });
     Debug.emit("route:meta:resolved", {
       to: match.fullPath,
       meta: loaded.resolved.meta,
       ai: loaded.resolved.ai,
-      route: loaded.resolved.route
+      route: loaded.resolved.route,
+      branch: summarizeLoadedRouteBranch(loaded),
+      leafRoute: {
+        id: loaded.match.route.id,
+        path: loaded.match.route.path,
+        filePath: loaded.match.route.filePath
+      }
     });
 
     return loaded;
@@ -159,6 +193,7 @@ export async function loadRouteMatch<TData = unknown>(
       message: error instanceof Error ? error.message : "Route load failed",
       to: match.fullPath,
       route: match.route.path,
+      branch: summarizeRouteBranch(match),
       error
     });
     throw error;

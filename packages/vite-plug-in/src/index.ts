@@ -35,7 +35,14 @@ import {
 } from "./devtoolsIdeBridgeManifest.js";
 import { generateRoutesModuleSource } from "./generatedRoutesModule.js";
 import { injectAppBootstrapScript } from "./htmlBootstrap.js";
-import type { Plugin } from "vite";
+import {
+  invalidateVirtualModule,
+  isWithinConfiguredDir,
+  restartForTerajsConfigChange,
+  triggerFullReload
+} from "./devServerInvalidation.js";
+import { createVirtualErrorModule } from "./virtualErrorModule.js";
+import type { ModuleNode, Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
 import {
@@ -93,37 +100,6 @@ function stripQueryAndHash(id: string): string {
   return id.slice(0, cutIndex);
 }
 
-function describeError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
-}
-
-function createVirtualErrorModule(moduleId: string, error: unknown): string {
-  const message = describeError(error);
-
-  return [
-    `const __terajsVirtualModuleId = ${JSON.stringify(moduleId)};`,
-    `const __terajsVirtualModuleMessage = ${JSON.stringify(message)};`,
-    `export const __TERAJS_VIRTUAL_MODULE_ERROR__ = {`,
-    `  id: __terajsVirtualModuleId,`,
-    `  message: __terajsVirtualModuleMessage`,
-    `};`,
-    `console.error('[terajs/vite] Failed to load module', __TERAJS_VIRTUAL_MODULE_ERROR__);`,
-    `throw new Error('[terajs/vite] Failed to load ' + __terajsVirtualModuleId + ': ' + __terajsVirtualModuleMessage);`
-  ].join("\n");
-}
-
 function createSourcemapFreeModule(code: string): { code: string; map: { mappings: "" } } {
   return {
     code,
@@ -157,6 +133,23 @@ function readTeraFilesRecursively(dir: string): string[] {
     if (entry.isFile() && entry.name.endsWith(".tera")) {
       files.push(fullPath);
     }
+  }
+
+  return files;
+}
+
+function collectConfiguredRouteFiles(routes: ReturnType<typeof getConfiguredRoutes>): string[] {
+  const files: string[] = [];
+
+  const visit = (route: ReturnType<typeof getConfiguredRoutes>[number]) => {
+    files.push(route.filePath);
+    for (const child of route.children ?? []) {
+      visit(child);
+    }
+  };
+
+  for (const route of routes) {
+    visit(route);
   }
 
   return files;
@@ -366,7 +359,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
         return readTeraFilesRecursively(dir);
       }),
-      ...configuredRoutes.map((route) => route.filePath)
+      ...collectConfiguredRouteFiles(configuredRoutes)
     ])).sort();
     return generateRoutesModuleSource({
       routeFiles,
@@ -565,10 +558,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  return routeList.map((route) => {`,
       `    const routeMiddleware = Array.isArray(route.middleware) ? route.middleware : [];`,
       `    const merged = Array.from(new Set([...GLOBAL_MIDDLEWARE, ...routeMiddleware]));`,
-      `    if (merged.length === routeMiddleware.length && merged.every((value, index) => value === routeMiddleware[index])) {`,
+      `    const children = Array.isArray(route.children) ? applyGlobalMiddleware(route.children) : route.children;`,
+      `    const middlewareUnchanged = merged.length === routeMiddleware.length && merged.every((value, index) => value === routeMiddleware[index]);`,
+      `    const childrenUnchanged = children === route.children;`,
+      `    if (middlewareUnchanged && childrenUnchanged) {`,
       `      return route;`,
       `    }`,
-      `    return { ...route, middleware: merged };`,
+      `    return { ...route, middleware: merged, children };`,
       `  });`,
       `}`,
       `function normalizeMountTargetId(value) {`,
@@ -708,23 +704,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     ].join("\n");
   }
 
-  function invalidateVirtualModule(server: { moduleGraph: { getModuleById(id: string): any; invalidateModule(mod: any): void; }; }, id: string) {
-    const module = server.moduleGraph.getModuleById(id);
-    if (module) {
-      server.moduleGraph.invalidateModule(module);
-    }
-  }
-
-  function isWithinConfiguredDir(filePath: string, dirPath: string): boolean {
-    const normalizedFilePath = normalizePath(filePath);
-    const normalizedDirPath = normalizePath(dirPath);
-    return normalizedFilePath === normalizedDirPath || normalizedFilePath.startsWith(`${normalizedDirPath}/`);
-  }
-
-  function triggerFullReload(server: { ws?: { send?(payload: { type: string }): void } }): void {
-    server.ws?.send?.({ type: "full-reload" });
-  }
-
   function handleWatchedSurfaceChange(server: {
     moduleGraph: { getModuleById(id: string): any; invalidateModule(mod: any): void; };
     ws?: { send?(payload: { type: string }): void };
@@ -790,10 +769,19 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
       if (server.watcher && typeof server.watcher.on === "function") {
         server.watcher.on("add", (filePath: string) => {
+          if (restartForTerajsConfigChange(server, filePath, config?.root ?? process.cwd())) {
+            return;
+          }
           handleWatchedSurfaceChange(server, filePath);
         });
         server.watcher.on("unlink", (filePath: string) => {
+          if (restartForTerajsConfigChange(server, filePath, config?.root ?? process.cwd())) {
+            return;
+          }
           handleWatchedSurfaceChange(server, filePath);
+        });
+        server.watcher.on("change", (filePath: string) => {
+          restartForTerajsConfigChange(server, filePath, config?.root ?? process.cwd());
         });
       }
 
@@ -843,7 +831,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
           return createSourcemapFreeModule(generateRoutesModule());
         } catch (error) {
-          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error, [
+            "export const routes = [];",
+            "export default routes;"
+          ]));
         }
       }
       if (normalizedId === RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID) {
@@ -857,7 +848,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         try {
           return createSourcemapFreeModule(generateAppModule());
         } catch (error) {
-          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error));
+          return createSourcemapFreeModule(createVirtualErrorModule(normalizedId, error, [
+            "export function bootstrapTerajsApp() {}",
+            "export default null;"
+          ]));
         }
       }
       if (!normalizedId.endsWith(".tera")) return null;
@@ -904,17 +898,27 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       });
       newModule = autoImport.code + newModule;
 
-      // Replace the module in Vite's graph
-      const mod = ctx.server.moduleGraph.getModuleById(ctx.file)!;
-      ctx.server.moduleGraph.invalidateModule(mod);
+      // Vite may prune the exact file id before this hook runs when an edit
+      // removes an import branch. Fall back to the modules Vite associated
+      // with the update and never pass an absent graph entry to invalidation.
+      const graphModule = ctx.server.moduleGraph.getModuleById(ctx.file);
+      const affectedModules = Array.from(new Set([
+        graphModule,
+        ...(Array.isArray(ctx.modules) ? ctx.modules : [])
+      ].filter((module): module is ModuleNode => Boolean(module))));
+      for (const affectedModule of affectedModules) {
+        ctx.server.moduleGraph.invalidateModule(affectedModule);
+      }
+      let routeManifestChanged = false;
 
       if (normalizedFile.endsWith(".tera")) {
-        if (routeDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {
+        if (routeDirs.some((dir) => isWithinConfiguredDir(normalizedFile, dir))) {
           invalidateVirtualModule(ctx.server, RESOLVED_ROUTES_VIRTUAL_ID);
           invalidateVirtualModule(ctx.server, RESOLVED_APP_VIRTUAL_ID);
+          routeManifestChanged = true;
         }
 
-        if (autoImportDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {
+        if (autoImportDirs.some((dir) => isWithinConfiguredDir(normalizedFile, dir))) {
           invalidateVirtualModule(ctx.server, RESOLVED_AUTO_IMPORT_VIRTUAL_ID);
         }
       }
@@ -922,8 +926,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       // Send updated code to the client
       ctx.read = () => newModule;
 
+      if (routeManifestChanged) {
+        triggerFullReload(ctx.server);
+        return [];
+      }
+
       // Tell Vite which modules should be reloaded
-      return [mod];
+      return affectedModules;
     }
   };
 }

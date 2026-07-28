@@ -40,17 +40,20 @@ interface TerajsUserConfig {
       exclude?: string[];
     };
   };
-  routes?: Array<{
-    file?: string;
-    filePath?: string;
-    path?: string;
-    layout?: string;
-    mountTarget?: string;
-    middleware?: string | string[];
-    prerender?: boolean;
-    hydrate?: RouteConfigInput["hydrate"];
-    edge?: boolean;
-  }>;
+  routes?: TerajsUserRouteConfig[];
+}
+
+interface TerajsUserRouteConfig {
+  file?: string;
+  filePath?: string;
+  path?: string;
+  layout?: string;
+  mountTarget?: string;
+  middleware?: string | string[];
+  prerender?: boolean;
+  hydrate?: RouteConfigInput["hydrate"];
+  edge?: boolean;
+  children?: TerajsUserRouteConfig[];
 }
 
 function resolveConfigPath(cwd: string): string | null {
@@ -142,35 +145,49 @@ export function getConfiguredRoutes(): RouteConfigInput[] {
   const routes = Array.isArray(config.routes) ? config.routes : [];
   const configuredRoutes: RouteConfigInput[] = [];
 
-  for (const route of routes) {
+  const normalizeRoute = (route: TerajsUserRouteConfig): RouteConfigInput | null => {
     if (route === null || typeof route !== "object") {
-      continue;
+      return null;
     }
 
-      const file = typeof route.file === "string"
-        ? route.file
-        : typeof route.filePath === "string"
-        ? route.filePath
-        : null;
+    const file = typeof route.file === "string"
+      ? route.file
+      : typeof route.filePath === "string"
+      ? route.filePath
+      : null;
 
-      if (!file) {
-        continue;
-      }
+    if (!file) {
+      return null;
+    }
 
-      configuredRoutes.push({
-        filePath: path.resolve(cwd, file),
-        path: typeof route.path === "string" ? route.path : undefined,
-        layout: typeof route.layout === "string" ? route.layout : undefined,
-        mountTarget: typeof route.mountTarget === "string" ? route.mountTarget : undefined,
-        middleware: Array.isArray(route.middleware)
-          ? route.middleware.filter((value): value is string => typeof value === "string")
-          : typeof route.middleware === "string"
-          ? route.middleware
-          : undefined,
-        prerender: typeof route.prerender === "boolean" ? route.prerender : undefined,
-        hydrate: typeof route.hydrate === "string" ? route.hydrate : undefined,
-        edge: typeof route.edge === "boolean" ? route.edge : undefined
-      });
+    const children = Array.isArray(route.children)
+      ? route.children
+        .map(normalizeRoute)
+        .filter((child): child is RouteConfigInput => child !== null)
+      : undefined;
+
+    return {
+      filePath: path.resolve(cwd, file),
+      path: typeof route.path === "string" ? route.path : undefined,
+      layout: typeof route.layout === "string" ? route.layout : undefined,
+      mountTarget: typeof route.mountTarget === "string" ? route.mountTarget : undefined,
+      middleware: Array.isArray(route.middleware)
+        ? route.middleware.filter((value): value is string => typeof value === "string")
+        : typeof route.middleware === "string"
+        ? route.middleware
+        : undefined,
+      prerender: typeof route.prerender === "boolean" ? route.prerender : undefined,
+      hydrate: typeof route.hydrate === "string" ? route.hydrate : undefined,
+      edge: typeof route.edge === "boolean" ? route.edge : undefined,
+      children: children && children.length > 0 ? children : undefined
+    };
+  };
+
+  for (const route of routes) {
+    const normalized = normalizeRoute(route);
+    if (normalized) {
+      configuredRoutes.push(normalized);
+    }
   }
 
   return configuredRoutes;

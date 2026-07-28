@@ -43,6 +43,7 @@ describe("resolveLoadedRouteMetadata", () => {
         meta: { keywords: ["component"], analytics: { events: ["view"] } },
         ai: { summary: "component summary", tone: "guide" }
       }),
+      branch: [],
       layouts: [
         {
           definition: { id: "root", filePath: "/pages/layout.tera", component: async () => ({ default: null }) },

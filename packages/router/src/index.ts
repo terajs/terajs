@@ -5,6 +5,10 @@
  */
 
 export {
+  summarizeLoadedRouteBranch,
+  summarizeRouteBranch
+} from "./debugPayload.js";
+export {
   clearPrefetchedRouteMatches,
   createRouteHydrationSnapshot,
   loadRouteMatch,
@@ -25,7 +29,9 @@ export {
 } from "./runtime.js";
 
 export type { RouteDefinition, RouteLayoutDefinition, RouteMetaConfig } from "./definition.js";
+export type { RouteBranchDebugEntry } from "./debugPayload.js";
 export type {
+  LoadedRouteBranchEntry,
   LoadedLayoutModule,
   LoadedRouteMatch,
   RouteHydrationSnapshot,

@@ -55,6 +55,7 @@ export * from "./renderFromIR.js";
 
 // Router bridge
 export * from "./routerView.js";
+export * from "./routeOutlet.js";
 
 // Web Component integration
 import { mount, unmount } from "./mount.js";

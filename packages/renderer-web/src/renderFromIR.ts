@@ -13,7 +13,6 @@ import type {
   IRElementNode,
   IRPortalNode,
   IRSlotNode,
-  IRIfNode,
   IRPropNode,
 } from "@terajs/compiler";
 
@@ -22,10 +21,10 @@ import {
   createText,
   createFragment,
   insert,
-  remove,
   addNodeCleanup,
 } from "./dom.js";
 import { renderComponent, type FrameworkComponent } from "./render.js";
+import { withDetachedCurrentEffect } from "@terajs/reactivity";
 import {
   bindText,
   bindDirectTextSource,
@@ -36,8 +35,7 @@ import {
   bindEvent,
 } from "./bindings.js";
 
-import { dispose, effect } from "@terajs/reactivity";
-import { emitRendererDebug } from "./debug.js";
+import { emitRendererDebug, rendererDebugEnabled } from "./debug.js";
 import { Portal as WebPortal } from "./portal.js";
 import {
   isDirectBindingSource,
@@ -48,6 +46,11 @@ import {
   resolveHintedPath,
 } from "./renderFromIRExpressions.js";
 import { renderIRForNode } from "./renderFromIRFor.js";
+import { renderIRIfNode } from "./renderFromIRIf.js";
+import {
+  createComponentSlotFactory,
+  partitionComponentSlotChildren
+} from "./renderFromIRSlots.js";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -65,18 +68,22 @@ import { renderIRForNode } from "./renderFromIRFor.js";
  * @returns A document fragment containing the rendered module output.
  */
 export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragment {
-  emitRendererDebug("ir:render:module", () => ({ filePath: ir.filePath }));
-
-  const frag = createFragment();
-
-  for (const node of ir.template) {
-    const dom = renderIRNode(node, ctx);
-    if (dom) {
-      insert(frag, dom);
+  return withDetachedCurrentEffect(() => {
+    if (rendererDebugEnabled) {
+      emitRendererDebug("ir:render:module", () => ({ filePath: ir.filePath }));
     }
-  }
 
-  return frag;
+    const frag = createFragment();
+
+    for (const node of ir.template) {
+      const dom = renderIRNode(node, ctx);
+      if (dom) {
+        insert(frag, dom);
+      }
+    }
+
+    return frag;
+  });
 }
 
 /**
@@ -104,7 +111,7 @@ export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): No
     case "slot":
       return renderIRSlot(node, ctx, isSvg);
     case "if":
-      return renderIRIf(node, ctx, isSvg);
+      return renderIRIfNode(node, ctx, isSvg, renderIRNode);
     case "for":
       return renderIRForNode(node, ctx, isSvg, renderIRNode);
     default:
@@ -118,7 +125,9 @@ export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): No
 /* -------------------------------------------------------------------------- */
 
 function renderIRText(node: IRTextNode): Text {
-  emitRendererDebug("ir:render:text", () => ({ value: node.value }));
+  if (rendererDebugEnabled) {
+    emitRendererDebug("ir:render:text", () => ({ value: node.value }));
+  }
   return createText(node.value);
 }
 
@@ -127,7 +136,9 @@ function renderIRText(node: IRTextNode): Text {
 /* -------------------------------------------------------------------------- */
 
 function renderIRInterpolation(node: IRInterpolationNode, ctx: any): Text {
-  emitRendererDebug("ir:render:interp", () => ({ expression: node.expression }));
+  if (rendererDebugEnabled) {
+    emitRendererDebug("ir:render:interp", () => ({ expression: node.expression }));
+  }
 
   const text = createText("");
 
@@ -166,7 +177,9 @@ function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element
     return renderIRComponent(node, component, ctx, isSvg) as Element;
   }
 
-  emitRendererDebug("ir:render:element", () => ({ tag: node.tag, svg: isSvg }));
+  if (rendererDebugEnabled) {
+    emitRendererDebug("ir:render:element", () => ({ tag: node.tag, svg: isSvg }));
+  }
 
   const nextSvg = isSvg || node.tag === "svg";
   const el = createElement(node.tag, nextSvg);
@@ -189,10 +202,12 @@ function renderIRComponent(
   ctx: any,
   isSvg: boolean
 ): Node {
-  emitRendererDebug("ir:render:component", () => ({ tag: node.tag }));
+  if (rendererDebugEnabled) {
+    emitRendererDebug("ir:render:component", () => ({ tag: node.tag }));
+  }
 
   const props = buildComponentProps(node, ctx, isSvg);
-  const rendered = renderComponent(component, props);
+  const rendered = withDetachedCurrentEffect(() => renderComponent(component, props));
   const cleanup = createComponentCleanup(rendered.ctx);
 
   queueMicrotask(() => {
@@ -209,9 +224,11 @@ function renderIRComponent(
 }
 
 function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
-  emitRendererDebug("ir:render:portal", () => ({
-    hasTarget: node.target != null
-  }));
+  if (rendererDebugEnabled) {
+    emitRendererDebug("ir:render:portal", () => ({
+      hasTarget: node.target != null
+    }));
+  }
 
   return WebPortal({
     to: resolvePortalTarget(node.target, ctx),
@@ -220,7 +237,9 @@ function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
 }
 
 function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
-  emitRendererDebug("ir:render:slot", () => ({ name: node.name ?? "default" }));
+  if (rendererDebugEnabled) {
+    emitRendererDebug("ir:render:slot", () => ({ name: node.name ?? "default" }));
+  }
 
   const slotName = node.name ?? "default";
   const slotValue = ctx?.slots?.[slotName];
@@ -375,57 +394,6 @@ function applyEventModifiers(handler: EventListener, modifiers: string[] | undef
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                    IF                                      */
-/* -------------------------------------------------------------------------- */
-
-function renderIRIf(node: IRIfNode, ctx: any, isSvg: boolean): Node {
-  emitRendererDebug("ir:render:if", () => ({ condition: node.condition }));
-
-  const anchor = document.createComment("if");
-  const fragment = createFragment();
-  fragment.appendChild(anchor);
-
-  // We explicitly track the nodes this v-if owns
-  const ownedNodes: ChildNode[] = [];
-
-  const effectFn = effect(() => {
-    const condition = !!resolveExpr(ctx, node.condition);
-    const branch = condition ? node.then : node.else ?? [];
-
-    const container = anchor.parentNode as ParentNode | null;
-    if (!container) return; // not mounted / already cleaned up
-
-    // Remove only nodes previously created by this v-if
-    for (const n of ownedNodes) {
-      remove(n);
-    }
-    ownedNodes.length = 0;
-
-    // Insert new branch right after the anchor
-    let ref: ChildNode | null = anchor.nextSibling;
-    for (const child of branch) {
-      const dom = renderIRNode(child, ctx, isSvg);
-      if (dom && dom instanceof Node && 'remove' in dom) {
-        insert(container as any, dom as ChildNode, ref ?? null);
-        ownedNodes.push(dom as ChildNode);
-        ref = null;
-      }
-    }
-  });
-
-  addNodeCleanup(anchor, () => {
-    dispose(effectFn);
-    for (const n of ownedNodes) {
-      remove(n);
-    }
-    ownedNodes.length = 0;
-  });
-
-  return fragment;
-}
-
-
-/* -------------------------------------------------------------------------- */
 /*                               COMPONENTS                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -449,8 +417,8 @@ function isComponentTag(tag: string): boolean {
     return false;
   }
 
-  const first = tag[0];
-  return first >= "A" && first <= "Z";
+  const first = tag.charCodeAt(0);
+  return first >= 65 && first <= 90;
 }
 
 function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Record<string, any> {
@@ -463,9 +431,13 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
     }
 
     if (prop.kind === "bind") {
-      props[prop.name] = prop.binding?.kind === "simple-path"
-        ? resolveHintedPath(ctx, prop.binding, true)
-        : resolveExpr(ctx, String(prop.value));
+      Object.defineProperty(props, prop.name, {
+        configurable: true,
+        enumerable: true,
+        get: () => prop.binding?.kind === "simple-path"
+          ? resolveHintedPath(ctx, prop.binding, true)
+          : resolveExpr(ctx, String(prop.value))
+      });
       continue;
     }
 
@@ -477,19 +449,29 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
     }
   }
 
-  if (node.children.length > 0) {
-    props.children = () => {
-      const frag = createFragment();
+  const { defaultChildren, namedChildren } = partitionComponentSlotChildren(node.children);
 
-      for (const child of node.children) {
-        const dom = renderIRNode(child, ctx, isSvg);
-        if (dom) {
-          insert(frag, dom);
-        }
+  if (defaultChildren.length > 0) {
+    props.children = createComponentSlotFactory(defaultChildren, ctx, isSvg, renderIRNode);
+  }
+
+  if (namedChildren.size > 0) {
+    const explicitSlots = props.slots && typeof props.slots === "object"
+      ? props.slots
+      : {};
+    Object.defineProperty(props, "slots", {
+      configurable: true,
+      enumerable: true,
+      value: {
+        ...explicitSlots,
+        ...Object.fromEntries(
+          Array.from(namedChildren, ([name, children]) => [
+            name,
+            createComponentSlotFactory(children, ctx, isSvg, renderIRNode, name)
+          ])
+        )
       }
-
-      return frag;
-    };
+    });
   }
 
   return props;

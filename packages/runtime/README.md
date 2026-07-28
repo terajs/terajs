@@ -17,6 +17,7 @@ npm install @terajs/runtime
 - context and dependency injection: `createComponentContext`, `provide`, `inject`
 - async data: `createAction`, `createResource`
 - local-first queues: `createMutationQueue`, `createMutationQueueStorage`, `defaultMutationRetryPolicy`
+- local-first storage policy: `createLocalFirstProfile`, `createIndexedDBPersistenceAdapter`, `createOPFSBucket`
 - invalidation and validation: `invalidateResources`, `registerResourceInvalidation`, `createSchemaValidator`
 - server-function transport: `server`, `executeServerFunction`, `setServerFunctionTransport`, `createFetchServerFunctionTransport`
 - primitives: `Portal`, `Suspense`
@@ -41,6 +42,45 @@ await saveProfile.runQueued(
 	{ name: "Ada" }
 );
 ```
+
+## Adaptive local-first storage
+
+Tera provides local-first contracts and adapters, but applications own the storage policy. Use profiles to map data classes to the right persistence layer instead of forcing every workflow through `localStorage`.
+
+```ts
+import {
+	createIndexedDBPersistenceAdapter,
+	createLocalFirstProfile,
+	createOPFSBucket,
+	localStorageAdapter
+} from "@terajs/runtime";
+
+const durableStorage = createIndexedDBPersistenceAdapter({
+	databaseName: "app-local-first"
+});
+
+const localFirst = createLocalFirstProfile({
+	storage: {
+		ui: localStorageAdapter,
+		queue: durableStorage
+	},
+	buckets: {
+		uploads: createOPFSBucket({
+			directory: "app-uploads",
+			manifestAdapter: durableStorage,
+			manifestKey: "app-upload-manifest"
+		})
+	},
+	policies: {
+		uiState: { storage: "ui", sensitivity: "low" },
+		decisions: { storage: "queue", sensitivity: "business", durability: "durable", sync: "queued" },
+		uploads: { bucket: "uploads", sensitivity: "financial", durability: "durable", sync: "queued" },
+		credentials: { local: false, sensitivity: "secret" }
+	}
+});
+```
+
+Profiles fail closed for unsafe combinations, such as secret or financial data being assigned to `localStorage`. OPFS requires a durable adapter with atomic `updateItem()` support so file manifests remain recoverable and concurrent writers cannot lose entries. The built-in IndexedDB adapter provides that capability. Queues should store intents and manifests; larger file bytes should live in an app-selected bucket such as OPFS or a custom adapter.
 
 ## Server-function transport example
 

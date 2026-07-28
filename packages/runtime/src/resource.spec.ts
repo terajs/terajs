@@ -4,6 +4,7 @@ import { setHydrationState } from "./hydration";
 import { invalidateResources } from "./invalidation";
 import { createResource } from "./resource";
 import { createMutationQueue } from "./queue/mutationQueue";
+import { createMemoryPersistenceAdapter } from "./persistence/adapters";
 
 describe("createResource", () => {
   beforeEach(() => {
@@ -54,7 +55,10 @@ describe("createResource", () => {
     expect(resource.state()).toBe("error");
     expect(resource.error()).toBeInstanceOf(Error);
 
-    resource.mutate("fallback");
+    await expect(resource.mutate("fallback")).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
     expect(resource.data()).toBe("fallback");
     expect(resource.state()).toBe("ready");
   });
@@ -90,6 +94,45 @@ describe("createResource", () => {
     await invalidateResources("posts");
 
     expect(resource.data()).toBe("post-2");
+    expect(resource.state()).toBe("ready");
+  });
+
+  it("passes AbortSignal to fetchers and aborts superseded fetches", async () => {
+    const source = signal("a");
+    const signals: AbortSignal[] = [];
+    const resource = createResource(source, async (value, context) => {
+      signals.push(context.signal);
+      await Promise.resolve();
+      return value.toUpperCase();
+    });
+
+    source.set("b");
+    await Promise.resolve();
+    await resource.promise();
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(resource.data()).toBe("B");
+  });
+
+  it("does not leak rejections from superseded reactive requests", async () => {
+    const source = signal("a");
+    const resource = createResource(source, async (value, { signal }) => {
+      if (value === "a") {
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+      return value;
+    });
+
+    source.set("b");
+    await Promise.resolve();
+    await resource.promise();
+    await Promise.resolve();
+
+    expect(resource.data()).toBe("b");
     expect(resource.state()).toBe("ready");
   });
 
@@ -141,10 +184,86 @@ describe("createResource", () => {
     });
 
     await resource.promise();
-    resource.mutate({ id: 2 });
-    await Promise.resolve();
+    await expect(resource.mutate({ id: 2 })).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
 
     expect(JSON.parse(localStorage.getItem("profile") ?? "null")).toEqual({ id: 2 });
+  });
+
+  it("uses app-selected persistence adapters for cached resources", async () => {
+    const adapter = createMemoryPersistenceAdapter({
+      profile: { id: 1 }
+    });
+
+    const fetcher = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { id: 2 };
+    });
+    const resource = createResource(() => fetcher(), {
+      persistent: {
+        key: "profile",
+        adapter
+      }
+    });
+
+    await Promise.resolve();
+    expect(resource.data()).toEqual({ id: 1 });
+    expect(resource.source()).toBe("persistence");
+
+    await resource.promise();
+    expect(resource.data()).toEqual({ id: 2 });
+
+    await expect(resource.mutate({ id: 3 })).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
+
+    expect(await adapter.getItem("profile")).toEqual({ id: 3 });
+  });
+
+  it("does not let a slow cache read overwrite newer network data", async () => {
+    let releaseCache: (() => void) | undefined;
+    const adapter = createMemoryPersistenceAdapter({ profile: { id: 1 } });
+    const getItem = adapter.getItem.bind(adapter);
+    adapter.getItem = async <T>(key: string): Promise<T | null> => {
+      await new Promise<void>((resolve) => { releaseCache = resolve; });
+      return getItem<T>(key);
+    };
+    const resource = createResource(async () => ({ id: 2 }), {
+      persistent: { key: "profile", adapter }
+    });
+
+    await resource.promise();
+    expect(resource.data()).toEqual({ id: 2 });
+    expect(resource.source()).toBe("network");
+
+    releaseCache?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(resource.data()).toEqual({ id: 2 });
+    expect(resource.source()).toBe("network");
+  });
+
+  it("uses configured persistence adapters without a browser window", async () => {
+    const adapter = createMemoryPersistenceAdapter({ profile: { id: 1 } });
+    vi.stubGlobal("window", undefined);
+
+    const resource = createResource(async () => ({ id: 2 }), {
+      immediate: false,
+      persistent: { key: "profile", adapter }
+    });
+    await Promise.resolve();
+
+    expect(resource.data()).toEqual({ id: 1 });
+    expect(resource.source()).toBe("persistence");
+    await expect(resource.mutate({ id: 3 })).resolves.toEqual({
+      status: "persisted",
+      persisted: true
+    });
+    expect(await adapter.getItem("profile")).toEqual({ id: 3 });
   });
 
   it("queues failed mutate server calls when queue integration is provided", async () => {
@@ -159,7 +278,7 @@ describe("createResource", () => {
       persistent: "notes"
     });
 
-    resource.mutate(["local"], {
+    await expect(resource.mutate(["local"], {
       queue,
       queueType: "resource:notes",
       maxRetries: 1,
@@ -170,11 +289,11 @@ describe("createResource", () => {
 
         return payload;
       }
+    })).resolves.toMatchObject({
+      status: "queued",
+      persisted: true,
+      mutationId: "resource-q-1"
     });
-
-    await Promise.resolve();
-    await Promise.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(queue.pendingCount()).toBe(1);
 
     offline = false;
@@ -192,17 +311,39 @@ describe("createResource", () => {
       persistent: "guarded"
     });
 
-    resource.mutate({ ok: false }, {
+    await expect(resource.mutate({ ok: false }, {
       queue,
       queueType: "resource:guarded",
       shouldQueue: () => false,
       serverCall: async () => {
         throw new Error("fatal");
       }
+    })).resolves.toMatchObject({
+      status: "failed",
+      persisted: true
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
+    expect(queue.pendingCount()).toBe(0);
+  });
+
+  it("returns failed when durable queue enqueue persistence rejects", async () => {
+    const queue = await createMutationQueue({
+      storage: {
+        load: async () => [],
+        save: async () => { throw new Error("queue storage full"); }
+      }
+    });
+    const resource = createResource(async () => "remote", { immediate: false });
+
+    await expect(resource.mutate("optimistic", {
+      queue,
+      serverCall: async () => { throw new Error("offline"); }
+    })).resolves.toMatchObject({
+      status: "failed",
+      error: expect.objectContaining({ message: "queue storage full" })
+    });
+    expect(resource.state()).toBe("error");
+    expect(resource.error()).toEqual(expect.objectContaining({ message: "queue storage full" }));
     expect(queue.pendingCount()).toBe(0);
   });
 });

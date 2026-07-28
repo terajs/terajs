@@ -225,7 +225,7 @@ export function registerOverlayShellSuite(): void {
     expect(shadowRoot?.textContent).toContain("Counter");
   });
 
-  it("replays component events emitted before overlay mount", () => {
+  it("replays retained component events without archiving transient traces", () => {
     emitDebug({
       type: "component:mounted",
       timestamp: Date.now(),
@@ -240,7 +240,7 @@ export function registerOverlayShellSuite(): void {
     mountDevtoolsOverlay({ startOpen: true });
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    expect(shadowRoot?.textContent).toContain("Events: 361");
+    expect(shadowRoot?.textContent).toContain("Events: 1");
     expect(shadowRoot?.textContent).toContain("LandingPage");
   });
 
@@ -628,7 +628,7 @@ export function registerOverlayShellSuite(): void {
     expect(shell?.classList.contains("is-top")).toBe(true);
   });
 
-  it("caps overlay size to viewport while preserving internal scroll hosts", () => {
+  it("centers and shrinks the overlay on tablet and phone viewports", () => {
     mountDevtoolsOverlay({ startOpen: true });
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
@@ -639,12 +639,17 @@ export function registerOverlayShellSuite(): void {
     expect(styleText).toContain("width: min(var(--terajs-overlay-panel-width, 1040px), calc(100vw - 24px));");
     expect(styleText).toContain("height: min(var(--terajs-overlay-panel-height, 720px), calc(100vh - 24px));");
     expect(styleText).toContain("max-height: calc(100vh - 24px);");
+    expect(styleText).toMatch(/@media \(max-width: 900px\)[\s\S]*?:host\s*\{[\s\S]*?left: 50% !important;[\s\S]*?top: 50% !important;[\s\S]*?transform: translate\(-50%, -50%\) !important;/);
+    expect(styleText).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.overlay-frame\s*\{[\s\S]*?width: min\(720px, calc\(100vw - 32px\)\);[\s\S]*?height: min\(620px, calc\(100vh - 112px\)\);/);
+    expect(styleText).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.devtools-fab-cluster\s*\{[\s\S]*?position: fixed;[\s\S]*?right: 12px;[\s\S]*?bottom: 12px;/);
+    expect(styleText).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.overlay-frame\s*\{[\s\S]*?width: calc\(100vw - 24px\);[\s\S]*?height: min\(600px, calc\(100vh - 112px\)\);/);
     expect(styleText).toContain(".devtools-shell-stage");
     expect(styleText).toContain(".devtools-body");
     expect(styleText).toContain(".devtools-panel--iframe");
     expect(styleText).toContain("overflow: hidden;");
     expect(styleText).toContain("@media (max-width: 720px)");
-    expect(styleText).toContain("position: fixed;");
+    expect(styleText).not.toContain("width: 100vw;");
+    expect(styleText).not.toContain("height: 100vh;");
   });
 
   it("keeps shared inner workbench shells square and gapless", () => {

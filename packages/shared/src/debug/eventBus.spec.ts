@@ -94,4 +94,47 @@ describe("shared debug store", () => {
       }
     ]);
   });
+
+  it("does not invoke accessors while retaining debug payloads", async () => {
+    const history = await importHistory();
+    const eventBus = await importEventBus();
+    let reads = 0;
+    const payload = Object.defineProperty({}, "state", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        return { ready: true };
+      }
+    });
+
+    eventBus.emitDebug({
+      type: "component:props:update",
+      timestamp: Date.now(),
+      payload
+    } as any);
+
+    expect(reads).toBe(0);
+    expect(history.readDebugHistory().at(-1)?.payload).toEqual({
+      state: "[accessor]"
+    });
+  });
+
+  it("delivers transient events live without retaining them for replay", async () => {
+    const history = await importHistory();
+    const eventBus = await importEventBus();
+    const seen: string[] = [];
+    const unsubscribe = eventBus.subscribeDebug((event) => {
+      seen.push(event.type);
+    });
+
+    eventBus.emitDebug({
+      type: "reactive:read",
+      timestamp: Date.now(),
+      rid: "ReviewCard#1.selected"
+    });
+    unsubscribe();
+
+    expect(seen).toEqual(["reactive:read"]);
+    expect(history.readDebugHistory()).toEqual([]);
+  });
 });
