@@ -3,6 +3,53 @@ import { parseSFC } from "@terajs/sfc";
 import { compileSfcToComponent } from "./compileSfcToComponent";
 
 describe("compileSFC integration", () => {
+  it("preserves v-if on sibling self-closing child components", () => {
+    const code = `
+      <template>
+        <SourceRecordPreviewDialog
+          v-if="sourceRecordPresentation.get().showPreview"
+          :record="sourceRecordPresentation.get().sourceRecord"
+        />
+        <SourceRecordComparisonModal
+          v-if="sourceRecordPresentation.get().showComparison"
+          :source-record="sourceRecordPresentation.get().sourceRecord"
+          :target-record="sourceRecordPresentation.get().targetRecord"
+        />
+      </template>
+    `;
+
+    const sfc = parseSFC(code, "/tasks/MigrationBlockingIssueTask.tera");
+    const compiled = compileSfcToComponent(sfc);
+    const serializedIr = compiled.match(/export let ir = ([\s\S]*?);\n\nexport \{ __ssfc \};/)?.[1];
+    const ir = JSON.parse(serializedIr ?? "null");
+
+    expect(ir.template).toMatchObject([
+      {
+        type: "if",
+        condition: "sourceRecordPresentation.get().showPreview",
+        then: [
+          {
+            type: "element",
+            tag: "SourceRecordPreviewDialog"
+          }
+        ]
+      },
+      {
+        type: "text"
+      },
+      {
+        type: "if",
+        condition: "sourceRecordPresentation.get().showComparison",
+        then: [
+          {
+            type: "element",
+            tag: "SourceRecordComparisonModal"
+          }
+        ]
+      }
+    ]);
+  });
+
   it("compiles a script block as an implicit setup function", () => {
     const code = `
       <script>
