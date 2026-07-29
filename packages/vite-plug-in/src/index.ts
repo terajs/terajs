@@ -18,7 +18,6 @@ import {
 } from "./appFacade.js";
 import {
   APP_BOOTSTRAP_VIRTUAL_ID,
-  BUILD_BOOTSTRAP_FILE,
   generateAppBootstrapModule,
   RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID
 } from "./bootstrapEntry.js";
@@ -748,7 +747,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       this.emitFile({
         type: "chunk",
         id: APP_BOOTSTRAP_VIRTUAL_ID,
-        fileName: BUILD_BOOTSTRAP_FILE,
         name: "terajs-bootstrap"
       });
     },
@@ -792,14 +790,22 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       server.middlewares.use(createServerFunctionMiddleware(serverFunctionOptions));
     },
 
-    transformIndexHtml(html) {
+    transformIndexHtml(html, context) {
       if (typeof html !== "string") {
         return html;
       }
 
+      const buildBootstrapFile = config?.command === "build"
+        ? Object.values(context.bundle ?? {}).find((output) => {
+          return output.type === "chunk"
+            && stripQueryAndHash(output.facadeModuleId ?? "") === RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID;
+        })?.fileName
+        : undefined;
+
       return injectAppBootstrapScript(html, {
         command: config?.command,
-        base: config?.base
+        base: config?.base,
+        buildBootstrapFile
       });
     },
 

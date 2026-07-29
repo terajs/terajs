@@ -1148,7 +1148,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(html).toContain('src="/@id/__x00__virtual:terajs-bootstrap"');
   });
 
-  it("injects fixed bootstrap asset path in build mode", () => {
+  it("injects the Rollup-generated bootstrap asset path in build mode", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
     const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
@@ -1160,13 +1160,21 @@ describe("Terajs Vite Plugin (integration)", () => {
   <body>
     <div id="app"></div>
   </body>
-</html>`);
+</html>`, {
+      bundle: {
+        "assets/terajs-bootstrap-C4ch3Key.js": {
+          type: "chunk",
+          facadeModuleId: "\0virtual:terajs-bootstrap",
+          fileName: "assets/terajs-bootstrap-C4ch3Key.js"
+        }
+      }
+    });
 
     expect(typeof html).toBe("string");
-    expect(html).toContain('src="/assets/terajs-bootstrap.js"');
+    expect(html).toContain('src="/assets/terajs-bootstrap-C4ch3Key.js"');
   });
 
-  it("emits a fixed-name bootstrap chunk in build mode", () => {
+  it("lets Rollup content-hash the bootstrap chunk in build mode", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
     const buildStart = requireBuildStart(plugin.buildStart);
@@ -1180,7 +1188,6 @@ describe("Terajs Vite Plugin (integration)", () => {
         expect(input).toEqual({
           type: "chunk",
           id: "virtual:terajs-bootstrap",
-          fileName: "assets/terajs-bootstrap.js",
           name: "terajs-bootstrap"
         });
         return "bootstrap-ref";
