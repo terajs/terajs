@@ -1,4 +1,4 @@
-import { ParsedSFC, MetaConfig, RouteOverride } from "./types.js";
+import type { ParsedSFC, MetaConfig, RouteOverride } from "./types.js";
 import { parseMiniYAML } from "./parseMiniYAML.js";
 import { createSfcError } from "./errors.js";
 

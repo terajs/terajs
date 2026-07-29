@@ -4,7 +4,7 @@
  */
 
 export * from "./parseSfc.js";
-export * from "./types.js";
+export type { MetaConfig, ParsedSFC, RouteOverride } from "./types.js";
 export * from "./errors.js";
 export * from "./compileTemplate.js";
 export * from "./compileScript.js";
