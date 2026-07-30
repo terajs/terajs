@@ -1,53 +1,140 @@
-import type { IRNode } from "@terajs/compiler";
+import type {
+  IRNode,
+  IRSlotScopeBinding,
+  IRSlotTemplateNode
+} from "@terajs/compiler";
+import {
+  getCurrentContext,
+  runWithCurrentContext
+} from "@terajs/runtime";
 
 import { createFragment, insert } from "./dom.js";
 
 type RenderIRNode = (node: IRNode, ctx: any, isSvg?: boolean) => Node | null;
 
+export interface ComponentSlotDefinition {
+  children: IRNode[];
+  bindings: IRSlotScopeBinding[];
+  assignedSlotName?: string;
+}
+
 export function partitionComponentSlotChildren(children: IRNode[]): {
-  defaultChildren: IRNode[];
-  namedChildren: Map<string, IRNode[]>;
+  defaultSlot?: ComponentSlotDefinition;
+  namedSlots: Map<string, ComponentSlotDefinition>;
 } {
   const defaultChildren: IRNode[] = [];
-  const namedChildren = new Map<string, IRNode[]>();
+  const namedSlots = new Map<string, ComponentSlotDefinition>();
+  let defaultSlot: ComponentSlotDefinition | undefined;
 
   for (const child of children) {
+    if (child.type === "slot-template") {
+      const definition = createScopedSlotDefinition(child);
+      if (child.name === "default") {
+        defaultSlot = definition;
+      } else {
+        namedSlots.set(child.name, definition);
+      }
+      continue;
+    }
+
     const slotName = resolveAssignedSlotName(child);
     if (!slotName) {
       defaultChildren.push(child);
       continue;
     }
 
-    const entries = namedChildren.get(slotName) ?? [];
-    entries.push(child);
-    namedChildren.set(slotName, entries);
+    const definition = namedSlots.get(slotName) ?? {
+      children: [],
+      bindings: [],
+      assignedSlotName: slotName
+    };
+    definition.children.push(child);
+    namedSlots.set(slotName, definition);
   }
 
-  return { defaultChildren, namedChildren };
+  if (!defaultSlot && hasMeaningfulSlotContent(defaultChildren)) {
+    defaultSlot = {
+      children: defaultChildren,
+      bindings: []
+    };
+  }
+
+  return { defaultSlot, namedSlots };
 }
 
 export function createComponentSlotFactory(
-  children: IRNode[],
+  definition: ComponentSlotDefinition,
   ctx: any,
   isSvg: boolean,
-  renderIRNode: RenderIRNode,
-  assignedSlotName?: string
-): () => DocumentFragment {
-  return () => {
-    const frag = createFragment();
+  renderIRNode: RenderIRNode
+): (slotProps?: Record<string, unknown>) => DocumentFragment {
+  const ownerContext = getCurrentContext();
 
-    for (const child of children) {
-      const dom = renderIRNode(child, ctx, isSvg);
-      if (dom) {
-        if (assignedSlotName) {
-          removeAssignedSlotAttribute(dom, assignedSlotName);
-        }
-        insert(frag, dom);
-      }
-    }
+  return (slotProps = {}) => {
+    const render = () => renderComponentSlot(
+      definition,
+      createScopedSlotContext(ctx, definition.bindings, slotProps),
+      isSvg,
+      renderIRNode
+    );
 
-    return frag;
+    return ownerContext
+      ? runWithCurrentContext(ownerContext, render)
+      : render();
   };
+}
+
+function renderComponentSlot(
+  definition: ComponentSlotDefinition,
+  ctx: any,
+  isSvg: boolean,
+  renderIRNode: RenderIRNode
+): DocumentFragment {
+  const frag = createFragment();
+
+  for (const child of definition.children) {
+    const dom = renderIRNode(child, ctx, isSvg);
+    if (dom) {
+      if (definition.assignedSlotName) {
+        removeAssignedSlotAttribute(dom, definition.assignedSlotName);
+      }
+      insert(frag, dom);
+    }
+  }
+
+  return frag;
+}
+
+function createScopedSlotDefinition(node: IRSlotTemplateNode): ComponentSlotDefinition {
+  return {
+    children: node.children,
+    bindings: node.bindings
+  };
+}
+
+function createScopedSlotContext(
+  parentContext: any,
+  bindings: IRSlotScopeBinding[],
+  slotProps: Record<string, unknown>
+): any {
+  if (bindings.length === 0) {
+    return parentContext;
+  }
+
+  const scopedContext = Object.create(parentContext ?? null);
+  for (const binding of bindings) {
+    Object.defineProperty(scopedContext, binding.local, {
+      configurable: true,
+      enumerable: true,
+      get: () => slotProps[binding.prop]
+    });
+  }
+
+  return scopedContext;
+}
+
+function hasMeaningfulSlotContent(nodes: IRNode[]): boolean {
+  return nodes.some((node) => node.type !== "text" || node.value.trim().length > 0);
 }
 
 function resolveAssignedSlotName(node: IRNode): string | null {

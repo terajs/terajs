@@ -198,7 +198,21 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
         ...base,
         type: "slot",
         name: node.name,
+        props: (node.props ?? []).map((prop) => {
+          const binding = prop.kind === "bind" ? getBindingHint(prop.value) : undefined;
+          return binding ? { ...prop, binding } : { ...prop };
+        }),
         fallback: node.fallback.map((child) => normalizeNode(child, scopeId)),
+        flags: { dynamic: true }
+      };
+
+    case "slot-template":
+      return {
+        ...base,
+        type: "slot-template",
+        name: node.name,
+        bindings: node.bindings.map((binding) => ({ ...binding })),
+        children: node.children.map((child) => normalizeNode(child, scopeId)),
         flags: { dynamic: true }
       };
 

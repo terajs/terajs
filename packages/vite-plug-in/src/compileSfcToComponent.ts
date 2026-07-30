@@ -198,6 +198,13 @@ function normalizeBuiltInComponentTag(node: IRNode): void {
     return;
   }
 
+  if (node.type === "slot-template") {
+    for (const child of node.children) {
+      normalizeBuiltInComponentTag(child);
+    }
+    return;
+  }
+
   if (node.type === "if") {
     for (const child of node.then) {
       normalizeBuiltInComponentTag(child);

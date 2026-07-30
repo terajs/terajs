@@ -14,6 +14,7 @@ import type {
   ElementNode,
   PortalNode,
   SlotNode,
+  SlotTemplateNode,
   TextNode,
   InterpolationNode,
   IfNode,
@@ -42,6 +43,9 @@ export function renderAst(node: ASTNode, ctx: any): any {
 
     case "slot":
       return renderSlot(node, ctx);
+
+    case "slot-template":
+      return renderSlotTemplate(node, ctx);
 
     case "if":
       return renderIf(node, ctx);
@@ -139,6 +143,14 @@ function renderPortal(node: PortalNode, ctx: any) {
 function renderSlot(node: SlotNode, ctx: any) {
   const slotName = node.name ?? "default";
   const slotValue = ctx?.slots?.[slotName];
+  const slotProps = Object.fromEntries(
+    (node.props ?? [])
+      .filter((prop) => prop.kind === "static" || prop.kind === "bind")
+      .map((prop) => [
+        prop.name,
+        prop.kind === "bind" ? ctx[prop.value] : prop.value
+      ])
+  );
 
   emitRendererDebug("template:ast:slot", () => ({
     name: slotName,
@@ -146,7 +158,7 @@ function renderSlot(node: SlotNode, ctx: any) {
   }));
 
   if (typeof slotValue === "function") {
-    return slotValue();
+    return slotValue(slotProps);
   }
 
   if (slotValue != null) {
@@ -154,6 +166,14 @@ function renderSlot(node: SlotNode, ctx: any) {
   }
 
   return flatten(node.fallback.map((child) => renderAst(child, ctx)));
+}
+
+function renderSlotTemplate(node: SlotTemplateNode, ctx: any) {
+  emitRendererDebug("error:renderer", () => ({
+    message: "Slot templates must be direct children of a component",
+    name: node.name
+  }));
+  return flatten(node.children.map((child) => renderAst(child, ctx)));
 }
 
 /* -------------------------------------------------------------------------- */

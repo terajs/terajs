@@ -260,6 +260,31 @@ describe("renderToString", () => {
     expect(html).toContain("<section>Projected headerProjected body</section>");
   });
 
+  it("passes scoped values to SSR slot functions", () => {
+    const ir = mockIR([{
+      type: "slot",
+      name: "default",
+      props: [
+        { kind: "bind", name: "item", value: "row" },
+        { kind: "bind", name: "index", value: "position" }
+      ],
+      fallback: [{ type: "text", value: "Fallback" }]
+    }]);
+
+    const { html } = renderToString(ir, {
+      scope: {
+        row: { label: "Opening Balance Equity" },
+        position: 3,
+        slots: {
+          default: ({ item, index }: any) => `${index}:${item.label}`
+        }
+      }
+    });
+
+    expect(html).toContain("3:Opening Balance Equity");
+    expect(html).not.toContain("Fallback");
+  });
+
   it("renders portal children inline during SSR", () => {
     const ir = mockIR([
       {

@@ -3,6 +3,53 @@ import { parseSFC } from "@terajs/sfc";
 import { compileSfcToComponent } from "./compileSfcToComponent";
 
 describe("compileSFC integration", () => {
+  it("preserves scoped slot templates and child-provided values", () => {
+    const code = `
+      <template>
+        <VirtualScroller :items="items.get()">
+          <template #default="{ item, index }">
+            <button @click="select(item.id, index)">
+              {{ item.label }}
+            </button>
+          </template>
+        </VirtualScroller>
+      </template>
+    `;
+
+    const sfc = parseSFC(code, "/components/VirtualAccountList.tera");
+    const compiled = compileSfcToComponent(sfc);
+    const serializedIr = compiled.match(/export let ir = ([\s\S]*?);\n\nexport \{ __ssfc \};/)?.[1];
+    const ir = JSON.parse(serializedIr ?? "null");
+    const scroller = ir.template.find((node: any) =>
+      node.type === "element" && node.tag === "VirtualScroller"
+    );
+    const structuralChildren = scroller.children.filter((node: any) =>
+      node.type !== "text" || node.value.trim().length > 0
+    );
+
+    expect(structuralChildren).toMatchObject([{
+      type: "slot-template",
+      name: "default",
+      bindings: [
+        { prop: "item", local: "item" },
+        { prop: "index", local: "index" }
+      ],
+      children: [
+        { type: "text" },
+        {
+          type: "element",
+          tag: "button",
+          props: [{
+            kind: "event",
+            name: "click",
+            value: "select(item.id, index)"
+          }]
+        },
+        { type: "text" }
+      ]
+    }]);
+  });
+
   it("preserves v-if on sibling self-closing child components", () => {
     const code = `
       <template>
