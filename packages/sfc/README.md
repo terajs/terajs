@@ -51,6 +51,27 @@ const parsed = parseSFC(source, "/src/pages/index.tera");
 - Keep advanced transforms in tooling layers such as the Vite plugin or custom build tooling.
 - Use the package directly when you need parser/compiler behavior without the full application plugin.
 
+## Scoped slots
+
+Reusable components expose scoped values from a slot outlet:
+
+```html
+<slot :item="item" :index="index">No row renderer</slot>
+```
+
+Consumers provide parent-owned content with `#default` or a named slot:
+
+```html
+<VirtualScroller :items="items.get()">
+  <template #default="{ item, index }">
+    <button @click="openItem(item.id, index)">{{ item.label }}</button>
+  </template>
+</VirtualScroller>
+```
+
+`v-slot:name` is the supported long form. Scoped bindings use object
+destructuring and may alias child values, such as `{ index: position }`.
+
 ## Related packages
 
 - `@terajs/vite-plugin`: turns parsed SFCs into route-aware application modules

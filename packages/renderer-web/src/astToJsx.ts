@@ -143,6 +143,14 @@ function renderPortal(node: PortalNode, ctx: any) {
 function renderSlot(node: SlotNode, ctx: any) {
   const slotName = node.name ?? "default";
   const slotValue = ctx?.slots?.[slotName];
+  const slotProps = Object.fromEntries(
+    (node.props ?? [])
+      .filter((prop) => prop.kind === "static" || prop.kind === "bind")
+      .map((prop) => [
+        prop.name,
+        prop.kind === "bind" ? ctx[prop.value] : prop.value
+      ])
+  );
 
   emitRendererDebug("template:ast:slot", () => ({
     name: slotName,
@@ -150,7 +158,7 @@ function renderSlot(node: SlotNode, ctx: any) {
   }));
 
   if (typeof slotValue === "function") {
-    return slotValue();
+    return slotValue(slotProps);
   }
 
   if (slotValue != null) {

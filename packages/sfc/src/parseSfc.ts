@@ -31,12 +31,46 @@ function extractBlockWithAttributes(
   };
 }
 
+function extractBalancedTemplateBlock(
+  source: string
+): { attrs: string; content: string } | null {
+  const opening = /<template(?=\s|>)([^>]*)>/i.exec(source);
+  if (!opening) {
+    return null;
+  }
+
+  const contentStart = opening.index + opening[0].length;
+  const tagPattern = /<\/?template(?=\s|>)[^>]*>/gi;
+  tagPattern.lastIndex = contentStart;
+  let depth = 1;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagPattern.exec(source))) {
+    if (/^<\//.test(match[0])) {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          attrs: opening[1] ?? "",
+          content: source.slice(contentStart, match.index).trim()
+        };
+      }
+      continue;
+    }
+
+    if (!/\/\s*>$/.test(match[0])) {
+      depth += 1;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Parses a <template> block.
  * Currently no attributes are supported, but this is future‑proof.
  */
 function parseTemplateBlock(source: string): string {
-  const raw = extractBlockWithAttributes(source, "template");
+  const raw = extractBalancedTemplateBlock(source);
   if (!raw) return "";
   return raw.content;
 }

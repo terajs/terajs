@@ -15,6 +15,7 @@ export type ASTNode =
   | ElementNode
   | PortalNode
   | SlotNode
+  | SlotTemplateNode
   | TextNode
   | InterpolationNode
   | IfNode
@@ -42,7 +43,7 @@ export interface InterpolationNode {
 export interface PropNode {
   name: string;
   value: string;
-  kind: "static" | "bind" | "event" | "directive";
+  kind: "static" | "bind" | "event" | "directive" | "slot";
   modifiers?: string[];
 }
 
@@ -71,7 +72,26 @@ export interface PortalNode {
 export interface SlotNode {
   type: "slot";
   name?: string;
+  props?: PropNode[];
   fallback: ASTNode[];
+}
+
+/**
+ * Parent-owned content assigned to a component slot.
+ */
+export interface SlotTemplateNode {
+  type: "slot-template";
+  name: string;
+  bindings: SlotScopeBinding[];
+  children: ASTNode[];
+}
+
+/**
+ * Maps a child-provided slot property to a parent-local identifier.
+ */
+export interface SlotScopeBinding {
+  prop: string;
+  local: string;
 }
 
 /**

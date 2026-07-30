@@ -371,6 +371,35 @@ Use slots for:
 
 Slots should be pure functions.
 
+In `.tera` templates, child components expose scoped values from slot outlets:
+
+```html
+<slot :item="item" :index="index">
+  <p>No row renderer was provided.</p>
+</slot>
+```
+
+Consumers bind those values on a parent-owned template:
+
+```html
+<VirtualScroller :items="items.get()">
+  <template #default="{ item, index }">
+    <button @click="openItem(item.id, index)">
+      {{ item.label }}
+    </button>
+  </template>
+
+  <template #empty="{ message }">
+    <p>{{ message }}</p>
+  </template>
+</VirtualScroller>
+```
+
+Use `#default` for the default scoped slot and `#name` for named scoped slots.
+The long form `v-slot:name` is also supported. Bindings may be aliased, for
+example `{ index: position }`. Slot templates must be direct component
+children, and fallback content belongs inside the child `<slot>` outlet.
+
 ---
 
 ## 16. Portals & Overlays

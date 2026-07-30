@@ -45,6 +45,8 @@ function renderNodeToStream(
       return [renderPortal(node as IRPortalNode, scope)];
     case "slot":
       return [renderSlot(node as IRSlotNode, scope)];
+    case "slot-template":
+      return renderNodesToStream(node.children, scope, swapChunks, hasAsyncResource, resourceData);
     case "if":
       return [renderIf(node as IRIfNode, scope)];
     case "for":
