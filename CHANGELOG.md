@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.4.0
+
+- Added first-class default and named scoped slots to `.tera` templates, including live child-provided values, fallback content, keyed row reuse, nested structures, and parent-owned event scope across web and SSR rendering.
+- Preserved reactive property descriptors when compiled child components normalize props so mounted children receive late object updates without conditional remount workarounds.
+- Kept component cleanup attached to stable fragment boundaries so replacing an internal `v-if` branch does not dispose the parent component's reactive state or leave workspace shells blank.
+- Corrected SFC compilation and package entrypoints so published packages include required runtime modules such as `dist/types.js`.
+- Hardened reactivity package artifacts so published packages include runtime modules such as `dist/ref.js`.
+
 ## 1.2.2
 
 - Fixed `.tera` event modifiers so `.prevent` and `.stop` bind the base event name and apply modifier behavior instead of silently registering invalid event names.
