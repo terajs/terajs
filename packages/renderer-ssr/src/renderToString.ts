@@ -25,10 +25,7 @@ import type {
   IRForNode
 } from "@terajs/compiler";
 import type { SSRContext, SSRResult, SSRHydrationHint } from "./types.js";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isPlainObject, resolveExpr } from "./renderScope.js";
 
 function mergeValues(base: unknown, incoming: unknown): unknown {
   if (incoming === undefined) {
@@ -574,27 +571,6 @@ function escapeText(v: string): string {
  */
 function escapeAttr(v: string): string {
   return escapeText(v).replace(/"/g, "&quot;");
-}
-
-function resolveExpr(scope: Record<string, unknown>, expr: string): unknown {
-  if (expr in scope) {
-    const value = scope[expr];
-    return typeof value === "function" ? value() : value;
-  }
-
-  const parts = expr.split(".");
-  let current: unknown = scope;
-
-  for (const part of parts) {
-    if (current == null || typeof current !== "object") {
-      return undefined;
-    }
-
-    const value = (current as Record<string, unknown>)[part];
-    current = typeof value === "function" ? value() : value;
-  }
-
-  return current;
 }
 
 function renderSlotValue(value: unknown): string {

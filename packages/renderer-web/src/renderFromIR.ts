@@ -49,6 +49,7 @@ import {
 import { renderIRForNode } from "./renderFromIRFor.js";
 import { renderIRIfNode } from "./renderFromIRIf.js";
 import {
+  buildSlotOutletProps,
   createComponentSlotFactory,
   partitionComponentSlotChildren
 } from "./renderFromIRSlots.js";
@@ -248,7 +249,11 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
   const slotValue = ctx?.slots?.[slotName];
 
   if (slotValue != null) {
-    const slotProps = buildSlotOutletProps(node, ctx);
+    const slotProps = buildSlotOutletProps(node, (prop) =>
+      prop.binding?.kind === "simple-path"
+        ? resolveHintedPath(ctx, prop.binding, true)
+        : resolveExpr(ctx, String(prop.value))
+    );
     return normalizeSlotValue(
       typeof slotValue === "function" ? slotValue(slotProps) : slotValue
     );
@@ -271,29 +276,6 @@ function renderIRSlotTemplate(node: IRSlotTemplateNode): Node | null {
     name: node.name
   }));
   return null;
-}
-
-function buildSlotOutletProps(node: IRSlotNode, ctx: any): Record<string, unknown> {
-  const slotProps: Record<string, unknown> = {};
-
-  for (const prop of node.props ?? []) {
-    if (prop.kind === "static") {
-      slotProps[prop.name] = prop.value;
-      continue;
-    }
-
-    if (prop.kind === "bind") {
-      Object.defineProperty(slotProps, prop.name, {
-        configurable: true,
-        enumerable: true,
-        get: () => prop.binding?.kind === "simple-path"
-          ? resolveHintedPath(ctx, prop.binding, true)
-          : resolveExpr(ctx, String(prop.value))
-      });
-    }
-  }
-
-  return slotProps;
 }
 
 function applyIRProps(el: Element, props: IRPropNode[], ctx: any): void {

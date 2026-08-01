@@ -1,5 +1,7 @@
 import type {
   IRNode,
+  IRPropNode,
+  IRSlotNode,
   IRSlotScopeBinding,
   IRSlotTemplateNode
 } from "@terajs/compiler";
@@ -16,6 +18,27 @@ export interface ComponentSlotDefinition {
   children: IRNode[];
   bindings: IRSlotScopeBinding[];
   assignedSlotName?: string;
+}
+
+export function buildSlotOutletProps(
+  node: IRSlotNode,
+  resolveBoundProp: (prop: IRPropNode) => unknown
+): Record<string, unknown> {
+  const slotProps: Record<string, unknown> = {};
+
+  for (const prop of node.props ?? []) {
+    if (prop.kind === "static") {
+      slotProps[prop.name] = prop.value;
+    } else if (prop.kind === "bind") {
+      Object.defineProperty(slotProps, prop.name, {
+        configurable: true,
+        enumerable: true,
+        get: () => resolveBoundProp(prop)
+      });
+    }
+  }
+
+  return slotProps;
 }
 
 export function partitionComponentSlotChildren(children: IRNode[]): {
