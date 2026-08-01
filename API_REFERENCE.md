@@ -126,7 +126,37 @@ The shipped SFC block model supports:
 - optional `ai`
 - `routeOverride`
 
-### 1.3 `<meta>` / `MetaConfig`
+### 1.3 Scoped slots
+
+`.tera` components can expose values through default or named slot outlets:
+
+```html
+<slot :item="item" :index="index">
+  <p>No rows available.</p>
+</slot>
+```
+
+Parent components render those values through parent-owned slot templates:
+
+```html
+<VirtualScroller :items="items.get()">
+  <template #default="{ item, index }">
+    <button @click="select(item.id, index)">{{ item.label }}</button>
+  </template>
+
+  <template #status="{ message }">
+    <small>{{ message }}</small>
+  </template>
+</VirtualScroller>
+```
+
+Supported forms are `#default`, `#name`, `v-slot`, and `v-slot:name`.
+Object-destructured bindings support aliases such as `{ index: position }`.
+Fallback content renders only when the corresponding slot is absent. Scoped
+locals remain live across keyed row reuse, including nested components,
+conditionals, loops, and event expressions.
+
+### 1.4 `<meta>` / `MetaConfig`
 
 `MetaConfig` is the typed metadata contract carried through SFC parsing, route definitions, client metadata updates, and SSR.
 
@@ -144,7 +174,7 @@ Common fields include:
 - `a11y`
 - `i18n`
 
-### 1.4 `<route>` / `RouteOverride`
+### 1.5 `<route>` / `RouteOverride`
 
 `RouteOverride` is the typed route override contract parsed from `<route>` blocks.
 
@@ -158,7 +188,7 @@ Supported override fields are:
 - `hydrate`
 - `edge`
 
-### 1.5 `<ai>`
+### 1.6 `<ai>`
 
 The `<ai>` block is carried as an opaque object. Today that means:
 
@@ -167,7 +197,7 @@ The `<ai>` block is carried as an opaque object. Today that means:
 - route metadata resolution merges it across layouts, route definitions, and page component carriers
 - DevTools can inspect it as structured runtime metadata
 
-### 1.6 Route-manifest helpers
+### 1.7 Route-manifest helpers
 
 `buildRouteManifest(inputs, options?)` builds route definitions from `.tera` sources and route config overrides.
 

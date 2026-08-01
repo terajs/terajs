@@ -5,6 +5,7 @@ import type {
   ElementNode,
   PortalNode,
   SlotNode,
+  SlotTemplateNode,
   TextNode,
   InterpolationNode,
   PropNode,
@@ -192,6 +193,20 @@ class ParserContext {
     ifDir?: PropNode,
     forDir?: PropNode
   ): ASTNode {
+    const slotTemplateProp = props.find((p) => p.kind === "slot");
+    if (slotTemplateProp) {
+      if (tag !== "template") {
+        throw new Error(`Scoped slot "${slotTemplateProp.name}" must be declared on a <template> element`);
+      }
+
+      return {
+        type: "slot-template",
+        name: slotTemplateProp.name || "default",
+        bindings: parseSlotScopeExpression(slotTemplateProp.value),
+        children
+      } as SlotTemplateNode;
+    }
+
     if (tag === "Portal") {
       const target = props.find((p) => p.name === "to");
       return {
@@ -203,9 +218,11 @@ class ParserContext {
 
     if (tag === "slot") {
       const nameProp = props.find((p) => p.kind === "static" && p.name === "name");
+      const outletProps = props.filter((p) => p !== nameProp && p.kind !== "directive");
       return {
         type: "slot",
         name: typeof nameProp?.value === "string" && nameProp.value.length > 0 ? nameProp.value : undefined,
+        ...(outletProps.length > 0 ? { props: outletProps } : {}),
         fallback: children
       } as SlotNode;
     }
@@ -247,6 +264,22 @@ class ParserContext {
   }
 
   private buildProp(name: string, rawValue?: string): PropNode {
+    if (name.startsWith("#")) {
+      return {
+        name: name.slice(1) || "default",
+        value: rawValue ?? "",
+        kind: "slot"
+      };
+    }
+
+    if (name === "v-slot" || name.startsWith("v-slot:")) {
+      return {
+        name: name === "v-slot" ? "default" : name.slice("v-slot:".length),
+        value: rawValue ?? "",
+        kind: "slot"
+      };
+    }
+
     // v- directives
     if (name.startsWith("v-")) {
       return {
@@ -350,5 +383,37 @@ function parseForExpression(expr: string): { each: string; item: string; index?:
     each: rhs,
     item: lhs || "item"
   };
+}
+
+function parseSlotScopeExpression(expr: string): Array<{ prop: string; local: string }> {
+  const normalized = expr.trim();
+  if (normalized.length === 0) {
+    return [];
+  }
+
+  if (!normalized.startsWith("{") || !normalized.endsWith("}")) {
+    throw new Error(`Scoped slot bindings must use object destructuring, received "${expr}"`);
+  }
+
+  const body = normalized.slice(1, -1).trim();
+  if (body.length === 0) {
+    return [];
+  }
+
+  return body.split(",").map((entry) => {
+    const [rawProp, rawLocal, ...rest] = entry.split(":").map((part) => part.trim());
+    const prop = rawProp;
+    const local = rawLocal || rawProp;
+
+    if (rest.length > 0 || !isIdentifier(prop) || !isIdentifier(local)) {
+      throw new Error(`Invalid scoped slot binding "${entry.trim()}"`);
+    }
+
+    return { prop, local };
+  });
+}
+
+function isIdentifier(value: string): boolean {
+  return /^[A-Za-z_$][\w$]*$/.test(value);
 }
 

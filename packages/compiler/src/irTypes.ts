@@ -97,7 +97,23 @@ export interface IRPortalNode extends IRNodeBase {
 export interface IRSlotNode extends IRNodeBase {
   type: "slot"
   name?: string
+  props?: IRPropNode[]
   fallback: IRNode[]
+}
+
+/**
+ * Parent-owned content assigned to a component slot.
+ */
+export interface IRSlotTemplateNode extends IRNodeBase {
+  type: "slot-template"
+  name: string
+  bindings: IRSlotScopeBinding[]
+  children: IRNode[]
+}
+
+export interface IRSlotScopeBinding {
+  prop: string
+  local: string
 }
 
 /**
@@ -143,6 +159,7 @@ export type IRNode =
   | IRElementNode
   | IRPortalNode
   | IRSlotNode
+  | IRSlotTemplateNode
   | IRIfNode
   | IRForNode
 

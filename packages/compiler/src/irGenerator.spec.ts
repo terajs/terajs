@@ -238,5 +238,64 @@ describe("IRModule Generator (integration)", () => {
       ]
     });
   });
+
+  it("normalizes scoped slot templates and outlet bindings", () => {
+    const sfc: ParsedSFC = {
+      filePath: "/components/VirtualScroller.tera",
+      template: `
+        <VirtualScroller :items="items">
+          <template #default="{ item, index }">
+            <button @click="select(item, index)">{{ item.label }}</button>
+          </template>
+        </VirtualScroller>
+        <slot :item="row" :index="position">Fallback</slot>
+      `,
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
+
+    const ir = generateIRModule(sfc);
+    const structuralNodes = ir.template.filter((node) =>
+      node.type !== "text" || node.value.trim().length > 0
+    );
+
+    expect(structuralNodes).toMatchObject([
+      {
+        type: "element",
+        tag: "VirtualScroller",
+        children: [
+          { type: "text" },
+          {
+            type: "slot-template",
+            name: "default",
+            bindings: [
+              { prop: "item", local: "item" },
+              { prop: "index", local: "index" }
+            ]
+          },
+          { type: "text" }
+        ]
+      },
+      {
+        type: "slot",
+        props: [
+          {
+            kind: "bind",
+            name: "item",
+            value: "row",
+            binding: { kind: "simple-path", segments: ["row"] }
+          },
+          {
+            kind: "bind",
+            name: "index",
+            value: "position",
+            binding: { kind: "simple-path", segments: ["position"] }
+          }
+        ]
+      }
+    ]);
+  });
 });
 

@@ -306,6 +306,7 @@ function isAst(value: any): value is ASTNode {
         || value.type === "if"
         || value.type === "for"
         || value.type === "portal"
-        || value.type === "slot";
+        || value.type === "slot"
+        || value.type === "slot-template";
 }
 

@@ -1,11 +1,18 @@
 {
   "name": "@terajs/reactivity",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Terajs fine-grained reactivity engine",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.d.ts.map"
+  ],
   "exports": {
     ".": {
       "import": "./dist/index.js",

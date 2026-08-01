@@ -13,6 +13,7 @@ import type {
   IRElementNode,
   IRPortalNode,
   IRSlotNode,
+  IRSlotTemplateNode,
   IRPropNode,
 } from "@terajs/compiler";
 
@@ -48,6 +49,7 @@ import {
 import { renderIRForNode } from "./renderFromIRFor.js";
 import { renderIRIfNode } from "./renderFromIRIf.js";
 import {
+  buildSlotOutletProps,
   createComponentSlotFactory,
   partitionComponentSlotChildren
 } from "./renderFromIRSlots.js";
@@ -110,6 +112,8 @@ export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): No
       return renderIRPortal(node, ctx, isSvg);
     case "slot":
       return renderIRSlot(node, ctx, isSvg);
+    case "slot-template":
+      return renderIRSlotTemplate(node);
     case "if":
       return renderIRIfNode(node, ctx, isSvg, renderIRNode);
     case "for":
@@ -245,7 +249,14 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
   const slotValue = ctx?.slots?.[slotName];
 
   if (slotValue != null) {
-    return normalizeSlotValue(slotValue);
+    const slotProps = buildSlotOutletProps(node, (prop) =>
+      prop.binding?.kind === "simple-path"
+        ? resolveHintedPath(ctx, prop.binding, true)
+        : resolveExpr(ctx, String(prop.value))
+    );
+    return normalizeSlotValue(
+      typeof slotValue === "function" ? slotValue(slotProps) : slotValue
+    );
   }
 
   const frag = createFragment();
@@ -257,6 +268,14 @@ function renderIRSlot(node: IRSlotNode, ctx: any, isSvg: boolean): Node {
   }
 
   return frag;
+}
+
+function renderIRSlotTemplate(node: IRSlotTemplateNode): Node | null {
+  emitRendererDebug("error:renderer", () => ({
+    message: "Slot templates must be direct children of a component",
+    name: node.name
+  }));
+  return null;
 }
 
 function applyIRProps(el: Element, props: IRPropNode[], ctx: any): void {
@@ -449,13 +468,13 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
     }
   }
 
-  const { defaultChildren, namedChildren } = partitionComponentSlotChildren(node.children);
+  const { defaultSlot, namedSlots } = partitionComponentSlotChildren(node.children);
 
-  if (defaultChildren.length > 0) {
-    props.children = createComponentSlotFactory(defaultChildren, ctx, isSvg, renderIRNode);
+  if (defaultSlot) {
+    props.children = createComponentSlotFactory(defaultSlot, ctx, isSvg, renderIRNode);
   }
 
-  if (namedChildren.size > 0) {
+  if (namedSlots.size > 0) {
     const explicitSlots = props.slots && typeof props.slots === "object"
       ? props.slots
       : {};
@@ -465,9 +484,9 @@ function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Rec
       value: {
         ...explicitSlots,
         ...Object.fromEntries(
-          Array.from(namedChildren, ([name, children]) => [
+          Array.from(namedSlots, ([name, definition]) => [
             name,
-            createComponentSlotFactory(children, ctx, isSvg, renderIRNode, name)
+            createComponentSlotFactory(definition, ctx, isSvg, renderIRNode)
           ])
         )
       }
@@ -540,11 +559,8 @@ function createComponentCleanup(ctx: any): { active: () => boolean; dispose: () 
 
 function attachComponentCleanup(node: Node, cleanup: () => void): void {
   if (node instanceof DocumentFragment) {
-    const children = Array.from(node.childNodes);
-
-    for (const child of children) {
-      addNodeCleanup(child, cleanup);
-    }
+    const boundary = node.firstChild ?? node.appendChild(document.createComment("component"));
+    addNodeCleanup(boundary, cleanup);
 
     return;
   }

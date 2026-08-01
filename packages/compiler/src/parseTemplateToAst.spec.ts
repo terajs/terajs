@@ -337,6 +337,75 @@ describe("parseTemplateToAst", () => {
     ])
   })
 
+  it("parses slot outlet props and scoped default slot templates", () => {
+    const ast = parseTemplateToAst(`
+      <VirtualScroller>
+        <template #default="{ item, index: position }">
+          <button @click="select(item, position)">{{ item.label }}</button>
+        </template>
+      </VirtualScroller>
+    `)
+
+    expect(ast).toMatchObject([
+      { type: "text" },
+      {
+        type: "element",
+        tag: "VirtualScroller",
+        children: [
+          { type: "text" },
+          {
+            type: "slot-template",
+            name: "default",
+            bindings: [
+              { prop: "item", local: "item" },
+              { prop: "index", local: "position" }
+            ],
+            children: [
+              { type: "text" },
+              {
+                type: "element",
+                tag: "button",
+                props: [{ kind: "event", name: "click", value: "select(item, position)" }]
+              },
+              { type: "text" }
+            ]
+          },
+          { type: "text" }
+        ]
+      },
+      { type: "text" }
+    ])
+  })
+
+  it("parses named scoped slots and child-provided outlet values", () => {
+    const ast = parseTemplateToAst(`
+      <template v-slot:header="{ title }"><h2>{{ title }}</h2></template>
+      <slot name="header" :title="heading">Fallback</slot>
+    `)
+
+    expect(ast).toMatchObject([
+      { type: "text" },
+      {
+        type: "slot-template",
+        name: "header",
+        bindings: [{ prop: "title", local: "title" }]
+      },
+      { type: "text" },
+      {
+        type: "slot",
+        name: "header",
+        props: [{ kind: "bind", name: "title", value: "heading" }],
+        fallback: [{ type: "text", value: "Fallback" }]
+      },
+      { type: "text" }
+    ])
+  })
+
+  it("rejects scoped slot declarations outside template elements", () => {
+    expect(() => parseTemplateToAst(`<div #default="{ item }">{{ item }}</div>`))
+      .toThrow("must be declared on a <template> element")
+  })
+
   it("parses Portal primitives into portal nodes", () => {
     const ast = parseTemplateToAst(`<Portal to="#overlay"><div>Hi</div></Portal>`)
 

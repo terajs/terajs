@@ -16,6 +16,7 @@ import type {
   IRElementNode,
   IRPortalNode,
   IRSlotNode,
+  IRSlotTemplateNode,
   IRIfNode,
   IRForNode
 } from "@terajs/compiler";
@@ -418,6 +419,74 @@ describe("IR -> DOM Renderer", () => {
     show.set(false);
     await tick();
     expect(dom.textContent).toBe("NO");
+  });
+
+  it("keeps parent computeds alive when a component branch swaps to its fallback", async () => {
+    let finishLoading!: () => void;
+
+    const Loader = component({ name: "WorkspaceLoader" }, () => {
+      const element = document.createElement("span");
+      element.textContent = "Loading";
+      return element;
+    });
+    const Parent = component({ name: "WorkspaceShell" }, () => {
+      const loading = signal(true);
+      const title = computed(() => "Ready workspace");
+      finishLoading = () => loading.set(false);
+
+      const ir: IRModule = {
+        filePath: "/WorkspaceShell.tera",
+        template: [{
+          type: "if",
+          condition: "loading",
+          then: [{
+            type: "element",
+            tag: "Loader",
+            props: [],
+            children: [],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode],
+          else: [{
+            type: "element",
+            tag: "section",
+            props: [],
+            children: [{
+              type: "interp",
+              expression: "title.get()",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode],
+          loc: undefined,
+          flags: {}
+        } as IRIfNode],
+        meta: {},
+        route: null,
+        hasAsyncResource: false
+      };
+      const ctx = { loading, title, __components: { Loader } };
+
+      return () => renderIRModuleToFragment(ir, ctx);
+    });
+
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode({
+      type: "element",
+      tag: "Parent",
+      props: [],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    } as IRElementNode, { __components: { Parent } })!);
+    expect(root.textContent).toBe("Loading");
+
+    finishLoading();
+    await tick();
+
+    expect(root.textContent).toBe("Ready workspace");
   });
 
   it("does not rebuild an if branch when component setup state changes", async () => {
@@ -851,6 +920,239 @@ describe("IR -> DOM Renderer", () => {
 
     const dom = renderIRNode(node, {})!;
     expect(dom.textContent).toBe("Fallback");
+  });
+
+  it("keeps scoped slot locals live across retained keyed rows", async () => {
+    const items = signal([
+      { id: "a", label: "A", visible: true, tags: ["one"] },
+      { id: "b", label: "B", visible: true, tags: ["two"] }
+    ]);
+    const selected: string[] = [];
+    const outlet: IRSlotNode = {
+      type: "slot",
+      name: "default",
+      props: [{
+        kind: "bind",
+        name: "item",
+        value: "item",
+        binding: { kind: "simple-path", segments: ["item"] }
+      }, {
+        kind: "bind",
+        name: "index",
+        value: "i",
+        binding: { kind: "simple-path", segments: ["i"] }
+      }],
+      fallback: [{ type: "text", value: "Fallback" } as IRTextNode],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+    const list: IRForNode = {
+      type: "for",
+      each: "items",
+      item: "item",
+      index: "i",
+      isStructural: true,
+      body: [{
+        type: "element",
+        tag: "div",
+        props: [{
+          kind: "bind",
+          name: "key",
+          value: "item.id",
+          binding: { kind: "simple-path", segments: ["item", "id"] }
+        }],
+        children: [outlet],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRElementNode],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const VirtualScroller = component({ name: "VirtualScroller" }, (props: any) => {
+      const slots = {
+        ...(props.slots ?? {}),
+        ...(props.children ? { default: props.children } : {})
+      };
+      return renderIRNode(list, {
+        items: () => props.items,
+        slots
+      })!;
+    });
+    const RowBadge = component({ name: "RowBadge" }, (props: any) => () => {
+      const badge = document.createElement("strong");
+      badge.textContent = `[${props.label}]`;
+      return badge;
+    });
+    const slotTemplate: IRSlotTemplateNode = {
+      type: "slot-template",
+      name: "default",
+      bindings: [
+        { prop: "item", local: "row" },
+        { prop: "index", local: "position" }
+      ],
+      children: [{
+        type: "if",
+        condition: "row.visible",
+        then: [{
+          type: "element",
+          tag: "article",
+          props: [],
+          children: [{
+            type: "element",
+            tag: "button",
+            props: [{
+              kind: "event",
+              name: "click",
+              value: "choose(row.id, position)"
+            }],
+            children: [{
+              type: "interp",
+              expression: "row.label",
+              binding: { kind: "simple-path", segments: ["row", "label"] },
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode, {
+            type: "element",
+            tag: "RowBadge",
+            props: [{
+              kind: "bind",
+              name: "label",
+              value: "row.label",
+              binding: { kind: "simple-path", segments: ["row", "label"] }
+            }],
+            children: [],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode, {
+            type: "for",
+            each: "row.tags",
+            item: "tag",
+            isStructural: true,
+            body: [{
+              type: "element",
+              tag: "span",
+              props: [],
+              children: [{
+                type: "interp",
+                expression: "tag",
+                binding: { kind: "simple-path", segments: ["tag"] },
+                loc: undefined,
+                flags: { dynamic: true }
+              } as IRInterpolationNode],
+              loc: undefined,
+              flags: {}
+            } as IRElementNode],
+            loc: undefined,
+            flags: { hasDirectives: true }
+          } as IRForNode],
+          loc: undefined,
+          flags: {}
+        } as IRElementNode],
+        else: [{ type: "text", value: "Hidden" } as IRTextNode],
+        loc: undefined,
+        flags: { hasDirectives: true }
+      } as IRIfNode],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+    const consumer: IRElementNode = {
+      type: "element",
+      tag: "VirtualScroller",
+      props: [{
+        kind: "bind",
+        name: "items",
+        value: "items",
+        binding: { kind: "simple-path", segments: ["items"] }
+      }],
+      children: [slotTemplate],
+      loc: undefined,
+      flags: { hasDirectives: true }
+    };
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode(consumer, {
+      items,
+      choose: (id: string, index: number) => selected.push(`${id}:${index}`),
+      __components: { VirtualScroller, RowBadge }
+    })!);
+    const firstRow = root.children[0];
+    const secondRow = root.children[1];
+
+    expect(root.textContent).toBe("A[A]oneB[B]two");
+
+    items.set([
+      { id: "b", label: "B2", visible: true, tags: ["two", "three"] },
+      { id: "a", label: "A2", visible: false, tags: [] }
+    ]);
+    await tick();
+
+    expect(root.children[0]).toBe(secondRow);
+    expect(root.children[1]).toBe(firstRow);
+    expect(root.textContent).toBe("B2[B2]twothreeHidden");
+
+    (root.querySelector("button") as HTMLButtonElement).click();
+    expect(selected).toEqual(["b:0"]);
+  });
+
+  it("passes values to named scoped slots and preserves fallback content", () => {
+    const namedSlot: IRSlotNode = {
+      type: "slot",
+      name: "header",
+      props: [{
+        kind: "bind",
+        name: "title",
+        value: "title",
+        binding: { kind: "simple-path", segments: ["title"] }
+      }],
+      fallback: [{ type: "text", value: "Fallback heading" } as IRTextNode],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+    const HeaderHost = component({ name: "HeaderHost" }, (props: any) =>
+      renderIRNode(namedSlot, {
+        title: () => props.title,
+        slots: props.slots
+      })!
+    );
+    const projected: IRElementNode = {
+      type: "element",
+      tag: "HeaderHost",
+      props: [{ kind: "static", name: "title", value: "Records" }],
+      children: [{
+        type: "slot-template",
+        name: "header",
+        bindings: [{ prop: "title", local: "heading" }],
+        children: [{
+          type: "element",
+          tag: "h2",
+          props: [],
+          children: [{
+            type: "interp",
+            expression: "heading",
+            binding: { kind: "simple-path", segments: ["heading"] },
+            loc: undefined,
+            flags: { dynamic: true }
+          } as IRInterpolationNode],
+          loc: undefined,
+          flags: {}
+        } as IRElementNode],
+        loc: undefined,
+        flags: { dynamic: true }
+      } as IRSlotTemplateNode],
+      loc: undefined,
+      flags: {}
+    };
+    const fallback: IRElementNode = {
+      ...projected,
+      children: []
+    };
+
+    expect(renderIRNode(projected, { __components: { HeaderHost } })?.textContent)
+      .toBe("Records");
+    expect(renderIRNode(fallback, { __components: { HeaderHost } })?.textContent)
+      .toBe("Fallback heading");
   });
 
   it("routes a conditional literal child to its named component slot", async () => {

@@ -58,6 +58,21 @@ describe("parseSFC", () => {
     expect(sfc.meta).toEqual({});
     expect(sfc.routeOverride).toBeNull();
   });
+
+  it("preserves nested scoped slot template elements", () => {
+    const sfc = parseSFC(`
+      <template>
+        <VirtualScroller>
+          <template #default="{ item }">
+            <strong>{{ item.label }}</strong>
+          </template>
+        </VirtualScroller>
+      </template>
+    `, "/components/VirtualScrollerConsumer.tera");
+
+    expect(sfc.template).toContain(`<template #default="{ item }">`);
+    expect(sfc.template).toContain("<strong>{{ item.label }}</strong>");
+  });
 });
 
 describe("SFC Diagnostics", () => {

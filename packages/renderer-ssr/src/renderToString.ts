@@ -25,10 +25,7 @@ import type {
   IRForNode
 } from "@terajs/compiler";
 import type { SSRContext, SSRResult, SSRHydrationHint } from "./types.js";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isPlainObject, resolveExpr } from "./renderScope.js";
 
 function mergeValues(base: unknown, incoming: unknown): unknown {
   if (incoming === undefined) {
@@ -290,6 +287,8 @@ function renderNode(node: IRNode, scope: Record<string, unknown>): string {
       return renderPortal(node, scope);
     case "slot":
       return renderSlot(node, scope);
+    case "slot-template":
+      return node.children.map((child) => renderNode(child, scope)).join("");
     case "if":
       return renderIf(node, scope);
     case "for":
@@ -341,7 +340,21 @@ export function renderSlot(node: IRSlotNode, scope: Record<string, unknown>): st
   const slotValue = (scope.slots as Record<string, unknown> | undefined)?.[slotName];
 
   if (slotValue != null) {
-    return renderSlotValue(slotValue);
+    const slotProps = Object.fromEntries(
+      (node.props ?? [])
+        .filter((prop) => prop.kind === "static" || prop.kind === "bind")
+        .map((prop) => [
+          prop.name,
+          prop.kind === "bind"
+            ? resolveExpr(scope, String(prop.value))
+            : prop.value
+        ])
+    );
+    return renderSlotValue(
+      typeof slotValue === "function"
+        ? (slotValue as (props: Record<string, unknown>) => unknown)(slotProps)
+        : slotValue
+    );
   }
 
   return node.fallback.map((child) => renderNode(child, scope)).join("");
@@ -558,27 +571,6 @@ function escapeText(v: string): string {
  */
 function escapeAttr(v: string): string {
   return escapeText(v).replace(/"/g, "&quot;");
-}
-
-function resolveExpr(scope: Record<string, unknown>, expr: string): unknown {
-  if (expr in scope) {
-    const value = scope[expr];
-    return typeof value === "function" ? value() : value;
-  }
-
-  const parts = expr.split(".");
-  let current: unknown = scope;
-
-  for (const part of parts) {
-    if (current == null || typeof current !== "object") {
-      return undefined;
-    }
-
-    const value = (current as Record<string, unknown>)[part];
-    current = typeof value === "function" ? value() : value;
-  }
-
-  return current;
 }
 
 function renderSlotValue(value: unknown): string {
