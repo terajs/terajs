@@ -540,11 +540,8 @@ function createComponentCleanup(ctx: any): { active: () => boolean; dispose: () 
 
 function attachComponentCleanup(node: Node, cleanup: () => void): void {
   if (node instanceof DocumentFragment) {
-    const children = Array.from(node.childNodes);
-
-    for (const child of children) {
-      addNodeCleanup(child, cleanup);
-    }
+    const boundary = node.firstChild ?? node.appendChild(document.createComment("component"));
+    addNodeCleanup(boundary, cleanup);
 
     return;
   }

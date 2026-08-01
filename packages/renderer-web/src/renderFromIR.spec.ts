@@ -420,6 +420,74 @@ describe("IR -> DOM Renderer", () => {
     expect(dom.textContent).toBe("NO");
   });
 
+  it("keeps parent computeds alive when a component branch swaps to its fallback", async () => {
+    let finishLoading!: () => void;
+
+    const Loader = component({ name: "WorkspaceLoader" }, () => {
+      const element = document.createElement("span");
+      element.textContent = "Loading";
+      return element;
+    });
+    const Parent = component({ name: "WorkspaceShell" }, () => {
+      const loading = signal(true);
+      const title = computed(() => "Ready workspace");
+      finishLoading = () => loading.set(false);
+
+      const ir: IRModule = {
+        filePath: "/WorkspaceShell.tera",
+        template: [{
+          type: "if",
+          condition: "loading",
+          then: [{
+            type: "element",
+            tag: "Loader",
+            props: [],
+            children: [],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode],
+          else: [{
+            type: "element",
+            tag: "section",
+            props: [],
+            children: [{
+              type: "interp",
+              expression: "title.get()",
+              loc: undefined,
+              flags: { dynamic: true }
+            } as IRInterpolationNode],
+            loc: undefined,
+            flags: { hasDirectives: false }
+          } as IRElementNode],
+          loc: undefined,
+          flags: {}
+        } as IRIfNode],
+        meta: {},
+        route: null,
+        hasAsyncResource: false
+      };
+      const ctx = { loading, title, __components: { Loader } };
+
+      return () => renderIRModuleToFragment(ir, ctx);
+    });
+
+    const root = document.createElement("div");
+    root.appendChild(renderIRNode({
+      type: "element",
+      tag: "Parent",
+      props: [],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    } as IRElementNode, { __components: { Parent } })!);
+    expect(root.textContent).toBe("Loading");
+
+    finishLoading();
+    await tick();
+
+    expect(root.textContent).toBe("Ready workspace");
+  });
+
   it("does not rebuild an if branch when component setup state changes", async () => {
     const show = signal(true);
     const count = signal(1);
