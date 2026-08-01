@@ -14,6 +14,7 @@ import type {
   ElementNode,
   PortalNode,
   SlotNode,
+  SlotTemplateNode,
   TextNode,
   InterpolationNode,
   IfNode,
@@ -42,6 +43,9 @@ export function renderAst(node: ASTNode, ctx: any): any {
 
     case "slot":
       return renderSlot(node, ctx);
+
+    case "slot-template":
+      return renderSlotTemplate(node, ctx);
 
     case "if":
       return renderIf(node, ctx);
@@ -154,6 +158,14 @@ function renderSlot(node: SlotNode, ctx: any) {
   }
 
   return flatten(node.fallback.map((child) => renderAst(child, ctx)));
+}
+
+function renderSlotTemplate(node: SlotTemplateNode, ctx: any) {
+  emitRendererDebug("error:renderer", () => ({
+    message: "Slot templates must be direct children of a component",
+    name: node.name
+  }));
+  return flatten(node.children.map((child) => renderAst(child, ctx)));
 }
 
 /* -------------------------------------------------------------------------- */
